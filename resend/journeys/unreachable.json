@@ -1,0 +1,57 @@
+{
+  "code": [
+    {
+      "file": "semantics/doors.ts",
+      "declarations": [
+        "appCredentials"
+      ],
+      "why": "The runtime credentialDoor issues and reuses the World application key on boot; Kadewerk supplies its own dashboard-issued account keys. The life does not boot a consumer application. This World-only bootstrap is invoked by the runtime (resend/src/manifest.ts credentialDoor)."
+    },
+    {
+      "file": "semantics/clock.ts",
+      "declarations": [
+        "failVerification"
+      ],
+      "why": "A domain left without required DNS records can fail after 72 hours (https://resend.com/docs/add-a-domain). Hanne installs every record before verification, so no domain in this story times out."
+    },
+    {
+      "file": "server.ts",
+      "declarations": [
+        "createResendTwinServer"
+      ],
+      "why": "The host process around fetch is outside the in-process life and example measurements; conformance exercises this standalone server."
+    },
+    {
+      "file": "semantics/emails.ts",
+      "declarations": [
+        "schedule"
+      ],
+      "why": "Dub sends ISO scheduledAt through its native Resend request (demand.json). This life sends transactional messages immediately; a future scheduled_at is an optional documented send mode."
+    },
+    {
+      "file": "semantics/clock.ts",
+      "declarations": [
+        "releaseScheduled"
+      ],
+      "why": "The scheduled_at send option releases on its timestamp (SendEmailRequest). This life has no future-scheduled message, so the optional release clock has no subject."
+    }
+  ],
+  "state": [
+    {
+      "item": "move email.last_event: external delivered|opened \u2192 clicked",
+      "why": "Resend documents email.clicked (https://resend.com/docs/webhooks/email-clicked); Kadewerk turns click tracking off for program mail and no link click occurs in this story."
+    },
+    {
+      "item": "move domain.status: time pending \u2192 failed",
+      "why": "A domain without all DNS records can fail after 72 hours (https://resend.com/docs/add-a-domain). Hanne installs each record and the story verifies both domains."
+    },
+    {
+      "item": "move email.last_event: vendor queued \u2192 scheduled",
+      "why": "The documented scheduled_at mode is used by Dub (demand.json); all messages in this customer life send immediately."
+    },
+    {
+      "item": "move email.last_event: time scheduled \u2192 queued",
+      "why": "This is the release of the documented scheduled_at mode; the customer life contains only immediate messages."
+    }
+  ]
+}

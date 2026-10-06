@@ -1,0 +1,906 @@
+{
+  "vendor": "resend",
+  "host": "api.resend.com",
+  "author": "Contributor 40",
+  "about": "The published examples of the served email and domain operations; setup only establishes their preconditions or reads their effects. Reference request bodies are preserved, including the documented testing-domain refusal.",
+  "steps": [
+    {
+      "name": "Setup: dashboard key for the owner, the delivered test address",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "body": {
+        "name": "Examples",
+        "team": "Examples",
+        "owner": "delivered@resend.dev"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "capture": {
+        "key": "token"
+      }
+    },
+    {
+      "name": "Send Email: the published testing-domain send",
+      "method": "POST",
+      "path": "/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Acme <onboarding@resend.dev>",
+        "to": [
+          "delivered@resend.dev"
+        ],
+        "subject": "hello world",
+        "html": "<p>it works!</p>"
+      },
+      "capture": {
+        "sent": "id"
+      },
+      "example": "emails/send#doc emails_send-email"
+    },
+    {
+      "name": "Setup: delivery processing",
+      "wait": "1m"
+    },
+    {
+      "name": "Setup: read the send effect",
+      "method": "GET",
+      "path": "/emails/{sent}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{sent}"
+        },
+        {
+          "path": "from",
+          "equals": "Acme <onboarding@resend.dev>"
+        },
+        {
+          "path": "to",
+          "equals": [
+            "delivered@resend.dev"
+          ]
+        },
+        {
+          "path": "subject",
+          "equals": "hello world"
+        },
+        {
+          "path": "html",
+          "equals": "<p>it works!</p>"
+        },
+        {
+          "path": "last_event",
+          "equals": "delivered"
+        }
+      ]
+    },
+    {
+      "name": "Setup: the tagged email Retrieve Email reads",
+      "method": "POST",
+      "path": "/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Acme <onboarding@resend.dev>",
+        "to": [
+          "delivered@resend.dev"
+        ],
+        "subject": "Hello World",
+        "html": "Congrats on sending your <strong>first email</strong>!",
+        "tags": [
+          {
+            "name": "category",
+            "value": "confirm_email"
+          }
+        ]
+      },
+      "capture": {
+        "tagged": "id"
+      }
+    },
+    {
+      "name": "Setup: deliver the tagged email",
+      "wait": "1m"
+    },
+    {
+      "name": "Retrieve Email",
+      "method": "GET",
+      "path": "/emails/{tagged}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{tagged}"
+        },
+        {
+          "path": "from",
+          "equals": "Acme <onboarding@resend.dev>"
+        },
+        {
+          "path": "to",
+          "equals": [
+            "delivered@resend.dev"
+          ]
+        },
+        {
+          "path": "subject",
+          "equals": "Hello World"
+        },
+        {
+          "path": "html",
+          "equals": "Congrats on sending your <strong>first email</strong>!"
+        },
+        {
+          "path": "tags",
+          "equals": [
+            {
+              "name": "category",
+              "value": "confirm_email"
+            }
+          ]
+        },
+        {
+          "path": "last_event",
+          "equals": "delivered"
+        },
+        {
+          "path": "created_at",
+          "equals": "2026-01-01 00:01:00.000000+00"
+        }
+      ],
+      "example": "emails/get#doc emails_retrieve-email",
+      "undecided": {
+        "text": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "bcc": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "cc": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "reply_to": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "scheduled_at": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture."
+      }
+    },
+    {
+      "name": "Send Batch Emails: the page sends to two non-owner addresses from the testing domain",
+      "method": "POST",
+      "path": "/emails/batch",
+      "status": 403,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": [
+        {
+          "from": "Acme <onboarding@resend.dev>",
+          "to": [
+            "foo@gmail.com"
+          ],
+          "subject": "hello world",
+          "html": "<h1>it works!</h1>"
+        },
+        {
+          "from": "Acme <onboarding@resend.dev>",
+          "to": [
+            "bar@outlook.com"
+          ],
+          "subject": "world hello",
+          "html": "<p>it works!</p>"
+        }
+      ],
+      "expect": [
+        {
+          "path": "name",
+          "equals": "validation_error"
+        }
+      ],
+      "example": "emails/send-batch#doc emails_send-batch-emails",
+      "exampleDiffers": {
+        "status": "The page uses onboarding@resend.dev to foo@gmail.com and bar@outlook.com. The documented testing-domain restriction permits only the account owner (https://resend.com/docs/api-reference/errors: You can only send testing emails to your own email address). This account owns delivered@resend.dev; the published request is therefore refused 403.",
+        "data": "The documented validation_error refusal above carries no batch data."
+      }
+    },
+    {
+      "name": "Create Domain",
+      "method": "POST",
+      "path": "/domains",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "example.com"
+      },
+      "capture": {
+        "domain": "id",
+        "dkim": "records.0.value"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "example.com"
+        },
+        {
+          "path": "status",
+          "equals": "not_started"
+        }
+      ],
+      "example": "domains/create#doc domains_create-domain",
+      "undecided": {
+        "region": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "capabilities": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture."
+      }
+    },
+    {
+      "name": "Retrieve Domain: inspect the new domain",
+      "method": "GET",
+      "path": "/domains/{domain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{domain}"
+        },
+        {
+          "path": "name",
+          "equals": "example.com"
+        },
+        {
+          "path": "status",
+          "equals": "not_started"
+        },
+        {
+          "path": "created_at",
+          "equals": "2026-01-01 00:02:00.000000+00"
+        },
+        {
+          "path": "records.0.value",
+          "equals": "{dkim}"
+        }
+      ],
+      "example": "domains/get#doc domains_get-domain",
+      "exampleDiffers": {
+        "records[].priority": "Retrieve Domain puts an SPF MX record first and assigns that MX priority 10; Create Domain puts DKIM TXT first and supplies no priority for TXT (spec/doc-examples.json, both reference pages). The schema does not require a record order; this domain keeps the Create Domain order, so the first DKIM TXT has no MX priority."
+      },
+      "undecided": {
+        "region": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "capabilities": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "open_tracking": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "click_tracking": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture."
+      }
+    },
+    {
+      "name": "Update Domain",
+      "method": "PATCH",
+      "path": "/domains/{domain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "open_tracking": false,
+        "click_tracking": true,
+        "tracking_subdomain": "links",
+        "tls": "enforced"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{domain}"
+        }
+      ],
+      "example": "domains/update#doc domains_update-domain"
+    },
+    {
+      "name": "Setup: inspect the update effect",
+      "method": "GET",
+      "path": "/domains/{domain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{domain}"
+        },
+        {
+          "path": "open_tracking",
+          "equals": false
+        },
+        {
+          "path": "click_tracking",
+          "equals": true
+        },
+        {
+          "path": "tracking_subdomain",
+          "equals": "links"
+        },
+        {
+          "path": "records.3.name",
+          "equals": "links.example.com"
+        }
+      ]
+    },
+    {
+      "name": "Setup: DNS resend._domainkey.example.com TXT",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "body": {
+        "name": "resend._domainkey.example.com",
+        "type": "TXT",
+        "value": "{dkim}"
+      },
+      "headers": {
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "Setup: DNS send.example.com MX",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "body": {
+        "name": "send.example.com",
+        "type": "MX",
+        "value": "feedback-smtp.us-east-1.amazonses.com"
+      },
+      "headers": {
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "Setup: DNS send.example.com TXT",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "body": {
+        "name": "send.example.com",
+        "type": "TXT",
+        "value": "v=spf1 include:amazonses.com ~all"
+      },
+      "headers": {
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "Setup: DNS links.example.com CNAME",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "body": {
+        "name": "links.example.com",
+        "type": "CNAME",
+        "value": "links1.resend-dns.com"
+      },
+      "headers": {
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "Verify Domain",
+      "method": "POST",
+      "path": "/domains/{domain}/verify",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{domain}"
+        }
+      ],
+      "example": "domains/verify#doc domains_verify-domain"
+    },
+    {
+      "name": "Setup: the verification effect is pending",
+      "method": "GET",
+      "path": "/domains/{domain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{domain}"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ]
+    },
+    {
+      "name": "Setup: domain verification",
+      "wait": "11m"
+    },
+    {
+      "name": "List Domains",
+      "method": "GET",
+      "path": "/domains",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "list"
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{domain}"
+        },
+        {
+          "path": "data.0.name",
+          "equals": "example.com"
+        },
+        {
+          "path": "data.0.status",
+          "equals": "verified"
+        },
+        {
+          "path": "data.0.open_tracking",
+          "equals": false
+        },
+        {
+          "path": "data.0.click_tracking",
+          "equals": true
+        },
+        {
+          "path": "data.0.created_at",
+          "equals": "2026-01-01 00:02:00.000000+00"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ],
+      "example": "domains/list#doc domains_list-domains",
+      "undecided": {
+        "region": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "capabilities": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "data.0.capabilities": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture."
+      }
+    },
+    {
+      "name": "List Emails: two delivered examples, newest first",
+      "method": "GET",
+      "path": "/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "list"
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{tagged}"
+        },
+        {
+          "path": "data.0.from",
+          "equals": "Acme <onboarding@resend.dev>"
+        },
+        {
+          "path": "data.0.to",
+          "equals": [
+            "delivered@resend.dev"
+          ]
+        },
+        {
+          "path": "data.0.subject",
+          "equals": "Hello World"
+        },
+        {
+          "path": "data.0.created_at",
+          "equals": "2026-01-01 00:01:00.000000+00"
+        },
+        {
+          "path": "data.0.last_event",
+          "equals": "delivered"
+        },
+        {
+          "path": "data.1.id",
+          "equals": "{sent}"
+        },
+        {
+          "path": "data.1.from",
+          "equals": "Acme <onboarding@resend.dev>"
+        },
+        {
+          "path": "data.1.to",
+          "equals": [
+            "delivered@resend.dev"
+          ]
+        },
+        {
+          "path": "data.1.subject",
+          "equals": "hello world"
+        },
+        {
+          "path": "data.1.created_at",
+          "equals": "2026-01-01 00:00:00.000000+00"
+        },
+        {
+          "path": "data.1.last_event",
+          "equals": "delivered"
+        },
+        {
+          "path": "data.2",
+          "exists": false
+        }
+      ],
+      "example": "emails/list#doc emails_list-emails"
+    },
+    {
+      "name": "Setup: enable receiving on the verified domain",
+      "method": "PATCH",
+      "path": "/domains/{domain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "capabilities": {
+          "receiving": "enabled"
+        }
+      }
+    },
+    {
+      "name": "Setup: receiving MX at the DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "body": {
+        "name": "example.com",
+        "type": "MX",
+        "value": "inbound-smtp.us-east-1.amazonaws.com"
+      },
+      "headers": {
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "Setup: an incoming HTML message with valid inline PNG and PDF attachments and an observed Received for clause",
+      "method": "POST",
+      "path": "/_twin/inbound",
+      "status": 201,
+      "body": {
+        "from": "onboarding@resend.dev",
+        "to": [
+          "forwarded@example.com"
+        ],
+        "subject": "Hello World",
+        "html": "Congrats on sending your <strong>first email</strong>!",
+        "authentication": {
+          "spf": "pass",
+          "dkim": "pass",
+          "dmarc": "pass"
+        },
+        "headers": {
+          "received": "from outbound.resend.dev by inbound.example.com for <forwarded@example.com>; Thu, 1 Jan 2026 00:13:00 +0000"
+        },
+        "attachments": [
+          {
+            "filename": "avatar.png",
+            "content_type": "image/png",
+            "content_disposition": "inline",
+            "content_id": "img001",
+            "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
+          },
+          {
+            "filename": "document.pdf",
+            "content_type": "application/pdf",
+            "content_disposition": "attachment",
+            "content_id": null,
+            "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAzMDAgMTQ0XSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggNjQgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiAzNiA3MiBUZCAoUmVzZW5kIGluY29taW5nIHJlZmVyZW5jZSBmaXh0dXJlKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzExIDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDI0CiUlRU9GCg=="
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "capture": {
+        "received": "id"
+      }
+    },
+    {
+      "name": "Retrieve Received Email: the message with PNG and PDF attachments",
+      "method": "GET",
+      "path": "/emails/receiving/{received}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "capture": {
+        "raw": "raw.download_url",
+        "pngAttachment": "attachments.0.id",
+        "pdfAttachment": "attachments.1.id"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{received}"
+        },
+        {
+          "path": "from",
+          "equals": "onboarding@resend.dev"
+        },
+        {
+          "path": "to",
+          "equals": [
+            "forwarded@example.com"
+          ]
+        },
+        {
+          "path": "received_for",
+          "equals": [
+            "forwarded@example.com"
+          ]
+        },
+        {
+          "path": "subject",
+          "equals": "Hello World"
+        },
+        {
+          "path": "html",
+          "equals": "Congrats on sending your <strong>first email</strong>!"
+        },
+        {
+          "path": "authentication",
+          "equals": {
+            "spf": "pass",
+            "dkim": "pass",
+            "dmarc": "pass"
+          }
+        },
+        {
+          "path": "created_at",
+          "equals": "2026-01-01T00:13:00.000Z"
+        },
+        {
+          "path": "headers.from",
+          "equals": "onboarding@resend.dev"
+        },
+        {
+          "path": "headers.to",
+          "equals": "forwarded@example.com"
+        },
+        {
+          "path": "headers.subject",
+          "equals": "Hello World"
+        },
+        {
+          "path": "attachments",
+          "members": [
+            {
+              "id": "{pngAttachment}",
+              "filename": "avatar.png",
+              "content_type": "image/png",
+              "content_disposition": "inline",
+              "content_id": "img001",
+              "size": 70
+            },
+            {
+              "id": "{pdfAttachment}",
+              "filename": "document.pdf",
+              "content_type": "application/pdf",
+              "content_disposition": "attachment",
+              "content_id": null,
+              "size": 607
+            }
+          ]
+        },
+        {
+          "path": "headers.received",
+          "equals": "from outbound.resend.dev by inbound.example.com for <forwarded@example.com>; Thu, 1 Jan 2026 00:13:00 +0000"
+        }
+      ],
+      "example": "emails/get-receiving#doc emails_retrieve-received-email",
+      "exampleDiffers": {
+        "headers.return-path": "The page shows return-path of its example sender. This fixture submits an incoming message without a Return-Path header; the reference describes headers as the received email headers, not a required return-path field (https://resend.com/docs/api-reference/emails/retrieve-received-email)."
+      },
+      "undecided": {
+        "text": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "html_format": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "raw.expires_at": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture."
+      }
+    },
+    {
+      "name": "List Received Emails: the incoming example with PNG and PDF attachments",
+      "example": "emails/list-receiving#doc emails_list-received-emails",
+      "method": "GET",
+      "path": "/emails/receiving",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "list"
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{received}"
+        },
+        {
+          "path": "data.0.to",
+          "equals": [
+            "forwarded@example.com"
+          ]
+        },
+        {
+          "path": "data.0.from",
+          "equals": "onboarding@resend.dev"
+        },
+        {
+          "path": "data.0.subject",
+          "equals": "Hello World"
+        },
+        {
+          "path": "data.0.created_at",
+          "equals": "2026-01-01T00:13:00.000Z"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        },
+        {
+          "path": "data.0.attachments",
+          "members": [
+            {
+              "id": "{pngAttachment}",
+              "filename": "avatar.png",
+              "content_type": "image/png",
+              "content_disposition": "inline",
+              "content_id": "img001",
+              "size": 70
+            },
+            {
+              "id": "{pdfAttachment}",
+              "filename": "document.pdf",
+              "content_type": "application/pdf",
+              "content_disposition": "attachment",
+              "content_id": null,
+              "size": 607
+            }
+          ]
+        }
+      ],
+      "undecided": {
+        "data.0.bcc": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "data.0.cc": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
+        "data.0.reply_to": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture."
+      }
+    },
+    {
+      "name": "Setup: download the received raw MIME and verify its HTML and attachment bytes",
+      "method": "GET",
+      "path": "{raw}",
+      "status": 200,
+      "headers": {},
+      "expect": [
+        {
+          "path": "",
+          "contains": "subject: Hello World"
+        },
+        {
+          "path": "",
+          "contains": "content-type: text/html"
+        },
+        {
+          "path": "",
+          "contains": "Congrats on sending your <strong>first email</strong>!"
+        },
+        {
+          "path": "",
+          "contains": "content-type: image/png"
+        },
+        {
+          "path": "",
+          "contains": "filename=\"avatar.png\""
+        },
+        {
+          "path": "",
+          "contains": "content-id: <img001>"
+        },
+        {
+          "path": "",
+          "contains": "content-type: application/pdf"
+        },
+        {
+          "path": "",
+          "contains": "filename=\"document.pdf\""
+        },
+        {
+          "path": "",
+          "contains": "content-transfer-encoding: base64"
+        },
+        {
+          "path": "",
+          "contains": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
+        },
+        {
+          "path": "",
+          "contains": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAzMDAgMTQ0XSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggNjQgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiAzNiA3MiBUZCAoUmVzZW5kIGluY29taW5nIHJlZmVyZW5jZSBmaXh0dXJlKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzExIDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDI0CiUlRU9GCg=="
+        }
+      ]
+    },
+    {
+      "name": "Delete Domain",
+      "method": "DELETE",
+      "path": "/domains/{domain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{domain}"
+        },
+        {
+          "path": "deleted",
+          "equals": true
+        }
+      ],
+      "example": "domains/remove#doc domains_delete-domain"
+    },
+    {
+      "name": "Setup: the deleted domain is absent from its list",
+      "method": "GET",
+      "path": "/domains",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "data",
+          "equals": []
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        }
+      ]
+    }
+  ]
+}

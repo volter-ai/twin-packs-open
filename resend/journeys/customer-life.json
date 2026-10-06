@@ -1,0 +1,1194 @@
+{
+  "vendor": "resend",
+  "author": "Contributor 40",
+  "about": "Kadewerk's Resend team for a year (journeys/customer-life.outline.md): Dub's program domain set up and verified against its DNS and its mail delivered, opened and bounced; Twenty's receiving domain, its sent mail and a client's reply read with its raw message; Postiz's mail; the World platform's mail read back from the team's list; a leaked key; a domain removed.",
+  "steps": [
+    {
+      "name": "Monday 12 January, 09:00: Hanne sets up Kadewerk's Resend team",
+      "wait": "16380m"
+    },
+    {
+      "name": "The World: Hanne makes the key dub on the API Keys page",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "dub",
+        "team": "Kadewerk",
+        "owner": "hanne@kadewerk.be"
+      },
+      "capture": {
+        "k_dub": "token",
+        "k_dub_id": "id"
+      }
+    },
+    {
+      "name": "The World: Hanne makes the key twenty on the API Keys page",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "twenty",
+        "team": "Kadewerk",
+        "owner": "hanne@kadewerk.be"
+      },
+      "capture": {
+        "k_twenty": "token",
+        "k_twenty_id": "id"
+      }
+    },
+    {
+      "name": "The World: Hanne makes the key postiz on the API Keys page",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "postiz",
+        "team": "Kadewerk",
+        "owner": "hanne@kadewerk.be"
+      },
+      "capture": {
+        "k_postiz": "token",
+        "k_postiz_id": "id"
+      }
+    },
+    {
+      "name": "The World: Hanne makes the key worlds on the API Keys page",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "worlds",
+        "team": "Kadewerk",
+        "owner": "hanne@kadewerk.be"
+      },
+      "capture": {
+        "k_worlds": "token"
+      }
+    },
+    {
+      "name": "Dub's first send, before any domain is verified, is refused",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 403,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Kadewerk Partners <partners@mail.kadewerk.be>",
+        "to": [
+          "lotte@bloemenhuis.be"
+        ],
+        "subject": "Welcome to the Bloemenhuis partner program",
+        "html": "<p>Welcome, Lotte.</p>",
+        "text": "Welcome, Lotte."
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "validation_error"
+        },
+        {
+          "path": "message",
+          "equals": "The mail.kadewerk.be domain is not verified. Please, add and verify your domain."
+        }
+      ]
+    },
+    {
+      "name": "A test from resend.dev to Hanne herself goes through",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "onboarding@resend.dev",
+        "to": "hanne@kadewerk.be",
+        "subject": "Test",
+        "text": "Hello from Dub"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Dub creates the program's email domain by its name",
+      "method": "POST",
+      "path": "https://api.resend.com/domains",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "mail.kadewerk.be"
+      },
+      "capture": {
+        "dubDomain": "id",
+        "dubDkim": "records.0.value"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "not_started"
+        },
+        {
+          "path": "region",
+          "equals": "us-east-1"
+        },
+        {
+          "path": "records.1.value",
+          "equals": "feedback-smtp.us-east-1.amazonses.com"
+        },
+        {
+          "path": "records.0.name",
+          "equals": "resend._domainkey"
+        },
+        {
+          "path": "open_tracking",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Dub's queued job sets the domain's tracking and TLS",
+      "method": "PATCH",
+      "path": "https://api.resend.com/domains/{dubDomain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "open_tracking": true,
+        "click_tracking": false,
+        "tls": "enforced"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "domain"
+        },
+        {
+          "path": "id",
+          "equals": "{dubDomain}"
+        }
+      ]
+    },
+    {
+      "name": "Hanne checks the queued domain setup before installing its DNS records",
+      "method": "GET",
+      "path": "https://api.resend.com/domains/{dubDomain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "open_tracking",
+          "equals": true
+        },
+        {
+          "path": "click_tracking",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "twenty minutes later",
+      "wait": "20m"
+    },
+    {
+      "name": "Hanne sets TXT resend._domainkey.mail.kadewerk.be at the DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "resend._domainkey.mail.kadewerk.be",
+        "type": "TXT",
+        "value": "{dubDkim}"
+      }
+    },
+    {
+      "name": "Hanne sets MX send.mail.kadewerk.be at the DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "send.mail.kadewerk.be",
+        "type": "MX",
+        "value": "feedback-smtp.us-east-1.amazonses.com"
+      }
+    },
+    {
+      "name": "Hanne sets TXT send.mail.kadewerk.be at the DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "send.mail.kadewerk.be",
+        "type": "TXT",
+        "value": "v=spf1 include:amazonses.com ~all"
+      }
+    },
+    {
+      "name": "Dub asks Resend to verify it",
+      "method": "POST",
+      "path": "https://api.resend.com/domains/{dubDomain}/verify",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "domain"
+        }
+      ]
+    },
+    {
+      "name": "It is pending",
+      "method": "GET",
+      "path": "https://api.resend.com/domains/{dubDomain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "records.0.status",
+          "equals": "pending"
+        }
+      ]
+    },
+    {
+      "name": "eleven minutes later",
+      "wait": "11m"
+    },
+    {
+      "name": "Verified",
+      "method": "GET",
+      "path": "https://api.resend.com/domains/{dubDomain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "verified"
+        },
+        {
+          "path": "records.2.status",
+          "equals": "verified"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 13 January: Dub's program mail",
+      "wait": "1469m"
+    },
+    {
+      "name": "The World: Hanne adds Dub's webhook endpoint",
+      "method": "POST",
+      "path": "/_twin/webhooks",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "team": "Kadewerk",
+        "endpoint": "https://partners.kadewerk.be/api/resend/webhook",
+        "events": [
+          "email.delivered",
+          "email.opened",
+          "email.bounced"
+        ]
+      },
+      "capture": {
+        "dubSecret": "signing_secret"
+      },
+      "expect": [
+        {
+          "path": "signing_secret",
+          "contains": "whsec_"
+        }
+      ]
+    },
+    {
+      "name": "Dub sends Lotte's welcome",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Kadewerk Partners <partners@mail.kadewerk.be>",
+        "to": [
+          "lotte@bloemenhuis.be"
+        ],
+        "subject": "Welcome to the Bloemenhuis partner program",
+        "html": "<p>Welcome, Lotte.</p>",
+        "text": "Welcome, Lotte."
+      },
+      "capture": {
+        "welcome": "id"
+      }
+    },
+    {
+      "name": "a minute later",
+      "wait": "1m"
+    },
+    {
+      "name": "Hanne investigates the welcome delivery in Resend",
+      "method": "GET",
+      "path": "https://api.resend.com/emails/{welcome}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "last_event",
+          "equals": "delivered"
+        },
+        {
+          "path": "subject",
+          "equals": "Welcome to the Bloemenhuis partner program"
+        }
+      ]
+    },
+    {
+      "name": "Resend told Dub: email.delivered",
+      "method": "GET",
+      "path": "/_twin/deliveries?to=https%3A%2F%2Fpartners.kadewerk.be%2Fapi%2Fresend%2Fwebhook&type=email.delivered&email={welcome}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "deliveries.0.body.type",
+          "equals": "email.delivered"
+        },
+        {
+          "path": "deliveries.0.body.data.email_id",
+          "equals": "{welcome}"
+        },
+        {
+          "path": "deliveries.0.headers.svix-signature",
+          "contains": "v1,"
+        },
+        {
+          "path": "deliveries.0.body.data.to.0",
+          "equals": "lotte@bloemenhuis.be"
+        }
+      ]
+    },
+    {
+      "name": "The World: Lotte opens it",
+      "method": "POST",
+      "path": "/_twin/mail/{welcome}/open",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "to": "lotte@bloemenhuis.be"
+      },
+      "expect": [
+        {
+          "path": "tracked",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Resend told Dub: email.opened",
+      "method": "GET",
+      "path": "/_twin/deliveries?to=https%3A%2F%2Fpartners.kadewerk.be%2Fapi%2Fresend%2Fwebhook&type=email.opened&email={welcome}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "deliveries.0.body.type",
+          "equals": "email.opened"
+        },
+        {
+          "path": "deliveries.0.body.data.email_id",
+          "equals": "{welcome}"
+        },
+        {
+          "path": "deliveries.0.headers.svix-signature",
+          "contains": "v1,"
+        }
+      ]
+    },
+    {
+      "name": "The World: Van Rompuy Retail's mail server refuses outside mail",
+      "method": "POST",
+      "path": "/_twin/recipients/vanrompuy-retail.be",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "rejects": true
+      }
+    },
+    {
+      "name": "Dub sends three payout notices in one batch",
+      "method": "POST",
+      "path": "https://api.resend.com/emails/batch",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "body": [
+        {
+          "from": "Kadewerk Partners <partners@mail.kadewerk.be>",
+          "to": [
+            "lotte@bloemenhuis.be"
+          ],
+          "subject": "Your January payout",
+          "text": "Your payout is on its way, Lotte."
+        },
+        {
+          "from": "Kadewerk Partners <partners@mail.kadewerk.be>",
+          "to": [
+            "jef@vanrompuy-retail.be"
+          ],
+          "subject": "Your January payout",
+          "text": "Your payout is on its way, Jef."
+        },
+        {
+          "from": "Kadewerk Partners <partners@mail.kadewerk.be>",
+          "to": [
+            "sofie@kaaskelder.be"
+          ],
+          "subject": "Your January payout",
+          "text": "Your payout is on its way, Sofie."
+        }
+      ],
+      "capture": {
+        "n1": "data.0.id",
+        "n2": "data.1.id",
+        "n3": "data.2.id"
+      }
+    },
+    {
+      "name": "a minute later",
+      "wait": "1m"
+    },
+    {
+      "name": "Jef's bounced",
+      "method": "GET",
+      "path": "/_twin/deliveries?to=https%3A%2F%2Fpartners.kadewerk.be%2Fapi%2Fresend%2Fwebhook&type=email.bounced&email={n2}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "deliveries.0.body.type",
+          "equals": "email.bounced"
+        },
+        {
+          "path": "deliveries.0.body.data.email_id",
+          "equals": "{n2}"
+        },
+        {
+          "path": "deliveries.0.headers.svix-signature",
+          "contains": "v1,"
+        },
+        {
+          "path": "deliveries.0.body.data.to.0",
+          "equals": "jef@vanrompuy-retail.be"
+        },
+        {
+          "path": "deliveries.0.body.data.bounce.type",
+          "equals": "Permanent"
+        }
+      ]
+    },
+    {
+      "name": "Sofie's was delivered",
+      "method": "GET",
+      "path": "/_twin/deliveries?to=https%3A%2F%2Fpartners.kadewerk.be%2Fapi%2Fresend%2Fwebhook&type=email.delivered&email={n3}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "deliveries.0.body.type",
+          "equals": "email.delivered"
+        },
+        {
+          "path": "deliveries.0.body.data.email_id",
+          "equals": "{n3}"
+        },
+        {
+          "path": "deliveries.0.headers.svix-signature",
+          "contains": "v1,"
+        }
+      ]
+    },
+    {
+      "name": "Sofie's inbox has it",
+      "method": "GET",
+      "path": "/_twin/mail?to=sofie%40kaaskelder.be",
+      "status": 200,
+      "expect": [
+        {
+          "path": "mail.0.subject",
+          "equals": "Your January payout"
+        }
+      ]
+    },
+    {
+      "name": "Monday 2 February: Twenty's emailing domain, which receives",
+      "wait": "28768m"
+    },
+    {
+      "name": "Twenty creates crm.kadewerk.be with receiving enabled",
+      "method": "POST",
+      "path": "https://api.resend.com/domains",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {k_twenty}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "crm.kadewerk.be",
+        "region": "eu-west-1",
+        "capabilities": {
+          "sending": "enabled",
+          "receiving": "enabled"
+        }
+      },
+      "capture": {
+        "twDomain": "id",
+        "twDkim": "records.0.value"
+      },
+      "expect": [
+        {
+          "path": "records.3.record",
+          "equals": "Receiving"
+        },
+        {
+          "path": "records.3.value",
+          "equals": "inbound-smtp.eu-west-1.amazonaws.com"
+        }
+      ]
+    },
+    {
+      "name": "Hanne sets TXT resend._domainkey.crm.kadewerk.be",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "resend._domainkey.crm.kadewerk.be",
+        "type": "TXT",
+        "value": "{twDkim}"
+      }
+    },
+    {
+      "name": "Hanne sets MX send.crm.kadewerk.be",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "send.crm.kadewerk.be",
+        "type": "MX",
+        "value": "feedback-smtp.eu-west-1.amazonses.com"
+      }
+    },
+    {
+      "name": "Hanne sets TXT send.crm.kadewerk.be",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "send.crm.kadewerk.be",
+        "type": "TXT",
+        "value": "v=spf1 include:amazonses.com ~all"
+      }
+    },
+    {
+      "name": "Hanne sets MX crm.kadewerk.be",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "crm.kadewerk.be",
+        "type": "MX",
+        "value": "inbound-smtp.eu-west-1.amazonaws.com"
+      }
+    },
+    {
+      "name": "Twenty verifies it",
+      "method": "POST",
+      "path": "https://api.resend.com/domains/{twDomain}/verify",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_twenty}",
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "twelve minutes later",
+      "wait": "12m"
+    },
+    {
+      "name": "Twenty lists the domains: both verified",
+      "method": "GET",
+      "path": "https://api.resend.com/domains",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_twenty}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "data.0.name",
+          "equals": "crm.kadewerk.be"
+        },
+        {
+          "path": "data.0.status",
+          "equals": "verified"
+        },
+        {
+          "path": "data.1.status",
+          "equals": "verified"
+        },
+        {
+          "path": "data.0.records",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The World: Hanne adds Twenty's webhook endpoint",
+      "method": "POST",
+      "path": "/_twin/webhooks",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "team": "Kadewerk",
+        "endpoint": "https://crm.kadewerk.be/webhooks/resend",
+        "events": [
+          "email.received",
+          "email.delivered",
+          "email.bounced",
+          "email.complained"
+        ]
+      }
+    },
+    {
+      "name": "Anna, an account manager, emails a client from Twenty",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_twenty}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Anna Claes <anna@crm.kadewerk.be>",
+        "to": "bart@delhaize-noord.be",
+        "subject": "Q1 partner review",
+        "html": "<p>Bart, shall we meet on the 12th?</p>"
+      },
+      "capture": {
+        "anna1": "id"
+      }
+    },
+    {
+      "name": "a minute later",
+      "wait": "1m"
+    },
+    {
+      "name": "Twenty reads it back",
+      "method": "GET",
+      "path": "https://api.resend.com/emails/{anna1}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_twenty}",
+        "content-type": "application/json"
+      },
+      "capture": {
+        "anna1Msg": "message_id"
+      },
+      "expect": [
+        {
+          "path": "last_event",
+          "equals": "delivered"
+        },
+        {
+          "path": "from",
+          "equals": "Anna Claes <anna@crm.kadewerk.be>"
+        }
+      ]
+    },
+    {
+      "name": "forty-five minutes later",
+      "wait": "45m"
+    },
+    {
+      "name": "The World: Bart replies",
+      "method": "POST",
+      "path": "/_twin/inbound",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Bart Wouters <bart@delhaize-noord.be>",
+        "to": "anna@crm.kadewerk.be",
+        "subject": "Re: Q1 partner review",
+        "text": "The 12th works. Bart",
+        "inReplyTo": "{anna1Msg}"
+      },
+      "capture": {
+        "reply": "id"
+      }
+    },
+    {
+      "name": "Resend tells Twenty: email.received",
+      "method": "GET",
+      "path": "/_twin/deliveries?to=https%3A%2F%2Fcrm.kadewerk.be%2Fwebhooks%2Fresend&type=email.received&email={reply}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "deliveries.0.body.type",
+          "equals": "email.received"
+        },
+        {
+          "path": "deliveries.0.body.data.email_id",
+          "equals": "{reply}"
+        },
+        {
+          "path": "deliveries.0.headers.svix-signature",
+          "contains": "v1,"
+        },
+        {
+          "path": "deliveries.0.body.data.subject",
+          "equals": "Re: Q1 partner review"
+        }
+      ]
+    },
+    {
+      "name": "Twenty reads the received email",
+      "method": "GET",
+      "path": "https://api.resend.com/emails/receiving/{reply}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_twenty}",
+        "content-type": "application/json"
+      },
+      "capture": {
+        "raw": "raw.download_url"
+      },
+      "expect": [
+        {
+          "path": "from",
+          "equals": "Bart Wouters <bart@delhaize-noord.be>"
+        },
+        {
+          "path": "text",
+          "equals": "The 12th works. Bart"
+        },
+        {
+          "path": "headers.in-reply-to",
+          "equals": "{anna1Msg}"
+        }
+      ]
+    },
+    {
+      "name": "and downloads its raw message at the pre-signed URL, no key",
+      "method": "GET",
+      "path": "{raw}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "in-reply-to: {anna1Msg}"
+        }
+      ]
+    },
+    {
+      "name": "Monday 16 February: a follow-up is marked as spam",
+      "wait": "20372m"
+    },
+    {
+      "name": "Anna follows up with another client",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_twenty}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "anna@crm.kadewerk.be",
+        "to": [
+          "koen@carrefour-zuid.be"
+        ],
+        "subject": "Partner program brochure",
+        "text": "Koen, the partner brochure is at https://kadewerk.be/partners/brochure.pdf."
+      },
+      "capture": {
+        "anna2": "id"
+      }
+    },
+    {
+      "name": "two minutes later",
+      "wait": "2m"
+    },
+    {
+      "name": "The World: Koen marks it as spam",
+      "method": "POST",
+      "path": "/_twin/mail/{anna2}/complain",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "to": "koen@carrefour-zuid.be"
+      },
+      "expect": [
+        {
+          "path": "last_event",
+          "equals": "complained"
+        }
+      ]
+    },
+    {
+      "name": "Resend tells Twenty: email.complained",
+      "method": "GET",
+      "path": "/_twin/deliveries?to=https%3A%2F%2Fcrm.kadewerk.be%2Fwebhooks%2Fresend&type=email.complained&email={anna2}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "deliveries.0.body.type",
+          "equals": "email.complained"
+        },
+        {
+          "path": "deliveries.0.body.data.email_id",
+          "equals": "{anna2}"
+        },
+        {
+          "path": "deliveries.0.headers.svix-signature",
+          "contains": "v1,"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 4 March: Postiz tells a client their post went out",
+      "wait": "22858m"
+    },
+    {
+      "name": "Postiz mails Els from the program domain, replies to Hanne",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_postiz}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Kadewerk Social <social@mail.kadewerk.be>",
+        "to": "els@kadewerk.be",
+        "subject": "Your post to Bloemenhuis's LinkedIn was published",
+        "html": "<p>Your scheduled post was published at 09:00.</p>",
+        "reply_to": "hanne@kadewerk.be"
+      },
+      "capture": {
+        "postiz1": "id"
+      }
+    },
+    {
+      "name": "a minute later",
+      "wait": "1m"
+    },
+    {
+      "name": "Els's inbox has it",
+      "method": "GET",
+      "path": "/_twin/mail?to=els%40kadewerk.be",
+      "status": 200,
+      "expect": [
+        {
+          "path": "mail.0.id",
+          "equals": "{postiz1}"
+        },
+        {
+          "path": "mail.0.subject",
+          "equals": "Your post to Bloemenhuis's LinkedIn was published"
+        }
+      ]
+    },
+    {
+      "name": "Hanne checks the reply address after Els reports the notification",
+      "method": "GET",
+      "path": "https://api.resend.com/emails/{postiz1}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_postiz}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "reply_to",
+          "members": [
+            "hanne@kadewerk.be"
+          ]
+        },
+        {
+          "path": "last_event",
+          "equals": "delivered"
+        }
+      ]
+    },
+    {
+      "name": "Friday 20 March, 03:12: Kadewerk's World platform tells Bart he was added",
+      "wait": "22572m"
+    },
+    {
+      "name": "The platform mails Bart, text only",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_worlds}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "worlds@mail.kadewerk.be",
+        "to": [
+          "bart@kadewerk.be"
+        ],
+        "subject": "You were added to Kadewerk",
+        "text": "Hanne added you to the organization Kadewerk."
+      },
+      "capture": {
+        "added": "id"
+      }
+    },
+    {
+      "name": "a minute later",
+      "wait": "1m"
+    },
+    {
+      "name": "The platform reads the team's sent mail back, newest first",
+      "method": "GET",
+      "path": "https://api.resend.com/emails?limit=2",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_worlds}",
+        "content-type": "application/json"
+      },
+      "capture": {
+        "second": "data.1.id"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "list"
+        },
+        {
+          "path": "has_more",
+          "equals": true
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{added}"
+        },
+        {
+          "path": "data.0.last_event",
+          "equals": "delivered"
+        },
+        {
+          "path": "data.0.html",
+          "exists": false
+        },
+        {
+          "path": "data.1.id",
+          "equals": "{postiz1}"
+        }
+      ]
+    },
+    {
+      "name": "and the page after it",
+      "method": "GET",
+      "path": "https://api.resend.com/emails?limit=2&after={second}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_worlds}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "exists": true
+        },
+        {
+          "path": "data.0.id",
+          "notContains": "{postiz1}"
+        }
+      ]
+    },
+    {
+      "name": "Thursday 16 April: the postiz key leaks",
+      "wait": "39197m"
+    },
+    {
+      "name": "The World: Hanne deletes it on the API Keys page",
+      "method": "DELETE",
+      "path": "/_twin/api-keys/{k_postiz_id}",
+      "status": 204
+    },
+    {
+      "name": "A queued Postiz job still carries the leaked key and is refused before Hanne updates its configuration",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 403,
+      "headers": {
+        "authorization": "Bearer {k_postiz}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Kadewerk Social <social@mail.kadewerk.be>",
+        "to": "nina@kadewerk.be",
+        "subject": "Your post was published",
+        "html": "<p>Published.</p>"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "restricted_api_key"
+        },
+        {
+          "path": "message",
+          "equals": "API key is not active"
+        }
+      ]
+    },
+    {
+      "name": "The World: she makes postiz-2",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "postiz-2",
+        "team": "Kadewerk",
+        "owner": "hanne@kadewerk.be"
+      },
+      "capture": {
+        "k_postiz2": "token"
+      }
+    },
+    {
+      "name": "Postiz, with the new key, mails Nina",
+      "method": "POST",
+      "path": "https://api.resend.com/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_postiz2}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Kadewerk Social <social@mail.kadewerk.be>",
+        "to": "nina@kadewerk.be",
+        "subject": "Your post was published",
+        "html": "<p>Published.</p>"
+      }
+    },
+    {
+      "name": "Monday 7 September: Dub's first program ends",
+      "wait": "207450m"
+    },
+    {
+      "name": "Dub removes its email domain",
+      "method": "DELETE",
+      "path": "https://api.resend.com/domains/{dubDomain}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "deleted",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The team's domains: Twenty's alone",
+      "method": "GET",
+      "path": "https://api.resend.com/domains",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k_dub}",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "data.0.name",
+          "equals": "crm.kadewerk.be"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ]
+    }
+  ]
+}

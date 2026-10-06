@@ -1,0 +1,222 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "twin (volter-ai/twin-world)",
+      "commit": "96ca4478bb39",
+      "client": "resend ^6.26.0",
+      "backend": [
+        {
+          "call": "resend.emails.send({ from, to, subject, text }): the platform's own mail (a member added or invited, a World deleted, the biller's notices)",
+          "operation": "emails/send",
+          "evidence": "apps/platform/src/mail.ts:21"
+        }
+      ]
+    },
+    {
+      "name": "twin-world's platform callers (the Postiz cookbook and vendor-backed root)",
+      "commit": "96ca4478bb39",
+      "client": "fetch against the resend twin and api.resend.com",
+      "backend": [
+        {
+          "call": "GET /domains, POST /domains, POST /domains/{id}/verify: Postiz's sending domain, added and verified through Resend's API",
+          "operation": "domains/list; domains/create; domains/verify",
+          "evidence": "cookbook/postiz/seed-serve.mjs:35; :38; :39"
+        }
+      ]
+    },
+    {
+      "name": "Resend derived refresh (twin-packs-p3)",
+      "commit": "1ffc43bdaab253acde7d356989c1eaaac12a5503",
+      "client": "kernel RemoteExecute through the pack manifest",
+      "backend": [
+        {
+          "call": "a vendor-backed root refreshes the team's emails and domains from their lists (architecture, The real-system adapters: Refresh)",
+          "operation": "emails/list; domains/list",
+          "evidence": "resend/src/manifest.ts:113-114"
+        },
+        {
+          "call": "Vendor-backed refresh reads received emails from their native whole-account list and detail operations",
+          "operation": "emails/list-receiving",
+          "evidence": "resend/src/manifest.ts:117"
+        }
+      ]
+    },
+    {
+      "commit": "e0a08a7d9592fdc1ef1e82cb7cb781489fceade3",
+      "client": "resend ^3.2.0",
+      "backend": [
+        {
+          "call": "resend.emails.send({ from: 'Name <address>', to, subject, html, reply_to? }): every mail Postiz sends with EMAIL_PROVIDER=resend",
+          "operation": "emails/send",
+          "evidence": "libraries/nestjs-libraries/src/emails/resend.provider.ts:18"
+        }
+      ],
+      "name": "gitroomhq/postiz-app"
+    },
+    {
+      "commit": "7e0101363b2a",
+      "client": "resend 6.6.0",
+      "backend": [
+        {
+          "call": "resend.emails.send: every transactional email (from, to, subject, react/html, text, replyTo, headers, tags); scheduledAt is passed from the batch-email cron payload",
+          "operation": "emails/send",
+          "evidence": "packages/email/src/send-via-resend.ts:100; apps/web/app/(ee)/api/cron/send-batch-email/route.ts:82"
+        },
+        {
+          "call": "resend.batch.send: up to 100 emails in one call (partner and program notifications)",
+          "operation": "emails/send-batch",
+          "evidence": "packages/email/src/send-via-resend.ts:149"
+        },
+        {
+          "call": "resend.domains.create({ name }): a program's email domain",
+          "operation": "domains/create",
+          "evidence": "apps/web/app/(ee)/api/email-domains/route.ts:69"
+        },
+        {
+          "call": "resend.domains.create({ name }): the domain renamed",
+          "operation": "domains/create",
+          "evidence": "apps/web/app/(ee)/api/email-domains/[domain]/route.ts:72"
+        },
+        {
+          "call": "resend.domains.update({ id, openTracking: true, clickTracking: false, tls: 'enforced' }): the domain's settings, from the queued job after its creation",
+          "operation": "domains/update",
+          "evidence": "apps/web/app/(ee)/api/cron/email-domains/update/route.ts:42"
+        },
+        {
+          "call": "resend.domains.get: its records and status (forwarding instructions)",
+          "operation": "domains/get",
+          "evidence": "apps/web/app/(ee)/api/email-domains/[domain]/forward-instructions/route.ts:55"
+        },
+        {
+          "call": "resend.domains.get: its records, applied through Domain Connect",
+          "operation": "domains/get",
+          "evidence": "apps/web/app/(ee)/api/email-domains/[domain]/domain-connect/apply/route.ts:52"
+        },
+        {
+          "call": "resend.domains.get: its status before verifying",
+          "operation": "domains/get",
+          "evidence": "apps/web/app/(ee)/api/email-domains/[domain]/verify/route.ts:38"
+        },
+        {
+          "call": "resend.domains.verify: start verification once the records are set",
+          "operation": "domains/verify",
+          "evidence": "apps/web/app/(ee)/api/email-domains/[domain]/verify/route.ts:53"
+        },
+        {
+          "call": "resend.domains.remove: a domain left when its creation fails",
+          "operation": "domains/remove",
+          "evidence": "apps/web/app/(ee)/api/email-domains/route.ts:122"
+        },
+        {
+          "call": "resend.domains.remove: a domain renamed or deleted",
+          "operation": "domains/remove",
+          "evidence": "apps/web/app/(ee)/api/email-domains/[domain]/route.ts:69"
+        }
+      ],
+      "webhooks": [
+        {
+          "call": "Resend's webhooks to /api/resend/webhook, verified with svix (RESEND_WEBHOOK_SECRET): email.opened, email.delivered, email.bounced, each read by data.email_id",
+          "operation": "webhooks (event delivery)",
+          "evidence": "apps/web/app/api/resend/webhook/route.ts:16-33"
+        }
+      ],
+      "name": "dubinc/dub",
+      "gate": "Resend is the first-choice shipped mail transport; SMTP is an automatic credential fallback, without a provider switch (packages/email/src/index.ts:6-23)."
+    },
+    {
+      "name": "calcom/cal.diy",
+      "client": "Nodemailer SMTP transport to smtp.resend.com",
+      "backend": [
+        {
+          "call": "Nodemailer SMTP submission to smtp.resend.com",
+          "operation": "SMTP submission (served by smtp, not a Resend REST operation)",
+          "evidence": "packages/lib/serverConfig.ts:8-20"
+        }
+      ],
+      "commit": "54343aa685ae",
+      "gate": "The shipped mail transport selects smtp.resend.com when its credential is supplied; it uses Nodemailer SMTP, not Resend REST (packages/lib/serverConfig.ts:8-20).",
+      "evidence": "(packages/lib/serverConfig.ts:9-20",
+      "wire": "smtp"
+    }
+  ],
+  "optional": [
+    {
+      "application": "gitroomhq/postiz-app",
+      "what": "Transactional mail through the selected resend provider.",
+      "setting": "Configuration opt-in (1): EMAIL_PROVIDER=resend selects a non-default mail provider. libraries/nestjs-libraries/src/services/email.service.ts:13 reads the setting; :26-33 selects Resend or Nodemailer and defaults to EmptyProvider at :32-33. Sender and transport credentials authorize the selected provider; they do not select it.",
+      "evidence": "libraries/nestjs-libraries/src/services/email.service.ts:13,26-33",
+      "commit": "e0a08a7d9592",
+      "client": "resend ^3.2.0",
+      "backend": [
+        {
+          "call": "resend.emails.send({ from: 'Name <address>', to, subject, html, reply_to? }): every mail Postiz sends with EMAIL_PROVIDER=resend",
+          "operation": "emails/send",
+          "evidence": "libraries/nestjs-libraries/src/emails/resend.provider.ts:18"
+        }
+      ]
+    },
+    {
+      "commit": "1d561b8c73c984058a5121ec229f4805a2424a91",
+      "client": "fetch against https://api.resend.com",
+      "backend": [
+        {
+          "call": "POST /emails: one outbound mail from a workspace's emailing domain including base64 attachment content, filename and content_type",
+          "operation": "emails/send",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:24; packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-driver.service.ts:155"
+        },
+        {
+          "call": "POST /emails/batch: several at once",
+          "operation": "emails/send-batch",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:30"
+        },
+        {
+          "call": "POST /domains { name, region? }: the workspace's emailing domain, when the list names none",
+          "operation": "domains/create",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:41"
+        },
+        {
+          "call": "GET /domains/{id}: its records and status",
+          "operation": "domains/get",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:45"
+        },
+        {
+          "call": "GET /domains: the team's domains, searched by name",
+          "operation": "domains/list",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:49"
+        },
+        {
+          "call": "POST /domains/{id}/verify",
+          "operation": "domains/verify",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:53"
+        },
+        {
+          "call": "DELETE /domains/{id}",
+          "operation": "domains/remove",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:57"
+        },
+        {
+          "call": "GET /emails/{id}: a sent email",
+          "operation": "emails/get",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:61"
+        },
+        {
+          "call": "GET /emails/receiving/{id}: an inbound reply, then its raw message at raw.download_url (pre-signed, no Authorization; the inbound-cdn screen)",
+          "operation": "emails/get-receiving",
+          "evidence": "packages/twenty-server/src/engine/core-modules/emailing-domain/drivers/resend/services/resend-api-client.service.ts:67; :73"
+        }
+      ],
+      "webhooks": [
+        {
+          "call": "Resend's webhooks verified with svix: email.received (inbound), email.delivered, email.bounced, email.complained, email.failed",
+          "operation": "webhooks (event delivery)",
+          "evidence": "packages/twenty-server/src/modules/messaging-webhooks/drivers/resend/services/resend-webhook-driver.service.ts:49; packages/twenty-server/src/modules/messaging-webhooks/drivers/resend/utils/resolve-resend-outbound-delivery-outcome.util.ts:20-54"
+        }
+      ],
+      "application": "twentyhq/twenty",
+      "what": "fetch against https://api.resend.com",
+      "setting": "Configuration (1): EMAILING_DOMAIN_DRIVER=RESEND replaces LOG; this concerns emailing-domain provisioning, not SMTP messaging (packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:2364).",
+      "evidence": "packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:2364; (packages/twenty-server/.env.example:151"
+    }
+  ]
+}
