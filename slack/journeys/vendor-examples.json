@@ -1,0 +1,6851 @@
+{
+  "vendor": "slack",
+  "author": "vendor-examples builder (slack)",
+  "about": "Slack's published Web API examples (the responses in spec/openapi.json.gz), replayed in Juniper, a design studio's workspace, over its spring launch: its members, its bot and its org admin, identity provider and sign-in apps installed with the scopes their calls need, and each example's precondition made true by the steps before it. Each refusal comes from a cause the steps make true; invalid_auth is a deploy that sent its app's signing secret as its token.",
+  "steps": [
+    {
+      "name": "Maya creates the Juniper workspace, which makes her its primary owner",
+      "method": "POST",
+      "path": "https://slack.com/get-started",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "email": "maya@juniper.studio",
+        "name": "Maya Okafor",
+        "team_name": "Juniper"
+      },
+      "status": 201
+    },
+    {
+      "name": "Maya invites Theo",
+      "method": "POST",
+      "path": "https://slack.com/invite",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "email": "theo@juniper.studio"
+      },
+      "status": 201
+    },
+    {
+      "name": "Theo opens the invitation email",
+      "method": "GET",
+      "path": "/_twin/mail?to=theo@juniper.studio",
+      "status": 200,
+      "capture": {
+        "theo_join": "mail.0.links.0.href"
+      },
+      "expect": [
+        {
+          "path": "mail.0.to",
+          "equals": "theo@juniper.studio"
+        }
+      ]
+    },
+    {
+      "name": "Theo joins with the name Theo Marsh",
+      "method": "POST",
+      "path": "{theo_join}",
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "body": {
+        "name": "Theo Marsh"
+      },
+      "status": 201
+    },
+    {
+      "name": "Maya invites Lena",
+      "method": "POST",
+      "path": "https://slack.com/invite",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "email": "lena@juniper.studio"
+      },
+      "status": 201
+    },
+    {
+      "name": "Lena opens the invitation email",
+      "method": "GET",
+      "path": "/_twin/mail?to=lena@juniper.studio",
+      "status": 200,
+      "capture": {
+        "lena_join": "mail.0.links.0.href"
+      },
+      "expect": [
+        {
+          "path": "mail.0.to",
+          "equals": "lena@juniper.studio"
+        }
+      ]
+    },
+    {
+      "name": "Lena joins with the name Lena Fischer",
+      "method": "POST",
+      "path": "{lena_join}",
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "body": {
+        "name": "Lena Fischer"
+      },
+      "status": 201
+    },
+    {
+      "name": "Maya generates an app configuration token on Your Apps",
+      "method": "POST",
+      "path": "https://api.slack.com/apps",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "team": "T0VOLTER01"
+      },
+      "status": 201,
+      "capture": {
+        "cfg": "text:access token is (xoxe\\.xoxp-[A-Za-z0-9-]+)"
+      }
+    },
+    {
+      "name": "She creates the studio's bot, Juniper Bot, from its manifest",
+      "method": "POST",
+      "path": "/api/apps.manifest.create",
+      "body": {
+        "manifest": {
+          "display_information": {
+            "name": "Juniper Bot",
+            "description": "Launch reminders and studio chores"
+          },
+          "features": {
+            "bot_user": {
+              "display_name": "juniper",
+              "always_online": true
+            },
+            "slash_commands": [
+              {
+                "command": "/launch",
+                "url": "https://bot.juniper.studio/slack/commands",
+                "description": "Plan a launch task"
+              }
+            ]
+          },
+          "settings": {
+            "interactivity": {
+              "is_enabled": true,
+              "request_url": "https://bot.juniper.studio/slack/interactions"
+            }
+          },
+          "oauth_config": {
+            "redirect_urls": [
+              "https://bot.juniper.studio/slack/oauth"
+            ],
+            "scopes": {
+              "bot": [
+                "calls:read",
+                "calls:write",
+                "channels:history",
+                "commands",
+                "channels:join",
+                "channels:manage",
+                "channels:read",
+                "chat:write",
+                "chat:write.customize",
+                "dnd:read",
+                "emoji:read",
+                "files:read",
+                "files:write",
+                "groups:read",
+                "groups:write",
+                "im:read",
+                "im:write",
+                "links:write",
+                "pins:read",
+                "pins:write",
+                "reactions:read",
+                "reactions:write",
+                "remote_files:read",
+                "remote_files:write",
+                "team:read",
+                "tokens.basic",
+                "usergroups:read",
+                "usergroups:write",
+                "users.profile:read",
+                "users:read",
+                "users:read.email"
+              ],
+              "user": [
+                "admin",
+                "dnd:read",
+                "dnd:write",
+                "reminders:read",
+                "reminders:write",
+                "search:read",
+                "stars:read",
+                "stars:write",
+                "users.profile:write",
+                "users:write"
+              ]
+            }
+          }
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {cfg}"
+      },
+      "capture": {
+        "app": "app_id",
+        "client_id": "credentials.client_id",
+        "client_secret": "credentials.client_secret",
+        "signing_secret": "credentials.signing_secret"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Maya installs it and allows its bot and user scopes; Slack sends her back with a code",
+      "method": "POST",
+      "path": "/oauth/v2/authorize",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "client_id": "{client_id}",
+        "scope": "calls:read,calls:write,channels:history,commands,channels:join,channels:manage,channels:read,chat:write,chat:write.customize,dnd:read,emoji:read,files:read,files:write,groups:read,groups:write,im:read,im:write,links:write,pins:read,pins:write,reactions:read,reactions:write,remote_files:read,remote_files:write,team:read,tokens.basic,usergroups:read,usergroups:write,users.profile:read,users:read,users:read.email",
+        "user_scope": "admin,dnd:read,dnd:write,reminders:read,reminders:write,search:read,stars:read,stars:write,users.profile:write,users:write",
+        "redirect_uri": "https://bot.juniper.studio/slack/oauth",
+        "state": "jb-1",
+        "answer": "allow"
+      },
+      "status": 302,
+      "capture": {
+        "code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "jb-1"
+        }
+      ]
+    },
+    {
+      "name": "The bot's install handler exchanges the code for its bot token and Maya's user token (published example)",
+      "method": "POST",
+      "path": "/api/oauth.v2.access",
+      "body": {
+        "client_id": "{client_id}",
+        "client_secret": "{client_secret}",
+        "code": "{code}",
+        "redirect_uri": "https://bot.juniper.studio/slack/oauth"
+      },
+      "capture": {
+        "bot": "access_token",
+        "bot_user": "bot_user_id",
+        "maya_app": "authed_user.access_token"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "token_type",
+          "equals": "bot"
+        },
+        {
+          "path": "app_id",
+          "equals": "{app}"
+        },
+        {
+          "path": "scope",
+          "equals": "calls:read,calls:write,channels:history,commands,channels:join,channels:manage,channels:read,chat:write,chat:write.customize,dnd:read,emoji:read,files:read,files:write,groups:read,groups:write,im:read,im:write,links:write,pins:read,pins:write,reactions:read,reactions:write,remote_files:read,remote_files:write,team:read,tokens.basic,usergroups:read,usergroups:write,users.profile:read,users:read,users:read.email"
+        },
+        {
+          "path": "authed_user.id",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "authed_user.scope",
+          "equals": "admin,dnd:read,dnd:write,reminders:read,reminders:write,search:read,stars:read,stars:write,users.profile:write,users:write"
+        },
+        {
+          "path": "authed_user.token_type",
+          "equals": "user"
+        },
+        {
+          "path": "team.id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "is_enterprise_install",
+          "equals": false
+        },
+        {
+          "path": "refresh_token",
+          "exists": false
+        },
+        {
+          "path": "expires_in",
+          "exists": false
+        },
+        {
+          "path": "team.name",
+          "equals": "Juniper"
+        },
+        {
+          "path": "enterprise",
+          "equals": null
+        }
+      ],
+      "example": "oauth_v2_access#200 application/json",
+      "exampleDiffers": {
+        "enterprise": "Juniper is an ordinary workspace, in no Enterprise Grid org (the World's Slack, src/manifest.ts; Grid's admin methods are unmodeled): an install on a workspace outside an org answers `enterprise` null (\"enterprise: \u2026 null if not installed in an Enterprise Grid org\", https://docs.slack.dev/reference/methods/oauth.v2.access)."
+      }
+    },
+    {
+      "name": "A second install handler exchanges a code without naming its app: it sends no client_id",
+      "method": "POST",
+      "path": "/api/oauth.v2.access",
+      "body": {
+        "client_secret": "{client_secret}",
+        "code": "{code}",
+        "redirect_uri": "https://bot.juniper.studio/slack/oauth"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_client_id"
+        }
+      ],
+      "example": "oauth_v2_access#default application/json"
+    },
+    {
+      "name": "The bot checks who its token is (published example)",
+      "method": "POST",
+      "path": "/api/auth.test",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "bot_id": "bot_id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "user_id",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "team",
+          "equals": "Juniper"
+        },
+        {
+          "path": "url",
+          "equals": "https://juniper.slack.com/"
+        },
+        {
+          "path": "user",
+          "equals": "juniper"
+        },
+        {
+          "path": "app_id",
+          "equals": "{app}"
+        }
+      ],
+      "example": "auth_test#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls auth.test; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/auth.test",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "auth_test#default application/json"
+    },
+    {
+      "name": "Maya creates #launch for the spring launch (published example)",
+      "method": "POST",
+      "path": "/api/conversations.create",
+      "body": {
+        "name": "launch"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "capture": {
+        "launch": "channel.id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.name",
+          "equals": "launch"
+        },
+        {
+          "path": "channel.name_normalized",
+          "equals": "launch"
+        },
+        {
+          "path": "channel.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.is_private",
+          "equals": false
+        },
+        {
+          "path": "channel.is_member",
+          "equals": true
+        },
+        {
+          "path": "channel.topic.creator",
+          "equals": ""
+        },
+        {
+          "path": "channel.purpose.creator",
+          "equals": ""
+        },
+        {
+          "path": "channel.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channel.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channel.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channel.previous_names",
+          "equals": []
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "conversations_create#200 application/json"
+    },
+    {
+      "name": "Theo tries to create #launch too; the name is taken",
+      "method": "POST",
+      "path": "/api/conversations.create",
+      "body": {
+        "name": "launch"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "name_taken"
+        }
+      ],
+      "example": "conversations_create#default application/json"
+    },
+    {
+      "name": "Theo joins #launch",
+      "method": "POST",
+      "path": "/api/conversations.join",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{launch}"
+        }
+      ]
+    },
+    {
+      "name": "Theo's client joins #launch again; he is already in it (published example)",
+      "method": "POST",
+      "path": "/api/conversations.join",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channel.name",
+          "equals": "launch"
+        },
+        {
+          "path": "warning",
+          "equals": "already_in_channel"
+        },
+        {
+          "path": "response_metadata.warnings",
+          "equals": [
+            "already_in_channel"
+          ]
+        },
+        {
+          "path": "channel.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.topic.creator",
+          "equals": ""
+        },
+        {
+          "path": "channel.purpose.creator",
+          "equals": ""
+        },
+        {
+          "path": "channel.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channel.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channel.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channel.previous_names",
+          "equals": []
+        },
+        {
+          "path": "channel.name_normalized",
+          "equals": "launch"
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "conversations_join#200 application/json"
+    },
+    {
+      "name": "Maya sets #launch's purpose (published example)",
+      "method": "POST",
+      "path": "/api/conversations.setPurpose",
+      "body": {
+        "channel": "{launch}",
+        "purpose": "Everything for the spring launch"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.purpose.value",
+          "equals": "Everything for the spring launch"
+        },
+        {
+          "path": "channel.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channel.name",
+          "equals": "launch"
+        },
+        {
+          "path": "channel.name_normalized",
+          "equals": "launch"
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channel.shared_team_ids.0",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "conversations_setPurpose#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls conversations.setPurpose; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/conversations.setPurpose",
+      "body": {
+        "channel": "{launch}",
+        "purpose": "x"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "conversations_setPurpose#default application/json"
+    },
+    {
+      "name": "and its topic (published example)",
+      "method": "POST",
+      "path": "/api/conversations.setTopic",
+      "body": {
+        "channel": "{launch}",
+        "topic": "Launch day: March 3"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.topic.value",
+          "equals": "Launch day: March 3"
+        },
+        {
+          "path": "channel.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channel.name",
+          "equals": "launch"
+        },
+        {
+          "path": "channel.name_normalized",
+          "equals": "launch"
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channel.shared_team_ids.0",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channel.purpose.value",
+          "equals": "Everything for the spring launch"
+        }
+      ],
+      "example": "conversations_setTopic#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls conversations.setTopic; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/conversations.setTopic",
+      "body": {
+        "channel": "{launch}",
+        "topic": "x"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "conversations_setTopic#default application/json"
+    },
+    {
+      "name": "Maya renames #launch to #spring-launch (published example)",
+      "method": "POST",
+      "path": "/api/conversations.rename",
+      "body": {
+        "channel": "{launch}",
+        "name": "spring-launch"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channel.name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channel.name_normalized",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channel.previous_names",
+          "equals": [
+            "launch"
+          ]
+        },
+        {
+          "path": "channel.locale",
+          "equals": "en-US"
+        },
+        {
+          "path": "channel.purpose.value",
+          "equals": "Everything for the spring launch"
+        },
+        {
+          "path": "channel.topic.value",
+          "equals": "Launch day: March 3"
+        },
+        {
+          "path": "channel.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.topic.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.purpose.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channel.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channel.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "conversations_rename#200 application/json"
+    },
+    {
+      "name": "Maya adds Lena and the bot to #spring-launch (published example)",
+      "method": "POST",
+      "path": "/api/conversations.invite",
+      "body": {
+        "channel": "{launch}",
+        "users": "ULENA,{bot_user}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channel.name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channel.num_members",
+          "equals": 4
+        },
+        {
+          "path": "channel.previous_names",
+          "equals": [
+            "launch"
+          ]
+        },
+        {
+          "path": "channel.last_read",
+          "equals": "0000000000.000000"
+        },
+        {
+          "path": "channel.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.topic.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.purpose.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channel.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channel.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channel.name_normalized",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channel.topic.value",
+          "equals": "Launch day: March 3"
+        },
+        {
+          "path": "channel.purpose.value",
+          "equals": "Everything for the spring launch"
+        }
+      ],
+      "example": "conversations_invite#200 application/json",
+      "exampleDiffers": {
+        "channel.locale": "conversations.invite takes no include_locale, and the answer on its page carries none: its \"Typical success response when an invitation is extended\" ends \"previous_names\" : [ \"specifics\" , \"abstractions\" , \"etc\" ] } } with no \"locale\" (https://docs.slack.dev/reference/methods/conversations.invite). The spec copies conversations.info's example, which asked for the locale."
+      }
+    },
+    {
+      "name": "The bot reads #spring-launch's members two at a time (published example)",
+      "method": "POST",
+      "path": "/api/conversations.members",
+      "body": {
+        "channel": "{launch}",
+        "limit": 2
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "members_next": "response_metadata.next_cursor"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "members",
+          "equals": [
+            "UMAYA",
+            "UTHEO"
+          ]
+        }
+      ],
+      "example": "conversations_members#200 application/json"
+    },
+    {
+      "name": "and the next page",
+      "method": "POST",
+      "path": "/api/conversations.members",
+      "body": {
+        "channel": "{launch}",
+        "limit": 2,
+        "cursor": "{members_next}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "members",
+          "equals": [
+            "ULENA",
+            "{bot_user}"
+          ]
+        },
+        {
+          "path": "response_metadata.next_cursor",
+          "equals": ""
+        }
+      ]
+    },
+    {
+      "name": "The bot pages on with a cursor it made up",
+      "method": "POST",
+      "path": "/api/conversations.members",
+      "body": {
+        "channel": "{launch}",
+        "limit": 2,
+        "cursor": "bmV4dF9wYWdl"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_cursor"
+        }
+      ],
+      "example": "conversations_members#default application/json"
+    },
+    {
+      "name": "Theo creates #studio-life for the team",
+      "method": "POST",
+      "path": "/api/conversations.create",
+      "body": {
+        "name": "studio-life"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "capture": {
+        "studio": "channel.id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.name",
+          "equals": "studio-life"
+        },
+        {
+          "path": "channel.creator",
+          "equals": "UTHEO"
+        }
+      ]
+    },
+    {
+      "name": "Maya lists the public channels two at a time: #general, which Juniper was made with, first (published example)",
+      "method": "POST",
+      "path": "/api/conversations.list",
+      "body": {
+        "types": "public_channel",
+        "limit": 2
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "capture": {
+        "list_next": "response_metadata.next_cursor",
+        "general": "channels.0.id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channels.0.name",
+          "equals": "general"
+        },
+        {
+          "path": "channels.0.is_general",
+          "equals": true
+        },
+        {
+          "path": "channels.0.num_members",
+          "equals": 3
+        },
+        {
+          "path": "channels.1.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channels.1.name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channels.2",
+          "exists": false
+        },
+        {
+          "path": "channels.0.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.0.topic.creator",
+          "equals": ""
+        },
+        {
+          "path": "channels.0.purpose.creator",
+          "equals": ""
+        },
+        {
+          "path": "channels.0.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channels.0.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channels.0.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channels.0.previous_names",
+          "equals": []
+        },
+        {
+          "path": "channels.1.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.1.topic.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.1.purpose.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.1.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channels.1.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channels.1.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channels.1.previous_names",
+          "equals": [
+            "launch"
+          ]
+        },
+        {
+          "path": "channels.0.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channels.1.name_normalized",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channels.1.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channels.1.topic.value",
+          "equals": "Launch day: March 3"
+        },
+        {
+          "path": "channels.1.purpose.value",
+          "equals": "Everything for the spring launch"
+        }
+      ],
+      "example": "conversations_list#200 application/json",
+      "undecided": {
+        "response_metadata.next_cursor": "A value Slack generates (an edit's ts, a page's cursor), equal to an earlier capture only by coincidence; not decided by the setup."
+      },
+      "exampleDiffers": {
+        "channels.1.previous_names": "Juniper renamed this channel from launch to spring-launch earlier in this journey. Its retained previous_names is asserted as [launch], whereas the published sample has no rename history. previous_names describes the channel history (https://docs.slack.dev/reference/objects/conversation-object)."
+      }
+    },
+    {
+      "name": "and the next page",
+      "method": "POST",
+      "path": "/api/conversations.list",
+      "body": {
+        "types": "public_channel",
+        "limit": 2,
+        "cursor": "{list_next}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channels.0.id",
+          "equals": "{studio}"
+        },
+        {
+          "path": "response_metadata.next_cursor",
+          "equals": ""
+        }
+      ]
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls conversations.list; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/conversations.list",
+      "body": {
+        "types": "public_channel"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "conversations_list#default application/json"
+    },
+    {
+      "name": "The bot lists the channels Theo is in (published example)",
+      "method": "POST",
+      "path": "/api/users.conversations",
+      "body": {
+        "user": "UTHEO",
+        "types": "public_channel"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channels.0.id",
+          "equals": "{general}"
+        },
+        {
+          "path": "channels.1.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channels.2.id",
+          "equals": "{studio}"
+        },
+        {
+          "path": "channels.2.creator",
+          "equals": "UTHEO"
+        },
+        {
+          "path": "channels.2.name",
+          "equals": "studio-life"
+        },
+        {
+          "path": "channels.3",
+          "exists": false
+        },
+        {
+          "path": "channels.0.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.0.topic.creator",
+          "equals": ""
+        },
+        {
+          "path": "channels.0.purpose.creator",
+          "equals": ""
+        },
+        {
+          "path": "channels.0.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channels.0.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channels.0.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channels.0.previous_names",
+          "equals": []
+        },
+        {
+          "path": "channels.1.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.1.topic.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.1.purpose.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channels.1.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channels.1.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channels.1.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channels.1.previous_names",
+          "equals": [
+            "launch"
+          ]
+        },
+        {
+          "path": "channels.2.topic.creator",
+          "equals": ""
+        },
+        {
+          "path": "channels.2.purpose.creator",
+          "equals": ""
+        },
+        {
+          "path": "channels.2.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channels.2.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channels.2.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channels.2.previous_names",
+          "equals": []
+        },
+        {
+          "path": "channels.0.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channels.1.name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channels.1.name_normalized",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channels.1.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channels.1.topic.value",
+          "equals": "Launch day: March 3"
+        },
+        {
+          "path": "channels.1.purpose.value",
+          "equals": "Everything for the spring launch"
+        },
+        {
+          "path": "channels.2.name_normalized",
+          "equals": "studio-life"
+        },
+        {
+          "path": "channels.2.context_team_id",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "users_conversations#200 application/json",
+      "exampleDiffers": {
+        "channels.1.previous_names": "Juniper renamed this channel from launch to spring-launch earlier in this journey. Its retained previous_names is asserted as [launch], whereas the published sample has no rename history. previous_names describes the channel history (https://docs.slack.dev/reference/objects/conversation-object)."
+      }
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls users.conversations; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/users.conversations",
+      "body": {
+        "user": "UTHEO"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "users_conversations#default application/json"
+    },
+    {
+      "name": "Lena, who is not in #studio-life, tries to rename it",
+      "method": "POST",
+      "path": "/api/conversations.rename",
+      "body": {
+        "channel": "{studio}",
+        "name": "studio"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "not_in_channel"
+        }
+      ],
+      "example": "conversations_rename#default application/json"
+    },
+    {
+      "name": "The bot posts the launch checklist to #spring-launch as \"Launch Bot\" (published example)",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "Here's where the launch stands",
+        "username": "Launch Bot",
+        "attachments": [
+          {
+            "fallback": "Launch checklist: 3 of 5 done",
+            "text": "Launch checklist: 3 of 5 done"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "checklist": "ts"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "message.text",
+          "equals": "Here's where the launch stands"
+        },
+        {
+          "path": "message.username",
+          "equals": "Launch Bot"
+        },
+        {
+          "path": "message.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "message.subtype",
+          "equals": "bot_message"
+        },
+        {
+          "path": "message.attachments",
+          "equals": [
+            {
+              "id": 1,
+              "fallback": "Launch checklist: 3 of 5 done",
+              "text": "Launch checklist: 3 of 5 done"
+            }
+          ]
+        },
+        {
+          "path": "message.blocks.0.elements.0.elements.0.text",
+          "equals": "Here's where the launch stands"
+        },
+        {
+          "path": "message.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "message.team",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "chat_postMessage#200 application/json"
+    },
+    {
+      "name": "The bot tries to post a message carrying 101 attachments",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "Every asset",
+        "attachments": [
+          {
+            "fallback": "Asset 1",
+            "text": "Asset 1"
+          },
+          {
+            "fallback": "Asset 2",
+            "text": "Asset 2"
+          },
+          {
+            "fallback": "Asset 3",
+            "text": "Asset 3"
+          },
+          {
+            "fallback": "Asset 4",
+            "text": "Asset 4"
+          },
+          {
+            "fallback": "Asset 5",
+            "text": "Asset 5"
+          },
+          {
+            "fallback": "Asset 6",
+            "text": "Asset 6"
+          },
+          {
+            "fallback": "Asset 7",
+            "text": "Asset 7"
+          },
+          {
+            "fallback": "Asset 8",
+            "text": "Asset 8"
+          },
+          {
+            "fallback": "Asset 9",
+            "text": "Asset 9"
+          },
+          {
+            "fallback": "Asset 10",
+            "text": "Asset 10"
+          },
+          {
+            "fallback": "Asset 11",
+            "text": "Asset 11"
+          },
+          {
+            "fallback": "Asset 12",
+            "text": "Asset 12"
+          },
+          {
+            "fallback": "Asset 13",
+            "text": "Asset 13"
+          },
+          {
+            "fallback": "Asset 14",
+            "text": "Asset 14"
+          },
+          {
+            "fallback": "Asset 15",
+            "text": "Asset 15"
+          },
+          {
+            "fallback": "Asset 16",
+            "text": "Asset 16"
+          },
+          {
+            "fallback": "Asset 17",
+            "text": "Asset 17"
+          },
+          {
+            "fallback": "Asset 18",
+            "text": "Asset 18"
+          },
+          {
+            "fallback": "Asset 19",
+            "text": "Asset 19"
+          },
+          {
+            "fallback": "Asset 20",
+            "text": "Asset 20"
+          },
+          {
+            "fallback": "Asset 21",
+            "text": "Asset 21"
+          },
+          {
+            "fallback": "Asset 22",
+            "text": "Asset 22"
+          },
+          {
+            "fallback": "Asset 23",
+            "text": "Asset 23"
+          },
+          {
+            "fallback": "Asset 24",
+            "text": "Asset 24"
+          },
+          {
+            "fallback": "Asset 25",
+            "text": "Asset 25"
+          },
+          {
+            "fallback": "Asset 26",
+            "text": "Asset 26"
+          },
+          {
+            "fallback": "Asset 27",
+            "text": "Asset 27"
+          },
+          {
+            "fallback": "Asset 28",
+            "text": "Asset 28"
+          },
+          {
+            "fallback": "Asset 29",
+            "text": "Asset 29"
+          },
+          {
+            "fallback": "Asset 30",
+            "text": "Asset 30"
+          },
+          {
+            "fallback": "Asset 31",
+            "text": "Asset 31"
+          },
+          {
+            "fallback": "Asset 32",
+            "text": "Asset 32"
+          },
+          {
+            "fallback": "Asset 33",
+            "text": "Asset 33"
+          },
+          {
+            "fallback": "Asset 34",
+            "text": "Asset 34"
+          },
+          {
+            "fallback": "Asset 35",
+            "text": "Asset 35"
+          },
+          {
+            "fallback": "Asset 36",
+            "text": "Asset 36"
+          },
+          {
+            "fallback": "Asset 37",
+            "text": "Asset 37"
+          },
+          {
+            "fallback": "Asset 38",
+            "text": "Asset 38"
+          },
+          {
+            "fallback": "Asset 39",
+            "text": "Asset 39"
+          },
+          {
+            "fallback": "Asset 40",
+            "text": "Asset 40"
+          },
+          {
+            "fallback": "Asset 41",
+            "text": "Asset 41"
+          },
+          {
+            "fallback": "Asset 42",
+            "text": "Asset 42"
+          },
+          {
+            "fallback": "Asset 43",
+            "text": "Asset 43"
+          },
+          {
+            "fallback": "Asset 44",
+            "text": "Asset 44"
+          },
+          {
+            "fallback": "Asset 45",
+            "text": "Asset 45"
+          },
+          {
+            "fallback": "Asset 46",
+            "text": "Asset 46"
+          },
+          {
+            "fallback": "Asset 47",
+            "text": "Asset 47"
+          },
+          {
+            "fallback": "Asset 48",
+            "text": "Asset 48"
+          },
+          {
+            "fallback": "Asset 49",
+            "text": "Asset 49"
+          },
+          {
+            "fallback": "Asset 50",
+            "text": "Asset 50"
+          },
+          {
+            "fallback": "Asset 51",
+            "text": "Asset 51"
+          },
+          {
+            "fallback": "Asset 52",
+            "text": "Asset 52"
+          },
+          {
+            "fallback": "Asset 53",
+            "text": "Asset 53"
+          },
+          {
+            "fallback": "Asset 54",
+            "text": "Asset 54"
+          },
+          {
+            "fallback": "Asset 55",
+            "text": "Asset 55"
+          },
+          {
+            "fallback": "Asset 56",
+            "text": "Asset 56"
+          },
+          {
+            "fallback": "Asset 57",
+            "text": "Asset 57"
+          },
+          {
+            "fallback": "Asset 58",
+            "text": "Asset 58"
+          },
+          {
+            "fallback": "Asset 59",
+            "text": "Asset 59"
+          },
+          {
+            "fallback": "Asset 60",
+            "text": "Asset 60"
+          },
+          {
+            "fallback": "Asset 61",
+            "text": "Asset 61"
+          },
+          {
+            "fallback": "Asset 62",
+            "text": "Asset 62"
+          },
+          {
+            "fallback": "Asset 63",
+            "text": "Asset 63"
+          },
+          {
+            "fallback": "Asset 64",
+            "text": "Asset 64"
+          },
+          {
+            "fallback": "Asset 65",
+            "text": "Asset 65"
+          },
+          {
+            "fallback": "Asset 66",
+            "text": "Asset 66"
+          },
+          {
+            "fallback": "Asset 67",
+            "text": "Asset 67"
+          },
+          {
+            "fallback": "Asset 68",
+            "text": "Asset 68"
+          },
+          {
+            "fallback": "Asset 69",
+            "text": "Asset 69"
+          },
+          {
+            "fallback": "Asset 70",
+            "text": "Asset 70"
+          },
+          {
+            "fallback": "Asset 71",
+            "text": "Asset 71"
+          },
+          {
+            "fallback": "Asset 72",
+            "text": "Asset 72"
+          },
+          {
+            "fallback": "Asset 73",
+            "text": "Asset 73"
+          },
+          {
+            "fallback": "Asset 74",
+            "text": "Asset 74"
+          },
+          {
+            "fallback": "Asset 75",
+            "text": "Asset 75"
+          },
+          {
+            "fallback": "Asset 76",
+            "text": "Asset 76"
+          },
+          {
+            "fallback": "Asset 77",
+            "text": "Asset 77"
+          },
+          {
+            "fallback": "Asset 78",
+            "text": "Asset 78"
+          },
+          {
+            "fallback": "Asset 79",
+            "text": "Asset 79"
+          },
+          {
+            "fallback": "Asset 80",
+            "text": "Asset 80"
+          },
+          {
+            "fallback": "Asset 81",
+            "text": "Asset 81"
+          },
+          {
+            "fallback": "Asset 82",
+            "text": "Asset 82"
+          },
+          {
+            "fallback": "Asset 83",
+            "text": "Asset 83"
+          },
+          {
+            "fallback": "Asset 84",
+            "text": "Asset 84"
+          },
+          {
+            "fallback": "Asset 85",
+            "text": "Asset 85"
+          },
+          {
+            "fallback": "Asset 86",
+            "text": "Asset 86"
+          },
+          {
+            "fallback": "Asset 87",
+            "text": "Asset 87"
+          },
+          {
+            "fallback": "Asset 88",
+            "text": "Asset 88"
+          },
+          {
+            "fallback": "Asset 89",
+            "text": "Asset 89"
+          },
+          {
+            "fallback": "Asset 90",
+            "text": "Asset 90"
+          },
+          {
+            "fallback": "Asset 91",
+            "text": "Asset 91"
+          },
+          {
+            "fallback": "Asset 92",
+            "text": "Asset 92"
+          },
+          {
+            "fallback": "Asset 93",
+            "text": "Asset 93"
+          },
+          {
+            "fallback": "Asset 94",
+            "text": "Asset 94"
+          },
+          {
+            "fallback": "Asset 95",
+            "text": "Asset 95"
+          },
+          {
+            "fallback": "Asset 96",
+            "text": "Asset 96"
+          },
+          {
+            "fallback": "Asset 97",
+            "text": "Asset 97"
+          },
+          {
+            "fallback": "Asset 98",
+            "text": "Asset 98"
+          },
+          {
+            "fallback": "Asset 99",
+            "text": "Asset 99"
+          },
+          {
+            "fallback": "Asset 100",
+            "text": "Asset 100"
+          },
+          {
+            "fallback": "Asset 101",
+            "text": "Asset 101"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "too_many_attachments"
+        }
+      ],
+      "example": "chat_postMessage#default application/json"
+    },
+    {
+      "name": "The bot's release notes go out as markdown with a plain-text fallback beside them; Slack takes one or the other (the page's rule)",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "{launch}",
+        "text": "Release notes",
+        "markdown_text": "**Release notes**: the landing page ships Monday"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "markdown_text_conflict"
+        }
+      ],
+      "example": "chat_postMessage#doc markdown_text_conflict"
+    },
+    {
+      "name": "Theo answers in its thread",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "body": {
+        "channel": "{launch}",
+        "thread_ts": "{checklist}",
+        "text": "The press kit is done"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "capture": {
+        "reply1": "ts"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.thread_ts",
+          "equals": "{checklist}"
+        }
+      ]
+    },
+    {
+      "name": "and Lena too",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "body": {
+        "channel": "{launch}",
+        "thread_ts": "{checklist}",
+        "text": "The landing page ships Monday"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "capture": {
+        "reply2": "ts"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.thread_ts",
+          "equals": "{checklist}"
+        }
+      ]
+    },
+    {
+      "name": "The bot reads the thread (published example)",
+      "method": "POST",
+      "path": "/api/conversations.replies",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "messages.0.ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "messages.0.reply_count",
+          "equals": 2
+        },
+        {
+          "path": "messages.0.subscribed",
+          "equals": true
+        },
+        {
+          "path": "messages.0.last_read",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "messages.0.unread_count",
+          "equals": 2
+        },
+        {
+          "path": "messages.1.text",
+          "equals": "The press kit is done"
+        },
+        {
+          "path": "messages.1.parent_user_id",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "messages.2.text",
+          "equals": "The landing page ships Monday"
+        },
+        {
+          "path": "messages.3",
+          "exists": false
+        },
+        {
+          "path": "messages.0.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "messages.0.reply_users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "messages.1.user",
+          "equals": "UTHEO"
+        },
+        {
+          "path": "messages.2.user",
+          "equals": "ULENA"
+        },
+        {
+          "path": "messages.2.parent_user_id",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "messages.0.text",
+          "equals": "Here's where the launch stands"
+        },
+        {
+          "path": "messages.0.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.0.blocks.0.elements.0.elements.0.text",
+          "equals": "Here's where the launch stands"
+        },
+        {
+          "path": "messages.0.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "messages.0.username",
+          "equals": "Launch Bot"
+        },
+        {
+          "path": "messages.0.attachments.0.fallback",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "messages.0.attachments.0.text",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "messages.0.thread_ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "messages.0.latest_reply",
+          "equals": "{reply2}"
+        },
+        {
+          "path": "messages.1.ts",
+          "equals": "{reply1}"
+        },
+        {
+          "path": "messages.1.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.1.blocks.0.elements.0.elements.0.text",
+          "equals": "The press kit is done"
+        },
+        {
+          "path": "messages.1.thread_ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "messages.2.ts",
+          "equals": "{reply2}"
+        },
+        {
+          "path": "messages.2.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.2.blocks.0.elements.0.elements.0.text",
+          "equals": "The landing page ships Monday"
+        },
+        {
+          "path": "messages.2.thread_ts",
+          "equals": "{checklist}"
+        }
+      ],
+      "example": "conversations_replies#200 application/json"
+    },
+    {
+      "name": "The bot reads the thread of a message nobody posted",
+      "method": "POST",
+      "path": "/api/conversations.replies",
+      "body": {
+        "channel": "{launch}",
+        "ts": "1767225599.000001"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "thread_not_found"
+        }
+      ],
+      "example": "conversations_replies#default application/json"
+    },
+    {
+      "name": "The bot reads #spring-launch's history: the checklist, after the messages Slack posted as the channel was set up (published example)",
+      "method": "POST",
+      "path": "/api/conversations.history",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "messages.0.ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "messages.1.subtype",
+          "equals": "channel_join"
+        },
+        {
+          "path": "messages.1.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "messages.1.inviter",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "messages.2.subtype",
+          "equals": "channel_join"
+        },
+        {
+          "path": "messages.2.user",
+          "equals": "ULENA"
+        },
+        {
+          "path": "messages.3.subtype",
+          "equals": "channel_name"
+        },
+        {
+          "path": "messages.3.name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "messages.3.old_name",
+          "equals": "launch"
+        },
+        {
+          "path": "messages.4.subtype",
+          "equals": "channel_topic"
+        },
+        {
+          "path": "messages.4.topic",
+          "equals": "Launch day: March 3"
+        },
+        {
+          "path": "messages.5.subtype",
+          "equals": "channel_purpose"
+        },
+        {
+          "path": "messages.5.purpose",
+          "equals": "Everything for the spring launch"
+        },
+        {
+          "path": "messages.6.subtype",
+          "equals": "channel_join"
+        },
+        {
+          "path": "messages.6.user",
+          "equals": "UTHEO"
+        },
+        {
+          "path": "messages.7.subtype",
+          "equals": "channel_join"
+        },
+        {
+          "path": "messages.7.user",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "messages.8",
+          "exists": false
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "messages.0.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "messages.0.reply_users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "messages.2.inviter",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "messages.3.user",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "messages.4.user",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "messages.5.user",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "messages.0.text",
+          "equals": "Here's where the launch stands"
+        },
+        {
+          "path": "messages.0.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.0.blocks.0.elements.0.elements.0.text",
+          "equals": "Here's where the launch stands"
+        },
+        {
+          "path": "messages.0.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "messages.0.username",
+          "equals": "Launch Bot"
+        },
+        {
+          "path": "messages.0.attachments.0.fallback",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "messages.0.attachments.0.text",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "messages.0.thread_ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "messages.0.latest_reply",
+          "equals": "{reply2}"
+        },
+        {
+          "path": "messages.1.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.2.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.3.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.4.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.5.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.6.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "messages.7.team",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "conversations_history#200 application/json"
+    },
+    {
+      "name": "The bot reads the history of a channel id nobody created",
+      "method": "POST",
+      "path": "/api/conversations.history",
+      "body": {
+        "channel": "C0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ],
+      "example": "conversations_history#default application/json"
+    },
+    {
+      "name": "Theo marks #spring-launch read up to the checklist (published example)",
+      "method": "POST",
+      "path": "/api/conversations.mark",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "conversations_mark#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls conversations.mark; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/conversations.mark",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "conversations_mark#default application/json"
+    },
+    {
+      "name": "Theo's client reads #spring-launch: his read marker is at the checklist (published example)",
+      "method": "POST",
+      "path": "/api/conversations.info",
+      "body": {
+        "channel": "{launch}",
+        "include_locale": true,
+        "include_num_members": true
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "channel.name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channel.last_read",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "channel.num_members",
+          "equals": 4
+        },
+        {
+          "path": "channel.purpose.value",
+          "equals": "Everything for the spring launch"
+        },
+        {
+          "path": "channel.previous_names",
+          "equals": [
+            "launch"
+          ]
+        },
+        {
+          "path": "channel.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.topic.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.purpose.creator",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "channel.pending_shared",
+          "equals": []
+        },
+        {
+          "path": "channel.pending_connected_team_ids",
+          "equals": []
+        },
+        {
+          "path": "channel.shared_team_ids",
+          "equals": [
+            "T0VOLTER01"
+          ]
+        },
+        {
+          "path": "channel.name_normalized",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channel.topic.value",
+          "equals": "Launch day: March 3"
+        }
+      ],
+      "example": "conversations_info#200 application/json"
+    },
+    {
+      "name": "Theo asks about a channel id nobody created",
+      "method": "POST",
+      "path": "/api/conversations.info",
+      "body": {
+        "channel": "C0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ],
+      "example": "conversations_info#default application/json"
+    },
+    {
+      "name": "The bot ticks off a fourth item on its checklist (published example)",
+      "method": "POST",
+      "path": "/api/chat.update",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{checklist}",
+        "text": "Here's where the launch stands: 4 of 5 done"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "text",
+          "equals": "Here's where the launch stands: 4 of 5 done"
+        },
+        {
+          "path": "message.text",
+          "equals": "Here's where the launch stands: 4 of 5 done"
+        },
+        {
+          "path": "message.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "message.reply_users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "message.edited.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "message.ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "message.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "message.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "message.username",
+          "equals": "Launch Bot"
+        },
+        {
+          "path": "message.attachments.0.fallback",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "message.attachments.0.text",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "message.thread_ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "message.latest_reply",
+          "equals": "{reply2}"
+        },
+        {
+          "path": "message.blocks",
+          "exists": false
+        }
+      ],
+      "example": "chat_update#200 application/json"
+    },
+    {
+      "name": "Theo tries to edit the bot's checklist",
+      "method": "POST",
+      "path": "/api/chat.update",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{checklist}",
+        "text": "All done!"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "cant_update_message"
+        }
+      ],
+      "example": "chat_update#default application/json"
+    },
+    {
+      "name": "Maya copies a link to the checklist (published example)",
+      "method": "POST",
+      "path": "/api/chat.getPermalink",
+      "body": {
+        "channel": "{launch}",
+        "message_ts": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "permalink",
+          "equals": "https://juniper.slack.com/archives/{launch}/p1767225600000008"
+        }
+      ],
+      "example": "chat_getPermalink#200 application/json"
+    },
+    {
+      "name": "Maya asks for a link in a channel id nobody created",
+      "method": "POST",
+      "path": "/api/chat.getPermalink",
+      "body": {
+        "channel": "C0NOSUCH1",
+        "message_ts": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ],
+      "example": "chat_getPermalink#default application/json"
+    },
+    {
+      "name": "Theo posts a /me message (published example)",
+      "method": "POST",
+      "path": "/api/chat.meMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "is proofreading the press kit"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "capture": {
+        "me": "ts"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel",
+          "equals": "{launch}"
+        }
+      ],
+      "example": "chat_meMessage#200 application/json"
+    },
+    {
+      "name": "it reads back as a me_message",
+      "method": "POST",
+      "path": "/api/conversations.history",
+      "body": {
+        "channel": "{launch}",
+        "limit": 1
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "messages.0.ts",
+          "equals": "{me}"
+        },
+        {
+          "path": "messages.0.subtype",
+          "equals": "me_message"
+        },
+        {
+          "path": "messages.0.text",
+          "equals": "is proofreading the press kit"
+        },
+        {
+          "path": "messages.0.user",
+          "equals": "UTHEO"
+        }
+      ]
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls chat.meMessage; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/chat.meMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "x"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "chat_meMessage#default application/json"
+    },
+    {
+      "name": "The bot reminds Theo, and only Theo, to review the press kit (published example)",
+      "method": "POST",
+      "path": "/api/chat.postEphemeral",
+      "body": {
+        "channel": "{launch}",
+        "user": "UTHEO",
+        "text": "Your review of the press kit is due today"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "eph": "message_ts"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "chat_postEphemeral#200 application/json"
+    },
+    {
+      "name": "An ephemeral message is never stored: the channel does not show it",
+      "method": "POST",
+      "path": "/api/conversations.history",
+      "body": {
+        "channel": "{launch}",
+        "limit": 1
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "messages.0.ts",
+          "equals": "{me}"
+        }
+      ]
+    },
+    {
+      "name": "The bot tries to show Lena a note in #studio-life, where she is not a member",
+      "method": "POST",
+      "path": "/api/chat.postEphemeral",
+      "body": {
+        "channel": "{studio}",
+        "user": "ULENA",
+        "text": "Lunch is on the studio today"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "user_not_in_channel"
+        }
+      ],
+      "example": "chat_postEphemeral#default application/json"
+    },
+    {
+      "name": "The bot schedules a reminder for tomorrow's launch-prep kickoff (published example)",
+      "method": "POST",
+      "path": "/api/chat.scheduleMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "Launch prep starts today: kickoff at 10:00",
+        "post_at": 1767312000,
+        "username": "Launch Bot",
+        "attachments": [
+          {
+            "fallback": "Kickoff at 10:00",
+            "text": "Kickoff at 10:00"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "sched": "scheduled_message_id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "post_at",
+          "equals": "1767312000"
+        },
+        {
+          "path": "message.text",
+          "equals": "Launch prep starts today: kickoff at 10:00"
+        },
+        {
+          "path": "message.type",
+          "equals": "delayed_message"
+        },
+        {
+          "path": "message.subtype",
+          "equals": "bot_message"
+        },
+        {
+          "path": "message.username",
+          "equals": "Launch Bot"
+        },
+        {
+          "path": "message.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "message.attachments",
+          "equals": [
+            {
+              "id": 1,
+              "fallback": "Kickoff at 10:00",
+              "text": "Kickoff at 10:00"
+            }
+          ]
+        },
+        {
+          "path": "message.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "message.app_id",
+          "equals": "{app}"
+        },
+        {
+          "path": "message.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "message.blocks.0.elements.0.elements.0.text",
+          "equals": "Launch prep starts today: kickoff at 10:00"
+        }
+      ],
+      "example": "chat_scheduleMessage#200 application/json"
+    },
+    {
+      "name": "The bot tries to schedule a message for yesterday",
+      "method": "POST",
+      "path": "/api/chat.scheduleMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "Too late",
+        "post_at": 1767139200
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "time_in_past"
+        }
+      ],
+      "example": "chat_scheduleMessage#default application/json"
+    },
+    {
+      "name": "The bot lists what it has scheduled in #spring-launch (published example)",
+      "method": "POST",
+      "path": "/api/chat.scheduledMessages.list",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "scheduled_messages.0.id",
+          "equals": "{sched}"
+        },
+        {
+          "path": "scheduled_messages.0.channel_id",
+          "equals": "{launch}"
+        },
+        {
+          "path": "scheduled_messages.0.post_at",
+          "equals": 1767312000
+        },
+        {
+          "path": "scheduled_messages.0.text",
+          "equals": "Launch prep starts today: kickoff at 10:00"
+        },
+        {
+          "path": "scheduled_messages.1",
+          "exists": false
+        }
+      ],
+      "example": "chat_scheduledMessages_list#200 application/json",
+      "exampleDiffers": {
+        "scheduled_messages[].id": "A scheduled message's id is the string chat.scheduleMessage answers and chat.deleteScheduledMessage takes back, \"scheduled_message_id\" : \"Q1298393284\" (https://docs.slack.dev/reference/methods/chat.scheduleMessage); this example writes the same id as the number 1298393284, without its Q."
+      }
+    },
+    {
+      "name": "The bot lists the scheduled messages of a channel id nobody created",
+      "method": "POST",
+      "path": "/api/chat.scheduledMessages.list",
+      "body": {
+        "channel": "C0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_channel"
+        }
+      ],
+      "example": "chat_scheduledMessages_list#default application/json"
+    },
+    {
+      "name": "Launch moves; the bot cancels the reminder (published example)",
+      "method": "POST",
+      "path": "/api/chat.deleteScheduledMessage",
+      "body": {
+        "channel": "{launch}",
+        "scheduled_message_id": "{sched}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "chat_deleteScheduledMessage#200 application/json"
+    },
+    {
+      "name": "the reminder is no longer scheduled",
+      "method": "POST",
+      "path": "/api/chat.scheduledMessages.list",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "scheduled_messages",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "The bot cancels it a second time",
+      "method": "POST",
+      "path": "/api/chat.deleteScheduledMessage",
+      "body": {
+        "channel": "{launch}",
+        "scheduled_message_id": "{sched}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_scheduled_message_id"
+        }
+      ],
+      "example": "chat_deleteScheduledMessage#default application/json"
+    },
+    {
+      "name": "Lena shares the press page in #spring-launch",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "Press page draft: https://press.juniper.studio/spring"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "capture": {
+        "press": "ts"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.text",
+          "equals": "Press page draft: https://press.juniper.studio/spring"
+        }
+      ]
+    },
+    {
+      "name": "The bot unfurls the press link with a preview (published example)",
+      "method": "POST",
+      "path": "/api/chat.unfurl",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{press}",
+        "unfurls": {
+          "https://press.juniper.studio/spring": {
+            "title": "Spring launch press page",
+            "text": "Draft 2, for review"
+          }
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "chat_unfurl#200 application/json"
+    },
+    {
+      "name": "the preview reads back on the message",
+      "method": "POST",
+      "path": "/api/conversations.history",
+      "body": {
+        "channel": "{launch}",
+        "limit": 1
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "messages.0.ts",
+          "equals": "{press}"
+        },
+        {
+          "path": "messages.0.attachments.0.from_url",
+          "equals": "https://press.juniper.studio/spring"
+        },
+        {
+          "path": "messages.0.attachments.0.title",
+          "equals": "Spring launch press page"
+        },
+        {
+          "path": "messages.0.attachments.0.text",
+          "equals": "Draft 2, for review"
+        }
+      ]
+    },
+    {
+      "name": "The bot tries to unfurl a link the message does not carry",
+      "method": "POST",
+      "path": "/api/chat.unfurl",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{press}",
+        "unfurls": {
+          "https://juniper.studio/careers": {
+            "text": "Careers"
+          }
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "cannot_unfurl_url"
+        }
+      ],
+      "example": "chat_unfurl#default application/json"
+    },
+    {
+      "name": "Maya pins the checklist (published example)",
+      "method": "POST",
+      "path": "/api/pins.add",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "pins_add#200 application/json"
+    },
+    {
+      "name": "and the press page",
+      "method": "POST",
+      "path": "/api/pins.add",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{press}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The bot reads #spring-launch's pins (published example)",
+      "method": "POST",
+      "path": "/api/pins.list",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "items.0.channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "items.0.message.ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "items.0.created_by",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "items.0.message.pinned_to",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "items.1.message.ts",
+          "equals": "{press}"
+        },
+        {
+          "path": "items.2",
+          "exists": false
+        },
+        {
+          "path": "items.0.message.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "items.0.message.reply_users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "items.0.message.edited.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "items.0.message.permalink",
+          "equals": "https://juniper.slack.com/archives/{launch}/p1767225600000008"
+        },
+        {
+          "path": "items.1.created_by",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "items.1.message.user",
+          "equals": "ULENA"
+        },
+        {
+          "path": "items.1.message.permalink",
+          "equals": "https://juniper.slack.com/archives/{launch}/p1767225600000012"
+        },
+        {
+          "path": "items.1.message.pinned_to",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "items.0.message.text",
+          "equals": "Here's where the launch stands: 4 of 5 done"
+        },
+        {
+          "path": "items.0.message.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "items.0.message.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "items.0.message.username",
+          "equals": "Launch Bot"
+        },
+        {
+          "path": "items.0.message.attachments.0.fallback",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "items.0.message.attachments.0.text",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "items.0.message.thread_ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "items.0.message.latest_reply",
+          "equals": "{reply2}"
+        },
+        {
+          "path": "items.1.channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "items.1.message.text",
+          "equals": "Press page draft: https://press.juniper.studio/spring"
+        },
+        {
+          "path": "items.1.message.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "items.1.message.blocks.0.elements.0.elements.0.text",
+          "equals": "Press page draft: https://press.juniper.studio/spring"
+        },
+        {
+          "path": "items.1.message.attachments.0.title",
+          "equals": "Spring launch press page"
+        },
+        {
+          "path": "items.1.message.attachments.0.text",
+          "equals": "Draft 2, for review"
+        },
+        {
+          "path": "items.0.message.blocks",
+          "exists": false
+        },
+        {
+          "path": "items.1.message.attachments.0.app_id",
+          "equals": "{app}"
+        }
+      ],
+      "example": "pins_list#200 application/json",
+      "undecided": {
+        "items.0.message.edited.ts": "A value Slack generates (an edit's ts, a page's cursor), equal to an earlier capture only by coincidence; not decided by the setup."
+      }
+    },
+    {
+      "name": "Maya pins a message in a channel id nobody created",
+      "method": "POST",
+      "path": "/api/pins.add",
+      "body": {
+        "channel": "C0NOSUCH1",
+        "timestamp": "{press}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ],
+      "example": "pins_add#default application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls pins.list; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/pins.list",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "pins_list#default application/json"
+    },
+    {
+      "name": "The press page is final; Maya unpins the draft (published example)",
+      "method": "POST",
+      "path": "/api/pins.remove",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{press}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "pins_remove#200 application/json"
+    },
+    {
+      "name": "only the checklist stays pinned",
+      "method": "POST",
+      "path": "/api/pins.list",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "items.0.message.ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "items.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Maya unpins the draft again",
+      "method": "POST",
+      "path": "/api/pins.remove",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{press}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "no_pin"
+        }
+      ],
+      "example": "pins_remove#default application/json"
+    },
+    {
+      "name": "Lena shares the app icon: an upload address",
+      "method": "POST",
+      "path": "/api/files.getUploadURLExternal",
+      "body": {
+        "filename": "app-icon.png",
+        "length": 743
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "capture": {
+        "png": "file_id",
+        "png_url": "upload_url"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "the PNG",
+      "method": "POST",
+      "path": "{png_url}",
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA",
+        "content-type": "image/png"
+      },
+      "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABAEAIAAAB1mzrKAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGYktHRP///////wlY99wAAAAHdElNRQfqCRkQHQnBnJ/oAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDI2LTA5LTI1VDE2OjI5OjA5KzAwOjAwAkAFDQAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyNi0wOS0yNVQxNjoyOTowOSswMDowMHMdvbEAAAAodEVYdGRhdGU6dGltZXN0YW1wADIwMjYtMDktMjVUMTY6Mjk6MDkrMDA6MDAkCJxuAAABx0lEQVR42u3cvUoDQRSGYSNegHgBdmoVbOwCNgaCWqiFrZYWgiyWFhYWlrIIFpbaWqjgD4EIIqQTRFKpnRcg3sFaTBMIyJnZJa/jfE+fzc55Q3aSYmrFTfFSPI4IZJS+gdQpAEwBYAoAUwDYWLWXazd7X923u+nXlaety/Hnnc4qvcAqrX3PHTevlt5nr+dPW536RGOm/DVr5behebe9fz51dHtfP9umRzRsu8uLvc2TrNE62PgIu0KpAJN72cVCTg/hr/g8zNcfMt9XBT4DNPpBYTPxDqDR/853Ph4B3Hc9vcA42GflESDNx2wY+6xMAdzmkl5UfCxzMwVw+3p6OfGxzM0U4P/9pBoOy9z0VwRMAWAKAFMAmALAFACmADAFgCkATAFgCgBTAJgCwBQApgAwBYApAEwBYAoAUwCYAsAUAKYAMAWAKQBMAWAKAFMAmALAFACmADAFgCkATAFgpgDujAT6VuNjmZspgDuegl5OfCxzMwWo6mSQ1Fjm5vEMcCeD0IuKg31WHgHKHMqSGvusvHdBYYeypMN3PoHbUGUYNNTzgvrfMuVng1t7mY9jBUeW9dOZcb4qDiC+9FcETAFgCgBTANgP0mKxTGbvZvYAAAAASUVORK5CYII="
+    },
+    {
+      "name": "into #spring-launch",
+      "method": "POST",
+      "path": "/api/files.completeUploadExternal",
+      "body": {
+        "files": [
+          {
+            "id": "{png}",
+            "title": "App icon"
+          }
+        ],
+        "channel_id": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "files.0.id",
+          "equals": "{png}"
+        }
+      ]
+    },
+    {
+      "name": "Ten minutes later",
+      "wait": "10m"
+    },
+    {
+      "name": "Theo shares the launch animation: his client asks for an upload address",
+      "method": "POST",
+      "path": "/api/files.getUploadURLExternal",
+      "body": {
+        "filename": "launch-plane.gif",
+        "length": 331
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "capture": {
+        "gif": "file_id",
+        "gif_url": "upload_url"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and sends the GIF to it",
+      "method": "POST",
+      "path": "{gif_url}",
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO",
+        "content-type": "image/gif"
+      },
+      "bodyBase64": "R0lGODlhMAAoAPIAAGlyd5+SYtu2TPTFQipNjwAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQAMgAAACwAAAAAMAAoAAADjDi63P4wykmrvTjrzbv/ICQEAGECgRBSgem+ZrA+LWy78qyUd08AOp6vBwwJh0RQDTnMdZhQzxLqc2qo0Y0Ay1Rpptyb9XIM24oZM3KjHrLbvU0Z/tuA6WPLlv7yXvkuHXdqeRiABB+DXIUZc1hoH45MkCCSPpQhimI6DZoxnCIkLih+oKanqKmqqyEJACH5BAAyAAAALAAAAAAwACgAgMA5K/TFQgJWjI+py+0Po5y02ouz3rz7TwHiSJbmCVzoyopqC5dvTM80bN9srqN8b/oBScKhy2JcFY3LYRP47EV101u1hkyerjEuLquVgcMjb8u8A6nX7Lb7DY/LLwUAOw=="
+    },
+    {
+      "name": "and completes it into #spring-launch",
+      "method": "POST",
+      "path": "/api/files.completeUploadExternal",
+      "body": {
+        "files": [
+          {
+            "id": "{gif}",
+            "title": "Launch plane"
+          }
+        ],
+        "channel_id": "{launch}",
+        "initial_comment": "The launch animation"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "files.0.id",
+          "equals": "{gif}"
+        },
+        {
+          "path": "files.0.title",
+          "equals": "Launch plane"
+        }
+      ]
+    },
+    {
+      "name": "Maya keeps a photo of the launch board for herself: an upload address",
+      "method": "POST",
+      "path": "/api/files.getUploadURLExternal",
+      "body": {
+        "filename": "launch-board.jpg",
+        "length": 1071
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "capture": {
+        "board": "file_id",
+        "board_url": "upload_url"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "the JPEG",
+      "method": "POST",
+      "path": "{board_url}",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA",
+        "content-type": "image/jpeg"
+      },
+      "bodyBase64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAeACgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3XWNb0/R/J/tG48nzc7PkZs4xnoD6iq+neKNH1G8jtbO88yeTO1fKcZwCTyRjoDXJ/F7/AJhP/bb/ANkrnfh5/wAjhp//AG0/9FtXkzxMo1vZrbQ+hoZZSqYN4ht3s30tpfy8j0P/AITnw7/0Ef8AyBJ/8TVuTxPo8VlbXb3mLe53eU/lP8204bjGRz614LXW6l/yJnhr/t5/9GCvdzDCQwtL2kG736nxlPMKklK6Wi/VeZ6dp/ibSNQu47Wzu/MnkztXy3GcAk8kY6A0V5t4A/5G2w/7af8AotqK8unNzV2d+FrSrQcpdzc+L3/MJ/7bf+yVzvw8/wCRw0//ALaf+i2r1+8sbS92fbLWC42Z2+bGH2564z06Co7fSdOtplmtrC0hlX7rxwqrDtwQK554Zyq+0v2PoqOZwp4R4Zx1s1f1v/mfPFdbqX/ImeGv+3n/ANGCvVP7A0f/AKBOn/8AgMn+FTNpWnNDFC1haGGLPloYVKpk5OBjjNe3j8ZHFUvZpW1PkaeXyimubdfqmeVeAP8AkbbD/tp/6LaivVbfS9Ptpllt7G0ilXo6QqrDtwQKK8ynDkVjtw1F0YcrZ//Z"
+    },
+    {
+      "name": "completed, shared nowhere",
+      "method": "POST",
+      "path": "/api/files.completeUploadExternal",
+      "body": {
+        "files": [
+          {
+            "id": "{board}",
+            "title": "Launch board"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The bot lists #spring-launch's files (published example)",
+      "method": "POST",
+      "path": "/api/files.list",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "paging.total",
+          "equals": 2
+        },
+        {
+          "path": "files.0.id",
+          "equals": "{gif}"
+        },
+        {
+          "path": "files.1.id",
+          "equals": "{png}"
+        },
+        {
+          "path": "files.2",
+          "exists": false
+        },
+        {
+          "path": "files.0.user",
+          "equals": "UTHEO"
+        },
+        {
+          "path": "files.0.channels",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "files.0.groups",
+          "equals": []
+        },
+        {
+          "path": "files.0.ims",
+          "equals": []
+        },
+        {
+          "path": "files.1.user",
+          "equals": "ULENA"
+        },
+        {
+          "path": "files.1.channels",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "files.1.groups",
+          "equals": []
+        },
+        {
+          "path": "files.1.ims",
+          "equals": []
+        },
+        {
+          "path": "files.0.name",
+          "equals": "launch-plane.gif"
+        },
+        {
+          "path": "files.0.title",
+          "equals": "Launch plane"
+        },
+        {
+          "path": "files.1.name",
+          "equals": "app-icon.png"
+        },
+        {
+          "path": "files.1.title",
+          "equals": "App icon"
+        },
+        {
+          "path": "files.0.user_team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "files.0.shares.public.C02.0.channel_name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "files.0.shares.public.C02.0.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "files.1.user_team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "files.1.shares.public.C02.0.channel_name",
+          "equals": "spring-launch"
+        },
+        {
+          "path": "files.1.shares.public.C02.0.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "files.1.deanimate_gif",
+          "exists": false
+        },
+        {
+          "path": "files.1.pjpeg",
+          "exists": false
+        },
+        {
+          "path": "files.1.thumb_360_gif",
+          "exists": false
+        },
+        {
+          "path": "files.0.filetype",
+          "equals": "gif"
+        },
+        {
+          "path": "files.1.filetype",
+          "equals": "png"
+        },
+        {
+          "path": "files.0.deanimate_gif",
+          "exists": true
+        },
+        {
+          "path": "files.0.thumb_360_gif",
+          "exists": true
+        }
+      ],
+      "example": "files_list#200 application/json",
+      "exampleDiffers": {
+        "files.1.deanimate_gif": "The second uploaded file is app-icon.png, asserted as PNG here; the published file sample is a GIF. These GIF-preview fields are absent on this PNG rather than fabricated. The file-object documentation distinguishes preview fields by file type (https://docs.slack.dev/reference/objects/file-object).",
+        "files.1.pjpeg": "The second uploaded file is app-icon.png, asserted as PNG here; the published file sample is a GIF. These GIF-preview fields are absent on this PNG rather than fabricated. The file-object documentation distinguishes preview fields by file type (https://docs.slack.dev/reference/objects/file-object).",
+        "files.1.thumb_360_gif": "The second uploaded file is app-icon.png, asserted as PNG here; the published file sample is a GIF. These GIF-preview fields are absent on this PNG rather than fabricated. The file-object documentation distinguishes preview fields by file type (https://docs.slack.dev/reference/objects/file-object)."
+      }
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls files.list; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/files.list",
+      "body": {
+        "channel": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "files_list#default application/json"
+    },
+    {
+      "name": "Maya reacts to the checklist with :tada: (published example)",
+      "method": "POST",
+      "path": "/api/reactions.add",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}",
+        "name": "tada"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "reactions_add#200 application/json"
+    },
+    {
+      "name": "and her client sends the same reaction again",
+      "method": "POST",
+      "path": "/api/reactions.add",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}",
+        "name": "tada"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "already_reacted"
+        }
+      ],
+      "example": "reactions_add#default application/json"
+    },
+    {
+      "name": "The bot reads the checklist's reactions (published example)",
+      "method": "POST",
+      "path": "/api/reactions.get",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "type",
+          "equals": "message"
+        },
+        {
+          "path": "channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "message.ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "message.reactions.0.name",
+          "equals": "tada"
+        },
+        {
+          "path": "message.reactions.0.count",
+          "equals": 1
+        },
+        {
+          "path": "message.reactions.0.users",
+          "equals": [
+            "UMAYA"
+          ]
+        },
+        {
+          "path": "message.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "message.reply_users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "message.edited.user",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "message.reactions",
+          "equals": [
+            {
+              "name": "tada",
+              "users": [
+                "UMAYA"
+              ],
+              "count": 1
+            }
+          ]
+        },
+        {
+          "path": "message.pinned_to",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "message.text",
+          "equals": "Here's where the launch stands: 4 of 5 done"
+        },
+        {
+          "path": "message.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "message.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "message.username",
+          "equals": "Launch Bot"
+        },
+        {
+          "path": "message.attachments.0.fallback",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "message.attachments.0.text",
+          "equals": "Launch checklist: 3 of 5 done"
+        },
+        {
+          "path": "message.thread_ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "message.latest_reply",
+          "equals": "{reply2}"
+        },
+        {
+          "path": "message.blocks",
+          "exists": false
+        }
+      ],
+      "example": "reactions_get#200 application/json",
+      "exampleDiffers": {
+        "file": "reactions.add takes no file any more: \"Now that file threads work the way you'd expect, the file and file_comment arguments are deprecated. Specify only channel and timestamp\" (https://docs.slack.dev/reference/methods/reactions.add), so a reaction is on a message and reactions.get answers it as the page's own example does, \"type\" : \"message\" with its \"message\" (https://docs.slack.dev/reference/methods/reactions.get). The spec's example is of a reaction on a file, from before."
+      },
+      "undecided": {
+        "message.edited.ts": "A value Slack generates (an edit's ts, a page's cursor), equal to an earlier capture only by coincidence; not decided by the setup."
+      }
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls reactions.get; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/reactions.get",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "reactions_get#default application/json"
+    },
+    {
+      "name": "Maya takes back her :tada: (published example)",
+      "method": "POST",
+      "path": "/api/reactions.remove",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}",
+        "name": "tada"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "reactions_remove#200 application/json"
+    },
+    {
+      "name": "the checklist has no reactions left",
+      "method": "POST",
+      "path": "/api/reactions.get",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.ts",
+          "equals": "{checklist}"
+        },
+        {
+          "path": "message.reactions",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "and takes it back again",
+      "method": "POST",
+      "path": "/api/reactions.remove",
+      "body": {
+        "channel": "{launch}",
+        "timestamp": "{checklist}",
+        "name": "tada"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "no_reaction"
+        }
+      ],
+      "example": "reactions_remove#default application/json"
+    },
+    {
+      "name": "The bot posts a note it will take back",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "body": {
+        "channel": "{launch}",
+        "text": "Standup moved to 11:00"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "oops": "ts"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.text",
+          "equals": "Standup moved to 11:00"
+        }
+      ]
+    },
+    {
+      "name": "The bot deletes it (published example)",
+      "method": "POST",
+      "path": "/api/chat.delete",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{oops}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel",
+          "equals": "{launch}"
+        },
+        {
+          "path": "ts",
+          "equals": "{oops}"
+        }
+      ],
+      "example": "chat_delete#200 application/json"
+    },
+    {
+      "name": "the note is gone: the channel's latest message is Theo's animation again",
+      "method": "POST",
+      "path": "/api/conversations.history",
+      "body": {
+        "channel": "{launch}",
+        "limit": 1
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "messages.0.files.0.id",
+          "equals": "{gif}"
+        }
+      ]
+    },
+    {
+      "name": "The bot deletes it a second time",
+      "method": "POST",
+      "path": "/api/chat.delete",
+      "body": {
+        "channel": "{launch}",
+        "ts": "{oops}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "message_not_found"
+        }
+      ],
+      "example": "chat_delete#default application/json"
+    },
+    {
+      "name": "The bot opens a DM with Theo (published example)",
+      "method": "POST",
+      "path": "/api/conversations.open",
+      "body": {
+        "users": "UTHEO"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "dm": "channel.id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "conversations_open#200 application/json"
+    },
+    {
+      "name": "The bot opens its DM with Theo again, asking for the whole conversation: it is already open, and nothing is in it yet (published example)",
+      "method": "POST",
+      "path": "/api/conversations.open",
+      "body": {
+        "users": "UTHEO",
+        "return_im": true
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "no_op",
+          "equals": true
+        },
+        {
+          "path": "already_open",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{dm}"
+        },
+        {
+          "path": "channel.is_im",
+          "equals": true
+        },
+        {
+          "path": "channel.user",
+          "equals": "UTHEO"
+        },
+        {
+          "path": "channel.context_team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "channel.latest",
+          "equals": null
+        },
+        {
+          "path": "channel.unread_count",
+          "equals": 0
+        },
+        {
+          "path": "channel.is_open",
+          "equals": true
+        }
+      ],
+      "example": "conversations_open#doc return_im"
+    },
+    {
+      "name": "The bot reopens a DM by an id nobody created",
+      "method": "POST",
+      "path": "/api/conversations.open",
+      "body": {
+        "channel": "D0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ],
+      "example": "conversations_open#default application/json"
+    },
+    {
+      "name": "The bot tries to invite Lena into its DM with Theo",
+      "method": "POST",
+      "path": "/api/conversations.invite",
+      "body": {
+        "channel": "{dm}",
+        "users": "ULENA"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "method_not_supported_for_channel_type"
+        }
+      ],
+      "example": "conversations_invite#default application/json"
+    },
+    {
+      "name": "Lena joins #studio-life",
+      "method": "POST",
+      "path": "/api/conversations.join",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{studio}"
+        }
+      ]
+    },
+    {
+      "name": "#studio-life's members now include Lena",
+      "method": "POST",
+      "path": "/api/conversations.members",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "members",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Maya joins #studio-life, which she will archive",
+      "method": "POST",
+      "path": "/api/conversations.join",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.id",
+          "equals": "{studio}"
+        }
+      ]
+    },
+    {
+      "name": "Theo leaves #studio-life (published example)",
+      "method": "POST",
+      "path": "/api/conversations.leave",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "conversations_leave#200 application/json"
+    },
+    {
+      "name": "Theo tries to leave #general",
+      "method": "POST",
+      "path": "/api/conversations.leave",
+      "body": {
+        "channel": "{general}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "cant_leave_general"
+        }
+      ],
+      "example": "conversations_leave#default application/json"
+    },
+    {
+      "name": "Lena and Maya are its members once Theo has left",
+      "method": "POST",
+      "path": "/api/conversations.members",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "members",
+          "equals": [
+            "ULENA",
+            "UMAYA"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Maya archives #studio-life (published example)",
+      "method": "POST",
+      "path": "/api/conversations.archive",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "conversations_archive#200 application/json"
+    },
+    {
+      "name": "Theo, not seeing it go, archives #studio-life too (the page's rule)",
+      "method": "POST",
+      "path": "/api/conversations.archive",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "body": {
+        "channel": "{studio}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "already_archived"
+        }
+      ],
+      "example": "conversations_archive#doc already_archived"
+    },
+    {
+      "name": "it reads back archived",
+      "method": "POST",
+      "path": "/api/conversations.info",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.is_archived",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Lena tries to join the archived #studio-life",
+      "method": "POST",
+      "path": "/api/conversations.join",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "is_archived"
+        }
+      ],
+      "example": "conversations_join#default application/json"
+    },
+    {
+      "name": "Maya archives a channel id nobody created",
+      "method": "POST",
+      "path": "/api/conversations.archive",
+      "body": {
+        "channel": "C0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ],
+      "example": "conversations_archive#default application/json"
+    },
+    {
+      "name": "Lena still needs #studio-life, so Maya unarchives it (published example)",
+      "method": "POST",
+      "path": "/api/conversations.unarchive",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "conversations_unarchive#200 application/json"
+    },
+    {
+      "name": "Lena's script, sent before she saw it reopened, unarchives it as well, already open (the page's rule)",
+      "method": "POST",
+      "path": "/api/conversations.unarchive",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "body": {
+        "channel": "{studio}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "not_archived"
+        }
+      ],
+      "example": "conversations_unarchive#doc not_archived"
+    },
+    {
+      "name": "it reads back active",
+      "method": "POST",
+      "path": "/api/conversations.info",
+      "body": {
+        "channel": "{studio}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "channel.is_archived",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Maya unarchives a channel id nobody created",
+      "method": "POST",
+      "path": "/api/conversations.unarchive",
+      "body": {
+        "channel": "C0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ],
+      "example": "conversations_unarchive#default application/json"
+    },
+    {
+      "name": "Maya, a workspace admin, looks Theo up (published example)",
+      "method": "POST",
+      "path": "/api/users.info",
+      "body": {
+        "user": "UTHEO",
+        "include_locale": true
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "user.id",
+          "equals": "UTHEO"
+        },
+        {
+          "path": "user.real_name",
+          "equals": "Theo Marsh"
+        },
+        {
+          "path": "user.profile.email",
+          "equals": "theo@juniper.studio"
+        },
+        {
+          "path": "user.is_admin",
+          "equals": false
+        },
+        {
+          "path": "user.has_2fa",
+          "equals": false
+        },
+        {
+          "path": "user.locale",
+          "equals": "en-US"
+        },
+        {
+          "path": "user.profile.image_original",
+          "exists": false
+        },
+        {
+          "path": "user.profile.is_custom_image",
+          "equals": false
+        },
+        {
+          "path": "user.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "user.profile.real_name",
+          "equals": "Theo Marsh"
+        },
+        {
+          "path": "user.profile.real_name_normalized",
+          "equals": "Theo Marsh"
+        },
+        {
+          "path": "user.profile.team",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "users_info#200 application/json",
+      "exampleDiffers": {
+        "user.profile.image_original": "Slack gives image_original only for a picture the person uploaded (users.setPhoto, unmodeled); no one in a World has one."
+      }
+    },
+    {
+      "name": "Maya looks up a user id nobody has",
+      "method": "POST",
+      "path": "/api/users.info",
+      "body": {
+        "user": "U0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "user_not_found"
+        }
+      ],
+      "example": "users_info#default application/json"
+    },
+    {
+      "name": "Maya reads the member directory's first page, two at a time: Juniper's bot and Lena",
+      "method": "POST",
+      "path": "/api/users.list",
+      "body": {
+        "limit": 2
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "members.0.id",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "members.0.profile.real_name_normalized",
+          "equals": "Juniper Bot"
+        },
+        {
+          "path": "members.0.profile.display_name_normalized",
+          "equals": "juniper"
+        },
+        {
+          "path": "members.1.id",
+          "equals": "ULENA"
+        },
+        {
+          "path": "cache_ts",
+          "equals": 1767226200
+        },
+        {
+          "path": "response_metadata.next_cursor",
+          "exists": true
+        },
+        {
+          "path": "members.2",
+          "exists": false
+        }
+      ],
+      "capture": {
+        "directory_next": "response_metadata.next_cursor"
+      }
+    },
+    {
+      "name": "Maya reads the directory's next page: two people (published example)",
+      "method": "POST",
+      "path": "/api/users.list",
+      "body": {
+        "limit": 2,
+        "cursor": "{directory_next}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "members.0.id",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "members.0.real_name",
+          "equals": "Maya Okafor"
+        },
+        {
+          "path": "members.0.profile.email",
+          "equals": "maya@juniper.studio"
+        },
+        {
+          "path": "members.0.is_admin",
+          "equals": true
+        },
+        {
+          "path": "members.0.is_owner",
+          "equals": true
+        },
+        {
+          "path": "members.0.is_primary_owner",
+          "equals": true
+        },
+        {
+          "path": "members.0.is_bot",
+          "equals": false
+        },
+        {
+          "path": "members.0.deleted",
+          "equals": false
+        },
+        {
+          "path": "members.0.updated",
+          "equals": 1767225600
+        },
+        {
+          "path": "members.1.id",
+          "equals": "UTHEO"
+        },
+        {
+          "path": "members.1.real_name",
+          "equals": "Theo Marsh"
+        },
+        {
+          "path": "members.1.profile.email",
+          "equals": "theo@juniper.studio"
+        },
+        {
+          "path": "members.1.is_admin",
+          "equals": false
+        },
+        {
+          "path": "members.1.is_owner",
+          "equals": false
+        },
+        {
+          "path": "members.1.is_primary_owner",
+          "equals": false
+        },
+        {
+          "path": "members.1.is_bot",
+          "equals": false
+        },
+        {
+          "path": "members.1.deleted",
+          "equals": false
+        },
+        {
+          "path": "members.1.profile.is_custom_image",
+          "equals": false
+        },
+        {
+          "path": "members.1.updated",
+          "equals": 1767225600
+        },
+        {
+          "path": "members.2",
+          "exists": false
+        },
+        {
+          "path": "response_metadata.next_cursor",
+          "equals": ""
+        },
+        {
+          "path": "members.0.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "members.0.profile.real_name",
+          "equals": "Maya Okafor"
+        },
+        {
+          "path": "members.0.profile.real_name_normalized",
+          "equals": "Maya Okafor"
+        },
+        {
+          "path": "members.0.profile.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "members.1.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "members.1.profile.real_name",
+          "equals": "Theo Marsh"
+        },
+        {
+          "path": "members.1.profile.real_name_normalized",
+          "equals": "Theo Marsh"
+        },
+        {
+          "path": "members.1.profile.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "members.1.profile.image_1024",
+          "exists": false
+        },
+        {
+          "path": "members.1.profile.image_original",
+          "exists": false
+        },
+        {
+          "path": "members.1.profile.is_custom_image",
+          "equals": false
+        }
+      ],
+      "example": "users_list#200 application/json",
+      "exampleDiffers": {
+        "members.1.profile.image_1024": "Theo has not uploaded a custom photo; this step asserts the default profile and no original or 1024px picture. The pinned OpenAPI objs_user_profile properties admit this optional image field and omit it from required. The published sample contains a custom-photo URL (https://docs.slack.dev/reference/objects/user-object).",
+        "members.1.profile.image_original": "Theo has not uploaded a custom photo; this step asserts the default profile and no original or 1024px picture. The pinned OpenAPI objs_user_profile properties admit this optional image field and omit it from required. The published sample contains a custom-photo URL (https://docs.slack.dev/reference/objects/user-object)."
+      }
+    },
+    {
+      "name": "Her client pages on with a cursor it made up",
+      "method": "POST",
+      "path": "/api/users.list",
+      "body": {
+        "limit": 2,
+        "cursor": "bmV4dF9wYWdl"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_cursor"
+        }
+      ],
+      "example": "users_list#default application/json"
+    },
+    {
+      "name": "Maya sets her status (published example)",
+      "method": "POST",
+      "path": "/api/users.profile.set",
+      "body": {
+        "profile": {
+          "status_text": "Launch week",
+          "status_emoji": ":rocket:",
+          "status_expiration": 0
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {maya_app}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "profile.status_text",
+          "equals": "Launch week"
+        },
+        {
+          "path": "profile.status_emoji",
+          "equals": ":rocket:"
+        },
+        {
+          "path": "profile.real_name",
+          "equals": "Maya Okafor"
+        },
+        {
+          "path": "profile.real_name_normalized",
+          "equals": "Maya Okafor"
+        },
+        {
+          "path": "profile.email",
+          "equals": "maya@juniper.studio"
+        },
+        {
+          "path": "profile.team",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "users_profile_set#200 application/json"
+    },
+    {
+      "name": "Juniper Bot, setting her status for her, sends a profile that is not JSON",
+      "method": "POST",
+      "path": "/api/users.profile.set",
+      "body": {
+        "profile": "status: busy"
+      },
+      "headers": {
+        "authorization": "Bearer {maya_app}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_profile"
+        }
+      ],
+      "example": "users_profile_set#default application/json"
+    },
+    {
+      "name": "The bot reads Maya's profile (published example)",
+      "method": "POST",
+      "path": "/api/users.profile.get",
+      "body": {
+        "user": "UMAYA"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "profile.status_text",
+          "equals": "Launch week"
+        },
+        {
+          "path": "profile.status_emoji",
+          "equals": ":rocket:"
+        },
+        {
+          "path": "profile.email",
+          "equals": "maya@juniper.studio"
+        },
+        {
+          "path": "profile.real_name",
+          "equals": "Maya Okafor"
+        },
+        {
+          "path": "profile.image_original",
+          "exists": false
+        },
+        {
+          "path": "profile.is_custom_image",
+          "equals": false
+        },
+        {
+          "path": "profile.real_name_normalized",
+          "equals": "Maya Okafor"
+        },
+        {
+          "path": "profile.team",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "profile.status_expiration",
+          "equals": 0
+        }
+      ],
+      "example": "users_profile_get#200 application/json",
+      "exampleDiffers": {
+        "profile.image_original": "Slack gives image_original only for a picture the person uploaded (users.setPhoto, unmodeled); no one in a World has one."
+      }
+    },
+    {
+      "name": "The bot reads the profile of a user id nobody has",
+      "method": "POST",
+      "path": "/api/users.profile.get",
+      "body": {
+        "user": "U0NOSUCH1"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "user_not_found"
+        }
+      ],
+      "example": "users_profile_get#default application/json"
+    },
+    {
+      "name": "The bot checks whether Theo is around: he is signed in (published example)",
+      "method": "POST",
+      "path": "/api/users.getPresence",
+      "body": {
+        "user": "UTHEO"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "presence",
+          "equals": "active"
+        },
+        {
+          "path": "online",
+          "exists": false
+        }
+      ],
+      "example": "users_getPresence#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls users.getPresence; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/users.getPresence",
+      "body": {
+        "user": "UTHEO"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "users_getPresence#default application/json"
+    },
+    {
+      "name": "Maya sets herself away (published example)",
+      "method": "POST",
+      "path": "/api/users.setPresence",
+      "body": {
+        "presence": "away"
+      },
+      "headers": {
+        "authorization": "Bearer {maya_app}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "users_setPresence#200 application/json"
+    },
+    {
+      "name": "her own client reads her presence back: away by her own setting, while still connected",
+      "method": "POST",
+      "path": "/api/users.getPresence",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "presence",
+          "equals": "away"
+        },
+        {
+          "path": "manual_away",
+          "equals": true
+        },
+        {
+          "path": "auto_away",
+          "equals": false
+        },
+        {
+          "path": "online",
+          "equals": true
+        },
+        {
+          "path": "connection_count",
+          "equals": 1
+        },
+        {
+          "path": "last_activity",
+          "equals": 1767226200
+        }
+      ]
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls users.setPresence; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/users.setPresence",
+      "body": {
+        "presence": "away"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "users_setPresence#default application/json"
+    },
+    {
+      "name": "The bot reads the workspace: Juniper, at juniper.slack.com (published example)",
+      "method": "POST",
+      "path": "/api/team.info",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "team.id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "team.name",
+          "equals": "Juniper"
+        },
+        {
+          "path": "team.domain",
+          "equals": "juniper"
+        },
+        {
+          "path": "team.email_domain",
+          "equals": "juniper.studio"
+        },
+        {
+          "path": "team.enterprise_id",
+          "exists": false
+        }
+      ],
+      "example": "team_info#200 application/json",
+      "exampleDiffers": {
+        "team.enterprise_id": "Juniper is an ordinary workspace, in no Enterprise Grid org (the World's Slack, src/manifest.ts; Grid's admin methods are unmodeled): team.info names an org only for a workspace in one.",
+        "team.enterprise_name": "Juniper is an ordinary workspace, in no Enterprise Grid org (the World's Slack, src/manifest.ts; Grid's admin methods are unmodeled): team.info names an org only for a workspace in one."
+      }
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls team.info; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/team.info",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "team_info#default application/json"
+    },
+    {
+      "name": "Maya sets her notification schedule in Preferences: notifications every day from 09:00 to 18:00",
+      "method": "POST",
+      "path": "https://slack.com/account/notifications",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "days": "every_day",
+        "start": "09:00",
+        "end": "18:00"
+      },
+      "status": 200
+    },
+    {
+      "name": "Maya snoozes notifications for an hour (published example)",
+      "method": "POST",
+      "path": "/api/dnd.setSnooze",
+      "body": {
+        "num_minutes": 60
+      },
+      "headers": {
+        "authorization": "Bearer {maya_app}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "snooze_enabled",
+          "equals": true
+        },
+        {
+          "path": "snooze_endtime",
+          "equals": 1767229800
+        },
+        {
+          "path": "snooze_remaining",
+          "equals": 3600
+        },
+        {
+          "path": "snooze_is_indefinite",
+          "equals": false
+        }
+      ],
+      "example": "dnd_setSnooze#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls dnd.setSnooze; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/dnd.setSnooze",
+      "body": {
+        "num_minutes": 60
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "dnd_setSnooze#default application/json"
+    },
+    {
+      "name": "Maya ends the snooze early; her schedule stays on (published example)",
+      "method": "POST",
+      "path": "/api/dnd.endSnooze",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {maya_app}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "dnd_enabled",
+          "equals": true
+        },
+        {
+          "path": "next_dnd_start_ts",
+          "equals": 1767204000
+        },
+        {
+          "path": "next_dnd_end_ts",
+          "equals": 1767258000
+        },
+        {
+          "path": "snooze_enabled",
+          "equals": false
+        },
+        {
+          "path": "snooze_endtime",
+          "exists": false
+        }
+      ],
+      "example": "dnd_endSnooze#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls dnd.endSnooze; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/dnd.endSnooze",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "dnd_endSnooze#default application/json"
+    },
+    {
+      "name": "The bot creates the @launch-crew group (published example)",
+      "method": "POST",
+      "path": "/api/usergroups.create",
+      "body": {
+        "name": "Launch crew",
+        "handle": "launch-crew",
+        "description": "Everyone shipping the spring launch"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "crew": "usergroup.id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroup.name",
+          "equals": "Launch crew"
+        },
+        {
+          "path": "usergroup.handle",
+          "equals": "launch-crew"
+        },
+        {
+          "path": "usergroup.description",
+          "equals": "Everyone shipping the spring launch"
+        },
+        {
+          "path": "usergroup.created_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.updated_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.deleted_by",
+          "equals": null
+        },
+        {
+          "path": "usergroup.prefs.channels",
+          "equals": []
+        },
+        {
+          "path": "usergroup.prefs.groups",
+          "equals": []
+        },
+        {
+          "path": "usergroup.users",
+          "equals": []
+        },
+        {
+          "path": "usergroup.team_id",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "usergroups_create#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls usergroups.create; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/usergroups.create",
+      "body": {
+        "name": "Launch crew"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "usergroups_create#default application/json"
+    },
+    {
+      "name": "and puts Theo and Lena in it (published example)",
+      "method": "POST",
+      "path": "/api/usergroups.users.update",
+      "body": {
+        "usergroup": "{crew}",
+        "users": "UTHEO,ULENA"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroup.id",
+          "equals": "{crew}"
+        },
+        {
+          "path": "usergroup.users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "usergroup.user_count",
+          "equals": 2
+        },
+        {
+          "path": "usergroup.updated_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.created_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.prefs.channels",
+          "equals": []
+        },
+        {
+          "path": "usergroup.prefs.groups",
+          "equals": []
+        },
+        {
+          "path": "usergroup.deleted_by",
+          "equals": null
+        },
+        {
+          "path": "usergroup.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "usergroup.name",
+          "equals": "Launch crew"
+        },
+        {
+          "path": "usergroup.handle",
+          "equals": "launch-crew"
+        },
+        {
+          "path": "usergroup.description",
+          "equals": "Everyone shipping the spring launch"
+        }
+      ],
+      "example": "usergroups_users_update#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls usergroups.users.update; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/usergroups.users.update",
+      "body": {
+        "usergroup": "{crew}",
+        "users": "UTHEO"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "usergroups_users_update#default application/json"
+    },
+    {
+      "name": "and gives it #spring-launch as its default channel (published example)",
+      "method": "POST",
+      "path": "/api/usergroups.update",
+      "body": {
+        "usergroup": "{crew}",
+        "channels": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroup.id",
+          "equals": "{crew}"
+        },
+        {
+          "path": "usergroup.prefs.channels",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "usergroup.handle",
+          "equals": "launch-crew"
+        },
+        {
+          "path": "usergroup.users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "usergroup.updated_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.created_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.prefs.channels",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "usergroup.prefs.groups",
+          "equals": []
+        },
+        {
+          "path": "usergroup.deleted_by",
+          "equals": null
+        },
+        {
+          "path": "usergroup.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "usergroup.name",
+          "equals": "Launch crew"
+        },
+        {
+          "path": "usergroup.description",
+          "equals": "Everyone shipping the spring launch"
+        }
+      ],
+      "example": "usergroups_update#200 application/json",
+      "exampleDiffers": {
+        "usergroup.prefs.channels": "Juniper explicitly set spring-launch as the group default with usergroups.update; this step asserts its retained channel ID. The published sample has no defaults configured. The channels argument configures the group default channels (https://docs.slack.dev/reference/methods/usergroups.update)."
+      }
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls usergroups.update; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/usergroups.update",
+      "body": {
+        "usergroup": "{crew}",
+        "channels": "{launch}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "usergroups_update#default application/json"
+    },
+    {
+      "name": "The bot reads the group's members (published example)",
+      "method": "POST",
+      "path": "/api/usergroups.users.list",
+      "body": {
+        "usergroup": "{crew}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        }
+      ],
+      "example": "usergroups_users_list#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls usergroups.users.list; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/usergroups.users.list",
+      "body": {
+        "usergroup": "{crew}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "usergroups_users_list#default application/json"
+    },
+    {
+      "name": "The bot lists the workspace's groups (published example)",
+      "method": "POST",
+      "path": "/api/usergroups.list",
+      "body": {
+        "include_count": true
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroups.0.id",
+          "equals": "{crew}"
+        },
+        {
+          "path": "usergroups.0.handle",
+          "equals": "launch-crew"
+        },
+        {
+          "path": "usergroups.0.user_count",
+          "equals": 2
+        },
+        {
+          "path": "usergroups.0.auto_type",
+          "equals": null
+        },
+        {
+          "path": "usergroups.1",
+          "exists": false
+        },
+        {
+          "path": "usergroups.0.created_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroups.0.prefs.channels",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "usergroups.0.prefs.groups",
+          "equals": []
+        },
+        {
+          "path": "usergroups.0.updated_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroups.0.deleted_by",
+          "equals": null
+        },
+        {
+          "path": "usergroups.0.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "usergroups.0.name",
+          "equals": "Launch crew"
+        },
+        {
+          "path": "usergroups.0.description",
+          "equals": "Everyone shipping the spring launch"
+        }
+      ],
+      "example": "usergroups_list#200 application/json",
+      "exampleDiffers": {
+        "usergroups[].auto_type": "auto_type names a group Slack keeps itself, \"admin\" for Team Admins or \"owner\" for Team Owners; a group people made has none, as the example's own third group, Marketing Team, shows: \"auto_type\" : null (https://docs.slack.dev/reference/methods/usergroups.list). @launch-crew is one people made.",
+        "usergroups[].user_count": "The example writes user_count as text (\"user_count\" : \"2\") here but as a number in the same group object on usergroups.update's page (\"user_count\" : 1, https://docs.slack.dev/reference/methods/usergroups.update); a count is a number.",
+        "usergroups.0.prefs.channels": "Juniper explicitly set spring-launch as the group default with usergroups.update; this step asserts its retained channel ID. The published sample has no defaults configured. The channels argument configures the group default channels (https://docs.slack.dev/reference/methods/usergroups.update)."
+      }
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls usergroups.list; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/usergroups.list",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "usergroups_list#default application/json"
+    },
+    {
+      "name": "Tidying the groups before launch planning starts, the bot disables the crew's group (published example)",
+      "method": "POST",
+      "path": "/api/usergroups.disable",
+      "body": {
+        "usergroup": "{crew}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroup.id",
+          "equals": "{crew}"
+        },
+        {
+          "path": "usergroup.deleted_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.updated_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.date_delete",
+          "equals": 1767226200
+        },
+        {
+          "path": "usergroup.created_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.prefs.channels",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "usergroup.prefs.groups",
+          "equals": []
+        },
+        {
+          "path": "usergroup.users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "usergroup.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "usergroup.name",
+          "equals": "Launch crew"
+        },
+        {
+          "path": "usergroup.handle",
+          "equals": "launch-crew"
+        },
+        {
+          "path": "usergroup.description",
+          "equals": "Everyone shipping the spring launch"
+        }
+      ],
+      "example": "usergroups_disable#200 application/json"
+    },
+    {
+      "name": "it lists only with the disabled ones, marked deleted",
+      "method": "POST",
+      "path": "/api/usergroups.list",
+      "body": {
+        "include_disabled": true
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroups.0.id",
+          "equals": "{crew}"
+        },
+        {
+          "path": "usergroups.0.date_delete",
+          "equals": 1767226200
+        }
+      ]
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls usergroups.disable; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/usergroups.disable",
+      "body": {
+        "usergroup": "{crew}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "usergroups_disable#default application/json"
+    },
+    {
+      "name": "Theo needs the crew for the launch plan, so it enables it again (published example)",
+      "method": "POST",
+      "path": "/api/usergroups.enable",
+      "body": {
+        "usergroup": "{crew}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroup.id",
+          "equals": "{crew}"
+        },
+        {
+          "path": "usergroup.date_delete",
+          "equals": 0
+        },
+        {
+          "path": "usergroup.deleted_by",
+          "equals": null
+        },
+        {
+          "path": "usergroup.updated_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.created_by",
+          "equals": "{bot_user}"
+        },
+        {
+          "path": "usergroup.prefs.channels",
+          "equals": [
+            "{launch}"
+          ]
+        },
+        {
+          "path": "usergroup.prefs.groups",
+          "equals": []
+        },
+        {
+          "path": "usergroup.users",
+          "equals": [
+            "UTHEO",
+            "ULENA"
+          ]
+        },
+        {
+          "path": "usergroup.team_id",
+          "equals": "T0VOLTER01"
+        },
+        {
+          "path": "usergroup.name",
+          "equals": "Launch crew"
+        },
+        {
+          "path": "usergroup.handle",
+          "equals": "launch-crew"
+        },
+        {
+          "path": "usergroup.description",
+          "equals": "Everyone shipping the spring launch"
+        }
+      ],
+      "example": "usergroups_enable#200 application/json"
+    },
+    {
+      "name": "it lists among the active groups again",
+      "method": "POST",
+      "path": "/api/usergroups.list",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "usergroups.0.id",
+          "equals": "{crew}"
+        }
+      ]
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls usergroups.enable; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/usergroups.enable",
+      "body": {
+        "usergroup": "{crew}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "usergroups_enable#default application/json"
+    },
+    {
+      "name": "Lena deletes the old app icon (published example)",
+      "method": "POST",
+      "path": "/api/files.delete",
+      "body": {
+        "file": "{png}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "files_delete#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls files.delete; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/files.delete",
+      "body": {
+        "file": "{png}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "files_delete#default application/json"
+    },
+    {
+      "name": "The bot publishes Theo's App Home (published example)",
+      "method": "POST",
+      "path": "/api/views.publish",
+      "body": {
+        "user_id": "UTHEO",
+        "view": {
+          "type": "home",
+          "callback_id": "launch_home",
+          "private_metadata": "week-1",
+          "blocks": [
+            {
+              "type": "section",
+              "block_id": "status",
+              "text": {
+                "type": "mrkdwn",
+                "text": "Launch on *March 3*"
+              }
+            }
+          ]
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "capture": {
+        "home": "view.id"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "view.type",
+          "equals": "home"
+        },
+        {
+          "path": "view.callback_id",
+          "equals": "launch_home"
+        },
+        {
+          "path": "view.private_metadata",
+          "equals": "week-1"
+        },
+        {
+          "path": "view.blocks.0.text.text",
+          "equals": "Launch on *March 3*"
+        },
+        {
+          "path": "view.blocks.0.block_id",
+          "equals": "status"
+        },
+        {
+          "path": "view.blocks.0.type",
+          "equals": "section"
+        },
+        {
+          "path": "view.blocks.0.text.type",
+          "equals": "mrkdwn"
+        },
+        {
+          "path": "view.blocks.0.text.verbatim",
+          "equals": false
+        },
+        {
+          "path": "view.app_id",
+          "equals": "{app}"
+        },
+        {
+          "path": "view.bot_id",
+          "equals": "{bot_id}"
+        },
+        {
+          "path": "view.close",
+          "equals": null
+        },
+        {
+          "path": "view.submit",
+          "equals": null
+        },
+        {
+          "path": "view.team_id",
+          "equals": "T0VOLTER01"
+        }
+      ],
+      "example": "views_publish#200 application/json"
+    },
+    {
+      "name": "The bot publishes a home view for a user id nobody has",
+      "method": "POST",
+      "path": "/api/views.publish",
+      "body": {
+        "user_id": "U0NOSUCH1",
+        "view": {
+          "type": "home",
+          "blocks": []
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_arguments"
+        },
+        {
+          "path": "response_metadata.messages",
+          "equals": [
+            "invalid `user_id`"
+          ]
+        }
+      ],
+      "example": "views_publish#default application/json"
+    },
+    {
+      "name": "The bot reads the workspace's emoji: none of its own (published example)",
+      "method": "POST",
+      "path": "/api/emoji.list",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "emoji",
+          "equals": {}
+        }
+      ],
+      "example": "emoji_list#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls emoji.list; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/emoji.list",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "emoji_list#default application/json"
+    },
+    {
+      "name": "Maya creates the studio's time tracker app, Hours, whose people sign in with Slack",
+      "method": "POST",
+      "path": "/api/apps.manifest.create",
+      "body": {
+        "manifest": {
+          "display_information": {
+            "name": "Hours"
+          },
+          "oauth_config": {
+            "redirect_urls": [
+              "https://hours.juniper.studio/slack/oauth"
+            ],
+            "scopes": {
+              "user": [
+                "identity.basic"
+              ]
+            }
+          }
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {cfg}"
+      },
+      "capture": {
+        "hours_client": "credentials.client_id",
+        "hours_secret": "credentials.client_secret"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Lena signs in to the studio's time tracker with Slack",
+      "method": "POST",
+      "path": "/oauth/v2/authorize",
+      "headers": {
+        "authorization": "Bearer xoxp-ULENA"
+      },
+      "body": {
+        "client_id": "{hours_client}",
+        "scope": "",
+        "user_scope": "identity.basic",
+        "redirect_uri": "https://hours.juniper.studio/slack/oauth",
+        "state": "siws-1",
+        "answer": "allow"
+      },
+      "status": 302,
+      "capture": {
+        "siws_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "siws-1"
+        }
+      ]
+    },
+    {
+      "name": "The time tracker exchanges the code for her identity token",
+      "method": "POST",
+      "path": "/api/oauth.v2.access",
+      "body": {
+        "client_id": "{hours_client}",
+        "client_secret": "{hours_secret}",
+        "code": "{siws_code}",
+        "redirect_uri": "https://hours.juniper.studio/slack/oauth"
+      },
+      "capture": {
+        "siws": "authed_user.access_token"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "authed_user.id",
+          "equals": "ULENA"
+        },
+        {
+          "path": "authed_user.scope",
+          "equals": "identity.basic"
+        }
+      ]
+    },
+    {
+      "name": "Lena signs out of the time tracker, which revokes her identity token (published example)",
+      "method": "POST",
+      "path": "/api/auth.revoke",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {siws}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "revoked",
+          "equals": true
+        }
+      ],
+      "example": "auth_revoke#200 application/json"
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls auth.revoke; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/auth.revoke",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "auth_revoke#default application/json"
+    },
+    {
+      "name": "With its reminder cancelled when the launch moved, the studio uninstalls Juniper Bot (published example)",
+      "method": "POST",
+      "path": "/api/apps.uninstall",
+      "body": {
+        "client_id": "{client_id}",
+        "client_secret": "{client_secret}"
+      },
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "apps_uninstall#200 application/json"
+    },
+    {
+      "name": "the bot's token is revoked with it",
+      "method": "POST",
+      "path": "/api/auth.test",
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "token_revoked"
+        }
+      ]
+    },
+    {
+      "name": "A deploy that put the app's signing secret where its token belongs calls apps.uninstall; Slack cannot validate it",
+      "method": "POST",
+      "path": "/api/apps.uninstall",
+      "body": {
+        "client_id": "{client_id}",
+        "client_secret": "{client_secret}"
+      },
+      "headers": {
+        "authorization": "Bearer {signing_secret}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "invalid_auth"
+        }
+      ],
+      "example": "apps_uninstall#default application/json"
+    },
+    {
+      "name": "Maya builds the lobby screen's bot, which runs on a machine with no public address: a configuration token",
+      "method": "POST",
+      "path": "https://api.slack.com/apps",
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "team": "T0VOLTER01"
+      },
+      "status": 201,
+      "capture": {
+        "lobby_cfg": "text:access token is (xoxe\\.xoxp-[A-Za-z0-9-]+)"
+      }
+    },
+    {
+      "name": "She creates Lobby Bot with Socket Mode on, hearing its mentions",
+      "method": "POST",
+      "path": "/api/apps.manifest.create",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {lobby_cfg}"
+      },
+      "body": {
+        "manifest": {
+          "display_information": {
+            "name": "Lobby Bot",
+            "description": "Who is in the studio today"
+          },
+          "features": {
+            "bot_user": {
+              "display_name": "lobby"
+            }
+          },
+          "oauth_config": {
+            "redirect_urls": [
+              "https://lobby.juniper.studio/slack/oauth"
+            ],
+            "scopes": {
+              "bot": [
+                "app_mentions:read",
+                "chat:write"
+              ]
+            }
+          },
+          "settings": {
+            "socket_mode_enabled": true,
+            "event_subscriptions": {
+              "bot_events": [
+                "app_mention"
+              ]
+            },
+            "org_deploy_enabled": false
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "lobby": "app_id",
+        "lobby_client": "credentials.client_id",
+        "lobby_secret": "credentials.client_secret"
+      }
+    },
+    {
+      "name": "Maya installs it",
+      "method": "POST",
+      "path": "/oauth/v2/authorize",
+      "status": 302,
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "client_id": "{lobby_client}",
+        "scope": "app_mentions:read,chat:write",
+        "redirect_uri": "https://lobby.juniper.studio/slack/oauth",
+        "state": "lobby",
+        "answer": "allow"
+      },
+      "capture": {
+        "lobby_code": "redirect.code"
+      }
+    },
+    {
+      "name": "and its install handler exchanges the code",
+      "method": "POST",
+      "path": "/api/oauth.v2.access",
+      "status": 200,
+      "body": {
+        "client_id": "{lobby_client}",
+        "client_secret": "{lobby_secret}",
+        "code": "{lobby_code}",
+        "redirect_uri": "https://lobby.juniper.studio/slack/oauth"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "lobby_bot": "access_token",
+        "lobby_user": "bot_user_id"
+      }
+    },
+    {
+      "name": "Maya generates its app-level token for Socket Mode",
+      "method": "POST",
+      "path": "https://api.slack.com/apps/{lobby}/app-level-tokens",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "name": "lobby-socket",
+        "scopes": "connections:write"
+      },
+      "capture": {
+        "lobby_xapp": "text:The token is (xapp-[A-Za-z0-9-]+)"
+      }
+    },
+    {
+      "name": "The bot asks for its Socket Mode URL (published example)",
+      "method": "POST",
+      "path": "/api/apps.connections.open",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {lobby_xapp}"
+      },
+      "body": {},
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "lobby_ticket": "text:ticket=([0-9a-f-]+)"
+      },
+      "example": "apps_connections_open#doc a WebSocket URL"
+    },
+    {
+      "name": "It connects, and Slack says hello",
+      "socket": "lobby",
+      "open": "/link/?ticket={lobby_ticket}&app_id={lobby}",
+      "expect": [
+        {
+          "path": "frames.0.type",
+          "equals": "hello"
+        },
+        {
+          "path": "frames.0.connection_info.app_id",
+          "equals": "{lobby}"
+        },
+        {
+          "path": "frames.0.num_connections",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "Maya adds Lobby Bot to #studio-life",
+      "method": "POST",
+      "path": "/api/conversations.invite",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "channel": "{studio}",
+        "users": "{lobby_user}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Maya asks it who is in today",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer xoxp-UMAYA"
+      },
+      "body": {
+        "channel": "{studio}",
+        "text": "<@{lobby_user}> who is in today?"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "lobby_ask": "ts"
+      }
+    },
+    {
+      "name": "The mention arrives on the bot's connection, in the Events API's envelope",
+      "socket": "lobby",
+      "expect": [
+        {
+          "path": "last.type",
+          "equals": "events_api"
+        },
+        {
+          "path": "last.accepts_response_payload",
+          "equals": false
+        },
+        {
+          "path": "last.payload.type",
+          "equals": "event_callback"
+        },
+        {
+          "path": "last.payload.api_app_id",
+          "equals": "{lobby}"
+        },
+        {
+          "path": "last.payload.event.type",
+          "equals": "app_mention"
+        },
+        {
+          "path": "last.payload.event.user",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "last.payload.event.ts",
+          "equals": "{lobby_ask}"
+        },
+        {
+          "path": "last.payload.event.channel",
+          "equals": "{studio}"
+        }
+      ],
+      "capture": {
+        "lobby_envelope": "last.envelope_id"
+      }
+    },
+    {
+      "name": "and the bot acknowledges it",
+      "socket": "lobby",
+      "send": {
+        "envelope_id": "{lobby_envelope}"
+      }
+    },
+    {
+      "name": "The support app holds credentials for the Juniper World",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "connect_bot": "bot_token",
+        "connect_user": "bot_user_id"
+      }
+    },
+    {
+      "name": "The support app creates a channel for the external client",
+      "method": "POST",
+      "path": "/api/conversations.create",
+      "status": 200,
+      "body": {
+        "name": "client-support"
+      },
+      "headers": {
+        "authorization": "Bearer {connect_bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "connect_channel": "channel.id"
+      }
+    },
+    {
+      "name": "The documented invalid recipient email is refused (published rule)",
+      "method": "POST",
+      "path": "/api/conversations.inviteShared",
+      "status": 200,
+      "body": {
+        "channel": "{connect_channel}",
+        "emails": [
+          "not-an-email"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {connect_bot}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_email"
+        }
+      ],
+      "example": "conversations_inviteShared#doc invalid recipient email"
+    },
+    {
+      "name": "The support app cannot invite an unknown Slack user",
+      "method": "POST",
+      "path": "/api/conversations.inviteShared",
+      "status": 200,
+      "body": {
+        "channel": "{connect_channel}",
+        "user_ids": [
+          "UNOUSER"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {connect_bot}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "user_not_found"
+        }
+      ]
+    },
+    {
+      "name": "Its bot user is already a member of the channel it created",
+      "method": "POST",
+      "path": "/api/conversations.inviteShared",
+      "status": 200,
+      "body": {
+        "channel": "{connect_channel}",
+        "user_ids": [
+          "{connect_user}"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {connect_bot}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "already_in_channel"
+        }
+      ]
+    },
+    {
+      "name": "Inviting another known user by shared identity remains outside this World",
+      "method": "POST",
+      "path": "/api/conversations.inviteShared",
+      "status": 404,
+      "body": {
+        "channel": "{connect_channel}",
+        "user_ids": [
+          "UMAYA"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {connect_bot}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "unknown_method"
+        }
+      ]
+    },
+    {
+      "name": "The app sends the recipient-specific email invitation (published example)",
+      "method": "POST",
+      "path": "/api/conversations.inviteShared",
+      "status": 200,
+      "body": "channel={connect_channel}&emails=%5B%22client%40outside.test%22%5D&external_limited=true",
+      "headers": {
+        "authorization": "Bearer {connect_bot}",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "example": "conversations_inviteShared#doc recipient-specific email invitation",
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "invite_id",
+          "exists": true
+        },
+        {
+          "path": "is_legacy_shared_channel",
+          "equals": false
+        },
+        {
+          "path": "url",
+          "exists": false
+        },
+        {
+          "path": "conf_code",
+          "exists": false
+        }
+      ],
+      "capture": {
+        "connect_invite": "invite_id"
+      }
+    },
+    {
+      "name": "The support app reads its pending invitation back",
+      "method": "POST",
+      "path": "/api/conversations.listConnectInvites",
+      "status": 200,
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {connect_bot}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "invites.0.invite.id",
+          "equals": "{connect_invite}"
+        },
+        {
+          "path": "invites.0.channel.id",
+          "equals": "{connect_channel}"
+        },
+        {
+          "path": "invites.0.direction",
+          "equals": "outgoing"
+        },
+        {
+          "path": "invites.0.status",
+          "equals": "sent"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "files_comments_delete#200 application/json": "A file comment to delete cannot be made: \"On May 22nd, 2019, files.comments.add and files.comments.edit will cease functioning. You won't be able to add or edit file comments.\" (https://docs.slack.dev/changelog/2019/02/01/cemented-fate-for-file-comments). Only a comment made before 2019 could be deleted, and no World made through Slack's API since holds one.",
+    "workflows_stepCompleted#200 application/json": "Steps from Apps are retired: \"On September 26, 2024 legacy workflows containing Steps from Apps will stop working and users will no longer be able to add Steps from Apps features to workflows.\" (https://docs.slack.dev/changelog/2023-08-workflow-steps-from-apps-step-back). A walk's World starts on 2026-01-01, so no workflow step exists to complete, fail or update.",
+    "workflows_stepFailed#200 application/json": "Steps from Apps are retired: \"On September 26, 2024 legacy workflows containing Steps from Apps will stop working and users will no longer be able to add Steps from Apps features to workflows.\" (https://docs.slack.dev/changelog/2023-08-workflow-steps-from-apps-step-back). A walk's World starts on 2026-01-01, so no workflow step exists to complete, fail or update.",
+    "workflows_updateStep#200 application/json": "Steps from Apps are retired: \"On September 26, 2024 legacy workflows containing Steps from Apps will stop working and users will no longer be able to add Steps from Apps features to workflows.\" (https://docs.slack.dev/changelog/2023-08-workflow-steps-from-apps-step-back). A walk's World starts on 2026-01-01, so no workflow step exists to complete, fail or update."
+  }
+}

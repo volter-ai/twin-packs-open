@@ -1,0 +1,461 @@
+{
+ "about": "The decision table for the Slack pack: each operation served, the demand or life step or refresh that brings it in (journeys/demand.json, journeys/customer-life.json, the manifest's refresh scopes), and its mechanism. Admin API, SCIM and legacy OAuth are outside it; an operation no demand, life step or refresh reaches answers the gap.",
+ "decisions": [
+  {
+   "operation": "auth_test",
+   "demand": "demand: Volter Harness (the adapter's initialize)",
+   "mechanism": "handler",
+   "why": "Resolve the caller grant to its workspace/person/bot; authentication errors precede the identity answer."
+  },
+  {
+   "operation": "auth_revoke",
+   "demand": "the life: at the handover a stray notification shows Runhuman is still connected, and Maya disconnects Slack in Runhuman, whose server revokes its grant (June 2028)",
+   "mechanism": "handler",
+   "why": "Revoke the presented grant and subsequent access; Runhuman's server disconnects this way."
+  },
+  {
+   "operation": "oauth_v2_access",
+   "demand": "demand: RH2 (rhh worker, channel bridge), Dub, Postiz",
+   "mechanism": "handler",
+   "why": "Exchange one pending consent code; validate the app secret, matching redirect, lifetime and single use, and retain only the scopes the ordinary workspace consent granted."
+  },
+  {
+   "operation": "apps_manifest_validate",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Validate the published manifest shape and return errors without creating an app."
+  },
+  {
+   "operation": "apps_manifest_create",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Create an app from a valid manifest owned by the configuration-token holder, issuing credentials as secrets."
+  },
+  {
+   "operation": "apps_manifest_update",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Update the holder-owned app configuration; installed grants keep their granted scopes."
+  },
+  {
+   "operation": "apps_manifest_export",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Read the holder-owned app manifest for editing."
+  },
+  {
+   "operation": "apps_manifest_delete",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Remove a holder-owned app and revoke its installations."
+  },
+  {
+   "operation": "apps_uninstall",
+   "demand": "demand: Dub (the integration removed, with the token and client credentials)",
+   "mechanism": "handler",
+   "why": "Uninstall the caller app in its workspace and revoke its grants, with app-uninstalled and token-revoked deliveries."
+  },
+  {
+   "operation": "apps_connections_open",
+   "demand": "demand: Volter Harness (Socket Mode)",
+   "mechanism": "handler",
+   "why": "Allocate a Socket Mode connection for the app-level grant; the kernel owns the socket session."
+  },
+  {
+   "operation": "chat_postMessage",
+   "demand": "demand: RH2, Volter Harness (text and markdown_text in a thread), Twin's on-call recipe, Postiz",
+   "mechanism": "handler",
+   "why": "Authorize channel membership and granted scope; append the timestamped message/thread reply and send subscribed message events."
+  },
+  {
+   "operation": "chat_update",
+   "demand": "demand: RH2 (the task's status message)",
+   "mechanism": "handler",
+   "why": "Authorize ownership of the timestamped message; update its content and emit the changed-message event used by RH2 status replies."
+  },
+  {
+   "operation": "chat_delete",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Authorize ownership and delete the timestamped message, emitting its deletion."
+  },
+  {
+   "operation": "chat_getPermalink",
+   "demand": "demand: Postiz (a post's permalink)",
+   "mechanism": "handler",
+   "why": "Compute the published Slack message URL from workspace, channel and message timestamp."
+  },
+  {
+   "operation": "chat_meMessage",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Append the documented action-message subtype with the caller as author."
+  },
+  {
+   "operation": "chat_scheduleMessage",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Store a future message after the documented schedule window/queue checks; the clock sends it at post_at."
+  },
+  {
+   "operation": "chat_scheduledMessages_list",
+   "demand": "the scheduled_message refresh reads it",
+   "mechanism": "handler",
+   "why": "List the caller visible unsent scheduled messages with paging."
+  },
+  {
+   "operation": "chat_deleteScheduledMessage",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Remove the caller unsent scheduled message; refuse one already delivered or missing."
+  },
+  {
+   "operation": "chat_postEphemeral",
+   "demand": "demand: RH2 (a note to the person alone in the thread)",
+   "mechanism": "handler",
+   "why": "Record the private delivery only for the addressed workspace member; RH2 uses this for thread refusals."
+  },
+  {
+   "operation": "chat_unfurl",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Update a shared link with the app unfurl content after grant and channel checks."
+  },
+  {
+   "operation": "conversations_create",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Create a workspace channel and the caller membership, with valid unique channel-name checks."
+  },
+  {
+   "operation": "conversations_info",
+   "demand": "demand: RH2's channel bridge",
+   "mechanism": "handler",
+   "why": "Project one channel as visible to the caller workspace and membership; RH2 channel bridge checks it."
+  },
+  {
+   "operation": "conversations_join",
+   "demand": "demand: RH2, Postiz",
+   "mechanism": "handler",
+   "why": "Join a public unarchived channel and emit member_joined_channel; RH2 retries posting after not_in_channel."
+  },
+  {
+   "operation": "conversations_invite",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Add accessible workspace members to a channel, refusing a missing member, private denial or archived channel."
+  },
+  {
+   "operation": "conversations_leave",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Remove the caller channel membership, refusing the documented ineligible channel."
+  },
+  {
+   "operation": "conversations_members",
+   "demand": "the channel_member refresh reads it",
+   "mechanism": "handler",
+   "why": "List channel membership subject ids, with caller visibility and paging."
+  },
+  {
+   "operation": "conversations_list",
+   "demand": "demand: Twin's on-call recipe, Postiz (types=public_channel,private_channel); the channel refresh reads it",
+   "mechanism": "handler",
+   "why": "List caller-visible public/private/IM channels, filtering archived/types and retaining cursor paging used by Runhuman."
+  },
+  {
+   "operation": "conversations_history",
+   "demand": "demand: Twin's on-call recipe; the message refresh reads it",
+   "mechanism": "handler",
+   "why": "Read visible messages with oldest/latest boundaries and cursor paging."
+  },
+  {
+   "operation": "conversations_replies",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Read the visible parent and its replies using thread timestamps."
+  },
+  {
+   "operation": "conversations_open",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Resolve or create the caller direct-message conversation for its user set."
+  },
+  {
+   "operation": "conversations_archive",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Move is_archived false to true; refuse already_archived; subsequent posting fails channel_is_archived."
+  },
+  {
+   "operation": "conversations_unarchive",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Move is_archived true to false; refuse not_archived; preserve messages and membership."
+  },
+  {
+   "operation": "conversations_rename",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Rename the visible channel with actor, naming and duplicate checks."
+  },
+  {
+   "operation": "conversations_setPurpose",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Set the channel purpose after membership/actor checks."
+  },
+  {
+   "operation": "conversations_setTopic",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Set the channel topic after membership/actor checks."
+  },
+  {
+   "operation": "conversations_mark",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Record the caller last-read marker for the visible conversation."
+  },
+  {
+   "operation": "users_info",
+   "demand": "demand: RH2's channel bridge, Volter Harness (a message's author), Postiz (the bot's user)",
+   "mechanism": "handler",
+   "why": "Read one visible workspace member with the fields the granted scopes permit."
+  },
+  {
+   "operation": "users_list",
+   "demand": "the user and team_member refreshes read it",
+   "mechanism": "handler",
+   "why": "List workspace members with cursor paging and scope-controlled email/profile fields."
+  },
+  {
+   "operation": "users_profile_get",
+   "demand": "demand: Dub (the person who ran /shorten, by profile email)",
+   "mechanism": "handler",
+   "why": "Read the permitted member profile."
+  },
+  {
+   "operation": "users_profile_set",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Update the caller profile, preserving fields outside the request."
+  },
+  {
+   "operation": "users_conversations",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "List conversations the selected accessible member belongs to."
+  },
+  {
+   "operation": "users_getPresence",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Read member presence within the caller workspace."
+  },
+  {
+   "operation": "users_setPresence",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Set the caller presence to the documented auto/away choice."
+  },
+  {
+   "operation": "usergroups_create",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Create a workspace user group, checking actor and handle uniqueness."
+  },
+  {
+   "operation": "usergroups_list",
+   "demand": "the usergroup and usergroup_channel refreshes read it",
+   "mechanism": "handler",
+   "why": "List workspace user groups including disabled groups only when requested."
+  },
+  {
+   "operation": "usergroups_update",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Update a workspace group metadata; refuse absent group or duplicate handle."
+  },
+  {
+   "operation": "usergroups_users_list",
+   "demand": "the usergroup_member refresh reads it",
+   "mechanism": "handler",
+   "why": "List workspace group members."
+  },
+  {
+   "operation": "usergroups_users_update",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Replace workspace group membership with accessible users."
+  },
+  {
+   "operation": "usergroups_disable",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Disable a workspace group and stop its use in mentions."
+  },
+  {
+   "operation": "usergroups_enable",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Enable a disabled workspace group; keep membership."
+  },
+  {
+   "operation": "files_getUploadURLExternal",
+   "demand": "demand: Volter Harness (files.uploadV2)",
+   "mechanism": "handler",
+   "why": "Reserve an upload with its declared filename/length and issue a secret upload URL."
+  },
+  {
+   "operation": "files_completeUploadExternal",
+   "demand": "demand: Volter Harness (files.uploadV2, into a thread)",
+   "mechanism": "handler",
+   "why": "Publish only uploaded file bytes, associate the selected visible channel and emit its file event."
+  },
+  {
+   "operation": "files_list",
+   "demand": "the file refresh reads it",
+   "mechanism": "handler",
+   "why": "Read completed files visible to the caller in its workspace; an app sees shared files only in conversations its bot joined, and an uploader retains access to its own private upload."
+  },
+  {
+   "operation": "files_delete",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Remove a caller-owned file and its blob after authorization."
+  },
+  {
+   "operation": "pins_add",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Add the visible channel message to its pins; refuse an already pinned or missing message."
+  },
+  {
+   "operation": "pins_remove",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Remove an existing channel-message pin."
+  },
+  {
+   "operation": "pins_list",
+   "demand": "the pin refresh reads it",
+   "mechanism": "handler",
+   "why": "Read the channel pins and their visible message projections."
+  },
+  {
+   "operation": "reactions_add",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Add the caller reaction to the visible message once, emitting reaction_added."
+  },
+  {
+   "operation": "reactions_remove",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Remove that caller reaction, emitting reaction_removed."
+  },
+  {
+   "operation": "reactions_get",
+   "demand": "the reaction refresh reads it",
+   "mechanism": "handler",
+   "why": "Read a visible message with its reactions grouped by emoji."
+  },
+  {
+   "operation": "team_info",
+   "demand": "the life; the team refresh reads it",
+   "mechanism": "handler",
+   "why": "Read the caller workspace identity; a selected team must be accessible."
+  },
+  {
+   "operation": "views_publish",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Publish a Home view for the accessible member from the app grant, checking the supplied view/hash."
+  },
+  {
+   "operation": "dnd_setSnooze",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Set the caller timed snooze interval; the clock determines when it expires."
+  },
+  {
+   "operation": "dnd_endSnooze",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "End the caller active snooze and return its current status."
+  },
+  {
+   "operation": "emoji_list",
+   "demand": "the life; the emoji refresh reads it",
+   "mechanism": "handler",
+   "why": "Read workspace custom emoji aliases and images."
+  },
+  {
+   "operation": "tooling_tokens_rotate",
+   "demand": "the life (journeys/customer-life.json)",
+   "mechanism": "handler",
+   "why": "Rotate the holder app-configuration token pair through the documented app-manifest tooling flow."
+  },
+  {
+   "operation": "door:apps",
+   "demand": "the life: a client act or an outside app the story needs",
+   "mechanism": "door",
+   "why": "State an externally developed distributed app whose own creation occurred outside this World; does not impersonate a stored Web API mutation."
+  },
+  {
+   "operation": "door:command",
+   "demand": "the life: a client act or an outside app the story needs",
+   "mechanism": "door",
+   "why": "A person runs a command in the Slack client; send the signed slash-command payload to the installed app."
+  },
+  {
+   "operation": "door:home",
+   "demand": "the life: a client act or an outside app the story needs",
+   "mechanism": "door",
+   "why": "A person opens the installed app Home tab, producing app_home_opened."
+  },
+  {
+   "operation": "door:link",
+   "demand": "the life: a client act or an outside app the story needs",
+   "mechanism": "door",
+   "why": "A person shares a link in the client; route link_shared to the subscribed app."
+  },
+  {
+   "operation": "door:action",
+   "demand": "the life: a client act or an outside app the story needs",
+   "mechanism": "door",
+   "why": "A person clicks a Block Kit action; send the signed block_actions payload."
+  },
+  {
+   "operation": "door:deliveries",
+   "demand": "the life: a client act or an outside app the story needs",
+   "mechanism": "door",
+   "why": "Observe the World outbox of app deliveries; no vendor mutation is fabricated."
+  },
+  {
+   "operation": "door:mail",
+   "demand": "the life: a client act or an outside app the story needs",
+   "mechanism": "door",
+   "why": "Observe invitations sent to a person inbox; workspace membership still happens through the Join page."
+  },
+  {
+   "operation": "door:appCredentials",
+   "demand": "the World credential issuer and official SDK cases",
+   "mechanism": "door",
+   "why": "Issue the installed World app credentials through the existing settings door; API mutations still use Slack APIs."
+  },
+  {
+   "operation": "conversations_inviteShared",
+   "demand": "Dub priority support: journeys/demand.json, apps/web/lib/slack/support-invite.ts:115",
+   "mechanism": "handler",
+   "why": "Store a recipient-specific outgoing Slack Connect invitation and its channel, author and creation time. Refuse archived/general/DM channels, a caller outside the channel, malformed recipients and multiple recipients. Return the documented invite id without a shareable URL; receiving workspace acceptance and approval remain outside this demand."
+  },
+  {
+   "operation": "conversations_listConnectInvites",
+   "demand": "refresh of pending Slack Connect invitations and customer-life readback",
+   "mechanism": "handler",
+   "why": "Read the stored outgoing invitations for the caller workspace with count/cursor pagination and nested invite identity. Pending-only refresh is incomplete for historical accepted or expired invitations."
+  }
+ ]
+}

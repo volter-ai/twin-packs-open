@@ -1,0 +1,214 @@
+{
+  "judge": {
+    "agent": "Claude Code (claude-opus-5-5, Claude Opus 5.5)",
+    "name": "Contributor 104"
+  },
+  "authors": [
+    "Contributor 173"
+  ],
+  "bar": "829132787d94a2d4",
+  "sha256": "3f56e4e11ec04f887a0a708fee965f99ba21afdc5f66a20baf961c51df0daf9a",
+  "judgedAt": "2026-10-02",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "callback-refusal-wrong-cause",
+      "steps": [
+        "act 2"
+      ],
+      "barItem": "vendor behaviour the vendor's documentation contradicts; a run of refusals",
+      "reason": "\"Her app configuration token expires overnight, so the morning's retried install callback and an export with the old pair are refused\". The install callback is oauth.v2.access, which takes the app's client_id, client_secret and code and never the configuration token; Slack refuses a reused or expired code (invalid_code, https://docs.slack.dev/reference/methods/oauth.v2.access) whatever happens to the configuration pair. The stated cause does not produce that refusal, no browser re-posts a callback consumed the day before, and the two refusals then run back to back.",
+      "correction": "Remove the retried install callback. Keep only the expired-pair export as the morning's single refusal, caused by the configuration token's 12-hour lifetime, then the rotation."
+    },
+    {
+      "id": "people-read-backs",
+      "steps": [
+        "act 1"
+      ],
+      "barItem": "a read-back with no need",
+      "reason": "\"Maya looks through her people, finds Theo by his email and opens Lena's account\". Maya invited both people and approved Lena's request herself, so she already holds who they are and Theo's address. Three reads in a row of what she holds, with nothing the story does with them.",
+      "correction": "Delete the beat, or give the look-up a reader who does not hold the answer (for example, an app that matches a person by email, as Dub later does)."
+    },
+    {
+      "id": "reminder-toggled-in-one-sitting",
+      "steps": [
+        "act 2"
+      ],
+      "barItem": "a state switched away and back in one sitting",
+      "reason": "\"The bot schedules a review reminder; the client review is cancelled, so it deletes that one, and the rescheduled internal review keeps its own\". As written, scheduling, cancelling and rescheduling a reminder for the same 16:00 slot all happen in one sitting. The cancellation needs time to pass before it.",
+      "correction": "Put the cancellation in a later sitting (for example, the next day, when the client cancels). Or schedule only the internal review's reminder."
+    },
+    {
+      "id": "runhuman-reconnect-without-reason",
+      "steps": [
+        "act 3"
+      ],
+      "barItem": "a state switched away and back with no reason the story shows; the wrong actor or credential for an act",
+      "reason": "\"when new briefs arrive she enables it again and reconnects Runhuman: she disconnects the old grant ... and installs it afresh\". New briefs give no reason to revoke a working grant and install the same app again. Maya also cannot revoke Runhuman's bot token herself, because only Runhuman's server holds it (auth.revoke revokes the token it is called with). Separately, demand.json rules Runhuman 1 out of scope (owner: \"drop runhuman 1\"), and this act's Runhuman, with its api.runhuman.com/customer callback, is that product.",
+      "correction": "Remove the disconnect and reinstall, or give them a cause the story carries out (for example, Runhuman asks for a new scope). Have the revoke done by Runhuman's server when Maya disconnects in Runhuman, or by Maya on Manage apps. Better still, recast the act on a demanded application instead of Runhuman 1."
+    },
+    {
+      "id": "revoked-token-cause-twice",
+      "steps": [
+        "act 3",
+        "act 6"
+      ],
+      "barItem": "the same cause drawn twice",
+      "reason": "The same refusal is drawn twice. In act 3 the disconnected Runhuman grant \"can then no longer post\". In act 6 \"its old token no longer posts\" for RH2 after it is removed. RH2 has just received app_uninstalled, so it has no reason to post afterwards.",
+      "correction": "Keep at most one revoked-token refusal, and drop RH2's post-uninstall post in act 6."
+    },
+    {
+      "id": "query-token-after-2021",
+      "steps": [
+        "act 4"
+      ],
+      "barItem": "the wrong era; vendor behaviour the vendor's documentation contradicts",
+      "reason": "\"Kiln's uptime monitor posts an alert with a GET and its token in the query\". The token is Kiln Bot's, from an app created in February 2026. Slack: apps created after February 24, 2021 may not send tokens as query parameters, and \"the API will respond with an error and will not service the request\" (https://docs.slack.dev/changelog/2020-11-no-more-tokens-in-querystrings-for-newly-created-apps).",
+      "correction": "Delete the GET-with-query-token post, or send the monitor's token in the Authorization header (or as a form field, as the release script does)."
+    },
+    {
+      "id": "mention-never-answered",
+      "steps": [
+        "act 4"
+      ],
+      "barItem": "a promise never kept",
+      "reason": "\"Theo asks Kiln Bot what is due this week, Lena reacts that she is watching\". The bot receives the app_mention but never answers, so the answer Lena is watching for never comes.",
+      "correction": "Have Kiln Bot answer the question in its thread after its server receives the mention."
+    },
+    {
+      "id": "render-agent-answers-nothing",
+      "steps": [
+        "act 4"
+      ],
+      "barItem": "a stated cause that never happens",
+      "reason": "Theo \"creates the app-level token it opens Socket Mode with\", and then \"the bot's agent then answers in the output's thread\". Nothing ever arrives on the socket and nobody asks the agent anything, so the socket is opened for nothing and the answer replies to nobody. (Harness, the demanded client of this pattern, receives events_api envelopes over the socket and replies to them.)",
+      "correction": "Have someone ask the render bot in the output's thread, have the message arrive on its Socket Mode connection as an events_api envelope that it acknowledges, and then have the agent answer."
+    },
+    {
+      "id": "omar-never-collaborates",
+      "steps": [
+        "act 5",
+        "the opening"
+      ],
+      "barItem": "a stated cause that never happens; a read-back with no need",
+      "reason": "The opening says \"Omar works with them from his own company's workspace\", but he never accepts the Slack Connect invitation or does anything. Maya then \"sees the invitation waiting\" right after sending it, which is a read of what she already holds.",
+      "correction": "Have Omar's company accept the invitation and have Omar act in the shared channel, or drop Omar and the invitation. Remove the immediate check of the waiting invitation, or give it a reader who does not hold it."
+    },
+    {
+      "id": "unarchive-recovery-never-made",
+      "steps": [
+        "act 6"
+      ],
+      "barItem": "a promise never kept; returned with no reason the story shows",
+      "reason": "\"she unarchives the studio to recover a brief for the acquiring team\". No brief is recovered: the next act is Lena's handover post. Archiving does not hide the brief either: \"Archived channels are closed to new activity, but the message history is retained and searchable on paid plans\" (https://slack.com/help/articles/213185307-Archive-or-delete-a-channel), and Kiln uses Slack Connect, which needs a paid plan.",
+      "correction": "Either recover the brief (read it, or share its link) without unarchiving, or give the unarchive a reason that needs it (the acquiring team will post in the channel again) and have that happen."
+    }
+  ],
+  "applied": {
+    "from": "de542753d79a7c04350b15eb052fa53f8b3dc149dd66008270f897a10690daa7",
+    "wasPlausible": false,
+    "steps": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ],
+    "rulings": [
+      {
+        "id": "callback-refusal-wrong-cause",
+        "steps": [
+          "act 2"
+        ],
+        "barItem": "vendor behaviour the vendor's documentation contradicts; a run of refusals",
+        "reason": "\"Her app configuration token expires overnight, so the morning's retried install callback and an export with the old pair are refused\". The install callback is oauth.v2.access, which takes the app's client_id, client_secret and code and never the configuration token; Slack refuses a reused or expired code (invalid_code, https://docs.slack.dev/reference/methods/oauth.v2.access) whatever happens to the configuration pair. The stated cause does not produce that refusal, no browser re-posts a callback consumed the day before, and the two refusals then run back to back.",
+        "correction": "Remove the retried install callback. Keep only the expired-pair export as the morning's single refusal, caused by the configuration token's 12-hour lifetime, then the rotation."
+      },
+      {
+        "id": "people-read-backs",
+        "steps": [
+          "act 1"
+        ],
+        "barItem": "a read-back with no need",
+        "reason": "\"Maya looks through her people, finds Theo by his email and opens Lena's account\". Maya invited both people and approved Lena's request herself, so she already holds who they are and Theo's address. Three reads in a row of what she holds, with nothing the story does with them.",
+        "correction": "Delete the beat, or give the look-up a reader who does not hold the answer (for example, an app that matches a person by email, as Dub later does)."
+      },
+      {
+        "id": "reminder-toggled-in-one-sitting",
+        "steps": [
+          "act 2"
+        ],
+        "barItem": "a state switched away and back in one sitting",
+        "reason": "\"The bot schedules a review reminder; the client review is cancelled, so it deletes that one, and the rescheduled internal review keeps its own\". As written, scheduling, cancelling and rescheduling a reminder for the same 16:00 slot all happen in one sitting. The cancellation needs time to pass before it.",
+        "correction": "Put the cancellation in a later sitting (for example, the next day, when the client cancels). Or schedule only the internal review's reminder."
+      },
+      {
+        "id": "runhuman-reconnect-without-reason",
+        "steps": [
+          "act 3"
+        ],
+        "barItem": "a state switched away and back with no reason the story shows; the wrong actor or credential for an act",
+        "reason": "\"when new briefs arrive she enables it again and reconnects Runhuman: she disconnects the old grant ... and installs it afresh\". New briefs give no reason to revoke a working grant and install the same app again. Maya also cannot revoke Runhuman's bot token herself, because only Runhuman's server holds it (auth.revoke revokes the token it is called with). Separately, demand.json rules Runhuman 1 out of scope (owner: \"drop runhuman 1\"), and this act's Runhuman, with its api.runhuman.com/customer callback, is that product.",
+        "correction": "Remove the disconnect and reinstall, or give them a cause the story carries out (for example, Runhuman asks for a new scope). Have the revoke done by Runhuman's server when Maya disconnects in Runhuman, or by Maya on Manage apps. Better still, recast the act on a demanded application instead of Runhuman 1."
+      },
+      {
+        "id": "revoked-token-cause-twice",
+        "steps": [
+          "act 3",
+          "act 6"
+        ],
+        "barItem": "the same cause drawn twice",
+        "reason": "The same refusal is drawn twice. In act 3 the disconnected Runhuman grant \"can then no longer post\". In act 6 \"its old token no longer posts\" for RH2 after it is removed. RH2 has just received app_uninstalled, so it has no reason to post afterwards.",
+        "correction": "Keep at most one revoked-token refusal, and drop RH2's post-uninstall post in act 6."
+      },
+      {
+        "id": "query-token-after-2021",
+        "steps": [
+          "act 4"
+        ],
+        "barItem": "the wrong era; vendor behaviour the vendor's documentation contradicts",
+        "reason": "\"Kiln's uptime monitor posts an alert with a GET and its token in the query\". The token is Kiln Bot's, from an app created in February 2026. Slack: apps created after February 24, 2021 may not send tokens as query parameters, and \"the API will respond with an error and will not service the request\" (https://docs.slack.dev/changelog/2020-11-no-more-tokens-in-querystrings-for-newly-created-apps).",
+        "correction": "Delete the GET-with-query-token post, or send the monitor's token in the Authorization header (or as a form field, as the release script does)."
+      },
+      {
+        "id": "mention-never-answered",
+        "steps": [
+          "act 4"
+        ],
+        "barItem": "a promise never kept",
+        "reason": "\"Theo asks Kiln Bot what is due this week, Lena reacts that she is watching\". The bot receives the app_mention but never answers, so the answer Lena is watching for never comes.",
+        "correction": "Have Kiln Bot answer the question in its thread after its server receives the mention."
+      },
+      {
+        "id": "render-agent-answers-nothing",
+        "steps": [
+          "act 4"
+        ],
+        "barItem": "a stated cause that never happens",
+        "reason": "Theo \"creates the app-level token it opens Socket Mode with\", and then \"the bot's agent then answers in the output's thread\". Nothing ever arrives on the socket and nobody asks the agent anything, so the socket is opened for nothing and the answer replies to nobody. (Harness, the demanded client of this pattern, receives events_api envelopes over the socket and replies to them.)",
+        "correction": "Have someone ask the render bot in the output's thread, have the message arrive on its Socket Mode connection as an events_api envelope that it acknowledges, and then have the agent answer."
+      },
+      {
+        "id": "omar-never-collaborates",
+        "steps": [
+          "act 5",
+          "the opening"
+        ],
+        "barItem": "a stated cause that never happens; a read-back with no need",
+        "reason": "The opening says \"Omar works with them from his own company's workspace\", but he never accepts the Slack Connect invitation or does anything. Maya then \"sees the invitation waiting\" right after sending it, which is a read of what she already holds.",
+        "correction": "Have Omar's company accept the invitation and have Omar act in the shared channel, or drop Omar and the invitation. Remove the immediate check of the waiting invitation, or give it a reader who does not hold it."
+      },
+      {
+        "id": "unarchive-recovery-never-made",
+        "steps": [
+          "act 6"
+        ],
+        "barItem": "a promise never kept; returned with no reason the story shows",
+        "reason": "\"she unarchives the studio to recover a brief for the acquiring team\". No brief is recovered: the next act is Lena's handover post. Archiving does not hide the brief either: \"Archived channels are closed to new activity, but the message history is retained and searchable on paid plans\" (https://slack.com/help/articles/213185307-Archive-or-delete-a-channel), and Kiln uses Slack Connect, which needs a paid plan.",
+        "correction": "Either recover the brief (read it, or share its link) without unarchiving, or give the unarchive a reason that needs it (the acquiring team will post in the channel again) and have that happen."
+      }
+    ]
+  }
+}

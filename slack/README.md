@@ -1,0 +1,58 @@
+# @volter/twin-slack
+
+Slack's Web API, workspace invitations and member pages, app configuration and OAuth install pages, incoming
+webhooks and signed app deliveries. The pinned API and corrections are in spec/; provenance is spec/SOURCE.md.
+The current product callers, operation decisions and customer story are in journeys/.
+
+## Use with an existing app
+
+In an app that already uses Slack, install the product CLI and this exact twin release:
+
+```console
+npm install --save-dev --save-exact @volter/world@3.0.87 @volter/twin-slack@3.0.3
+npx volter world init --name my-app --twins slack --source slack=@volter/twin-slack
+```
+
+Review the detected vendor and bindings before booting. The World issues throwaway bot, Socket Mode and signing
+credentials using the names listed below. Run the app's own command inside the World:
+
+```console
+npx volter world up
+npx volter world run -- npm test
+npx volter world log
+npx volter world down
+```
+
+Replace `npm test` with your app or test command. `down` retains state and a later `up` resumes it.
+Publisher and catalog contribution instructions: [the public publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md).
+
+The pack models an ordinary workspace with people, channels, timestamped messages and threads, files, normal workspace
+user groups, apps and their scoped grants. Its APIs keep Slack's ok/error envelope, cursor paging and caller visibility.
+OAuth codes and grants have their own secrets, expiry and revocation. File bytes use the kernel blob seam. Scheduled
+messages use the World clock.
+
+A person creates the workspace at slack.com/get-started and joins through invitation mail and the Join page. Workspace
+admins manage members and invitation requests at slack.com/admin. Developers configure their app at api.slack.com/apps;
+installation uses slack.com/oauth/v2/authorize and oauth.v2.access. Program calls use their own issued tokens; a person's
+synthetic client session is xoxp-<user-id>. Real credentials are never needed.
+
+World doors represent acts the API does not perform: an externally developed distributed app (/_twin/apps), a client
+slash command, Home opening, link share or action (/_twin/client/*), and observation of app deliveries or invitation mail
+(/_twin/deliveries and /_twin/mail). The application's own credentials come from /_twin/app-credentials, which the
+World asks at every boot: its own app, installed in its workspace, with a bot token (`SLACK_BOT_TOKEN`), an app-level
+Socket Mode token (`SLACK_APP_TOKEN`) and the app's signing secret. It is subscribed to every event the twin sends (link_shared
+aside: it names no unfurl domain) and receives them over Socket Mode (it has no Request URL); its bot holds every scope Slack's methods name. Stored vendor mutations still use the API or vendor pages.
+
+Its callers are journeys/demand.json's: RH2's Slack app and channel bridge, Volter Harness's Slack platform (the Chat
+SDK in Socket Mode), Twin's on-call recipe, Dub's Slack integration and Postiz's Slack channel. Enterprise Grid
+administration, SCIM provisioning and legacy OAuth are outside the modeled slate. Every Web API operation no demand,
+life step or refresh reaches answers the gap (unknown_method), files.upload among them. The upload flow is
+files.getUploadURLExternal, its returned byte-upload URL and files.completeUploadExternal.
+
+Publishing and catalog process: [the public publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md). Standing is the Protocol 3 grade and score-pack report, recorded after the whole
+slate is written. No result here asserts that the final walk or independent review has run.
+
+Dub priority support can create a channel and send a recipient-specific Slack Connect email invitation. The stored
+pending invitation is read through conversations.listConnectInvites with count/cursor pagination and retained in the
+local mail outbox. Receiving-workspace acceptance, approval, user-id recipients and join links are outside this
+workflow; the twin sends no real invitation mail. Targeted invitation responses disclose no shareable URL.

@@ -1,0 +1,296 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/runhuman-2 (RH2)",
+      "commit": "34fdc9377306",
+      "client": "fetch in the RH2 Slack app's worker (JSON bodies, Bearer bot token) and the channel bridge's worker (form bodies, Bearer bot token); oauth.v2.access as a form with the client credentials",
+      "backend": [
+        {
+          "call": "the install's code exchanged for the workspace's bot token",
+          "operation": "oauth_v2_access",
+          "evidence": "apps/rhh/slack/worker.ts:198"
+        },
+        {
+          "call": "the task's root message, its thread replies and the status message",
+          "operation": "chat_postMessage",
+          "evidence": "apps/rhh/slack/worker.ts:248; apps/rhh/slack/worker.ts:123,138,160,183"
+        },
+        {
+          "call": "the status message updated in place",
+          "operation": "chat_update",
+          "evidence": "apps/rhh/slack/worker.ts:181"
+        },
+        {
+          "call": "a public channel the app is not in is joined after not_in_channel",
+          "operation": "conversations_join",
+          "evidence": "apps/rhh/slack/worker.ts:250"
+        },
+        {
+          "call": "a note to the person alone in the thread",
+          "operation": "chat_postEphemeral",
+          "evidence": "apps/rhh/slack/worker.ts:283"
+        },
+        {
+          "call": "the bridge's install: its code exchanged for the workspace's bot token",
+          "operation": "oauth_v2_access",
+          "evidence": "bots/channel-bridge/worker.ts:179"
+        },
+        {
+          "call": "the bridge finds the installed workspace that can see a linked channel",
+          "operation": "conversations_info",
+          "evidence": "bots/channel-bridge/worker.ts:99"
+        },
+        {
+          "call": "a Conversation's line posted in its channel under its author's name (username, unfurl_links false)",
+          "operation": "chat_postMessage",
+          "evidence": "bots/channel-bridge/worker.ts:121"
+        },
+        {
+          "call": "a person's name for a line the bridge carries into RH2",
+          "operation": "users_info",
+          "evidence": "bots/channel-bridge/worker.ts:151"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "Slack OAuth consent (commands, chat:write, channels:history, channels:join, groups:history, im:history)",
+          "operation": "oauth/v2/authorize",
+          "evidence": "apps/rhh/slack/worker.ts:265"
+        }
+      ],
+      "webhooks": [
+        {
+          "receives": "a signed slash command, answered in its acknowledgement's body with a reply to the person alone (link, config, help) or acknowledged empty while the task runs",
+          "evidence": "apps/rhh/slack/worker.ts:274,275; apps/rhh/slack/worker.ts:208"
+        },
+        {
+          "receives": "a signed message event (a person's reply in a task thread) and url_verification",
+          "evidence": "apps/rhh/slack/worker.ts:278,281"
+        },
+        {
+          "receives": "the bridge's signed message event (a person's line in a linked channel) and url_verification",
+          "evidence": "bots/channel-bridge/worker.ts:187,189,192"
+        }
+      ],
+      "ci": []
+    },
+    {
+      "name": "volter-ai/supercode (Volter Harness)",
+      "commit": "62620578c014",
+      "client": "the Chat SDK's Slack adapter in Socket Mode (chat@4.39.0, @chat-adapter/slack 4.39.0 over @slack/web-api 7.18.0 and @slack/socket-mode 2.0.5), SLACK_BOT_TOKEN and SLACK_APP_TOKEN from Hermes's .env (chat-sdk.mjs:79); configuration read at sdk/orchestrator/adapters/chat-sdk.mjs:10,79,209-211",
+      "backend": [
+        {
+          "call": "the adapter's initialize reads the bot's own user and bot id",
+          "operation": "auth_test",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:331",
+          "client": "@chat-adapter/slack:dist/index.js:1456"
+        },
+        {
+          "call": "Socket Mode: the app-level token asks where to connect",
+          "operation": "apps_connections_open",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:331",
+          "client": "@chat-adapter/slack:dist/index.js:2459; @slack/socket-mode:dist/src/SocketModeClient.js:223"
+        },
+        {
+          "call": "Socket Mode's connection: events_api envelopes (a message in a channel or a DM, an app_mention), each acknowledged by its envelope_id",
+          "operation": "socket:socketMode",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:323,324,325",
+          "client": "@chat-adapter/slack:dist/index.js:2439"
+        },
+        {
+          "call": "a message's author named for the inbound turn",
+          "operation": "users_info",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:323,324,325",
+          "client": "@chat-adapter/slack:dist/index.js:3593; @chat-adapter/slack:dist/index.js:1782"
+        },
+        {
+          "call": "the agent's reply posted in the thread (text, thread_ts, unfurl_links and unfurl_media false)",
+          "operation": "chat_postMessage",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:449,451",
+          "client": "@chat-adapter/slack:dist/index.js:3964"
+        },
+        {
+          "call": "a reply's files uploaded into the thread (files.uploadV2: the upload URL asked, the bytes posted to it, the upload completed with channel_id and thread_ts)",
+          "operation": "files_getUploadURLExternal; files_completeUploadExternal",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:446,449",
+          "client": "@chat-adapter/slack:dist/index.js:4219; @slack/web-api:dist/WebClient.js:391,401,418"
+        },
+        {
+          "call": "the reply that carries files, its text as markdown_text",
+          "operation": "chat_postMessage",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:446,449",
+          "client": "@chat-adapter/slack:dist/index.js:550; @chat-adapter/slack:dist/index.js:3964"
+        }
+      ],
+      "frontend": [],
+      "webhooks": [],
+      "ci": []
+    },
+    {
+      "name": "Twin (twin-world's own callers)",
+      "commit": "96ca4478bb39",
+      "client": "the on-call recipe's @slack/web-api WebClient (cookbook/on-call-agent, an executed page whose app is Slack's official SDK unmodified) with the World's SLACK_BOT_TOKEN",
+      "backend": [
+        {
+          "call": "the agent finds #ops",
+          "operation": "conversations_list",
+          "evidence": "cookbook/on-call-agent/agent.mjs:32; cookbook/on-call-agent/read-message.mjs:6; cookbook/on-call-agent/post-secret.mjs:3"
+        },
+        {
+          "call": "the agent posts the ticket it filed",
+          "operation": "chat_postMessage",
+          "evidence": "cookbook/on-call-agent/agent.mjs:33; cookbook/on-call-agent/post-secret.mjs:4"
+        },
+        {
+          "call": "the recipe reads the notification back from the channel's history",
+          "operation": "conversations_history",
+          "evidence": "cookbook/on-call-agent/read-message.mjs:8"
+        }
+      ],
+      "frontend": [],
+      "webhooks": [],
+      "ci": []
+    },
+    {
+      "commit": "e0a08a7d9592fdc1ef1e82cb7cb781489fceade3",
+      "client": "fetch with the bot token (Bearer); SLACK_ID and SLACK_SECRET in the token exchange's form",
+      "backend": [
+        {
+          "call": "the channel's code exchanged for the bot token",
+          "operation": "oauth_v2_access",
+          "evidence": "libraries/nestjs-libraries/src/integrations/social/slack.provider.ts:88"
+        },
+        {
+          "call": "the bot's user, read by GET with its id in the query, for the channel's name and picture",
+          "operation": "users_info",
+          "evidence": "libraries/nestjs-libraries/src/integrations/social/slack.provider.ts:111"
+        },
+        {
+          "call": "the channels a post can go to, by GET with types=public_channel,private_channel",
+          "operation": "conversations_list",
+          "evidence": "libraries/nestjs-libraries/src/integrations/social/slack.provider.ts:137"
+        },
+        {
+          "call": "the bot joins the post's channel first",
+          "operation": "conversations_join",
+          "evidence": "libraries/nestjs-libraries/src/integrations/social/slack.provider.ts:189"
+        },
+        {
+          "call": "the post, and a comment in its thread, as blocks under the channel's username and icon_url",
+          "operation": "chat_postMessage",
+          "evidence": "libraries/nestjs-libraries/src/integrations/social/slack.provider.ts:202,271"
+        },
+        {
+          "call": "the post's permalink, by GET",
+          "operation": "chat_getPermalink",
+          "evidence": "libraries/nestjs-libraries/src/integrations/social/slack.provider.ts:237,307"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "Slack OAuth consent (channels:read, chat:write, users:read, groups:read, channels:join, chat:write.customize)",
+          "operation": "oauth/v2/authorize",
+          "evidence": "libraries/nestjs-libraries/src/integrations/social/slack.provider.ts:68"
+        }
+      ],
+      "webhooks": [],
+      "ci": [],
+      "name": "gitroomhq/postiz-app"
+    },
+    {
+      "name": "dubinc/dub (Dub)",
+      "commit": "7e0101363b2a",
+      "client": "@slack/web-api priority support",
+      "backend": [
+        {
+          "call": "Create shared support channel",
+          "operation": "conversations_create",
+          "evidence": "apps/web/lib/slack/support-invite.ts:82"
+        },
+        {
+          "call": "Read support group membership",
+          "operation": "usergroups_users_list",
+          "evidence": "apps/web/lib/slack/support-invite.ts:27"
+        },
+        {
+          "call": "Invite support group to channel",
+          "operation": "conversations_invite",
+          "evidence": "apps/web/lib/slack/support-invite.ts:40"
+        },
+        {
+          "call": "Invite customer through Slack Connect",
+          "operation": "conversations_inviteShared",
+          "evidence": "apps/web/lib/slack/support-invite.ts:115"
+        },
+        {
+          "call": "Mirror support chat",
+          "operation": "chat_postMessage",
+          "evidence": "apps/web/app/api/ai/support-chat/route.ts:257"
+        }
+      ],
+      "frontend": [],
+      "ci": [],
+      "gate": "Priority support calls Slack using the supplied bot credential (apps/web/lib/slack/client.ts:7-13; apps/web/lib/slack/support-invite.ts:27,40,82,115; apps/web/app/api/ai/support-chat/route.ts:257)."
+    }
+  ],
+  "optional": [
+    {
+      "application": "dubinc/dub",
+      "what": "Dub's operations log (alerts, cron, errors, links, payouts) posted to its team's incoming webhooks",
+      "setting": "Configuration: operator instrumentation is a setting that turns the reporting provider on; operator-only log shipping defaults to console, skips outside VERCEL_ENV=production, and skips an absent hook; no customer uses this stream (packages/utils/src/functions/log.ts:18-27).",
+      "evidence": "packages/utils/src/functions/log.ts:18-27",
+      "commit": "7e0101363b2ab30afc537c1893f159d1dcba513a"
+    },
+    {
+      "application": "twentyhq/twenty",
+      "what": "the Slack app (an assistant answering mentions, and workflow steps that post, update or delete messages, send ephemerals, add reactions and list channels), @slack/web-api",
+      "setting": "Install (2): install the Slack application in the workspace before connecting it; it is a marketplace application, not the standard workspace application (packages/twenty-apps/public/slack/src/application.config.ts:1-15; packages/twenty-server/src/engine/core-modules/application/application-marketplace/constants/marketplace-vetted-applications.constant.ts:30). Workspace creation installs only the standard application (packages/twenty-server/src/engine/workspace-manager/workspace-manager.service.ts:64-68); Slack is a separate marketplace package.",
+      "evidence": "packages/twenty-apps/public/slack/README.md:18,20"
+    },
+    {
+      "commit": "7e0101363b2a",
+      "client": "fetch (form bodies), SLACK_CLIENT_ID and SLACK_CLIENT_SECRET in the token exchange's body; its webhooks to the install's incoming webhook URL are delivered by QStash",
+      "backend": [
+        {
+          "call": "the install's code exchanged for the bot token and the incoming webhook",
+          "operation": "oauth_v2_access",
+          "evidence": "apps/web/lib/integrations/oauth-provider.ts:116; apps/web/app/api/slack/callback/route.ts:76,90"
+        },
+        {
+          "call": "the person who ran /shorten, by their profile's email",
+          "operation": "users_profile_get",
+          "evidence": "apps/web/lib/integrations/slack/commands.ts:152"
+        },
+        {
+          "call": "the integration removed in Dub: the app uninstalled with the bot token and the client credentials",
+          "operation": "apps_uninstall",
+          "evidence": "apps/web/lib/integrations/slack/oauth.ts:17; apps/web/app/api/integrations/uninstall/route.ts:60"
+        },
+        {
+          "call": "Dub's events (a link made, a click, a lead, a sale) posted as blocks to the install's incoming webhook",
+          "operation": "hooks.slack.com/services",
+          "evidence": "apps/web/lib/webhook/qstash.ts:97,155; apps/web/lib/integrations/slack/transform.ts:35"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "Slack OAuth consent (chat:write, commands, im:write, channels:join, chat:write.customize, links:write, users.profile:read, users:read.email, users:read, incoming-webhook)",
+          "operation": "oauth/v2/authorize",
+          "evidence": "apps/web/lib/integrations/oauth-provider.ts:43; apps/web/lib/integrations/slack/oauth.ts:46"
+        }
+      ],
+      "webhooks": [
+        {
+          "receives": "a signed /shorten slash command, answered in its acknowledgement's body with blocks",
+          "evidence": "apps/web/app/api/slack/slash-commands/route.ts:6; apps/web/lib/integrations/slack/verify-request.ts:63; apps/web/lib/integrations/slack/commands.ts:216"
+        }
+      ],
+      "ci": [],
+      "application": "dubinc/dub",
+      "what": "Workspace Slack app installation and command/event forwarding",
+      "setting": "Install (2): the workspace installs the Slack integration before commands and forwarding; no default installedIntegration (apps/web/app/api/slack/callback/route.ts:76-90; apps/web/lib/integrations/slack/oauth.ts:14,42-47).",
+      "evidence": "apps/web/app/api/slack/callback/route.ts:76-90"
+    }
+  ]
+}

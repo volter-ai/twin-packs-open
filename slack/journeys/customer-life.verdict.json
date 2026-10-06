@@ -1,0 +1,368 @@
+{
+  "judge": {
+    "agent": "Claude Code (claude-opus-5-5, Claude Opus 5.5)",
+    "name": "Contributor 104"
+  },
+  "authors": [
+    "Contributor 173"
+  ],
+  "bar": "829132787d94a2d4",
+  "sha256": "0e5c73d65050800353cd2f3bfbf72aec80f7a11e2862a4bc55ec495831df19fb",
+  "judgedAt": "2026-10-02",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "people-read-backs",
+      "steps": [
+        31,
+        32,
+        33
+      ],
+      "barItem": "a read-back with no need",
+      "reason": "Maya lists everyone (31), looks Theo up by the email she invited him with (32, asserting UTHEO, an id she already holds), and reads Lena's account (33), whose invitation she approved. These are three reads in a row of what she already holds, and no later step uses them.",
+      "correction": "Delete steps 31 to 33. (users.lookupByEmail is read for a reason later, when Dub matches a person by email.)"
+    },
+    {
+      "id": "bot-info-wrong-credential",
+      "steps": [
+        65
+      ],
+      "barItem": "the wrong actor or credential for an act",
+      "reason": "\"Maya reads the bot identity\" is sent with {kiln_token}, Kiln Bot's bot token, which Maya does not use as a person. It also re-reads the bot id that step 64 has just returned.",
+      "correction": "Delete step 65, or make it Maya's own read (xoxp-UMAYA) and give it a reason the story uses."
+    },
+    {
+      "id": "stale-callback-and-run",
+      "steps": [
+        67,
+        68,
+        69
+      ],
+      "barItem": "a refusal without a cause the story shows; a run of refusals; vendor behaviour the vendor's documentation contradicts",
+      "reason": "Under the wait \"Maya's app configuration token has expired overnight\", step 68 replays the install callback exchanged at step 63 and expects invalid_code. The configuration token plays no part in oauth.v2.access, which takes the client credentials and the code (https://docs.slack.dev/reference/methods/oauth.v2.access). No browser re-posts a callback a day later, and steps 68 and 69 are then two refusals in a row.",
+      "correction": "Delete step 68. Keep step 69 (the expired pair's export, caused by the 12-hour configuration token) as the morning's one refusal, followed by the rotation at step 70."
+    },
+    {
+      "id": "description-update-unchanged",
+      "steps": [
+        71
+      ],
+      "barItem": "content that does not bear out the step's name",
+      "reason": "\"She updates the manifest's description\" sends the description already created at step 60 (\"Kiln's studio status and review reminders\"), so nothing is updated.",
+      "correction": "Send the new description Maya writes (with the rest of the manifest unchanged), or delete the step and step 61's export, which only serves it."
+    },
+    {
+      "id": "reminder-toggled",
+      "steps": [
+        74,
+        75,
+        76
+      ],
+      "barItem": "a state switched away and back in one sitting",
+      "reason": "The bot schedules the 16:00 reminder (74), deletes it because the client review is cancelled (75), and schedules a new one for the same post_at (76), all in one sitting with no time passing for the cancellation to happen.",
+      "correction": "Put a wait before step 75 with the cancellation as its cause (step 76 follows in that later sitting), or schedule only the internal review's reminder."
+    },
+    {
+      "id": "runhuman-reconnect",
+      "steps": [
+        99,
+        101,
+        102,
+        103,
+        104,
+        105
+      ],
+      "barItem": "a state switched away and back with no reason the story shows; the wrong actor or credential for an act",
+      "reason": "\"New briefs arrive and Maya reconnects the review integration\" (99): Maya revokes Runhuman's working grant (101) and reinstalls the same app with the same scopes (103 to 105). New briefs give no reason to do that. Step 101 is named \"She disconnects\" but is sent with {rh_token}, Runhuman's bot token, which only Runhuman's server holds. demand.json also rules Runhuman 1 out of scope (owner: \"drop runhuman 1\"), and this app, with its callback at api.runhuman.com/customer/slack/callback, is that product.",
+      "correction": "Delete steps 101 to 105 and keep {rh_token} in use (steps 203 and 205 then post with it). Or give the reconnect a cause carried out in the steps, with the revoke made by Runhuman's server or Maya's Manage apps removal. Better still, recast chapter 3 on a demanded application."
+    },
+    {
+      "id": "revoked-token-twice",
+      "steps": [
+        102,
+        197
+      ],
+      "barItem": "the same cause drawn twice",
+      "reason": "The same cause is drawn twice: step 102 (Runhuman's revoked grant posts and gets token_revoked) and step 197 (RH2's revoked grant posts and gets token_revoked). RH2 has just received app_uninstalled at step 196, so it has no reason to post at all.",
+      "correction": "Delete step 197. If step 102 survives the runhuman-reconnect ruling, it is the one revoked-token refusal."
+    },
+    {
+      "id": "home-tab-already-there",
+      "steps": [
+        129
+      ],
+      "barItem": "a stated cause that never happens",
+      "reason": "The wait \"The studio adds its own Home and interactive brief tools\" claims something is added, but no step adds anything. Kiln Bot's manifest has had home_tab_enabled and interactivity since step 60 in February.",
+      "correction": "Either enable the Home tab and interactivity here with an apps.manifest.update (and remove them from steps 60 and 71), or rename the wait to what the studio actually starts doing."
+    },
+    {
+      "id": "mention-never-answered",
+      "steps": [
+        141,
+        142,
+        149
+      ],
+      "barItem": "a promise never kept",
+      "reason": "Theo asks Kiln Bot \"what is due this week?\" (141) and Lena \"marks that she is watching the answer\" (142). Step 149 shows the app_mention reaching the bot's server, but the bot never answers.",
+      "correction": "After the delivery is read, add Kiln Bot's answer in the question's thread (chat.postMessage with thread_ts {due_question}, using {kiln_token})."
+    },
+    {
+      "id": "query-string-token",
+      "steps": [
+        150
+      ],
+      "barItem": "the wrong era; vendor behaviour the vendor's documentation contradicts",
+      "reason": "GET /api/chat.postMessage?...&token={kiln_token} expects ok:true. Kiln Bot was created in February 2026, and Slack says that for apps created after February 24, 2021 that send token as a query string parameter, \"the API will respond with an error and will not service the request\" (https://docs.slack.dev/changelog/2020-11-no-more-tokens-in-querystrings-for-newly-created-apps).",
+      "correction": "Delete step 150, or send the monitor's token in the Authorization header. Step 151 already covers the form-field token, which Slack still accepts."
+    },
+    {
+      "id": "socket-opened-for-nothing",
+      "steps": [
+        158,
+        163
+      ],
+      "barItem": "a stated cause that never happens",
+      "reason": "Step 158 opens Socket Mode (apps.connections.open), but the life never connects to the URL and nothing arrives on it. Step 163's agent then \"answers in the output's thread\" when nobody has asked it anything. The demanded client of this pattern (Harness on @chat-adapter/slack) receives an events_api envelope over the socket, acknowledges it by envelope_id, and replies in the thread.",
+      "correction": "After step 161, have a person ask in the output's thread (or mention the bot), have the message arrive on the socket (a socket step that opens {socket_url}, reads the events_api envelope and sends its envelope_id), and then have step 163 answer it."
+    },
+    {
+      "id": "dub-answer-dated-wrong",
+      "steps": [
+        167,
+        "application[2]"
+      ],
+      "barItem": "a date that contradicts the wait steps",
+      "reason": "Dub's /shorten acknowledgement in the life's application block reads \"Created by Theo Brandt | Sep 14, 2026, 10:12 AM\". By the wait steps, step 167 happens on 2026-08-08 at 09:00 (the waits from 2026-01-01 add up to the week of 3 August plus 2 and 3 days). The name is also wrong: Theo is \"Theo Marsh\" (step 14).",
+      "correction": "Date the acknowledgement Aug 8, 2026, 9:00 AM (the World clock at step 167) and name him Theo Marsh."
+    },
+    {
+      "id": "connect-invite-read-back-omar-absent",
+      "steps": [
+        176,
+        177
+      ],
+      "barItem": "a read-back with no need; a stated cause that never happens",
+      "reason": "Step 177 lists the Connect invitation Maya made one step earlier, asserting the invite_id step 176 returned, which is a read of what she holds. Omar, who the about and outline say works with the studio from his own company's workspace, never accepts and never acts.",
+      "correction": "Delete step 177. Either have Omar's workspace accept the invitation and Omar post in the shared channel, or remove Omar and step 176."
+    },
+    {
+      "id": "schedule-and-read-content",
+      "steps": [
+        192,
+        193
+      ],
+      "barItem": "content that does not bear out the step's name",
+      "reason": "\"She sends him the revised schedule\" (192) carries \"I'm back; let's plan the next client review.\", which has no schedule in it. \"Theo reads the conversation Lena opened with him\" (193) calls conversations.info, which returns the DM's metadata, not Lena's message.",
+      "correction": "Put the revised schedule in step 192's text, and make step 193 Theo's conversations.history of {dm}, asserting Lena's message."
+    },
+    {
+      "id": "unarchive-promise",
+      "steps": [
+        207,
+        208,
+        209
+      ],
+      "barItem": "a promise never kept; returned with no reason the story shows",
+      "reason": "\"A month later Maya retrieves one brief for the acquiring team\" (207) and \"She unarchives studio to continue the handover\" (208), but no brief is ever retrieved: step 209 is Lena posting a note. Archiving does not hide history either: \"the message history is retained and searchable on paid plans\" (https://slack.com/help/articles/213185307-Archive-or-delete-a-channel).",
+      "correction": "Either read the brief for the acquiring team (conversations.replies of {brief}, or its permalink) without unarchiving, or give the unarchive the reason step 209 actually carries (the team will post there) and name 207 and 208 for it."
+    }
+  ],
+  "applied": {
+    "from": "19f5266a79f129e0b78ceb5866dd742660a70e2ad47356bbcc5a660adcf9dff2",
+    "wasPlausible": false,
+    "steps": [
+      "fields",
+      "31",
+      "32",
+      "33",
+      "64",
+      "65",
+      "68",
+      "71",
+      "73",
+      "74",
+      "99",
+      "101",
+      "102",
+      "103",
+      "104",
+      "105",
+      "129",
+      "142",
+      "149",
+      "150",
+      "153",
+      "154",
+      "155",
+      "158",
+      "161",
+      "163",
+      "176",
+      "177",
+      "192",
+      "193",
+      "197",
+      "203",
+      "205",
+      "207",
+      "208"
+    ],
+    "rulings": [
+      {
+        "id": "people-read-backs",
+        "steps": [
+          31,
+          32,
+          33
+        ],
+        "barItem": "a read-back with no need",
+        "reason": "Maya lists everyone (31), looks Theo up by the email she invited him with (32, asserting UTHEO, an id she already holds), and reads Lena's account (33), whose invitation she approved. These are three reads in a row of what she already holds, and no later step uses them.",
+        "correction": "Delete steps 31 to 33. (users.lookupByEmail is read for a reason later, when Dub matches a person by email.)"
+      },
+      {
+        "id": "bot-info-wrong-credential",
+        "steps": [
+          65
+        ],
+        "barItem": "the wrong actor or credential for an act",
+        "reason": "\"Maya reads the bot identity\" is sent with {kiln_token}, Kiln Bot's bot token, which Maya does not use as a person. It also re-reads the bot id that step 64 has just returned.",
+        "correction": "Delete step 65, or make it Maya's own read (xoxp-UMAYA) and give it a reason the story uses."
+      },
+      {
+        "id": "stale-callback-and-run",
+        "steps": [
+          67,
+          68,
+          69
+        ],
+        "barItem": "a refusal without a cause the story shows; a run of refusals; vendor behaviour the vendor's documentation contradicts",
+        "reason": "Under the wait \"Maya's app configuration token has expired overnight\", step 68 replays the install callback exchanged at step 63 and expects invalid_code. The configuration token plays no part in oauth.v2.access, which takes the client credentials and the code (https://docs.slack.dev/reference/methods/oauth.v2.access). No browser re-posts a callback a day later, and steps 68 and 69 are then two refusals in a row.",
+        "correction": "Delete step 68. Keep step 69 (the expired pair's export, caused by the 12-hour configuration token) as the morning's one refusal, followed by the rotation at step 70."
+      },
+      {
+        "id": "description-update-unchanged",
+        "steps": [
+          71
+        ],
+        "barItem": "content that does not bear out the step's name",
+        "reason": "\"She updates the manifest's description\" sends the description already created at step 60 (\"Kiln's studio status and review reminders\"), so nothing is updated.",
+        "correction": "Send the new description Maya writes (with the rest of the manifest unchanged), or delete the step and step 61's export, which only serves it."
+      },
+      {
+        "id": "reminder-toggled",
+        "steps": [
+          74,
+          75,
+          76
+        ],
+        "barItem": "a state switched away and back in one sitting",
+        "reason": "The bot schedules the 16:00 reminder (74), deletes it because the client review is cancelled (75), and schedules a new one for the same post_at (76), all in one sitting with no time passing for the cancellation to happen.",
+        "correction": "Put a wait before step 75 with the cancellation as its cause (step 76 follows in that later sitting), or schedule only the internal review's reminder."
+      },
+      {
+        "id": "runhuman-reconnect",
+        "steps": [
+          99,
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "barItem": "a state switched away and back with no reason the story shows; the wrong actor or credential for an act",
+        "reason": "\"New briefs arrive and Maya reconnects the review integration\" (99): Maya revokes Runhuman's working grant (101) and reinstalls the same app with the same scopes (103 to 105). New briefs give no reason to do that. Step 101 is named \"She disconnects\" but is sent with {rh_token}, Runhuman's bot token, which only Runhuman's server holds. demand.json also rules Runhuman 1 out of scope (owner: \"drop runhuman 1\"), and this app, with its callback at api.runhuman.com/customer/slack/callback, is that product.",
+        "correction": "Delete steps 101 to 105 and keep {rh_token} in use (steps 203 and 205 then post with it). Or give the reconnect a cause carried out in the steps, with the revoke made by Runhuman's server or Maya's Manage apps removal. Better still, recast chapter 3 on a demanded application."
+      },
+      {
+        "id": "revoked-token-twice",
+        "steps": [
+          102,
+          197
+        ],
+        "barItem": "the same cause drawn twice",
+        "reason": "The same cause is drawn twice: step 102 (Runhuman's revoked grant posts and gets token_revoked) and step 197 (RH2's revoked grant posts and gets token_revoked). RH2 has just received app_uninstalled at step 196, so it has no reason to post at all.",
+        "correction": "Delete step 197. If step 102 survives the runhuman-reconnect ruling, it is the one revoked-token refusal."
+      },
+      {
+        "id": "home-tab-already-there",
+        "steps": [
+          129
+        ],
+        "barItem": "a stated cause that never happens",
+        "reason": "The wait \"The studio adds its own Home and interactive brief tools\" claims something is added, but no step adds anything. Kiln Bot's manifest has had home_tab_enabled and interactivity since step 60 in February.",
+        "correction": "Either enable the Home tab and interactivity here with an apps.manifest.update (and remove them from steps 60 and 71), or rename the wait to what the studio actually starts doing."
+      },
+      {
+        "id": "mention-never-answered",
+        "steps": [
+          141,
+          142,
+          149
+        ],
+        "barItem": "a promise never kept",
+        "reason": "Theo asks Kiln Bot \"what is due this week?\" (141) and Lena \"marks that she is watching the answer\" (142). Step 149 shows the app_mention reaching the bot's server, but the bot never answers.",
+        "correction": "After the delivery is read, add Kiln Bot's answer in the question's thread (chat.postMessage with thread_ts {due_question}, using {kiln_token})."
+      },
+      {
+        "id": "query-string-token",
+        "steps": [
+          150
+        ],
+        "barItem": "the wrong era; vendor behaviour the vendor's documentation contradicts",
+        "reason": "GET /api/chat.postMessage?...&token={kiln_token} expects ok:true. Kiln Bot was created in February 2026, and Slack says that for apps created after February 24, 2021 that send token as a query string parameter, \"the API will respond with an error and will not service the request\" (https://docs.slack.dev/changelog/2020-11-no-more-tokens-in-querystrings-for-newly-created-apps).",
+        "correction": "Delete step 150, or send the monitor's token in the Authorization header. Step 151 already covers the form-field token, which Slack still accepts."
+      },
+      {
+        "id": "socket-opened-for-nothing",
+        "steps": [
+          158,
+          163
+        ],
+        "barItem": "a stated cause that never happens",
+        "reason": "Step 158 opens Socket Mode (apps.connections.open), but the life never connects to the URL and nothing arrives on it. Step 163's agent then \"answers in the output's thread\" when nobody has asked it anything. The demanded client of this pattern (Harness on @chat-adapter/slack) receives an events_api envelope over the socket, acknowledges it by envelope_id, and replies in the thread.",
+        "correction": "After step 161, have a person ask in the output's thread (or mention the bot), have the message arrive on the socket (a socket step that opens {socket_url}, reads the events_api envelope and sends its envelope_id), and then have step 163 answer it."
+      },
+      {
+        "id": "dub-answer-dated-wrong",
+        "steps": [
+          167,
+          "application[2]"
+        ],
+        "barItem": "a date that contradicts the wait steps",
+        "reason": "Dub's /shorten acknowledgement in the life's application block reads \"Created by Theo Brandt | Sep 14, 2026, 10:12 AM\". By the wait steps, step 167 happens on 2026-08-08 at 09:00 (the waits from 2026-01-01 add up to the week of 3 August plus 2 and 3 days). The name is also wrong: Theo is \"Theo Marsh\" (step 14).",
+        "correction": "Date the acknowledgement Aug 8, 2026, 9:00 AM (the World clock at step 167) and name him Theo Marsh."
+      },
+      {
+        "id": "connect-invite-read-back-omar-absent",
+        "steps": [
+          176,
+          177
+        ],
+        "barItem": "a read-back with no need; a stated cause that never happens",
+        "reason": "Step 177 lists the Connect invitation Maya made one step earlier, asserting the invite_id step 176 returned, which is a read of what she holds. Omar, who the about and outline say works with the studio from his own company's workspace, never accepts and never acts.",
+        "correction": "Delete step 177. Either have Omar's workspace accept the invitation and Omar post in the shared channel, or remove Omar and step 176."
+      },
+      {
+        "id": "schedule-and-read-content",
+        "steps": [
+          192,
+          193
+        ],
+        "barItem": "content that does not bear out the step's name",
+        "reason": "\"She sends him the revised schedule\" (192) carries \"I'm back; let's plan the next client review.\", which has no schedule in it. \"Theo reads the conversation Lena opened with him\" (193) calls conversations.info, which returns the DM's metadata, not Lena's message.",
+        "correction": "Put the revised schedule in step 192's text, and make step 193 Theo's conversations.history of {dm}, asserting Lena's message."
+      },
+      {
+        "id": "unarchive-promise",
+        "steps": [
+          207,
+          208,
+          209
+        ],
+        "barItem": "a promise never kept; returned with no reason the story shows",
+        "reason": "\"A month later Maya retrieves one brief for the acquiring team\" (207) and \"She unarchives studio to continue the handover\" (208), but no brief is ever retrieved: step 209 is Lena posting a note. Archiving does not hide history either: \"the message history is retained and searchable on paid plans\" (https://slack.com/help/articles/213185307-Archive-or-delete-a-channel).",
+        "correction": "Either read the brief for the acquiring team (conversations.replies of {brief}, or its permalink) without unarchiving, or give the unarchive the reason step 209 actually carries (the team will post there) and name 207 and 208 for it."
+      }
+    ]
+  }
+}
