@@ -7,7 +7,7 @@ architecture, "Protocol 3: the derived pack"); no real Supabase is contacted.
 Install the exact twin and World CLI in your app:
 
 ```sh
-npm install --save-dev --save-exact @volter/world@3.0.92 @volter/twin-supabase@1.0.2
+npm install --save-dev --save-exact @volter/world@3.0.92 @volter/twin-supabase@1.0.3
 ```
 
 Follow [Run a full stack](https://github.com/volter-ai/twin-world/blob/main/docs/guides/run-a-full-stack.md#a-real-database)
