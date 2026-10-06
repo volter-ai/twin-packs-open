@@ -1,0 +1,4157 @@
+{
+  "vendor": "tavily",
+  "author": "Contributor 45",
+  "host": "api.tavily.com",
+  "startsAt": "2026-01-15T11:00:00Z",
+  "about": "Tavily retained OpenAPI examples, endpoint and quickstart requests, option rules and failures. World corpus and fault/judgment scripts establish each precondition. SDK samples are replayed with their documented HTTP/SDK shape differences; rendered requests with vendor contradictions are recorded.",
+  "scenario": "examples-scenario.json",
+  "application": [
+    {
+      "method": "GET",
+      "url": "https://studio.example/article",
+      "status": 200,
+      "headers": {
+        "Content-Type": "text/plain"
+      },
+      "body": "Application article content."
+    },
+    {
+      "method": "GET",
+      "url": "https://studio.example/refused",
+      "status": 503,
+      "body": "unavailable"
+    },
+    {
+      "method": "GET",
+      "url": "https://studio.example/disconnected",
+      "status": 200,
+      "body": "incomplete article",
+      "bodyError": "Connection reset during response body"
+    }
+  ],
+  "steps": [
+    {
+      "name": "The dashboard issues the example account key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "matches": "^tvly-[A-Za-z0-9]+$"
+        }
+      ]
+    },
+    {
+      "name": "Boot resumes the same dashboard credential",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "expect": [
+        {
+          "path": "api_key",
+          "equals": "{k}"
+        }
+      ]
+    },
+    {
+      "name": "The partial-success article the published example assumes",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://example.com/article",
+        "title": "Example article",
+        "content": "Example extracted article content."
+      }
+    },
+    {
+      "name": "The example corpus with chunks, media and metadata",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://example.com/options",
+        "title": "Yoga coastal guide",
+        "content": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.",
+        "raw_content": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.",
+        "advanced_content": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.\n\n| Yoga table | embedded class |",
+        "summary": "Yoga studio summary.",
+        "language": "en",
+        "country": "united states",
+        "published_date": "2026-01-14T08:00:00Z",
+        "images": [
+          {
+            "url": "https://example.com/class.png",
+            "description": "Yoga class"
+          }
+        ],
+        "favicon": "https://example.com/favicon.ico",
+        "text_content": "Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+      }
+    },
+    {
+      "name": "A French news source and its unsafe flag",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://outside.example/festival",
+        "title": "Coastal yoga festival",
+        "content": "# Coastal yoga festival",
+        "topic": "news",
+        "language": "fr",
+        "country": "france",
+        "published_date": "2026-01-12T08:00:00Z",
+        "unsafe": true,
+        "images": [
+          "https://outside.example/festival.png"
+        ]
+      }
+    },
+    {
+      "name": "An older finance source",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://finance.example/equity",
+        "title": "Yoga equity",
+        "content": "Yoga company equity prices.",
+        "topic": "finance",
+        "language": "en",
+        "country": "united kingdom",
+        "published_date": "2025-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "An undated source",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://other.example/plain",
+        "title": "Yoga alternatives",
+        "content": "Yoga alternatives and coaching.",
+        "language": "en",
+        "country": "united states"
+      }
+    },
+    {
+      "name": "A slow page for the published timeout rule",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://example.com/slow",
+        "title": "Slow page",
+        "content": "Slow page content.",
+        "fetch_seconds": 15
+      }
+    },
+    {
+      "name": "The quickstart Messi source",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://example.com/messi",
+        "title": "Leo Messi",
+        "content": "Who is Leo Messi? Lionel Messi is a footballer."
+      }
+    },
+    {
+      "name": "The corpus editor supplies the same undated page again",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://other.example/plain",
+        "title": "Yoga alternatives",
+        "content": "Yoga alternatives and coaching.",
+        "language": "en",
+        "country": "united states"
+      }
+    },
+    {
+      "name": "search#400 application/json",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "topic": "sports"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ],
+      "example": "search#400 application/json"
+    },
+    {
+      "name": "search#401 application/json",
+      "method": "POST",
+      "path": "/search",
+      "status": 401,
+      "body": {
+        "query": "yoga"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "Unauthorized: missing or invalid API key."
+        }
+      ],
+      "example": "search#401 application/json"
+    },
+    {
+      "name": "search#422 application/json",
+      "method": "POST",
+      "path": "/search",
+      "status": 422,
+      "body": {
+        "query": []
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.0.type",
+          "equals": "string_type"
+        },
+        {
+          "path": "detail.0.loc",
+          "equals": [
+            "body",
+            "query"
+          ]
+        },
+        {
+          "path": "detail.0.input",
+          "equals": []
+        }
+      ],
+      "example": "search#422 application/json"
+    },
+    {
+      "name": "search#429 application/json",
+      "method": "POST",
+      "path": "/search",
+      "status": 429,
+      "body": {
+        "query": "Published search 429"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "Your request has been blocked due to excessive requests. Please reduce the rate of requests."
+        },
+        {
+          "header": "retry-after",
+          "equals": "60"
+        }
+      ],
+      "example": "search#429 application/json"
+    },
+    {
+      "name": "search#432 application/json",
+      "method": "POST",
+      "path": "/search",
+      "status": 432,
+      "body": {
+        "query": "Published search 432"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "<432 Custom Forbidden Error (e.g This request exceeds your plan's set usage limit. Please upgrade your plan or contact support@tavily.com)>"
+        }
+      ],
+      "example": "search#432 application/json"
+    },
+    {
+      "name": "search#433 application/json",
+      "method": "POST",
+      "path": "/search",
+      "status": 433,
+      "body": {
+        "query": "Published search 433"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "This request exceeds the pay-as-you-go limit. You can increase your limit on the Tavily dashboard."
+        }
+      ],
+      "example": "search#433 application/json"
+    },
+    {
+      "name": "search#500 application/json",
+      "method": "POST",
+      "path": "/search",
+      "status": 500,
+      "body": {
+        "query": "Published search 500"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "Internal Server Error"
+        }
+      ],
+      "example": "search#500 application/json"
+    },
+    {
+      "name": "extract#200 partialSuccess",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/article",
+          "https://example.com/unavailable"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/article"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "Example extracted article content."
+        },
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "failed_results.0.url",
+          "equals": "https://example.com/unavailable"
+        },
+        {
+          "path": "failed_results.1",
+          "exists": false
+        },
+        {
+          "path": "failed_results.0",
+          "exists": true
+        }
+      ],
+      "example": "extract#200 partialSuccess"
+    },
+    {
+      "name": "extract#400 tooManyUrls",
+      "method": "POST",
+      "path": "/extract",
+      "status": 400,
+      "body": {
+        "urls": [
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article",
+          "https://example.com/article"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ],
+      "example": "extract#400 tooManyUrls"
+    },
+    {
+      "name": "extract#400 allInvalidUrls",
+      "method": "POST",
+      "path": "/extract",
+      "status": 400,
+      "body": {
+        "urls": [
+          "not-a-url"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        },
+        {
+          "path": "detail.failed_results.0.url",
+          "equals": "not-a-url"
+        }
+      ],
+      "example": "extract#400 allInvalidUrls"
+    },
+    {
+      "name": "extract#401 application/json",
+      "method": "POST",
+      "path": "/extract",
+      "status": 401,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ]
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "Unauthorized: missing or invalid API key."
+        }
+      ],
+      "example": "extract#401 application/json"
+    },
+    {
+      "name": "extract#429 application/json",
+      "method": "POST",
+      "path": "/extract",
+      "status": 429,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "query": "Published extract 429"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "Your request has been blocked due to excessive requests. Please reduce the rate of requests."
+        },
+        {
+          "header": "retry-after",
+          "equals": "60"
+        }
+      ],
+      "example": "extract#429 application/json"
+    },
+    {
+      "name": "extract#432 application/json",
+      "method": "POST",
+      "path": "/extract",
+      "status": 432,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "query": "Published extract 432"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "<432 Custom Forbidden Error (e.g This request exceeds your plan's set usage limit. Please upgrade your plan or contact support@tavily.com)>"
+        }
+      ],
+      "example": "extract#432 application/json"
+    },
+    {
+      "name": "extract#433 application/json",
+      "method": "POST",
+      "path": "/extract",
+      "status": 433,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "query": "Published extract 433"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "This request exceeds the pay-as-you-go limit. You can increase your limit on the Tavily dashboard."
+        }
+      ],
+      "example": "extract#433 application/json"
+    },
+    {
+      "name": "extract#500 application/json",
+      "method": "POST",
+      "path": "/extract",
+      "status": 500,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "query": "Published extract 500"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "Internal Server Error"
+        }
+      ],
+      "example": "extract#500 application/json"
+    },
+    {
+      "name": "Quickstart search",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "Who is Leo Messi?"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "query",
+          "equals": "Who is Leo Messi?"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/messi"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Leo Messi"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "Who is Leo Messi? Lionel Messi is a footballer."
+        }
+      ],
+      "example": "search#doc Quickstart search"
+    },
+    {
+      "name": "Endpoint SDK search",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "who is Leo Messi?"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "query",
+          "equals": "who is Leo Messi?"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/messi"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Leo Messi"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "Who is Leo Messi? Lionel Messi is a footballer."
+        }
+      ],
+      "example": "search#doc Endpoint SDK search"
+    },
+    {
+      "name": "The SDK extract source",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+        "title": "Artificial intelligence",
+        "content": "Artificial intelligence article."
+      }
+    },
+    {
+      "name": "Endpoint SDK extract",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": "https://en.wikipedia.org/wiki/Artificial_intelligence"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.url",
+          "equals": "https://en.wikipedia.org/wiki/Artificial_intelligence"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "Artificial intelligence article."
+        }
+      ],
+      "example": "extract#doc Endpoint SDK extract"
+    },
+    {
+      "name": "Result limit",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "max_results": 1
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Result limit"
+    },
+    {
+      "name": "Zero result limit",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "max_results": 0
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Zero result limit"
+    },
+    {
+      "name": "Advanced search credits",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "search_depth": "advanced",
+        "include_usage": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "usage.credits",
+          "equals": 2
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "results.3.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.3.content",
+          "equals": "Yoga alternatives and coaching."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Advanced search credits"
+    },
+    {
+      "name": "Fast search credits",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "search_depth": "fast",
+        "include_usage": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "usage.credits",
+          "equals": 1
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "results.3.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.3.content",
+          "equals": "Yoga alternatives and coaching."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Fast search credits"
+    },
+    {
+      "name": "Ultra-fast summary",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "search_depth": "ultra-fast",
+        "include_domains": [
+          "example.com"
+        ],
+        "include_usage": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.content",
+          "equals": "Yoga studio summary."
+        },
+        {
+          "path": "usage.credits",
+          "equals": 1
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Ultra-fast summary"
+    },
+    {
+      "name": "One relevant chunk",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "chunks_per_source": 1,
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.content",
+          "equals": "# Yoga studio"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc One relevant chunk"
+    },
+    {
+      "name": "Three relevant chunks",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "chunks_per_source": 3,
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.content",
+          "equals": "# Yoga studio [...] Yoga coastal timetable. [...] Yoga festival schedule."
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Three relevant chunks"
+    },
+    {
+      "name": "News category",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "topic": "news"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.0.published_date",
+          "equals": "2026-01-12T08:00:00Z"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc News category"
+    },
+    {
+      "name": "Finance category",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "topic": "finance"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Finance category"
+    },
+    {
+      "name": "Weekly dates retain undated sources",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "time_range": "week",
+        "include_published_date": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.3",
+          "exists": false
+        },
+        {
+          "path": "results.2",
+          "exists": true
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.2.published_date",
+          "equals": null
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.0.published_date",
+          "equals": "2026-01-14T08:00:00Z"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.1.published_date",
+          "equals": "2026-01-12T08:00:00Z"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Weekly dates retain undated sources"
+    },
+    {
+      "name": "Strict publication dates",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "time_range": "week",
+        "filter_by_published_date": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.2",
+          "exists": false
+        },
+        {
+          "path": "results.1",
+          "exists": true
+        },
+        {
+          "path": "results.0.published_date",
+          "exists": true
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Strict publication dates"
+    },
+    {
+      "name": "Start date",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "start_date": "2026-01-13"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.2",
+          "exists": false
+        },
+        {
+          "path": "results.1",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Start date"
+    },
+    {
+      "name": "End date",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "end_date": "2026-01-12"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.3",
+          "exists": false
+        },
+        {
+          "path": "results.2",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc End date"
+    },
+    {
+      "name": "Undated publication field",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_domains": [
+          "other.example"
+        ],
+        "include_published_date": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.published_date",
+          "equals": null
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "Yoga alternatives and coaching."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Undated publication field"
+    },
+    {
+      "name": "Basic answer",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_answer": "basic"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "answer",
+          "contains": "[twin-stub]"
+        },
+        {
+          "path": "answer",
+          "contains": "best source"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "results.3.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.3.content",
+          "equals": "Yoga alternatives and coaching."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Basic answer"
+    },
+    {
+      "name": "Detailed answer",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_answer": "advanced"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "answer",
+          "contains": "detailed sources"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "results.3.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.3.content",
+          "equals": "Yoga alternatives and coaching."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Detailed answer"
+    },
+    {
+      "name": "Markdown raw content",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_raw_content": "markdown",
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Markdown raw content"
+    },
+    {
+      "name": "Plain raw content",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_raw_content": "text",
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Plain raw content"
+    },
+    {
+      "name": "Image URLs",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_images": true,
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "images",
+          "equals": [
+            "https://example.com/class.png"
+          ]
+        },
+        {
+          "path": "results.0.images",
+          "equals": [
+            "https://example.com/class.png"
+          ]
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Image URLs"
+    },
+    {
+      "name": "Image descriptions",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_images": true,
+        "include_image_descriptions": true,
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "images",
+          "equals": [
+            {
+              "url": "https://example.com/class.png",
+              "description": "Yoga class"
+            }
+          ]
+        },
+        {
+          "path": "results.0.images",
+          "equals": [
+            {
+              "url": "https://example.com/class.png",
+              "description": "Yoga class"
+            }
+          ]
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Image descriptions"
+    },
+    {
+      "name": "Favicon",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_favicon": true,
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.favicon",
+          "equals": "https://example.com/favicon.ico"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Favicon"
+    },
+    {
+      "name": "Domain restriction",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Domain restriction"
+    },
+    {
+      "name": "Domain exclusion",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "exclude_domains": [
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.3",
+          "exists": false
+        },
+        {
+          "path": "results.2",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Domain exclusion"
+    },
+    {
+      "name": "Preferred domain is a boost",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "include_domains": [
+          "other.example"
+        ],
+        "include_domains_mode": "prefer"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.4",
+          "exists": false
+        },
+        {
+          "path": "results.3",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "Yoga alternatives and coaching."
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Preferred domain is a boost"
+    },
+    {
+      "name": "Country is a boost",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "country": "france"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.4",
+          "exists": false
+        },
+        {
+          "path": "results.3",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Country is a boost"
+    },
+    {
+      "name": "Language is a boost",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "language": "french"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.4",
+          "exists": false
+        },
+        {
+          "path": "results.3",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Language is a boost"
+    },
+    {
+      "name": "Language filter",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "language": "fr",
+        "filter_by_language": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Language filter"
+    },
+    {
+      "name": "Exact quoted phrase",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "\"yoga coastal\"",
+        "exact_match": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "query",
+          "equals": "\"yoga coastal\""
+        }
+      ],
+      "example": "search#doc Exact quoted phrase"
+    },
+    {
+      "name": "Safety filter",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "safe_search": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.3",
+          "exists": false
+        },
+        {
+          "path": "results.2",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Safety filter"
+    },
+    {
+      "name": "Automatic judgment with explicit override",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "scripted yoga",
+        "auto_parameters": true,
+        "topic": "general",
+        "include_answer": true,
+        "include_usage": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "auto_parameters",
+          "equals": {
+            "topic": "general",
+            "search_depth": "advanced"
+          }
+        },
+        {
+          "path": "usage.credits",
+          "equals": 2
+        },
+        {
+          "path": "answer",
+          "equals": "[twin-script] Festival research"
+        },
+        {
+          "path": "results.4",
+          "exists": false
+        },
+        {
+          "path": "results.3",
+          "exists": true
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "query",
+          "equals": "scripted yoga"
+        }
+      ],
+      "example": "search#doc Automatic judgment with explicit override"
+    },
+    {
+      "name": "Default automatic judgment",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "yoga",
+        "auto_parameters": true,
+        "search_depth": "basic",
+        "include_usage": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "auto_parameters",
+          "equals": {
+            "topic": "general",
+            "search_depth": "basic"
+          }
+        },
+        {
+          "path": "usage.credits",
+          "equals": 1
+        },
+        {
+          "path": "answer",
+          "exists": false
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "results.3.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.3.content",
+          "equals": "Yoga alternatives and coaching."
+        },
+        {
+          "path": "query",
+          "equals": "yoga"
+        }
+      ],
+      "example": "search#doc Default automatic judgment"
+    },
+    {
+      "name": "Missing query",
+      "method": "POST",
+      "path": "/search",
+      "status": 422,
+      "body": {},
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Missing query"
+    },
+    {
+      "name": "Blank query",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": " "
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Blank query"
+    },
+    {
+      "name": "Invalid topic",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "topic": "sports"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Invalid topic"
+    },
+    {
+      "name": "Invalid depth",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "search_depth": "deep"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Invalid depth"
+    },
+    {
+      "name": "Result bound",
+      "method": "POST",
+      "path": "/search",
+      "status": 422,
+      "body": {
+        "query": "yoga",
+        "max_results": 21
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Result bound"
+    },
+    {
+      "name": "Domain count bound",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "include_domains": [
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Domain count bound"
+    },
+    {
+      "name": "Domain members",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "include_domains": [
+          1
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Domain members"
+    },
+    {
+      "name": "Domain mode requires domains",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "include_domains_mode": "prefer"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Domain mode requires domains"
+    },
+    {
+      "name": "Language filter requires language",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "filter_by_language": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Language filter requires language"
+    },
+    {
+      "name": "Country topic restriction",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "topic": "news",
+        "country": "france"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Country topic restriction"
+    },
+    {
+      "name": "Safe search depth restriction",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "search_depth": "fast",
+        "safe_search": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Safe search depth restriction"
+    },
+    {
+      "name": "Invalid range",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "time_range": "decade"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Invalid range"
+    },
+    {
+      "name": "Invalid date",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "start_date": "bad-date"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Invalid date"
+    },
+    {
+      "name": "Invalid answer option",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "include_answer": "long"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Invalid answer option"
+    },
+    {
+      "name": "Invalid raw-content option",
+      "method": "POST",
+      "path": "/search",
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "include_raw_content": "html"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "search#doc Invalid raw-content option"
+    },
+    {
+      "name": "Plain extraction",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "format": "text"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        }
+      ],
+      "example": "extract#doc Plain extraction"
+    },
+    {
+      "name": "Advanced extraction",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "extract_depth": "advanced"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.\n\n| Yoga table | embedded class |"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        }
+      ],
+      "example": "extract#doc Advanced extraction"
+    },
+    {
+      "name": "Extraction images",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "include_images": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.images",
+          "equals": [
+            "https://example.com/class.png"
+          ]
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        }
+      ],
+      "example": "extract#doc Extraction images"
+    },
+    {
+      "name": "Extraction favicon",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "include_favicon": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.favicon",
+          "equals": "https://example.com/favicon.ico"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        }
+      ],
+      "example": "extract#doc Extraction favicon"
+    },
+    {
+      "name": "Extraction query ranks chunks",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "query": "festival",
+        "chunks_per_source": 1
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "Yoga festival schedule."
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        }
+      ],
+      "example": "extract#doc Extraction query ranks chunks"
+    },
+    {
+      "name": "Two extraction chunks",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "query": "festival",
+        "chunks_per_source": 2
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "Yoga festival schedule. [...] # Yoga studio"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        }
+      ],
+      "example": "extract#doc Two extraction chunks"
+    },
+    {
+      "name": "Basic default timeout",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/slow"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "failed_results.0.url",
+          "equals": "https://example.com/slow"
+        }
+      ],
+      "example": "extract#doc Basic default timeout"
+    },
+    {
+      "name": "Advanced default timeout",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/slow"
+        ],
+        "extract_depth": "advanced"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "Slow page content."
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/slow"
+        }
+      ],
+      "example": "extract#doc Advanced default timeout"
+    },
+    {
+      "name": "Explicit timeout",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/slow"
+        ],
+        "timeout": 20
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "Slow page content."
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/slow"
+        }
+      ],
+      "example": "extract#doc Explicit timeout"
+    },
+    {
+      "name": "Timeout bound",
+      "method": "POST",
+      "path": "/extract",
+      "status": 400,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "timeout": 0
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail",
+          "exists": true
+        }
+      ],
+      "example": "extract#doc Timeout bound"
+    },
+    {
+      "name": "Extraction usage for five successful URLs",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options",
+          "https://example.com/options",
+          "https://example.com/options",
+          "https://example.com/options",
+          "https://example.com/options"
+        ],
+        "include_usage": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "usage.credits",
+          "equals": 1
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.2.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.3.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        },
+        {
+          "path": "results.4.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.4.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information."
+        }
+      ],
+      "example": "extract#doc Extraction usage for five successful URLs"
+    },
+    {
+      "name": "Advanced usage for five successful URLs",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/options",
+          "https://example.com/options",
+          "https://example.com/options",
+          "https://example.com/options",
+          "https://example.com/options"
+        ],
+        "extract_depth": "advanced",
+        "include_usage": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "usage.credits",
+          "equals": 2
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.\n\n| Yoga table | embedded class |"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.1.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.\n\n| Yoga table | embedded class |"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.2.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.\n\n| Yoga table | embedded class |"
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.3.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.\n\n| Yoga table | embedded class |"
+        },
+        {
+          "path": "results.4.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.4.raw_content",
+          "equals": "# Yoga studio\n\nYoga coastal timetable.\n\nYoga festival schedule.\n\nParking information.\n\n| Yoga table | embedded class |"
+        }
+      ],
+      "example": "extract#doc Advanced usage for five successful URLs"
+    },
+    {
+      "name": "Invalid extraction depth",
+      "method": "POST",
+      "path": "/extract",
+      "status": 400,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "extract_depth": "deep"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ],
+      "example": "extract#doc Invalid extraction depth"
+    },
+    {
+      "name": "Invalid extraction format",
+      "method": "POST",
+      "path": "/extract",
+      "status": 400,
+      "body": {
+        "urls": [
+          "https://example.com/options"
+        ],
+        "format": "html"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ],
+      "example": "extract#doc Invalid extraction format"
+    },
+    {
+      "name": "Empty URL list",
+      "method": "POST",
+      "path": "/extract",
+      "status": 400,
+      "body": {
+        "urls": []
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ],
+      "example": "extract#doc Empty URL list"
+    },
+    {
+      "name": "Mixed invalid URL and successful URL",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "not-a-url",
+          "https://example.com/options"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.1",
+          "exists": false
+        },
+        {
+          "path": "results.0",
+          "exists": true
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "failed_results.1",
+          "exists": false
+        },
+        {
+          "path": "failed_results.0",
+          "exists": true
+        },
+        {
+          "path": "failed_results.0.url",
+          "equals": "not-a-url"
+        }
+      ],
+      "example": "extract#doc Mixed invalid URL and successful URL"
+    },
+    {
+      "name": "All valid URLs unavailable",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://example.com/unavailable"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "failed_results.0.url",
+          "equals": "https://example.com/unavailable"
+        }
+      ],
+      "example": "extract#doc All valid URLs unavailable"
+    },
+    {
+      "name": "Extract from the World application",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://studio.example/article"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "equals": "Application article content."
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://studio.example/article"
+        }
+      ],
+      "example": "extract#doc Extract from the World application"
+    },
+    {
+      "name": "Session header overrides",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "Who is Leo Messi?"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json",
+        "X-Session-ID": "alt-session-id",
+        "X-Human-ID": "hashed-opaque-human"
+      },
+      "expect": [
+        {
+          "path": "query",
+          "equals": "Who is Leo Messi?"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Leo Messi"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/messi"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "Who is Leo Messi? Lionel Messi is a footballer."
+        }
+      ],
+      "example": "search#doc Session header overrides"
+    },
+    {
+      "name": "SDK exact-match request",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "body": {
+        "query": "\"John Smith\" CEO Acme Corp",
+        "exact_match": true
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "query",
+          "equals": "\"John Smith\" CEO Acme Corp"
+        }
+      ],
+      "example": "search#doc SDK exact-match request"
+    },
+    {
+      "name": "Retry-After on a rate-limit fault",
+      "method": "POST",
+      "path": "/search",
+      "status": 429,
+      "body": {
+        "query": "Published retry delay"
+      },
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "header": "retry-after",
+          "equals": "60"
+        },
+        {
+          "path": "detail.error",
+          "contains": "excessive requests"
+        }
+      ],
+      "example": "search#doc Retry-After on a rate-limit fault"
+    },
+    {
+      "name": "Null optional search filters",
+      "example": "search#doc Null optional search filters",
+      "method": "POST",
+      "path": "/search",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "query": "yoga",
+        "time_range": null,
+        "start_date": null,
+        "end_date": null,
+        "country": null,
+        "language": null
+      },
+      "expect": [
+        {
+          "path": "query",
+          "equals": "yoga"
+        },
+        {
+          "path": "results.4",
+          "exists": false
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/options"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Yoga coastal guide"
+        },
+        {
+          "path": "results.1.title",
+          "equals": "Coastal yoga festival"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.1.content",
+          "equals": "# Coastal yoga festival"
+        },
+        {
+          "path": "results.2.title",
+          "equals": "Yoga equity"
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://finance.example/equity"
+        },
+        {
+          "path": "results.2.content",
+          "equals": "Yoga company equity prices."
+        },
+        {
+          "path": "results.3.title",
+          "equals": "Yoga alternatives"
+        },
+        {
+          "path": "results.3.url",
+          "equals": "https://other.example/plain"
+        },
+        {
+          "path": "results.3.content",
+          "equals": "Yoga alternatives and coaching."
+        }
+      ]
+    },
+    {
+      "name": "Invalid country enum",
+      "example": "search#doc Invalid country enum",
+      "method": "POST",
+      "path": "/search",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "query": "yoga",
+        "country": "atlantis"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Invalid URL member type",
+      "example": "extract#doc Invalid URL member type",
+      "method": "POST",
+      "path": "/extract",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "urls": [
+          42
+        ]
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Missing URL field",
+      "example": "extract#doc Missing URL field",
+      "method": "POST",
+      "path": "/extract",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {},
+      "status": 400,
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Wrong URL field type",
+      "example": "extract#doc Wrong URL field type",
+      "method": "POST",
+      "path": "/extract",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "urls": 42
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Source HTTP failure",
+      "example": "extract#doc Source HTTP failure",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "urls": [
+          "https://studio.example/refused"
+        ]
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "failed_results.0.url",
+          "equals": "https://studio.example/refused"
+        }
+      ]
+    },
+    {
+      "name": "Wrong API key",
+      "example": "search#doc Wrong API key",
+      "method": "POST",
+      "path": "/search",
+      "status": 401,
+      "headers": {
+        "authorization": "Bearer tvly-unissued-throwaway"
+      },
+      "body": {
+        "query": "yoga"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "equals": "Unauthorized: missing or invalid API key."
+        }
+      ]
+    },
+    {
+      "name": "Domain mode enum",
+      "example": "search#doc Domain mode enum",
+      "method": "POST",
+      "path": "/search",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "include_domains": [
+          "example.com"
+        ],
+        "include_domains_mode": "unknown"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Excluded domain count bound",
+      "example": "search#doc Excluded domain count bound",
+      "method": "POST",
+      "path": "/search",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "exclude_domains": [
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com",
+          "example.com"
+        ]
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Invalid calendar date",
+      "example": "search#doc Invalid calendar date",
+      "method": "POST",
+      "path": "/search",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "status": 400,
+      "body": {
+        "query": "yoga",
+        "end_date": "2025-99-99"
+      },
+      "expect": [
+        {
+          "path": "detail.error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Answer with an empty corpus match",
+      "example": "search#doc Answer with an empty corpus match",
+      "method": "POST",
+      "path": "/search",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "status": 200,
+      "body": {
+        "query": "unseen telescope",
+        "include_answer": true
+      },
+      "expect": [
+        {
+          "path": "query",
+          "equals": "unseen telescope"
+        },
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "answer",
+          "contains": "[twin-stub]"
+        },
+        {
+          "path": "answer",
+          "contains": "none of the World pages"
+        }
+      ]
+    },
+    {
+      "name": "Plain text from Markdown",
+      "example": "extract#doc Plain text from Markdown",
+      "method": "POST",
+      "path": "/extract",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://outside.example/festival"
+        ],
+        "format": "text"
+      },
+      "expect": [
+        {
+          "path": "results.0.url",
+          "equals": "https://outside.example/festival"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "Coastal yoga festival"
+        }
+      ]
+    },
+    {
+      "name": "Replay the SDK search response-format sample on its HTTP wire",
+      "example": "search#doc JavaScript SDK response object",
+      "method": "POST",
+      "path": "/search",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "status": 200,
+      "body": {
+        "query": "Who is Leo Messi?"
+      },
+      "expect": [
+        {
+          "path": "query",
+          "equals": "Who is Leo Messi?"
+        },
+        {
+          "path": "images",
+          "equals": []
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://example.com/messi"
+        },
+        {
+          "path": "results.0.title",
+          "equals": "Leo Messi"
+        },
+        {
+          "path": "results.0.content",
+          "equals": "Who is Leo Messi? Lionel Messi is a footballer."
+        },
+        {
+          "path": "results.0.images",
+          "exists": false
+        },
+        {
+          "path": "results.0.favicon",
+          "exists": false
+        },
+        {
+          "path": "response_time",
+          "equals": 0.01
+        },
+        {
+          "path": "request_id",
+          "matches": "^[0-9a-f-]{36}$"
+        }
+      ],
+      "exampleDiffers": {
+        "images": "https://docs.tavily.com/sdk/javascript/reference.md response-format sample illustrates optional images. Its own table and https://docs.tavily.com/documentation/api-reference/endpoint/search.md make images conditional on includeImages/include_images, default false. This unmodified simple query correctly has an empty images list, asserted by the replay.",
+        "results[].images": "https://docs.tavily.com/sdk/javascript/reference.md describes result images as optional, only included with includeImages:true; https://docs.tavily.com/documentation/api-reference/endpoint/search.md defaults include_images:false. The sample illustrates the option; this simple request omits it, asserted by the replay.",
+        "results[].favicon": "https://docs.tavily.com/sdk/javascript/reference.md marks favicon optional and defaults includeFavicon:false; https://docs.tavily.com/documentation/api-reference/endpoint/search.md defaults include_favicon:false. The sample illustrates the optional field; this simple request omits it, asserted by the replay.",
+        "responseTime": "https://docs.tavily.com/sdk/javascript/reference.md names the SDK response field responseTime; https://docs.tavily.com/documentation/api-reference/endpoint/search.md publishes HTTP response_time. Architecture Published examples requires the spec wire and records remaining page/spec shape differences; the replay asserts response_time.",
+        "requestId": "https://docs.tavily.com/sdk/javascript/reference.md names the SDK response field requestId; https://docs.tavily.com/documentation/api-reference/endpoint/search.md publishes HTTP request_id. Architecture Published examples requires the spec wire and records remaining page/spec shape differences; the replay asserts request_id."
+      }
+    },
+    {
+      "name": "The SDK extract sample source 1 with images",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+        "title": "Artificial intelligence",
+        "content": "Artificial intelligence article.",
+        "images": [
+          "https://en.wikipedia.org/example-1-1.png",
+          "https://en.wikipedia.org/example-1-2.png"
+        ],
+        "favicon": "https://en.wikipedia.org/favicon.ico"
+      }
+    },
+    {
+      "name": "The SDK extract sample source 2 with images",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://en.wikipedia.org/wiki/Machine_learning",
+        "title": "Machine learning",
+        "content": "Machine learning article.",
+        "images": [
+          "https://en.wikipedia.org/example-2-1.png",
+          "https://en.wikipedia.org/example-2-2.png"
+        ],
+        "favicon": "https://en.wikipedia.org/favicon.ico"
+      }
+    },
+    {
+      "name": "The SDK extract sample source 3 with images",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://en.wikipedia.org/wiki/Data_science",
+        "title": "Data science",
+        "content": "Data science article.",
+        "images": [
+          "https://en.wikipedia.org/example-3-1.png",
+          "https://en.wikipedia.org/example-3-2.png"
+        ],
+        "favicon": "https://en.wikipedia.org/favicon.ico"
+      }
+    },
+    {
+      "name": "Replay the SDK extract response-format sample on its HTTP wire",
+      "example": "extract#doc SDK extract response object",
+      "method": "POST",
+      "path": "/extract",
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "status": 200,
+      "body": {
+        "urls": [
+          "https://en.wikipedia.org/wiki/Artificial_intelligence",
+          "https://en.wikipedia.org/wiki/Machine_learning",
+          "https://en.wikipedia.org/wiki/Data_science"
+        ],
+        "include_images": true
+      },
+      "expect": [
+        {
+          "path": "failed_results",
+          "equals": []
+        },
+        {
+          "path": "response_time",
+          "equals": 0.01
+        },
+        {
+          "path": "request_id",
+          "matches": "^[0-9a-f-]{36}$"
+        },
+        {
+          "path": "results.0.url",
+          "equals": "https://en.wikipedia.org/wiki/Artificial_intelligence"
+        },
+        {
+          "path": "results.0.raw_content",
+          "equals": "Artificial intelligence article."
+        },
+        {
+          "path": "results.0.images",
+          "equals": [
+            "https://en.wikipedia.org/example-1-1.png",
+            "https://en.wikipedia.org/example-1-2.png"
+          ]
+        },
+        {
+          "path": "results.0.favicon",
+          "exists": false
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://en.wikipedia.org/wiki/Machine_learning"
+        },
+        {
+          "path": "results.1.raw_content",
+          "equals": "Machine learning article."
+        },
+        {
+          "path": "results.1.images",
+          "equals": [
+            "https://en.wikipedia.org/example-2-1.png",
+            "https://en.wikipedia.org/example-2-2.png"
+          ]
+        },
+        {
+          "path": "results.1.favicon",
+          "exists": false
+        },
+        {
+          "path": "results.2.url",
+          "equals": "https://en.wikipedia.org/wiki/Data_science"
+        },
+        {
+          "path": "results.2.raw_content",
+          "equals": "Data science article."
+        },
+        {
+          "path": "results.2.images",
+          "equals": [
+            "https://en.wikipedia.org/example-3-1.png",
+            "https://en.wikipedia.org/example-3-2.png"
+          ]
+        },
+        {
+          "path": "results.2.favicon",
+          "exists": false
+        }
+      ],
+      "exampleDiffers": {
+        "results[].rawContent": "https://docs.tavily.com/sdk/javascript/reference.md names the SDK response field rawContent; https://docs.tavily.com/documentation/api-reference/endpoint/extract.md publishes HTTP results[].raw_content. Architecture Published examples requires the spec wire and records remaining page/spec shape differences; the replay asserts results[].raw_content.",
+        "failedResults": "https://docs.tavily.com/sdk/javascript/reference.md names the SDK response field failedResults; https://docs.tavily.com/documentation/api-reference/endpoint/extract.md publishes HTTP failed_results. Architecture Published examples requires the spec wire and records remaining page/spec shape differences; the replay asserts failed_results.",
+        "responseTime": "https://docs.tavily.com/sdk/javascript/reference.md names the SDK response field responseTime; https://docs.tavily.com/documentation/api-reference/endpoint/extract.md publishes HTTP response_time. Architecture Published examples requires the spec wire and records remaining page/spec shape differences; the replay asserts response_time.",
+        "requestId": "https://docs.tavily.com/sdk/javascript/reference.md names the SDK response field requestId; https://docs.tavily.com/documentation/api-reference/endpoint/extract.md publishes HTTP request_id. Architecture Published examples requires the spec wire and records remaining page/spec shape differences; the replay asserts request_id.",
+        "results[].favicon": "https://docs.tavily.com/sdk/javascript/reference.md response-format sample illustrates the optional favicon, and its table and https://docs.tavily.com/documentation/api-reference/endpoint/extract.md default includeFavicon/include_favicon:false. The published request enables images only; replay asserts those images and the absent favicon."
+      }
+    },
+    {
+      "name": "Source body transport failure",
+      "example": "extract#doc Source body transport failure",
+      "method": "POST",
+      "path": "/extract",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "urls": [
+          "https://studio.example/disconnected"
+        ]
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "failed_results.0.url",
+          "equals": "https://studio.example/disconnected"
+        },
+        {
+          "path": "failed_results.0.error",
+          "equals": "Failed to retrieve content"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "search#doc Rendered full search request and response": "https://docs.tavily.com/documentation/api-reference/endpoint/search publishes include_domains:[] together with an explicit include_domains_mode:restrict, while https://docs.tavily.com/documentation/api-reference/endpoint/search.md states setting include_domains_mode without include_domains returns 400. Its response also contains answer, favicon, per-result images, dates, usage and auto_parameters despite false request flags; the endpoint descriptions require those options to be enabled. This is the vendor renderer contradicting the vendor options, not a missing World precondition.",
+    "extract#doc Rendered full extract request and response": "https://docs.tavily.com/documentation/api-reference/endpoint/extract publishes timeout:\"None\" in its generated curl JSON. https://docs.tavily.com/documentation/api-reference/endpoint/extract.md declares timeout a number between 1 and 60, with absence choosing 10/30 by depth. The generated request contradicts the vendor type; its response also includes an unrequested favicon while include_favicon is false."
+  }
+}

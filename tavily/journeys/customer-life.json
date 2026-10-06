@@ -1,0 +1,197 @@
+{
+  "vendor": "tavily",
+  "author": "Contributor 97",
+  "host": "api.tavily.com",
+  "startsAt": "2026-01-15T11:00:00Z",
+  "about": "A yoga studio researches its schedule and festival announcement in LibreChat; LibreChat web search uses its Tavily scraper.",
+  "steps": [
+    {
+      "name": "The World issues the application's Tavily key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "contains": "tvly-"
+        }
+      ]
+    },
+    {
+      "name": "The studio's schedule page",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://tidewater.yoga/schedule",
+        "title": "Tidewater Yoga class schedule",
+        "content": "Vinyasa on Tuesdays at 18:00, yin on Thursdays at 19:30."
+      }
+    },
+    {
+      "name": "A news story",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://coastnews.example/yoga-festival",
+        "title": "Yoga festival comes to the coast",
+        "content": "The first coastal yoga festival opens in March.",
+        "topic": "news",
+        "published_date": "2026-01-12T08:00:00Z"
+      }
+    },
+    {
+      "name": "A page about parking",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://city.example/parking",
+        "title": "Parking downtown",
+        "content": "Free parking after 17:00."
+      }
+    },
+    {
+      "name": "LibreChat's agent searches, the key in the body",
+      "method": "POST",
+      "path": "https://api.tavily.com/search",
+      "status": 200,
+      "body": {
+        "api_key": "{k}",
+        "query": "tidewater yoga schedule",
+        "max_results": 5,
+        "include_answer": true
+      },
+      "expect": [
+        {
+          "path": "results.0.url",
+          "equals": "https://tidewater.yoga/schedule"
+        },
+        {
+          "path": "results.1.url",
+          "equals": "https://coastnews.example/yoga-festival"
+        },
+        {
+          "path": "answer",
+          "contains": "[twin-stub]"
+        }
+      ],
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Client-Name": "librechat"
+      }
+    },
+    {
+      "name": "LibreChat's agent researches festival news this week",
+      "method": "POST",
+      "path": "https://api.tavily.com/search",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Client-Name": "librechat"
+      },
+      "body": {
+        "api_key": "{k}",
+        "query": "yoga festival news",
+        "topic": "news",
+        "time_range": "week",
+        "max_results": 3
+      },
+      "expect": [
+        {
+          "path": "results.0.title",
+          "equals": "Yoga festival comes to the coast"
+        },
+        {
+          "path": "results.0.published_date",
+          "equals": "2026-01-12T08:00:00Z"
+        }
+      ]
+    },
+    {
+      "name": "LibreChat's agent keeps to the studio's own site, with the pages' raw content",
+      "method": "POST",
+      "path": "https://api.tavily.com/search",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Client-Name": "librechat"
+      },
+      "body": {
+        "query": "yoga",
+        "include_domains": [
+          "tidewater.yoga"
+        ],
+        "include_raw_content": true,
+        "api_key": "{k}"
+      },
+      "expect": [
+        {
+          "path": "results.0.url",
+          "equals": "https://tidewater.yoga/schedule"
+        },
+        {
+          "path": "results.0.raw_content",
+          "contains": "Vinyasa"
+        },
+        {
+          "path": "results.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Nothing matches",
+      "method": "POST",
+      "path": "https://api.tavily.com/search",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Client-Name": "librechat"
+      },
+      "body": {
+        "query": "quantum chromodynamics",
+        "api_key": "{k}"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "LibreChat's scraper extracts two result pages, one the World does not hold",
+      "method": "POST",
+      "path": "https://api.tavily.com/extract",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "urls": [
+          "https://tidewater.yoga/schedule",
+          "https://nowhere.example/x"
+        ],
+        "extract_depth": "basic",
+        "include_images": false
+      },
+      "expect": [
+        {
+          "path": "results.0.raw_content",
+          "contains": "Vinyasa on Tuesdays"
+        },
+        {
+          "path": "failed_results.0.url",
+          "equals": "https://nowhere.example/x"
+        }
+      ]
+    }
+  ]
+}
