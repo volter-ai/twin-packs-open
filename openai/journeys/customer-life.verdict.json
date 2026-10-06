@@ -1,0 +1,321 @@
+{
+  "judge": {
+    "agent": "Claude Code (Claude Agent SDK), model claude-opus-5-5",
+    "name": "Contributor 105"
+  },
+  "authors": [
+    "Contributor 173",
+    "Contributor 197"
+  ],
+  "bar": "829132787d94a2d4",
+  "sha256": "4b7ec34948082bb23ac8bf2ba06e691d3cd83099783a3ddc255e73d4b42bd579",
+  "judgedAt": "2026-10-01",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "key-refusals-run-through-undemanded-doors",
+      "steps": [
+        13,
+        14,
+        125
+      ],
+      "barItem": "a run of refusals; a call through a door the vendor does not document (here: a door the application never calls)",
+      "reason": "Steps 13 and 14 are two refusals in a row in the same sitting. Both go through GET /v1/models, which neither application calls: demand.json gives Workbench one call (Pi's createChatCompletion, through its gateway) and Rallly one (createResponse for poll moderation, apps/web/src/features/moderation/mutations.ts:33). Neither has a 'model picker'. Step 125 ('The old key is refused') again sends Rallly's key to /v1/models, and nothing in the story says who sends it.",
+      "correction": "Keep at most one configuration refusal in act 1, and send it through the call that application really makes: Rallly's mistyped key on its createResponse moderation call, with the 401 'Incorrect API key provided'. Do not put it next to another refusal. Drop Workbench's /v1/models step (see also same-cause-missing-env-key). In step 125, the old key is refused on Rallly's own createResponse call, made before its configuration takes the new key."
+    },
+    {
+      "id": "same-cause-missing-env-key",
+      "steps": [
+        13,
+        100
+      ],
+      "barItem": "the same cause drawn twice",
+      "reason": "Step 13 ('Workbench startup lost OPENAI_API_KEY from its environment') and step 100 ('The newly launched voice front omitted its environment key') are the same cause, an application started without its key in its environment, refused for invalid_api_key. The story draws it twice.",
+      "correction": "Keep one occurrence (step 100 on the voice front is the one the story uses, since loading the key then lets it connect). Delete step 13."
+    },
+    {
+      "id": "assistants-built-after-deprecation",
+      "steps": [
+        16,
+        17,
+        18,
+        19,
+        21
+      ],
+      "barItem": "the wrong era: building on an API the vendor had deprecated by the World's date",
+      "reason": "The World clock starts 2026-01-01. OpenAI deprecated the Assistants API on 2025-08-26 and removes it on 2026-08-26 (developers.openai.com/api/docs/deprecations, quoted in the pack's own src/semantics/shared.ts REMOVED_FAMILIES). On 13 January 2026 the life still builds new things on it: it uploads a new assistants-purpose file (16), creates a new 'replacement' Planning rules assistant (17) and creates a second 'Draft' assistant (18), only to delete it in the same sitting (21). The story gives no reason a replacement is needed, and the July 2025 assistant it would replace never exists in the World. Calling this 'maintaining the integration installed in July 2025' does not make the creation maintenance. The draft (18, 21) exists only to give the selector's list (19) a second entry: it is made and discarded in one sitting.",
+      "correction": "Have the July 2025 integration's Planning rules assistant and its extract enter the World as the state the customer already had, the way step 1 brings in Marit's existing account (a /_twin/ door, because the API cannot make a 2025 object in 2026). The 2026 sittings then only use and maintain them: list, get, threads, messages, runs, tool outputs, modify, delete. Drop the Draft assistant (18, 21) and give step 19 the integration's real assistants to expect. createAssistant's coverage comes from the published examples, which are sent on the World's first day."
+    },
+    {
+      "id": "assistants-file-never-used-by-an-assistant",
+      "steps": [
+        16,
+        27,
+        38,
+        130
+      ],
+      "barItem": "a stated cause that never happens; vendor behaviour the vendor's documentation contradicts",
+      "reason": "The zoning extract is uploaded with purpose 'assistants' (the spec's CreateFileRequest says purpose 'assistants' is 'Used in the Assistants API'), yet no assistant, thread or message ever uses it: there is no tool_resources, no attachments and no file_search or code_interpreter. The upload's stated purpose never happens. Instead the life uses OpenAI Files as a staff file share: Marit's 'document picker' (27), Joost's download (38). OpenAI does not serve the content of a file uploaded with purpose 'assistants'; it refuses with 'Not allowed to download files of purpose: assistants'. Only outputs, such as assistants_output, are downloadable. So step 38 also expects an answer the vendor does not give.",
+      "correction": "Attach the extract where the Assistants API uses it. For example, step 17 creates the assistant with tools [code_interpreter, lookup_parcel] and tool_resources.code_interpreter.file_ids [extract], or Joost's message attaches it. LibreChat's demanded modifyAssistant updates 'its tools and tool resources'. Drop the document-picker read (27) and the download (38), or replace the download with one of an assistants_output file that a code_interpreter run produced."
+    },
+    {
+      "id": "assistant-update-drops-the-extract",
+      "steps": [
+        37
+      ],
+      "barItem": "a state switched ... with no reason the story shows; content that does not bear out the step's name",
+      "reason": "Step 37 ('The instructions are updated'; outline: 'The assistant's instructions are maintained') replaces the instructions with text that no longer contains the 'Source zoning extract' sentences. Act 2 says those sentences are how the assistant answers. Nothing in the story causes the update. It adds 'Cite the article.', but the extract has no articles to cite. From then on, including Joost's 19 March question (72), the assistant answers without the extract the story says it holds.",
+      "correction": "Give the update a cause the story shows, for example after Joost's answer (32) Marit asks the assistant to name the rule it applied. Keep the extract in the new instructions, or move it into the assistant's tool resources as above."
+    },
+    {
+      "id": "postiz-announcement-never-made",
+      "steps": [
+        113,
+        115
+      ],
+      "barItem": "a stated cause that never happens, and a promise never kept",
+      "reason": "Step 113 ends with the scheduling agent requesting schedulePost. No function_call_output follows, and the outline (act 14) says the life does not claim that the post was scheduled. Yet step 115 ('the Oudegracht 112 open studio Postiz announced') and act 15 state that Postiz's agent announced it. The cause act 15 rests on never happens.",
+      "correction": "Complete the agent's turn as Twenty's does (51–52): Postiz runs its schedulePost tool and sends the function_call_output with previous_response_id, and the continuation completes. Or drop the claim in step 115 and act 15 that Postiz announced the open studio."
+    },
+    {
+      "id": "response-format-refused-twice",
+      "steps": [
+        65,
+        67
+      ],
+      "barItem": "the same cause drawn twice; (in one sitting)",
+      "reason": "In the 18 March sitting the desk is refused twice for the same cause, a response_format that Chat Completions does not accept (error.param 'response_format'): first type 'json' copied from Ollama (65), then a strict schema whose root is allOf (67). These are two pretexts for one refusal. Together with 60, 83 and 94, the permit desk spends five of its sittings' openings on malformed requests.",
+      "correction": "Keep one response_format refusal (the Pydantic allOf one is the more plausible) and make the tagging step correct from the start in JSON mode."
+    },
+    {
+      "id": "responses-input-refused-twice",
+      "steps": [
+        83,
+        94
+      ],
+      "barItem": "the same cause drawn twice",
+      "reason": "Steps 83 (one message object as input) and 94 (a list of plain strings as input) are both a Responses request refused for a malformed input (error.param 'input'). The same cause appears in two sittings.",
+      "correction": "Keep one. Remove step 94 so the desk sends the scan as its first request (95), or remove step 83."
+    },
+    {
+      "id": "summary-promises-not-kept",
+      "steps": [
+        61,
+        63
+      ],
+      "barItem": "a promise never kept; a feature tour",
+      "reason": "Step 61 asks for 'two candidate summaries for Joost to choose from' (n 2) and is 'seeded so the summary can be regenerated for the project file' (seed 112). Joost never chooses: step 63 takes choices.0 automatically. Nothing ever regenerates the summary: the project file later exports the stored request messages instead (79–80). One call collects n, seed, stop, store and metadata, and two of them carry reasons the story never acts on.",
+      "correction": "Either carry out the promises (Joost's choice is a captured index that step 63 reads; a later regeneration uses the seed) or drop n and seed from step 61 and their reasons from its name."
+    },
+    {
+      "id": "stored-messages-paged-for-no-reader",
+      "steps": [
+        79,
+        80
+      ],
+      "barItem": "a read-back with no need",
+      "reason": "The desk wrote the four messages of the 9 March summary itself (system prompt, the Gemini history and the decision text are in Daan's script), and the same script with the same key reads them back. It pages them two at a time ('two per page'), which no reason in the story requires, so that a has_more cursor appears.",
+      "correction": "Drop steps 79–80, or give the read to someone who does not hold the messages (for example the project-file export of a summary another program stored) and read them in one page with the vendor's default limit."
+    },
+    {
+      "id": "speech-format-tour",
+      "steps": [
+        48,
+        81,
+        96,
+        116,
+        129
+      ],
+      "barItem": "a feature tour: one call per option of an endpoint",
+      "reason": "Across the life, createSpeech is called once per response_format: mp3 (48), opus (81), aac (96), wav (116) and flac (129). Each call carries a pretext naming the format's virtue. Step 129's pretext is not a reason a practice has: it makes a lossless narrated FLAC of a three-line markdown extract 'for the project archive', when the text itself is what an archive keeps. The scripts never read or play these files afterwards.",
+      "correction": "Keep the speech calls the applications demand (LibreChat's read-aloud) and those whose output the story uses. Drop step 129 and at least one of the desk's format pretexts (96 or 116), leaving no run of one-format-per-occasion calls."
+    },
+    {
+      "id": "dall-e-2-edit-without-mask-or-alpha",
+      "steps": [
+        98
+      ],
+      "barItem": "vendor behaviour the vendor's documentation contradicts; content that does not bear out the step's name",
+      "reason": "Step 98 sends dall-e-2 an edit with no mask and an opaque RGB PNG (IHDR colour type 2, no alpha), asking it to 'Clean up the pencil lines'. A DALL-E 2 edit only repaints where the image is transparent. The spec's CreateImageEditRequest mask reads: 'An additional image whose fully transparent areas (e.g. where alpha is zero) indicate where image should be edited'. With neither a mask nor transparency there is no area to edit, and OpenAI refuses an RGB image for a mask-less dall-e-2 edit ('Invalid input image - format must be in [RGBA, LA, L], got RGB'). The step's bytes cannot do what its name says.",
+      "correction": "Send the sketch as an RGBA PNG whose pencil-line region is transparent, or add a mask of the same 128x128 size, and name the step for what an inpainting edit does."
+    },
+    {
+      "id": "names-not-borne-out",
+      "steps": [
+        53,
+        54
+      ],
+      "barItem": "content that does not bear out the step's name",
+      "reason": "Step 54 opens 'Postiz, the agent's box and the on-call agent' (outline act 5 likewise), but Workbench makes no call that day. Its only call is in August (121), and its startup failure (13) is never resolved in the story. Step 53 is 'Joost dictates a question', but the uploaded file is named voicemail-a.wav, a voicemail and not a dictation recorded in LibreChat.",
+      "correction": "Remove 'the agent's box' from step 54's name and from act 5's title. Name step 53's upload as LibreChat's recorder would name it (a dictation recording in the browser's format)."
+    }
+  ],
+  "applied": {
+    "from": "e409b1c6180656b766160587fdde20beb4b4efcc3232f6ec1b7633cd6e1794b1",
+    "wasPlausible": false,
+    "steps": [
+      "13",
+      "14",
+      "16",
+      "17",
+      "18",
+      "19",
+      "21",
+      "27",
+      "37",
+      "38",
+      "53",
+      "54",
+      "61",
+      "63",
+      "65",
+      "79",
+      "80",
+      "94",
+      "98",
+      "113",
+      "116",
+      "125",
+      "129"
+    ],
+    "rulings": [
+      {
+        "id": "key-refusals-run-through-undemanded-doors",
+        "steps": [
+          13,
+          14,
+          125
+        ],
+        "barItem": "a run of refusals; a call through a door the vendor does not document (here: a door the application never calls)",
+        "reason": "Steps 13 and 14 are two refusals in a row in the same sitting. Both go through GET /v1/models, which neither application calls: demand.json gives Workbench one call (Pi's createChatCompletion, through its gateway) and Rallly one (createResponse for poll moderation, apps/web/src/features/moderation/mutations.ts:33). Neither has a 'model picker'. Step 125 ('The old key is refused') again sends Rallly's key to /v1/models, and nothing in the story says who sends it.",
+        "correction": "Keep at most one configuration refusal in act 1, and send it through the call that application really makes: Rallly's mistyped key on its createResponse moderation call, with the 401 'Incorrect API key provided'. Do not put it next to another refusal. Drop Workbench's /v1/models step (see also same-cause-missing-env-key). In step 125, the old key is refused on Rallly's own createResponse call, made before its configuration takes the new key."
+      },
+      {
+        "id": "same-cause-missing-env-key",
+        "steps": [
+          13,
+          100
+        ],
+        "barItem": "the same cause drawn twice",
+        "reason": "Step 13 ('Workbench startup lost OPENAI_API_KEY from its environment') and step 100 ('The newly launched voice front omitted its environment key') are the same cause, an application started without its key in its environment, refused for invalid_api_key. The story draws it twice.",
+        "correction": "Keep one occurrence (step 100 on the voice front is the one the story uses, since loading the key then lets it connect). Delete step 13."
+      },
+      {
+        "id": "assistants-built-after-deprecation",
+        "steps": [
+          16,
+          17,
+          18,
+          19,
+          21
+        ],
+        "barItem": "the wrong era: building on an API the vendor had deprecated by the World's date",
+        "reason": "The World clock starts 2026-01-01. OpenAI deprecated the Assistants API on 2025-08-26 and removes it on 2026-08-26 (developers.openai.com/api/docs/deprecations, quoted in the pack's own src/semantics/shared.ts REMOVED_FAMILIES). On 13 January 2026 the life still builds new things on it: it uploads a new assistants-purpose file (16), creates a new 'replacement' Planning rules assistant (17) and creates a second 'Draft' assistant (18), only to delete it in the same sitting (21). The story gives no reason a replacement is needed, and the July 2025 assistant it would replace never exists in the World. Calling this 'maintaining the integration installed in July 2025' does not make the creation maintenance. The draft (18, 21) exists only to give the selector's list (19) a second entry: it is made and discarded in one sitting.",
+        "correction": "Have the July 2025 integration's Planning rules assistant and its extract enter the World as the state the customer already had, the way step 1 brings in Marit's existing account (a /_twin/ door, because the API cannot make a 2025 object in 2026). The 2026 sittings then only use and maintain them: list, get, threads, messages, runs, tool outputs, modify, delete. Drop the Draft assistant (18, 21) and give step 19 the integration's real assistants to expect. createAssistant's coverage comes from the published examples, which are sent on the World's first day."
+      },
+      {
+        "id": "assistants-file-never-used-by-an-assistant",
+        "steps": [
+          16,
+          27,
+          38,
+          130
+        ],
+        "barItem": "a stated cause that never happens; vendor behaviour the vendor's documentation contradicts",
+        "reason": "The zoning extract is uploaded with purpose 'assistants' (the spec's CreateFileRequest says purpose 'assistants' is 'Used in the Assistants API'), yet no assistant, thread or message ever uses it: there is no tool_resources, no attachments and no file_search or code_interpreter. The upload's stated purpose never happens. Instead the life uses OpenAI Files as a staff file share: Marit's 'document picker' (27), Joost's download (38). OpenAI does not serve the content of a file uploaded with purpose 'assistants'; it refuses with 'Not allowed to download files of purpose: assistants'. Only outputs, such as assistants_output, are downloadable. So step 38 also expects an answer the vendor does not give.",
+        "correction": "Attach the extract where the Assistants API uses it. For example, step 17 creates the assistant with tools [code_interpreter, lookup_parcel] and tool_resources.code_interpreter.file_ids [extract], or Joost's message attaches it. LibreChat's demanded modifyAssistant updates 'its tools and tool resources'. Drop the document-picker read (27) and the download (38), or replace the download with one of an assistants_output file that a code_interpreter run produced."
+      },
+      {
+        "id": "assistant-update-drops-the-extract",
+        "steps": [
+          37
+        ],
+        "barItem": "a state switched ... with no reason the story shows; content that does not bear out the step's name",
+        "reason": "Step 37 ('The instructions are updated'; outline: 'The assistant's instructions are maintained') replaces the instructions with text that no longer contains the 'Source zoning extract' sentences. Act 2 says those sentences are how the assistant answers. Nothing in the story causes the update. It adds 'Cite the article.', but the extract has no articles to cite. From then on, including Joost's 19 March question (72), the assistant answers without the extract the story says it holds.",
+        "correction": "Give the update a cause the story shows, for example after Joost's answer (32) Marit asks the assistant to name the rule it applied. Keep the extract in the new instructions, or move it into the assistant's tool resources as above."
+      },
+      {
+        "id": "postiz-announcement-never-made",
+        "steps": [
+          113,
+          115
+        ],
+        "barItem": "a stated cause that never happens, and a promise never kept",
+        "reason": "Step 113 ends with the scheduling agent requesting schedulePost. No function_call_output follows, and the outline (act 14) says the life does not claim that the post was scheduled. Yet step 115 ('the Oudegracht 112 open studio Postiz announced') and act 15 state that Postiz's agent announced it. The cause act 15 rests on never happens.",
+        "correction": "Complete the agent's turn as Twenty's does (51–52): Postiz runs its schedulePost tool and sends the function_call_output with previous_response_id, and the continuation completes. Or drop the claim in step 115 and act 15 that Postiz announced the open studio."
+      },
+      {
+        "id": "response-format-refused-twice",
+        "steps": [
+          65,
+          67
+        ],
+        "barItem": "the same cause drawn twice; (in one sitting)",
+        "reason": "In the 18 March sitting the desk is refused twice for the same cause, a response_format that Chat Completions does not accept (error.param 'response_format'): first type 'json' copied from Ollama (65), then a strict schema whose root is allOf (67). These are two pretexts for one refusal. Together with 60, 83 and 94, the permit desk spends five of its sittings' openings on malformed requests.",
+        "correction": "Keep one response_format refusal (the Pydantic allOf one is the more plausible) and make the tagging step correct from the start in JSON mode."
+      },
+      {
+        "id": "responses-input-refused-twice",
+        "steps": [
+          83,
+          94
+        ],
+        "barItem": "the same cause drawn twice",
+        "reason": "Steps 83 (one message object as input) and 94 (a list of plain strings as input) are both a Responses request refused for a malformed input (error.param 'input'). The same cause appears in two sittings.",
+        "correction": "Keep one. Remove step 94 so the desk sends the scan as its first request (95), or remove step 83."
+      },
+      {
+        "id": "summary-promises-not-kept",
+        "steps": [
+          61,
+          63
+        ],
+        "barItem": "a promise never kept; a feature tour",
+        "reason": "Step 61 asks for 'two candidate summaries for Joost to choose from' (n 2) and is 'seeded so the summary can be regenerated for the project file' (seed 112). Joost never chooses: step 63 takes choices.0 automatically. Nothing ever regenerates the summary: the project file later exports the stored request messages instead (79–80). One call collects n, seed, stop, store and metadata, and two of them carry reasons the story never acts on.",
+        "correction": "Either carry out the promises (Joost's choice is a captured index that step 63 reads; a later regeneration uses the seed) or drop n and seed from step 61 and their reasons from its name."
+      },
+      {
+        "id": "stored-messages-paged-for-no-reader",
+        "steps": [
+          79,
+          80
+        ],
+        "barItem": "a read-back with no need",
+        "reason": "The desk wrote the four messages of the 9 March summary itself (system prompt, the Gemini history and the decision text are in Daan's script), and the same script with the same key reads them back. It pages them two at a time ('two per page'), which no reason in the story requires, so that a has_more cursor appears.",
+        "correction": "Drop steps 79–80, or give the read to someone who does not hold the messages (for example the project-file export of a summary another program stored) and read them in one page with the vendor's default limit."
+      },
+      {
+        "id": "speech-format-tour",
+        "steps": [
+          48,
+          81,
+          96,
+          116,
+          129
+        ],
+        "barItem": "a feature tour: one call per option of an endpoint",
+        "reason": "Across the life, createSpeech is called once per response_format: mp3 (48), opus (81), aac (96), wav (116) and flac (129). Each call carries a pretext naming the format's virtue. Step 129's pretext is not a reason a practice has: it makes a lossless narrated FLAC of a three-line markdown extract 'for the project archive', when the text itself is what an archive keeps. The scripts never read or play these files afterwards.",
+        "correction": "Keep the speech calls the applications demand (LibreChat's read-aloud) and those whose output the story uses. Drop step 129 and at least one of the desk's format pretexts (96 or 116), leaving no run of one-format-per-occasion calls."
+      },
+      {
+        "id": "dall-e-2-edit-without-mask-or-alpha",
+        "steps": [
+          98
+        ],
+        "barItem": "vendor behaviour the vendor's documentation contradicts; content that does not bear out the step's name",
+        "reason": "Step 98 sends dall-e-2 an edit with no mask and an opaque RGB PNG (IHDR colour type 2, no alpha), asking it to 'Clean up the pencil lines'. A DALL-E 2 edit only repaints where the image is transparent. The spec's CreateImageEditRequest mask reads: 'An additional image whose fully transparent areas (e.g. where alpha is zero) indicate where image should be edited'. With neither a mask nor transparency there is no area to edit, and OpenAI refuses an RGB image for a mask-less dall-e-2 edit ('Invalid input image - format must be in [RGBA, LA, L], got RGB'). The step's bytes cannot do what its name says.",
+        "correction": "Send the sketch as an RGBA PNG whose pencil-line region is transparent, or add a mask of the same 128x128 size, and name the step for what an inpainting edit does."
+      },
+      {
+        "id": "names-not-borne-out",
+        "steps": [
+          53,
+          54
+        ],
+        "barItem": "content that does not bear out the step's name",
+        "reason": "Step 54 opens 'Postiz, the agent's box and the on-call agent' (outline act 5 likewise), but Workbench makes no call that day. Its only call is in August (121), and its startup failure (13) is never resolved in the story. Step 53 is 'Joost dictates a question', but the uploaded file is named voicemail-a.wav, a voicemail and not a dictation recorded in LibreChat.",
+        "correction": "Remove 'the agent's box' from step 54's name and from act 5's title. Name step 53's upload as LibreChat's recorder would name it (a dictation recording in the browser's format)."
+      }
+    ]
+  }
+}
