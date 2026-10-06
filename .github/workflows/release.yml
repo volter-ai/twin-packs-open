@@ -1,0 +1,69 @@
+name: Release independent pack
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: independent-pack-publication
+  cancel-in-progress: false
+jobs:
+  release:
+    if: vars.PACK_PUBLISH_ENABLED == 'true' && github.event.repository.visibility == 'public'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Install exact registered catalog CLI without candidate scripts
+        env:
+          CATALOG_PACKAGE_VERSION: ${{ vars.CATALOG_PACKAGE_VERSION }}
+        run: |
+          node -e 'if (!/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(process.env.CATALOG_PACKAGE_VERSION ?? "")) throw new Error("CATALOG_PACKAGE_VERSION must be exact")'
+          npm install --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/catalog-cli" "@volter/twin-catalog@$CATALOG_PACKAGE_VERSION"
+      - name: Build through a fresh task-owned World
+        run: bun scripts/run-world.ts build
+      - name: Prepare immutable release bytes
+        run: |
+          mkdir -p release
+          cd tavily
+          npm pack --ignore-scripts --pack-destination ../release
+      - name: Publish with public-source provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CATALOG_CLI: ${{ runner.temp }}/catalog-cli/node_modules/@volter/twin-catalog/bin/twin-catalog.mjs
+        run: node scripts/publish.mjs
+      - name: Confirm registry bytes and prepare catalog data
+        env:
+          CATALOG_CLI: ${{ runner.temp }}/catalog-cli/node_modules/@volter/twin-catalog/bin/twin-catalog.mjs
+        run: node scripts/prepare-submission.mjs
+      - name: Mint target-repository proposal token
+        id: catalog-proposal
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ vars.CATALOG_PR_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CATALOG_PR_APP_PRIVATE_KEY }}
+          owner: volter-ai
+          repositories: twin-catalog-open
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Propose retained data without approval or merge
+        env:
+          GH_TOKEN: ${{ steps.catalog-proposal.outputs.token }}
+        run: node "$RUNNER_TEMP/catalog-cli/node_modules/@volter/twin-catalog/bin/twin-catalog.mjs" propose --repository volter-ai/twin-catalog-open --from "$RUNNER_TEMP/catalog-submissions" --send
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pack-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            release/
+            ${{ runner.temp }}/catalog-submissions/
+            ${{ runner.temp }}/catalog-cli/package-lock.json
