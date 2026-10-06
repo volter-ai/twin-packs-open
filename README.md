@@ -2,7 +2,7 @@
 
 This repository publishes immutable Protocol 3 packages using released World and twin-standard tooling. It does not clone platform source or require a platform account. Package-specific API behavior, spec and journeys live with each package.
 
-Install from the committed lock using Bun 1.3.11: `bun install --frozen-lockfile --ignore-scripts`. Select the vendor directory explicitly: `PACK_VENDOR=stripe bun scripts/run-world.ts build`. Omit `PACK_VENDOR` only for the retained Tavily default. Build outputs and compiled pack facts are generated, never maintained by hand. Local synthetic state uses throwaway credentials.
+Install from the committed lock using Bun 1.4.2: `bun install --frozen-lockfile --ignore-scripts`. Select the vendor directory explicitly: `PACK_VENDOR=stripe bun scripts/run-world.ts build`. Omit `PACK_VENDOR` only for the retained Tavily default. Build outputs and compiled pack facts are generated, never maintained by hand. Local synthetic state uses throwaway credentials.
 
 Release is an explicit `release.yml` dispatch naming the `vendor` input, disabled until `PACK_PUBLISH_ENABLED=true`. Set `CATALOG_PACKAGE_VERSION` to the exact catalog bootstrap version; it must include this repository's approved source registration. The workflow installs that CLI with scripts disabled, retains its dependency lock, uses the policy-compatible released kernel and standard, builds through a fresh World, and publishes that vendor's exact version with npm provenance. It confirms registry integrity and prepares immutable submission data before proposing a catalog PR. It never approves or merges. Qualification is performed explicitly before release; this workflow adds no test trigger.
 
