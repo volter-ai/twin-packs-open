@@ -10,7 +10,7 @@ A local Upstash: Redis over Upstash's REST API, the one the unmodified `@upstash
 For an app using the supported Redis REST or QStash workflows, install the exact release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.67 @volter/twin-upstash@1.0.1
+npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-upstash@1.0.1
 npx volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
 ```
 

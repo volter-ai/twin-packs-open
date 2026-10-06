@@ -8,7 +8,7 @@ application sends a person through, and Stripe.js, over one state.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.67 @volter/twin-stripe@3.0.2
+npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-stripe@3.0.2
 npx volter world init --name my-app --twins stripe --source stripe=@volter/twin-stripe
 ```
 

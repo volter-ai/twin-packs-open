@@ -1,6 +1,6 @@
 # Standing
 
-Written by twin-world's `bun scripts/pack-standing.ts`, grading this repository at fc68f58; do not edit. A pack is **in the form** when it and each of its lanes meet the form section of the grade (`@volter/twin-standard`: the spec and its provenance, the manifest, the generated surface reproduced, the layout, the handler, engine and kernel contracts, the states), and each holds the files conformance reads (its decision table, its vendor's life). This says what a pack holds, not that it works: that is `scripts/pack-done.ts`.
+Written by twin-world's `bun scripts/pack-standing.ts`, grading this repository at 0bfb6e5; do not edit. A pack is **in the form** when it and each of its lanes meet the form section of the grade (`@volter/twin-standard`: the spec and its provenance, the manifest, the generated surface reproduced, the layout, the handler, engine and kernel contracts, the states), and each holds the files conformance reads (its decision table, its vendor's life). This says what a pack holds, not that it works: that is `scripts/pack-done.ts`.
 
 6 of 6 packs are in the form.
 

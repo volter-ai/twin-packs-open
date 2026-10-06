@@ -10,7 +10,7 @@ its challenge frame and siteverify (`challenges.cloudflare.com`), all over one v
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.67 @volter/twin-cloudflare@3.0.11
+npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-cloudflare@3.0.11
 npx volter world init --name my-app --twins cloudflare --source cloudflare=@volter/twin-cloudflare
 ```
 
@@ -29,8 +29,7 @@ A later `up` resumes it; do not reset or initialize again merely to return.
 Publisher and catalog contribution instructions: [the public publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md).
 
 
-A Protocol 3 pack of lanes ([architecture](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md), "Protocol 3" and "Other wires:
-lanes"). Each lane's surface is generated from its own spec (`api/spec`: Cloudflare's OpenAPI document; `r2/spec`:
+A Protocol 3 pack of lanes ([publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md)). Each lane's surface is generated from its own spec (`api/spec`: Cloudflare's OpenAPI document; `r2/spec`:
 S3's model with R2's differences). Its handlers are in `<lane>/src/semantics/<family>.ts`, its state machines in
 `<lane>/src/semantics/states.ts`, and operations outside scope answer the lane's gap (API "No route for the URI", R2 NotImplemented).
 

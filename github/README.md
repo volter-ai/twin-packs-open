@@ -8,7 +8,7 @@ beside it, git over smart HTTP, and the github.com pages an application sends a 
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.67 @volter/twin-github@3.0.5
+npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-github@3.0.5
 npx volter world init --name my-app --twins github --source github=@volter/twin-github
 ```
 
@@ -27,8 +27,7 @@ A later `up` resumes it; do not reset or initialize again merely to return.
 Publisher and catalog contribution instructions: [the public publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md).
 
 
-A Protocol 3 derived pack ([architecture](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md), "Protocol 3" and "Creating a
-pack"): the REST surface is generated from GitHub's published OpenAPI description and the GraphQL schema beside it
+A Protocol 3 derived pack ([publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md)): the REST surface is generated from GitHub's published OpenAPI description and the GraphQL schema beside it
 (`spec/`), plain reads and updates are the derived core's, the state machines are `src/semantics/states.ts`,
 handlers by operationId (`src/semantics/<family>.ts`) serve only what an operation does beyond them, the GraphQL
 resolvers are `src/semantics/graphql.ts`, and GitHub's own computation (workflow files, advisories, a README's

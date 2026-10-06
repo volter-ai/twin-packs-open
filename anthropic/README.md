@@ -10,7 +10,7 @@ labeled deterministic stub.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.67 @volter/twin-anthropic@1.0.3
+npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-anthropic@1.0.3
 npx volter world init --name my-app --twins anthropic --source anthropic=@volter/twin-anthropic
 ```
 
