@@ -1,0 +1,30 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/paths/~1admin~1users/post",
+      "value": {
+        "summary": "Create a user.",
+        "tags": ["admin"],
+        "security": [{ "APIKeyAuth": [], "AdminAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserSchema" } } } },
+        "responses": { "200": { "description": "The user made.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserSchema" } } } } }
+      },
+      "why": "GoTrue's router serves an admin's user create at POST /admin/users (auth-js `admin.createUser`); the spec documents the list, read, update and delete at that path but not the create",
+      "source": { "url": "https://raw.githubusercontent.com/supabase/auth/v2.197.0/internal/api/api.go", "quote": "r.Post(\"/\", api.adminUserCreate)" }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1.well-known~1jwks.json",
+      "value": {
+        "get": {
+          "summary": "The project's JSON Web Key Set: the public keys its asymmetric access tokens are verified with.",
+          "tags": ["auth"],
+          "responses": { "200": { "description": "The key set.", "content": { "application/json": { "schema": { "type": "object", "properties": { "keys": { "type": "array", "items": { "type": "object" } } } } } } } }
+        }
+      },
+      "why": "GoTrue's router serves the key set at GET /.well-known/jwks.json (supabase-js's getClaims reads it); the spec does not document it",
+      "source": { "url": "https://raw.githubusercontent.com/supabase/auth/v2.197.0/internal/api/api.go", "quote": "r.Get(\"/.well-known/jwks.json\", api.WellKnownJwks)" }
+    }
+  ]
+}

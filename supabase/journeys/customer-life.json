@@ -1,0 +1,1106 @@
+{
+ "vendor": "supabase",
+ "author": "Contributor 173",
+ "host": "api.supabase.com",
+ "about": "RH2 (Volter's product) keeps its authority store in a Supabase project's Postgres, which it reaches over the Postgres wire alone: no PostgREST, no Supabase client library, no anon session (apps/rh2/docs/OPERATIONS.md:255-258 at 34fdc93). The World makes the project and hands its database's URL to RH2; on Monday 5 January RH2's Worker finds the fresh database unmigrated, the operator's --declare-distributed-authority command migrates it to schema 106 (RH2's migrate step, apps/rh2/src/database/migrate-cli.ts, with --declare-distributed-authority, as its header prescribes for a fresh database) and the Worker finds it ready; a week later the release finds the schema current and runs its --complete-work-cutover migrate, which finds the Task copy already complete. Every statement is RH2's own, in the order and shape its code sends it on its one migration connection (pool max 1, apps/rh2/src/database/pool-options.ts:16), each step naming the line that sends it; Postgres's answers are the World's database's, stamped by the World clock.",
+ "steps": [
+  {
+   "name": "The World: RH2's operator signs up to Supabase and makes the project that holds RH2's authority store; the runtime hands RH2's release its database's URL",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "capture": {
+    "database_url": "database_url"
+   },
+   "expect": [
+    {
+     "path": "database_url",
+     "matches": "^postgres(ql)?://"
+    },
+    {
+     "path": "ref",
+     "matches": "^[a-z]{20}$"
+    }
+   ]
+  },
+  {
+   "name": "Monday 5 January 2026, 09:00: the operator stands RH2 up on the new project",
+   "wait": "105h"
+  },
+  {
+   "name": "Before the operator migrates, RH2's Worker asks the database for its readiness: its schema version, its declared authority and whether work is admitted, in one statement; the migrations table does not exist yet, which RH2 reads as version 0 (apps/rh2/src/edge/database.ts:315, caught at apps/rh2/src/edge/database.ts:324)",
+   "sql": "SELECT (SELECT max(version)::integer FROM rh2_schema_migrations) AS version,\n              (SELECT task_authority FROM rh2_authorities WHERE authority_id = 'primary') AS authority,\n              COALESCE(\n  (SELECT completed_at IS NOT NULL AND id_cursor::integer <= $1\n   FROM rh2_data_moves WHERE name = 'release-writer-admission:v1'),\n  EXISTS (SELECT 1 FROM rh2_data_moves WHERE name = 'work-ontology-cutover:v1' AND completed_at IS NOT NULL)\n) AS work_ready",
+   "values": [
+    "106"
+   ],
+   "refused": "42P01"
+  },
+  {
+   "name": "The operator's --declare-distributed-authority migrate step asks whether the migration ledger exists (apps/rh2/src/database/migrate-cli.ts:54)",
+   "sql": "SELECT to_regclass('rh2_schema_migrations') IS NOT NULL AS present",
+   "expect": [
+    {
+     "path": "rows.0.present",
+     "equals": "f"
+    }
+   ]
+  },
+  {
+   "name": "It takes the migration lock (apps/rh2/src/database/migrate.ts:53)",
+   "sql": "SELECT pg_advisory_lock(hashtext($1))",
+   "values": [
+    "rh2:database-migrations:v1"
+   ]
+  },
+  {
+   "name": "It makes the migration ledger if it is not there (apps/rh2/src/database/migrate.ts:38)",
+   "sql": "\n    CREATE TABLE IF NOT EXISTS rh2_schema_migrations (\n      applied_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n      checksum text NOT NULL CHECK (checksum ~ '^[a-f0-9]{64}$'),\n      description text NOT NULL,\n      version integer PRIMARY KEY CHECK (version > 0)\n    )\n  "
+  },
+  {
+   "name": "It reads the ledger's applied versions and checksums (apps/rh2/src/database/migrate.ts:55)",
+   "sql": "SELECT checksum, version FROM rh2_schema_migrations ORDER BY version"
+  },
+  {
+   "name": "It begins migration 71's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 71, \"the platform schema\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE FUNCTION public.rh2_enforce_authority_job_state() RETURNS trigger\n    LANGUAGE plpgsql\n    AS $$\n      BEGIN\n        IF NEW.job_authority = 'distributed'\n          AND jsonb_array_length(NEW.state->'jobs') > 0 THEN\n          RAISE EXCEPTION 'distributed Job authority cannot retain aggregate Jobs'\n            USING ERRCODE = '23514';\n        END IF;\n        IF TG_OP = 'UPDATE'\n          AND NEW.job_authority <> OLD.job_authority\n          AND (\n            jsonb_array_length(NEW.state->'jobs') > 0\n            OR EXISTS (\n              SELECT 1\n                FROM rh2_jobs AS job\n               WHERE job.authority_id = NEW.authority_id\n            )\n          ) THEN\n          RAISE EXCEPTION 'Job authority cannot change while Jobs exist'\n            USING ERRCODE = '23514';\n        END IF;\n        RETURN NEW;\n      END\n      $$;\n\nCREATE FUNCTION public.rh2_enforce_normalized_job_authority() RETURNS trigger\n    LANGUAGE plpgsql\n    AS $$\n      DECLARE\n        declared_authority text;\n        target_authority_id text;\n      BEGIN\n        target_authority_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.authority_id ELSE NEW.authority_id END;\n        SELECT authority.job_authority\n          INTO declared_authority\n          FROM rh2_authorities AS authority\n         WHERE authority.authority_id = target_authority_id\n         FOR SHARE;\n        IF declared_authority IS DISTINCT FROM 'distributed' THEN\n          RAISE EXCEPTION 'normalized Jobs require distributed Job authority'\n            USING ERRCODE = '23514';\n        END IF;\n        IF TG_OP = 'DELETE' THEN\n          RETURN OLD;\n        END IF;\n        RETURN NEW;\n      END\n      $$;\n\nCREATE TABLE public.rh2_account_grants (\n    authority_id text NOT NULL,\n    grant_id text NOT NULL,\n    account_id text NOT NULL,\n    organization_id text NOT NULL,\n    project_id text NOT NULL,\n    grant_key text NOT NULL,\n    room_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    actor_principal_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    operations text[] DEFAULT '{}'::text[] NOT NULL,\n    destinations text[] DEFAULT '{}'::text[] NOT NULL,\n    status text DEFAULT 'active'::text NOT NULL,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    revoked_at timestamp with time zone,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_account_grants_status_check CHECK ((status = ANY (ARRAY['active'::text, 'revoked'::text]))),\n    CONSTRAINT rh2_account_grants_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_app_installations (\n    authority_id text NOT NULL,\n    installation_id text NOT NULL,\n    app_id text NOT NULL,\n    organization_id text NOT NULL,\n    role text NOT NULL,\n    destination_id text,\n    session_id text,\n    code_digest text,\n    code_expires_at timestamp with time zone,\n    code_redeemed_at timestamp with time zone,\n    redirect_uri text NOT NULL,\n    installed_by_principal_id text NOT NULL,\n    state text DEFAULT 'active'::text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version integer DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_app_installations_state_check CHECK ((state = ANY (ARRAY['active'::text, 'uninstalled'::text])))\n);\n\nCREATE TABLE public.rh2_app_signin_codes (\n    authority_id text NOT NULL,\n    code_digest text NOT NULL,\n    app_id text NOT NULL,\n    principal_id text NOT NULL,\n    redirect_uri text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    redeemed_at timestamp with time zone\n);\n\nCREATE TABLE public.rh2_apps (\n    authority_id text NOT NULL,\n    app_id text NOT NULL,\n    organization_id text NOT NULL,\n    principal_id text NOT NULL,\n    name text NOT NULL,\n    description text DEFAULT ''::text NOT NULL,\n    actions text[] NOT NULL,\n    event_kinds text[] DEFAULT '{}'::text[] NOT NULL,\n    webhook_url text,\n    redirect_urls text[] NOT NULL,\n    client_secret_digest text NOT NULL,\n    state text DEFAULT 'active'::text NOT NULL,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version integer DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_apps_state_check CHECK ((state = ANY (ARRAY['active'::text, 'retired'::text])))\n);\n\nCREATE TABLE public.rh2_artifacts (\n    artifact_id text NOT NULL,\n    attempt_id text,\n    authority_id text NOT NULL,\n    bucket text NOT NULL,\n    checksum_sha256 text NOT NULL,\n    content_type text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    deleted_at timestamp with time zone,\n    expires_at timestamp with time zone,\n    failure_code text,\n    job_id text,\n    job_resource_kind text NOT NULL,\n    object_key text NOT NULL,\n    organization_id text NOT NULL,\n    project_id text,\n    provenance jsonb NOT NULL,\n    size_bytes bigint NOT NULL,\n    state text NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    artifact_kind text DEFAULT 'file'::text NOT NULL,\n    assignment_id text,\n    content_version integer DEFAULT 1 NOT NULL,\n    created_by text DEFAULT 'system:legacy-artifact'::text NOT NULL,\n    criterion_id text,\n    legal_hold boolean DEFAULT false NOT NULL,\n    owner_principal text DEFAULT 'system:legacy-artifact'::text NOT NULL,\n    parent_artifact_id text,\n    retention_class text DEFAULT 'job'::text NOT NULL,\n    run_id text,\n    sensitivity text DEFAULT 'internal'::text NOT NULL,\n    work_item_id text,\n    search_document tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, regexp_replace(((((((((COALESCE(artifact_id, ''::text) || ' '::text) || COALESCE(content_type, ''::text)) || ' '::text) || COALESCE(created_by, ''::text)) || ' '::text) || COALESCE(job_id, ''::text)) || ' '::text) || COALESCE(owner_principal, ''::text)), '[^[:alnum:]]+'::text, ' '::text, 'g'::text))) STORED,\n    CONSTRAINT rh2_artifacts_artifact_id_check CHECK ((artifact_id ~ '^art_[a-f0-9]{12}$'::text)),\n    CONSTRAINT rh2_artifacts_bucket_check CHECK (((length(bucket) >= 1) AND (length(bucket) <= 128))),\n    CONSTRAINT rh2_artifacts_checksum_sha256_check CHECK ((checksum_sha256 ~ '^[a-f0-9]{64}$'::text)),\n    CONSTRAINT rh2_artifacts_content_type_check CHECK (((length(content_type) >= 1) AND (length(content_type) <= 255))),\n    CONSTRAINT rh2_artifacts_content_version_check CHECK ((content_version > 0)),\n    CONSTRAINT rh2_artifacts_created_by_check CHECK (((length(created_by) >= 1) AND (length(created_by) <= 256))),\n    CONSTRAINT rh2_artifacts_object_key_check CHECK (((length(object_key) >= 1) AND (length(object_key) <= 1024))),\n    CONSTRAINT rh2_artifacts_owner_principal_check CHECK (((length(owner_principal) >= 1) AND (length(owner_principal) <= 256))),\n    CONSTRAINT rh2_artifacts_provenance_check CHECK ((jsonb_typeof(provenance) = 'object'::text)),\n    CONSTRAINT rh2_artifacts_retention_class_check CHECK ((retention_class = ANY (ARRAY['job'::text, 'legal-hold'::text, 'organization'::text, 'transient'::text]))),\n    CONSTRAINT rh2_artifacts_scope_lengths_check CHECK ((((assignment_id IS NULL) OR ((length(assignment_id) >= 1) AND (length(assignment_id) <= 128))) AND ((criterion_id IS NULL) OR ((length(criterion_id) >= 1) AND (length(criterion_id) <= 128))) AND ((run_id IS NULL) OR ((length(run_id) >= 1) AND (length(run_id) <= 128))) AND ((work_item_id IS NULL) OR ((length(work_item_id) >= 1) AND (length(work_item_id) <= 128))))),\n    CONSTRAINT rh2_artifacts_sensitivity_check CHECK ((sensitivity = ANY (ARRAY['customer-safe'::text, 'internal'::text, 'restricted'::text]))),\n    CONSTRAINT rh2_artifacts_size_bytes_check CHECK ((size_bytes >= 0)),\n    CONSTRAINT rh2_artifacts_state_check CHECK ((state = ANY (ARRAY['deleted'::text, 'deleting'::text, 'expired'::text, 'failed'::text, 'partial'::text, 'pending'::text, 'processing'::text, 'quarantined'::text, 'ready'::text, 'redacted'::text, 'uploading'::text]))),\n    CONSTRAINT rh2_artifacts_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_attention (\n    authority_id text NOT NULL,\n    attention_id text NOT NULL,\n    sequence bigint NOT NULL,\n    organization_id text NOT NULL,\n    principal_id text NOT NULL,\n    room_id text NOT NULL,\n    conversation_id text NOT NULL,\n    message_id text NOT NULL,\n    assignment_id text,\n    reason text NOT NULL,\n    by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL\n);\n\nCREATE SEQUENCE public.rh2_attention_sequence_seq\n    START WITH 1\n    INCREMENT BY 1\n    NO MINVALUE\n    NO MAXVALUE\n    CACHE 1;\n\nALTER SEQUENCE public.rh2_attention_sequence_seq OWNED BY public.rh2_attention.sequence;\n\nCREATE TABLE public.rh2_authorities (\n    authority_id text NOT NULL,\n    imported_from text,\n    imported_sha256 text,\n    schema_version integer NOT NULL,\n    state jsonb NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    job_authority text NOT NULL,\n    CONSTRAINT rh2_authorities_authority_id_check CHECK (((length(authority_id) >= 1) AND (length(authority_id) <= 128))),\n    CONSTRAINT rh2_authorities_check CHECK (((jsonb_typeof(state) = 'object'::text) AND (jsonb_typeof((state -> 'jobs'::text)) = 'array'::text) AND (jsonb_typeof((state -> 'organizations'::text)) = 'array'::text) AND (jsonb_typeof((state -> 'workers'::text)) = 'array'::text) AND (((state ->> 'schemaVersion'::text))::integer = schema_version))),\n    CONSTRAINT rh2_authorities_imported_sha256_check CHECK (((imported_sha256 IS NULL) OR (imported_sha256 ~ '^[a-f0-9]{64}$'::text))),\n    CONSTRAINT rh2_authorities_job_authority_check CHECK ((job_authority = ANY (ARRAY['aggregate'::text, 'distributed'::text]))),\n    CONSTRAINT rh2_authorities_schema_version_check CHECK ((schema_version = 1)),\n    CONSTRAINT rh2_authorities_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_authority_decision_receipts (\n    authority_id text NOT NULL,\n    receipt_id text NOT NULL,\n    operation_id text NOT NULL,\n    action text NOT NULL,\n    at timestamp with time zone NOT NULL,\n    principal text NOT NULL,\n    organization_id text,\n    project_id text,\n    resource_kind text NOT NULL,\n    resource_id text,\n    mode text NOT NULL,\n    policy text NOT NULL,\n    inputs_digest text NOT NULL,\n    decision jsonb NOT NULL,\n    legacy_allowed boolean,\n    representation_mode text,\n    represented_principal_id text,\n    session_id text,\n    session_generation integer,\n    CONSTRAINT rh2_authority_decision_receipts_decision_check CHECK ((jsonb_typeof(decision) = 'object'::text)),\n    CONSTRAINT rh2_authority_decision_receipts_inputs_digest_check CHECK ((inputs_digest ~ '^[0-9a-f]{64}$'::text)),\n    CONSTRAINT rh2_authority_decision_receipts_mode_check CHECK ((mode = ANY (ARRAY['enforced'::text, 'shadow'::text]))),\n    CONSTRAINT rh2_authority_decision_receipts_policy_check CHECK ((policy = ANY (ARRAY['rh2-authority-v1'::text, 'rh2-room-quota-v1'::text]))),\n    CONSTRAINT rh2_authority_decision_receipts_receipt_id_check CHECK ((receipt_id ~ '^authority_decision_[0-9a-f]{24}$'::text))\n);\n\nCREATE TABLE public.rh2_authority_grants (\n    authority_id text NOT NULL,\n    grant_id text NOT NULL,\n    principal_id text NOT NULL,\n    effect text NOT NULL,\n    actions text[] NOT NULL,\n    resource_scope text NOT NULL,\n    resource_kind text NOT NULL,\n    resource_id text,\n    resource_organization_id text,\n    resource_project_id text,\n    conditions jsonb DEFAULT '{}'::jsonb NOT NULL,\n    organization_id text,\n    project_id text,\n    pass_boundary jsonb,\n    reason text NOT NULL,\n    idempotency_key text NOT NULL,\n    source_grant_id text,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    revoked_at timestamp with time zone,\n    revoked_by_principal_id text,\n    revocation_reason text,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_authority_grants_actions_check CHECK ((cardinality(actions) >= 1)),\n    CONSTRAINT rh2_authority_grants_collection_tenancy_check CHECK (((resource_scope <> 'collection'::text) OR (resource_organization_id = organization_id))),\n    CONSTRAINT rh2_authority_grants_conditions_check CHECK ((jsonb_typeof(conditions) = 'object'::text)),\n    CONSTRAINT rh2_authority_grants_effect_check CHECK ((effect = ANY (ARRAY['allow'::text, 'deny'::text]))),\n    CONSTRAINT rh2_authority_grants_grant_id_check CHECK ((grant_id ~ '^authority_grant_[0-9a-f]{32}$'::text)),\n    CONSTRAINT rh2_authority_grants_idempotency_key_check CHECK (((length(idempotency_key) >= 1) AND (length(idempotency_key) <= 256))),\n    CONSTRAINT rh2_authority_grants_pass_boundary_check CHECK (((pass_boundary IS NULL) OR (jsonb_typeof(pass_boundary) = 'object'::text))),\n    CONSTRAINT rh2_authority_grants_pass_boundary_effect_check CHECK (((pass_boundary IS NULL) OR (effect = 'allow'::text))),\n    CONSTRAINT rh2_authority_grants_reason_check CHECK (((length(reason) >= 1) AND (length(reason) <= 2048))),\n    CONSTRAINT rh2_authority_grants_resource_scope_check CHECK ((resource_scope = ANY (ARRAY['collection'::text, 'exact'::text, 'platform'::text]))),\n    CONSTRAINT rh2_authority_grants_resource_shape_check CHECK ((((resource_scope = 'exact'::text) AND (resource_id IS NOT NULL) AND (resource_organization_id IS NULL)) OR ((resource_scope = 'collection'::text) AND (resource_id IS NULL) AND (resource_organization_id IS NOT NULL)) OR ((resource_scope = 'platform'::text) AND (resource_id IS NULL) AND (resource_organization_id IS NULL) AND (resource_project_id IS NULL)))),\n    CONSTRAINT rh2_authority_grants_revocation_check CHECK ((((revoked_at IS NULL) AND (revoked_by_principal_id IS NULL) AND (revocation_reason IS NULL)) OR ((revoked_at IS NOT NULL) AND (revoked_by_principal_id IS NOT NULL) AND (length(revocation_reason) >= 1)))),\n    CONSTRAINT rh2_authority_grants_source_distinct_check CHECK ((source_grant_id IS DISTINCT FROM grant_id)),\n    CONSTRAINT rh2_authority_grants_tenancy_check CHECK (((resource_scope = 'platform'::text) = (organization_id IS NULL))),\n    CONSTRAINT rh2_authority_grants_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_authority_principal_organizations (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    organization_id text NOT NULL\n);\n\nCREATE TABLE public.rh2_authority_principals (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    kind text NOT NULL,\n    display_name text NOT NULL,\n    address text NOT NULL,\n    address_history jsonb DEFAULT '[]'::jsonb NOT NULL,\n    lifecycle text NOT NULL,\n    lifecycle_restriction jsonb,\n    agent jsonb,\n    created_by_principal_id text,\n    replaced_by_principal_id text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_authority_principals_address_check CHECK (((length(address) >= 1) AND (length(address) <= 512))),\n    CONSTRAINT rh2_authority_principals_address_history_check CHECK ((jsonb_typeof(address_history) = 'array'::text)),\n    CONSTRAINT rh2_authority_principals_agent_check CHECK (((agent IS NULL) OR (jsonb_typeof(agent) = 'object'::text))),\n    CONSTRAINT rh2_authority_principals_agent_kind_check CHECK (((kind = 'agent'::text) = (agent IS NOT NULL))),\n    CONSTRAINT rh2_authority_principals_display_name_check CHECK (((length(display_name) >= 1) AND (length(display_name) <= 256))),\n    CONSTRAINT rh2_authority_principals_kind_check CHECK ((kind = ANY (ARRAY['agent'::text, 'automation'::text, 'human'::text, 'represented-customer'::text, 'service'::text, 'support'::text]))),\n    CONSTRAINT rh2_authority_principals_lifecycle_check CHECK ((lifecycle = ANY (ARRAY['active'::text, 'removed'::text, 'replaced'::text, 'revoked'::text, 'suspended'::text]))),\n    CONSTRAINT rh2_authority_principals_lifecycle_restriction_check CHECK (((lifecycle_restriction IS NULL) OR (jsonb_typeof(lifecycle_restriction) = 'object'::text))),\n    CONSTRAINT rh2_authority_principals_principal_id_check CHECK (((length(principal_id) >= 1) AND (length(principal_id) <= 128))),\n    CONSTRAINT rh2_authority_principals_replacement_agrees_check CHECK (((lifecycle = 'replaced'::text) = (replaced_by_principal_id IS NOT NULL))),\n    CONSTRAINT rh2_authority_principals_replacement_distinct_check CHECK ((replaced_by_principal_id IS DISTINCT FROM principal_id)),\n    CONSTRAINT rh2_authority_principals_restriction_agrees_check CHECK (((lifecycle = 'active'::text) = (lifecycle_restriction IS NULL))),\n    CONSTRAINT rh2_authority_principals_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_authority_sessions (\n    authority_id text NOT NULL,\n    session_id text NOT NULL,\n    principal_id text NOT NULL,\n    kind text NOT NULL,\n    generation integer NOT NULL,\n    representation text NOT NULL,\n    representation_mode text NOT NULL,\n    represented_principal_id text,\n    credential_id text,\n    credential_kind text,\n    credential_version bigint,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    revoked_at timestamp with time zone,\n    revoked_by text,\n    revocation_reason text,\n    CONSTRAINT rh2_authority_sessions_credential_check CHECK ((((credential_id IS NULL) AND (credential_kind IS NULL) AND (credential_version IS NULL)) OR ((credential_id IS NOT NULL) AND (credential_kind = ANY (ARRAY['automation-token'::text, 'customer-agent-credential'::text])) AND (credential_version > 0) AND (kind = 'api-credential'::text) AND (representation_mode = 'automation'::text)))),\n    CONSTRAINT rh2_authority_sessions_expiry_check CHECK ((expires_at > created_at)),\n    CONSTRAINT rh2_authority_sessions_generation_check CHECK ((generation > 0)),\n    CONSTRAINT rh2_authority_sessions_kind_check CHECK ((kind = ANY (ARRAY['api-credential'::text, 'browser'::text, 'executor-runtime'::text, 'machine-process'::text, 'conversation-agent-runtime'::text, 'native-widget'::text, 'service-process'::text]))),\n    CONSTRAINT rh2_authority_sessions_representation_agrees_check CHECK (((representation_mode = 'impersonation'::text) = (represented_principal_id IS NOT NULL))),\n    CONSTRAINT rh2_authority_sessions_representation_check CHECK (((length(representation) >= 1) AND (length(representation) <= 512))),\n    CONSTRAINT rh2_authority_sessions_representation_mode_check CHECK ((representation_mode = ANY (ARRAY['automation'::text, 'direct'::text, 'impersonation'::text, 'service'::text, 'support'::text]))),\n    CONSTRAINT rh2_authority_sessions_represented_distinct_check CHECK ((represented_principal_id IS DISTINCT FROM principal_id)),\n    CONSTRAINT rh2_authority_sessions_revocation_check CHECK ((((revoked_at IS NULL) AND (revoked_by IS NULL) AND (revocation_reason IS NULL)) OR ((revoked_at IS NOT NULL) AND (revoked_by IS NOT NULL) AND (length(revocation_reason) >= 1)))),\n    CONSTRAINT rh2_authority_sessions_session_id_check CHECK (((length(session_id) >= 1) AND (length(session_id) <= 128)))\n);\n\nCREATE TABLE public.rh2_command_receipts (\n    authority_id text NOT NULL,\n    command text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    idempotency_key text NOT NULL,\n    principal_id text NOT NULL,\n    result jsonb NOT NULL,\n    CONSTRAINT rh2_command_receipts_command_check CHECK (((length(command) >= 3) AND (length(command) <= 128) AND (command ~ '^[a-z0-9-]+/[a-z0-9-]+$'::text))),\n    CONSTRAINT rh2_command_receipts_idempotency_key_check CHECK (((length(idempotency_key) >= 1) AND (length(idempotency_key) <= 256))),\n    CONSTRAINT rh2_command_receipts_principal_id_check CHECK (((length(principal_id) >= 1) AND (length(principal_id) <= 256))),\n    CONSTRAINT rh2_command_receipts_result_check CHECK ((jsonb_typeof(result) = 'object'::text))\n);\n\nCREATE TABLE public.rh2_consumer_receipts (\n    authority_id text NOT NULL,\n    consumer text NOT NULL,\n    effect_key text NOT NULL,\n    event_id bigint NOT NULL,\n    recorded_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT rh2_consumer_receipts_consumer_check CHECK (((length(consumer) >= 1) AND (length(consumer) <= 128))),\n    CONSTRAINT rh2_consumer_receipts_effect_key_check CHECK (((length(effect_key) >= 1) AND (length(effect_key) <= 512)))\n);\n\nCREATE TABLE public.rh2_controller_cursors (\n    authority_id text NOT NULL,\n    controller text NOT NULL,\n    cursor jsonb NOT NULL,\n    failure_code text,\n    last_heartbeat_at timestamp with time zone NOT NULL,\n    lease_owner text,\n    lease_until timestamp with time zone,\n    state text NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_controller_cursors_check CHECK (((lease_owner IS NULL) = (lease_until IS NULL))),\n    CONSTRAINT rh2_controller_cursors_controller_check CHECK (((length(controller) >= 1) AND (length(controller) <= 128))),\n    CONSTRAINT rh2_controller_cursors_cursor_check CHECK ((jsonb_typeof(cursor) = 'object'::text)),\n    CONSTRAINT rh2_controller_cursors_state_check CHECK ((state = ANY (ARRAY['failed'::text, 'ready'::text, 'running'::text]))),\n    CONSTRAINT rh2_controller_cursors_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_conversation_messages (\n    authority_id text NOT NULL,\n    conversation_id text NOT NULL,\n    message_id text NOT NULL,\n    sequence bigint NOT NULL,\n    correlation_id text NOT NULL,\n    digest text NOT NULL,\n    author_principal_id text NOT NULL,\n    kind text NOT NULL,\n    audience text NOT NULL,\n    sensitivity text NOT NULL,\n    body text NOT NULL,\n    parent_message_id text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    mentions text[] DEFAULT '{}'::text[] NOT NULL,\n    edited_at timestamp with time zone,\n    CONSTRAINT rh2_conversation_messages_audience_check CHECK ((audience = ANY (ARRAY['agent'::text, 'everyone'::text, 'operators'::text, 'recipients'::text]))),\n    CONSTRAINT rh2_conversation_messages_body_check CHECK (((length(body) >= 1) AND (length(body) <= 20000))),\n    CONSTRAINT rh2_conversation_messages_correlation_check CHECK (((length(correlation_id) >= 1) AND (length(correlation_id) <= 256))),\n    CONSTRAINT rh2_conversation_messages_digest_check CHECK ((digest ~ '^[a-f0-9]{64}$'::text)),\n    CONSTRAINT rh2_conversation_messages_kind_check CHECK ((kind = ANY (ARRAY['agent'::text, 'automation'::text, 'human'::text, 'system'::text]))),\n    CONSTRAINT rh2_conversation_messages_sensitivity_check CHECK ((sensitivity = ANY (ARRAY['normal'::text, 'sensitive'::text]))),\n    CONSTRAINT rh2_conversation_messages_sequence_check CHECK ((sequence > 0))\n);\n\nCREATE TABLE public.rh2_conversation_notification_settings (\n    authority_id text NOT NULL,\n    conversation_id text NOT NULL,\n    principal_id text NOT NULL,\n    level text DEFAULT 'all'::text NOT NULL,\n    muted boolean DEFAULT false NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT rh2_conversation_notification_settings_level_check CHECK ((level = ANY (ARRAY['all'::text, 'mentions'::text, 'nothing'::text])))\n);\n\nCREATE TABLE public.rh2_conversation_participants (\n    authority_id text NOT NULL,\n    conversation_id text NOT NULL,\n    principal_id text NOT NULL,\n    base boolean DEFAULT false NOT NULL,\n    permissions text[],\n    state text DEFAULT 'active'::text NOT NULL,\n    joined_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    answers text DEFAULT 'mentions'::text NOT NULL,\n    CONSTRAINT rh2_conversation_participants_state_check CHECK ((state = ANY (ARRAY['active'::text, 'left'::text])))\n);\n\nCREATE TABLE public.rh2_conversation_presence (\n    authority_id text NOT NULL,\n    conversation_id text NOT NULL,\n    principal_id text NOT NULL,\n    state text NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT rh2_conversation_presence_state_check CHECK ((state = ANY (ARRAY['typing'::text, 'reading'::text])))\n);\n\nCREATE TABLE public.rh2_conversation_read_boundaries (\n    authority_id text NOT NULL,\n    conversation_id text NOT NULL,\n    principal_id text NOT NULL,\n    last_read_message_id text NOT NULL,\n    read_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_conversation_read_boundaries_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_conversation_triggers (\n    authority_id text NOT NULL,\n    trigger_id text NOT NULL,\n    room_id text NOT NULL,\n    conversation_id text NOT NULL,\n    trigger_key text NOT NULL,\n    event_kind text,\n    template text NOT NULL,\n    state text DEFAULT 'active'::text NOT NULL,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    cron text,\n    timezone text,\n    last_fired_at timestamp with time zone,\n    keywords text[],\n    CONSTRAINT rh2_conversation_triggers_clock_check CHECK (((cron IS NULL) = (timezone IS NULL))),\n    CONSTRAINT rh2_conversation_triggers_source_check CHECK (((event_kind IS NULL) <> (cron IS NULL))),\n    CONSTRAINT rh2_conversation_triggers_state_check CHECK ((state = ANY (ARRAY['active'::text, 'retired'::text]))),\n    CONSTRAINT rh2_conversation_triggers_template_check CHECK (((length(template) >= 1) AND (length(template) <= 4000)))\n);\n\nCREATE TABLE public.rh2_conversations (\n    authority_id text NOT NULL,\n    conversation_id text NOT NULL,\n    room_id text NOT NULL,\n    conversation_key text NOT NULL,\n    name text NOT NULL,\n    authority text NOT NULL,\n    anchor_conversation_id text,\n    anchor_message_id text,\n    next_sequence bigint DEFAULT 1 NOT NULL,\n    created_by_principal_id text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    topic text,\n    CONSTRAINT rh2_conversations_anchor_check CHECK (((anchor_conversation_id IS NULL) = (anchor_message_id IS NULL))),\n    CONSTRAINT rh2_conversations_anchor_self_check CHECK ((anchor_conversation_id IS DISTINCT FROM conversation_id)),\n    CONSTRAINT rh2_conversations_authority_check CHECK ((authority = ANY (ARRAY['administrative'::text, 'collaboration'::text]))),\n    CONSTRAINT rh2_conversations_key_check CHECK ((conversation_key ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_conversations_name_check CHECK (((length(name) >= 1) AND (length(name) <= 256))),\n    CONSTRAINT rh2_conversations_next_sequence_check CHECK ((next_sequence > 0)),\n    CONSTRAINT rh2_conversations_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_durable_operations (\n    authority_id text NOT NULL,\n    operation_id text NOT NULL,\n    kind text NOT NULL,\n    aggregate_kind text NOT NULL,\n    aggregate_id text NOT NULL,\n    correlation_id text NOT NULL,\n    payload jsonb DEFAULT '{}'::jsonb NOT NULL,\n    state text DEFAULT 'intended'::text NOT NULL,\n    attempts integer DEFAULT 0 NOT NULL,\n    max_attempts integer DEFAULT 5 NOT NULL,\n    next_attempt_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    attempt_started_at timestamp with time zone,\n    outcome jsonb,\n    error_code text,\n    intended_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_durable_operations_attempts_check CHECK (((attempts >= 0) AND (max_attempts >= 1) AND (max_attempts <= 50))),\n    CONSTRAINT rh2_durable_operations_kind_check CHECK ((kind ~ '^[a-z][a-z0-9.-]{0,127}$'::text)),\n    CONSTRAINT rh2_durable_operations_outcome_check CHECK (((outcome IS NULL) OR (jsonb_typeof(outcome) = 'object'::text))),\n    CONSTRAINT rh2_durable_operations_payload_check CHECK ((jsonb_typeof(payload) = 'object'::text)),\n    CONSTRAINT rh2_durable_operations_state_check CHECK ((state = ANY (ARRAY['abandoned'::text, 'attempting'::text, 'failed'::text, 'intended'::text, 'settled'::text]))),\n    CONSTRAINT rh2_durable_operations_terminal_check CHECK (((state = ANY (ARRAY['settled'::text, 'failed'::text, 'abandoned'::text])) = (outcome IS NOT NULL))),\n    CONSTRAINT rh2_durable_operations_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_edge_access_factor_uses (\n    authority_id text NOT NULL,\n    factor_sha256 text NOT NULL,\n    principal_kind text NOT NULL,\n    principal_id text NOT NULL,\n    consumed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    CONSTRAINT rh2_edge_access_factor_uses_check CHECK ((expires_at > consumed_at)),\n    CONSTRAINT rh2_edge_access_factor_uses_factor_sha256_check CHECK ((factor_sha256 ~ '^[a-f0-9]{64}$'::text)),\n    CONSTRAINT rh2_edge_access_factor_uses_principal_id_check CHECK (((length(principal_id) >= 1) AND (length(principal_id) <= 256)))\n);\n\nCREATE TABLE public.rh2_human_assignment_events (\n    authority_id text NOT NULL,\n    event_id text NOT NULL,\n    assignment_id text NOT NULL,\n    action text NOT NULL,\n    actor_principal_id text NOT NULL,\n    at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    correlation_id text NOT NULL,\n    detail text,\n    target jsonb,\n    version bigint NOT NULL\n);\n\nCREATE TABLE public.rh2_human_assignments (\n    authority_id text NOT NULL,\n    assignment_id text NOT NULL,\n    room_id text NOT NULL,\n    conversation_id text NOT NULL,\n    message_id text NOT NULL,\n    job_id text,\n    criterion_id text,\n    title text NOT NULL,\n    instructions text NOT NULL,\n    target_kind text NOT NULL,\n    target_principal_id text,\n    target_role_id text,\n    response_definition jsonb,\n    status text DEFAULT 'open'::text NOT NULL,\n    claim_principal_id text,\n    claim_at timestamp with time zone,\n    response jsonb,\n    response_principal_id text,\n    response_at timestamp with time zone,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    due_at timestamp with time zone,\n    target_organization_id text,\n    target_query jsonb,\n    target_seat jsonb,\n    closed_status text,\n    closed_note text,\n    CONSTRAINT rh2_human_assignments_claim_check CHECK (((claim_principal_id IS NULL) = (claim_at IS NULL))),\n    CONSTRAINT rh2_human_assignments_instructions_check CHECK (((length(instructions) >= 1) AND (length(instructions) <= 20000))),\n    CONSTRAINT rh2_human_assignments_response_check CHECK ((((response IS NULL) = (response_principal_id IS NULL)) AND ((response IS NULL) = (response_at IS NULL)))),\n    CONSTRAINT rh2_human_assignments_response_definition_check CHECK (((response_definition IS NULL) OR (jsonb_typeof(response_definition) = 'object'::text))),\n    CONSTRAINT rh2_human_assignments_target_shape_check CHECK ((((target_kind = 'principal'::text) = (target_principal_id IS NOT NULL)) AND ((target_kind = 'room-role'::text) = (target_role_id IS NOT NULL)))),\n    CONSTRAINT rh2_human_assignments_title_check CHECK (((length(title) >= 1) AND (length(title) <= 200))),\n    CONSTRAINT rh2_human_assignments_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_job_criteria (\n    authority_id text NOT NULL,\n    criterion_id text NOT NULL,\n    job_id text NOT NULL,\n    criterion_key text NOT NULL,\n    title text NOT NULL,\n    status text DEFAULT 'pending'::text NOT NULL,\n    evidence text,\n    \"position\" integer DEFAULT 0 NOT NULL,\n    version bigint DEFAULT 0 NOT NULL,\n    CONSTRAINT rh2_job_criteria_key_check CHECK ((criterion_key ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_job_criteria_status_check CHECK ((status = ANY (ARRAY['failed'::text, 'passed'::text, 'pending'::text, 'reopened'::text, 'verifying'::text, 'waived'::text]))),\n    CONSTRAINT rh2_job_criteria_title_check CHECK (((length(title) >= 1) AND (length(title) <= 512))),\n    CONSTRAINT rh2_job_criteria_version_check CHECK ((version >= 0))\n);\n\nCREATE TABLE public.rh2_job_criterion_decisions (\n    authority_id text NOT NULL,\n    decision_id text NOT NULL,\n    criterion_id text NOT NULL,\n    job_id text NOT NULL,\n    action text NOT NULL,\n    actor_principal_id text NOT NULL,\n    at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    correlation_id text NOT NULL,\n    evidence text NOT NULL,\n    observation text NOT NULL,\n    reason_code text NOT NULL,\n    artifact_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    version bigint NOT NULL,\n    CONSTRAINT rh2_job_criterion_decisions_action_check CHECK ((action = ANY (ARRAY['reject'::text, 'reopen'::text, 'verify'::text, 'waive'::text]))),\n    CONSTRAINT rh2_job_criterion_decisions_evidence_check CHECK (((length(evidence) >= 1) AND (length(evidence) <= 4000))),\n    CONSTRAINT rh2_job_criterion_decisions_observation_check CHECK (((length(observation) >= 1) AND (length(observation) <= 4000))),\n    CONSTRAINT rh2_job_criterion_decisions_reason_check CHECK ((reason_code ~ '^[a-z0-9][a-z0-9-]{0,127}$'::text)),\n    CONSTRAINT rh2_job_criterion_decisions_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_job_history (\n    authority_id text NOT NULL,\n    history_id text NOT NULL,\n    job_id text NOT NULL,\n    kind text NOT NULL,\n    actor_principal_id text NOT NULL,\n    at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    correlation_id text NOT NULL,\n    payload jsonb DEFAULT '{}'::jsonb NOT NULL,\n    CONSTRAINT rh2_job_history_payload_check CHECK ((jsonb_typeof(payload) = 'object'::text))\n);\n\nCREATE TABLE public.rh2_job_result_shares (\n    authority_id text NOT NULL,\n    share_id text NOT NULL,\n    job_id text NOT NULL,\n    result_id text NOT NULL,\n    token_digest text NOT NULL,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    revoked_at timestamp with time zone,\n    revoked_by_principal_id text,\n    CONSTRAINT rh2_job_result_shares_expiry_check CHECK ((expires_at > created_at)),\n    CONSTRAINT rh2_job_result_shares_token_digest_check CHECK ((token_digest ~ '^[a-f0-9]{64}$'::text))\n);\n\nCREATE TABLE public.rh2_job_results (\n    authority_id text NOT NULL,\n    result_id text NOT NULL,\n    job_id text NOT NULL,\n    outcome text NOT NULL,\n    summary text NOT NULL,\n    artifact_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    accepted_criterion_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    failed_criterion_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    waived_criterion_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    actor_principal_id text NOT NULL,\n    correlation_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT rh2_job_results_outcome_check CHECK ((outcome = ANY (ARRAY['failed'::text, 'partial'::text, 'succeeded'::text]))),\n    CONSTRAINT rh2_job_results_summary_check CHECK (((length(summary) >= 1) AND (length(summary) <= 8000)))\n);\n\nCREATE TABLE public.rh2_job_room_stays (\n    authority_id text NOT NULL,\n    stay_id text NOT NULL,\n    job_id text NOT NULL,\n    room_id text NOT NULL,\n    entered_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    entered_by_principal_id text NOT NULL,\n    exited_at timestamp with time zone,\n    exited_by_principal_id text,\n    CONSTRAINT rh2_job_room_stays_exit_check CHECK (((exited_at IS NULL) = (exited_by_principal_id IS NULL)))\n);\n\nCREATE TABLE public.rh2_jobs (\n    authority_id text NOT NULL,\n    cap_usd numeric(20,6),\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    created_by text NOT NULL,\n    idempotency_fingerprint text,\n    idempotency_key text,\n    instructions text NOT NULL,\n    job_id text NOT NULL,\n    organization_id text NOT NULL,\n    project_id text NOT NULL,\n    room_id text,\n    status text NOT NULL,\n    title text NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    agent_tool_profile text DEFAULT 'default'::text NOT NULL,\n    proof_allowance_usd numeric(20,6),\n    priority text DEFAULT 'normal'::text NOT NULL,\n    deadline_at timestamp with time zone,\n    correlation_id text,\n    created_by_principal_id text,\n    owner_principal_id text,\n    owner_conversation_id text,\n    owner_room_id text,\n    owner_claimed_at timestamp with time zone,\n    owner_version bigint DEFAULT 0 NOT NULL,\n    current_room_id text,\n    result_id text,\n    anchor_conversation_id text,\n    anchor_message_id text,\n    CONSTRAINT rh2_jobs_agent_tool_profile_check CHECK ((agent_tool_profile = ANY (ARRAY['default'::text, 'none'::text]))),\n    CONSTRAINT rh2_jobs_cap_usd_check CHECK ((cap_usd > (0)::numeric)),\n    CONSTRAINT rh2_jobs_created_by_check CHECK (((length(created_by) >= 1) AND (length(created_by) <= 256))),\n    CONSTRAINT rh2_jobs_idempotency_fingerprint_check CHECK ((idempotency_fingerprint ~ '^[a-f0-9]{64}$'::text)),\n    CONSTRAINT rh2_jobs_idempotency_key_check CHECK (((length(idempotency_key) >= 1) AND (length(idempotency_key) <= 256))),\n    CONSTRAINT rh2_jobs_instructions_check CHECK ((length(instructions) > 0)),\n    CONSTRAINT rh2_jobs_job_id_check CHECK (((length(job_id) >= 1) AND (length(job_id) <= 128))),\n    CONSTRAINT rh2_jobs_proof_allowance_usd_check CHECK (((proof_allowance_usd > (0)::numeric) AND (proof_allowance_usd <= 0.250000))),\n    CONSTRAINT rh2_jobs_proof_profile_check CHECK ((((agent_tool_profile = 'default'::text) AND (proof_allowance_usd IS NULL)) OR ((agent_tool_profile = 'none'::text) AND (proof_allowance_usd IS NOT NULL)))),\n    CONSTRAINT rh2_jobs_room_id_check CHECK (((length(room_id) >= 1) AND (length(room_id) <= 128))),\n    CONSTRAINT rh2_jobs_title_check CHECK (((length(title) >= 1) AND (length(title) <= 120))),\n    CONSTRAINT rh2_jobs_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_livekit_webhook_receipts (\n    authority_id text NOT NULL,\n    event_digest text NOT NULL,\n    event_id text NOT NULL,\n    event_kind text NOT NULL,\n    observed_at timestamp with time zone NOT NULL,\n    processed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    publication_id text,\n    signature_timestamp timestamp with time zone NOT NULL,\n    CONSTRAINT rh2_livekit_webhook_receipts_event_digest_check CHECK ((event_digest ~ '^[a-f0-9]{64}$'::text)),\n    CONSTRAINT rh2_livekit_webhook_receipts_event_id_check CHECK (((length(event_id) >= 1) AND (length(event_id) <= 256))),\n    CONSTRAINT rh2_livekit_webhook_receipts_event_kind_check CHECK (((length(event_kind) >= 1) AND (length(event_kind) <= 128)))\n);\n\nCREATE TABLE public.rh2_media_publications (\n    authority_id text NOT NULL,\n    decoded_frame_at timestamp with time zone,\n    expected_participant_identity text NOT NULL,\n    expected_track_source text NOT NULL,\n    failure_code text,\n    livekit_room text NOT NULL,\n    observed_at timestamp with time zone,\n    publication_id text NOT NULL,\n    publisher_session_id text NOT NULL,\n    state text NOT NULL,\n    track_sid text,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_media_publications_expected_participant_identity_check CHECK (((length(expected_participant_identity) >= 1) AND (length(expected_participant_identity) <= 256))),\n    CONSTRAINT rh2_media_publications_expected_track_source_check CHECK (((length(expected_track_source) >= 1) AND (length(expected_track_source) <= 64))),\n    CONSTRAINT rh2_media_publications_livekit_room_check CHECK (((length(livekit_room) >= 1) AND (length(livekit_room) <= 256))),\n    CONSTRAINT rh2_media_publications_publication_id_check CHECK (((length(publication_id) >= 1) AND (length(publication_id) <= 128))),\n    CONSTRAINT rh2_media_publications_state_check CHECK ((state = ANY (ARRAY['desired'::text, 'failed'::text, 'first-frame'::text, 'participant-joined'::text, 'subscriber-connected'::text, 'track-published'::text]))),\n    CONSTRAINT rh2_media_publications_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_memberships (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    organization_id text NOT NULL,\n    project_id text NOT NULL,\n    role text NOT NULL,\n    state text NOT NULL,\n    created_by_principal_id text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    revoked_at timestamp with time zone,\n    revoked_by text,\n    revocation_reason text,\n    version bigint DEFAULT 1 NOT NULL,\n    expires_at timestamp with time zone,\n    CONSTRAINT rh2_memberships_revocation_agrees_check CHECK (((state = 'revoked'::text) = (revoked_at IS NOT NULL))),\n    CONSTRAINT rh2_memberships_revocation_check CHECK ((((revoked_at IS NULL) AND (revoked_by IS NULL) AND (revocation_reason IS NULL)) OR ((revoked_at IS NOT NULL) AND (revoked_by IS NOT NULL) AND (length(revocation_reason) >= 1)))),\n    CONSTRAINT rh2_memberships_role_check CHECK ((role ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_memberships_state_check CHECK ((state = ANY (ARRAY['active'::text, 'revoked'::text]))),\n    CONSTRAINT rh2_memberships_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_message_pins (\n    authority_id text NOT NULL,\n    message_id text NOT NULL,\n    conversation_id text NOT NULL,\n    pinned_by_principal_id text NOT NULL,\n    pinned_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL\n);\n\nCREATE TABLE public.rh2_message_reactions (\n    authority_id text NOT NULL,\n    message_id text NOT NULL,\n    principal_id text NOT NULL,\n    emoji text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT rh2_message_reactions_emoji_check CHECK (((octet_length(emoji) >= 1) AND (octet_length(emoji) <= 32)))\n);\n\nCREATE TABLE public.rh2_notification_deliveries (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    source_kind text NOT NULL,\n    source_id text NOT NULL,\n    channel text NOT NULL,\n    state text NOT NULL,\n    error text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT rh2_notification_deliveries_channel_check CHECK ((channel = ANY (ARRAY['email'::text, 'push'::text]))),\n    CONSTRAINT rh2_notification_deliveries_source_kind_check CHECK ((source_kind = ANY (ARRAY['mention'::text, 'request'::text]))),\n    CONSTRAINT rh2_notification_deliveries_state_check CHECK ((state = ANY (ARRAY['sending'::text, 'sent'::text, 'skipped'::text, 'failed'::text])))\n);\n\nCREATE TABLE public.rh2_organizations (\n    authority_id text NOT NULL,\n    organization_id text NOT NULL,\n    policy jsonb DEFAULT '{}'::jsonb NOT NULL,\n    policy_version bigint DEFAULT 0 NOT NULL,\n    provider jsonb,\n    CONSTRAINT rh2_organizations_organization_id_check CHECK (((length(organization_id) >= 1) AND (length(organization_id) <= 128)))\n);\n\nCREATE TABLE public.rh2_outbox (\n    aggregate_id text NOT NULL,\n    aggregate_kind text NOT NULL,\n    attempts integer DEFAULT 0 NOT NULL,\n    authority_id text NOT NULL,\n    available_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    dead_lettered_at timestamp with time zone,\n    dedupe_key text NOT NULL,\n    delivered_at timestamp with time zone,\n    event_id bigint NOT NULL,\n    event_kind text NOT NULL,\n    last_error_code text,\n    lease_owner text,\n    lease_until timestamp with time zone,\n    payload jsonb NOT NULL,\n    replay_count integer DEFAULT 0 NOT NULL,\n    state text DEFAULT 'pending'::text NOT NULL,\n    CONSTRAINT rh2_outbox_aggregate_id_check CHECK (((length(aggregate_id) >= 1) AND (length(aggregate_id) <= 256))),\n    CONSTRAINT rh2_outbox_aggregate_kind_check CHECK (((length(aggregate_kind) >= 1) AND (length(aggregate_kind) <= 64))),\n    CONSTRAINT rh2_outbox_attempts_check CHECK ((attempts >= 0)),\n    CONSTRAINT rh2_outbox_dedupe_key_check CHECK (((length(dedupe_key) >= 1) AND (length(dedupe_key) <= 512))),\n    CONSTRAINT rh2_outbox_event_kind_check CHECK (((length(event_kind) >= 1) AND (length(event_kind) <= 128))),\n    CONSTRAINT rh2_outbox_payload_check CHECK ((jsonb_typeof(payload) = 'object'::text)),\n    CONSTRAINT rh2_outbox_replay_count_check CHECK ((replay_count >= 0)),\n    CONSTRAINT rh2_outbox_state_check CHECK ((state = ANY (ARRAY['dead-letter'::text, 'delivered'::text, 'pending'::text, 'processing'::text])))\n);\n\nCREATE SEQUENCE public.rh2_outbox_event_id_seq\n    START WITH 1\n    INCREMENT BY 1\n    NO MINVALUE\n    NO MAXVALUE\n    CACHE 1;\n\nALTER SEQUENCE public.rh2_outbox_event_id_seq OWNED BY public.rh2_outbox.event_id;\n\nCREATE TABLE public.rh2_person_notification_preferences (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    email boolean DEFAULT false NOT NULL,\n    push boolean DEFAULT true NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    email_frequency text DEFAULT 'never'::text NOT NULL\n);\n\nCREATE TABLE public.rh2_person_records (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    availability text DEFAULT 'off-shift'::text NOT NULL,\n    availability_note text,\n    presence_at timestamp with time zone,\n    timezone text DEFAULT 'UTC'::text NOT NULL,\n    schedule jsonb DEFAULT '[]'::jsonb NOT NULL,\n    capabilities text[] DEFAULT '{}'::text[] NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_person_records_availability_check CHECK ((availability = ANY (ARRAY['available'::text, 'away'::text, 'off-shift'::text]))),\n    CONSTRAINT rh2_person_records_schedule_check CHECK ((jsonb_typeof(schedule) = 'array'::text))\n);\n\nCREATE TABLE public.rh2_platform_providers (\n    authority_id text NOT NULL,\n    provider_id text NOT NULL,\n    kind text NOT NULL,\n    spec jsonb DEFAULT '{}'::jsonb NOT NULL,\n    secret_ids jsonb DEFAULT '{}'::jsonb NOT NULL,\n    state text DEFAULT 'active'::text NOT NULL,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_by_principal_id text NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_platform_providers_provider_id_check CHECK ((provider_id ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_platform_providers_secret_ids_check CHECK ((jsonb_typeof(secret_ids) = 'object'::text)),\n    CONSTRAINT rh2_platform_providers_spec_check CHECK ((jsonb_typeof(spec) = 'object'::text)),\n    CONSTRAINT rh2_platform_providers_state_check CHECK ((state = ANY (ARRAY['active'::text, 'retired'::text]))),\n    CONSTRAINT rh2_platform_providers_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_platform_settings (\n    authority_id text NOT NULL,\n    key text NOT NULL,\n    value jsonb NOT NULL,\n    version integer DEFAULT 1 NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_by_principal_id text NOT NULL,\n    CONSTRAINT rh2_platform_settings_key_check CHECK ((key ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_platform_settings_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_projects (\n    authority_id text NOT NULL,\n    organization_id text NOT NULL,\n    project_id text NOT NULL,\n    policy jsonb DEFAULT '{}'::jsonb NOT NULL,\n    policy_version bigint DEFAULT 0 NOT NULL,\n    CONSTRAINT rh2_projects_project_id_check CHECK (((length(project_id) >= 1) AND (length(project_id) <= 128)))\n);\n\nCREATE TABLE public.rh2_push_subscriptions (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    endpoint text NOT NULL,\n    p256dh text NOT NULL,\n    auth text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT rh2_push_subscriptions_endpoint_check CHECK (((length(endpoint) >= 1) AND (length(endpoint) <= 2048)))\n);\n\nCREATE TABLE public.rh2_roles (\n    authority_id text NOT NULL,\n    organization_id text NOT NULL,\n    role text NOT NULL,\n    actions text[] NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_roles_actions_check CHECK ((cardinality(actions) >= 1)),\n    CONSTRAINT rh2_roles_role_check CHECK ((role ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_roles_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_room_demands (\n    authority_id text NOT NULL,\n    demand_id text NOT NULL,\n    room_id text NOT NULL,\n    kind text NOT NULL,\n    spec jsonb DEFAULT '{}'::jsonb NOT NULL,\n    state text DEFAULT 'open'::text NOT NULL,\n    operation_id text,\n    runtime_id text,\n    failure_code text,\n    opened_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_room_demands_kind_check CHECK ((kind = ANY (ARRAY['machine'::text, 'seat'::text]))),\n    CONSTRAINT rh2_room_demands_spec_check CHECK ((jsonb_typeof(spec) = 'object'::text)),\n    CONSTRAINT rh2_room_demands_state_check CHECK ((state = ANY (ARRAY['cancelled'::text, 'failed'::text, 'open'::text, 'satisfied'::text, 'serving'::text]))),\n    CONSTRAINT rh2_room_demands_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_room_invitation_claims (\n    authority_id text NOT NULL,\n    invitation_id text NOT NULL,\n    principal_id text NOT NULL,\n    claimed_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL\n);\n\nCREATE TABLE public.rh2_room_invitations (\n    authority_id text NOT NULL,\n    invitation_id text NOT NULL,\n    organization_id text NOT NULL,\n    project_id text NOT NULL,\n    room_id text NOT NULL,\n    seat_role text NOT NULL,\n    role_keys text[] DEFAULT '{}'::text[] NOT NULL,\n    address text,\n    token_digest text NOT NULL,\n    created_by_principal_id text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    claimed_at timestamp with time zone,\n    claimed_by_principal_id text,\n    revoked_at timestamp with time zone,\n    revoked_by_principal_id text,\n    claim_limit integer DEFAULT 1 NOT NULL,\n    claim_count integer DEFAULT 0 NOT NULL,\n    metadata jsonb,\n    idempotency_key text,\n    CONSTRAINT rh2_room_invitations_claim_check CHECK (((claimed_at IS NULL) = (claimed_by_principal_id IS NULL))),\n    CONSTRAINT rh2_room_invitations_token_digest_check CHECK ((token_digest ~ '^[a-f0-9]{64}$'::text))\n);\n\nCREATE TABLE public.rh2_room_media_requests (\n    authority_id text NOT NULL,\n    request_id text NOT NULL,\n    room_id text NOT NULL,\n    principal_id text NOT NULL,\n    requested_by text NOT NULL,\n    source jsonb NOT NULL,\n    state text DEFAULT 'requested'::text NOT NULL,\n    participant_identity text,\n    track_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    detail text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_room_media_requests_source_check CHECK ((jsonb_typeof(source) = 'object'::text)),\n    CONSTRAINT rh2_room_media_requests_state_check CHECK ((state = ANY (ARRAY['requested'::text, 'publishing'::text, 'stopping'::text, 'stopped'::text, 'declined'::text, 'failed'::text]))),\n    CONSTRAINT rh2_room_media_requests_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_room_members (\n    authority_id text NOT NULL,\n    room_id text NOT NULL,\n    principal_id text NOT NULL,\n    organization_id text NOT NULL,\n    state text DEFAULT 'active'::text NOT NULL,\n    seated_by_principal_id text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    session_id text,\n    runtime_id text,\n    agent_state text DEFAULT 'absent'::text NOT NULL,\n    runtime_connection_id text,\n    runtime_generation bigint DEFAULT 0 NOT NULL,\n    agent_started_at timestamp with time zone,\n    agent_start_failures integer DEFAULT 0 NOT NULL,\n    CONSTRAINT rh2_room_members_agent_start_failures_check CHECK ((agent_start_failures >= 0)),\n    CONSTRAINT rh2_room_members_agent_state_check CHECK ((agent_state = ANY (ARRAY['absent'::text, 'ended'::text, 'ready'::text, 'starting'::text]))),\n    CONSTRAINT rh2_room_members_runtime_generation_check CHECK ((runtime_generation >= 0)),\n    CONSTRAINT rh2_room_members_state_check CHECK ((state = ANY (ARRAY['active'::text, 'removed'::text]))),\n    CONSTRAINT rh2_room_members_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_room_presets (\n    authority_id text NOT NULL,\n    organization_id text NOT NULL,\n    preset_key text NOT NULL,\n    name text NOT NULL,\n    roles jsonb NOT NULL,\n    conversations jsonb NOT NULL,\n    default_conversation_key text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_room_presets_conversations_check CHECK ((jsonb_typeof(conversations) = 'array'::text)),\n    CONSTRAINT rh2_room_presets_key_check CHECK ((preset_key ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_room_presets_name_check CHECK (((length(name) >= 1) AND (length(name) <= 120))),\n    CONSTRAINT rh2_room_presets_roles_check CHECK ((jsonb_typeof(roles) = 'array'::text)),\n    CONSTRAINT rh2_room_presets_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_room_role_assignments (\n    authority_id text NOT NULL,\n    room_id text NOT NULL,\n    principal_id text NOT NULL,\n    role_id text NOT NULL,\n    assigned_by_principal_id text,\n    assigned_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    expires_at timestamp with time zone,\n    revoked_at timestamp with time zone,\n    revoked_by_principal_id text,\n    CONSTRAINT rh2_room_role_assignments_revocation_check CHECK (((revoked_at IS NULL) = (revoked_by_principal_id IS NULL)))\n);\n\nCREATE TABLE public.rh2_room_roles (\n    authority_id text NOT NULL,\n    room_id text NOT NULL,\n    role_id text NOT NULL,\n    role_key text NOT NULL,\n    name text NOT NULL,\n    actions text[] DEFAULT '{}'::text[] NOT NULL,\n    conversation_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    conversation_read_ids text[] DEFAULT '{}'::text[] NOT NULL,\n    \"position\" integer DEFAULT 0 NOT NULL,\n    lifecycle text DEFAULT 'active'::text NOT NULL,\n    created_by_principal_id text,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    surface_keys text[] DEFAULT '{}'::text[] NOT NULL,\n    surface_view_keys text[] DEFAULT '{}'::text[] NOT NULL,\n    CONSTRAINT rh2_room_roles_lifecycle_check CHECK ((lifecycle = ANY (ARRAY['active'::text, 'retired'::text]))),\n    CONSTRAINT rh2_room_roles_name_check CHECK (((length(name) >= 1) AND (length(name) <= 120))),\n    CONSTRAINT rh2_room_roles_role_key_check CHECK ((role_key ~ '^[a-z][a-z0-9-]{0,63}$'::text)),\n    CONSTRAINT rh2_room_roles_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_room_surfaces (\n    authority_id text NOT NULL,\n    surface_id text NOT NULL,\n    room_id text NOT NULL,\n    surface_key text NOT NULL,\n    kind text NOT NULL,\n    name text NOT NULL,\n    config jsonb DEFAULT '{}'::jsonb NOT NULL,\n    state text DEFAULT 'active'::text NOT NULL,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_room_surfaces_config_check CHECK ((jsonb_typeof(config) = 'object'::text)),\n    CONSTRAINT rh2_room_surfaces_state_check CHECK ((state = ANY (ARRAY['active'::text, 'retired'::text])))\n);\n\nCREATE TABLE public.rh2_rooms (\n    authority_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    job_id text,\n    organization_id text NOT NULL,\n    project_id text NOT NULL,\n    room_id text NOT NULL,\n    state text NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    name text DEFAULT ''::text NOT NULL,\n    preset_id text,\n    default_conversation_id text,\n    created_by_principal_id text,\n    room_key text,\n    CONSTRAINT rh2_rooms_room_id_check CHECK (((length(room_id) >= 1) AND (length(room_id) <= 128))),\n    CONSTRAINT rh2_rooms_state_check CHECK ((state = ANY (ARRAY['active'::text, 'closed'::text]))),\n    CONSTRAINT rh2_rooms_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_secret_envelopes (\n    authority_id text NOT NULL,\n    ciphertext bytea NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    encrypted_data_key bytea NOT NULL,\n    expires_at timestamp with time zone,\n    key_version text NOT NULL,\n    nonce bytea NOT NULL,\n    organization_id text NOT NULL,\n    purpose text NOT NULL,\n    revoked_at timestamp with time zone,\n    scope_id text NOT NULL,\n    secret_id text NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_secret_envelopes_ciphertext_check CHECK ((octet_length(ciphertext) > 0)),\n    CONSTRAINT rh2_secret_envelopes_encrypted_data_key_check CHECK ((octet_length(encrypted_data_key) > 0)),\n    CONSTRAINT rh2_secret_envelopes_key_version_check CHECK (((length(key_version) >= 1) AND (length(key_version) <= 128))),\n    CONSTRAINT rh2_secret_envelopes_nonce_check CHECK ((octet_length(nonce) >= 12)),\n    CONSTRAINT rh2_secret_envelopes_scope_id_check CHECK (((length(scope_id) >= 1) AND (length(scope_id) <= 128))),\n    CONSTRAINT rh2_secret_envelopes_secret_id_check CHECK (((length(secret_id) >= 1) AND (length(secret_id) <= 128))),\n    CONSTRAINT rh2_secret_envelopes_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_surface_relay_objects (\n    authority_id text NOT NULL,\n    content_length bigint NOT NULL,\n    content_type text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    object_key text NOT NULL,\n    operation_id text NOT NULL,\n    sequence bigint NOT NULL,\n    surface_session_id text NOT NULL,\n    content_sha256 text NOT NULL,\n    CONSTRAINT rh2_surface_relay_objects_content_length_check CHECK (((content_length >= 0) AND (content_length <= 1048576))),\n    CONSTRAINT rh2_surface_relay_objects_content_sha256_check CHECK ((content_sha256 ~ '^[a-f0-9]{64}$'::text)),\n    CONSTRAINT rh2_surface_relay_objects_content_type_check CHECK ((content_type = ANY (ARRAY['application/json'::text, 'text/plain; charset=utf-8'::text]))),\n    CONSTRAINT rh2_surface_relay_objects_object_key_check CHECK (((length(object_key) >= 1) AND (length(object_key) <= 512))),\n    CONSTRAINT rh2_surface_relay_objects_operation_id_check CHECK (((length(operation_id) >= 1) AND (length(operation_id) <= 128))),\n    CONSTRAINT rh2_surface_relay_objects_sequence_check CHECK ((sequence >= 0))\n);\n\nCREATE TABLE public.rh2_trigger_firings (\n    authority_id text NOT NULL,\n    trigger_id text NOT NULL,\n    outbox_event_id bigint,\n    message_id text,\n    fired_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    due_at timestamp with time zone,\n    refusal_code text,\n    CONSTRAINT rh2_trigger_firings_refusal_code_check CHECK (((refusal_code IS NULL) OR ((length(refusal_code) >= 1) AND (length(refusal_code) <= 128)))),\n    CONSTRAINT rh2_trigger_firings_source_check CHECK (((outbox_event_id IS NULL) <> (due_at IS NULL)))\n);\n\nCREATE TABLE public.rh2_vendor_accounts (\n    authority_id text NOT NULL,\n    account_id text NOT NULL,\n    organization_id text NOT NULL,\n    account_key text NOT NULL,\n    vendor text NOT NULL,\n    base_url text,\n    custody text NOT NULL,\n    custody_modality text NOT NULL,\n    custody_holder_principal_id text,\n    owner_principal_id text NOT NULL,\n    status text DEFAULT 'connected'::text NOT NULL,\n    upstream_identity text,\n    capabilities text[] DEFAULT '{}'::text[] NOT NULL,\n    last_health jsonb,\n    last_use jsonb,\n    created_by_principal_id text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_vendor_accounts_custody_check CHECK ((custody = ANY (ARRAY['organization'::text, 'principal'::text, 'session'::text]))),\n    CONSTRAINT rh2_vendor_accounts_custody_modality_check CHECK ((custody_modality = ANY (ARRAY['boundary'::text, 'governed-browser'::text, 'raw-custody'::text]))),\n    CONSTRAINT rh2_vendor_accounts_holder_check CHECK (((custody_modality = 'raw-custody'::text) = (custody_holder_principal_id IS NOT NULL))),\n    CONSTRAINT rh2_vendor_accounts_status_check CHECK ((status = ANY (ARRAY['connected'::text, 'disconnected'::text, 'reauthentication-required'::text, 'revoked'::text, 'suspended'::text]))),\n    CONSTRAINT rh2_vendor_accounts_version_check CHECK ((version > 0))\n);\n\nCREATE TABLE public.rh2_webhook_destinations (\n    authority_id text NOT NULL,\n    destination_id text NOT NULL,\n    organization_id text NOT NULL,\n    principal_id text NOT NULL,\n    url text NOT NULL,\n    event_kinds text[] NOT NULL,\n    state text NOT NULL,\n    secret_version bigint NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    CONSTRAINT rh2_webhook_destinations_event_kinds_check CHECK ((cardinality(event_kinds) > 0)),\n    CONSTRAINT rh2_webhook_destinations_secret_version_check CHECK ((secret_version > 0)),\n    CONSTRAINT rh2_webhook_destinations_state_check CHECK ((state = ANY (ARRAY['active'::text, 'retired'::text]))),\n    CONSTRAINT rh2_webhook_destinations_url_check CHECK (((length(url) >= 1) AND (length(url) <= 2048)))\n);\n\nALTER TABLE ONLY public.rh2_attention ALTER COLUMN sequence SET DEFAULT nextval('public.rh2_attention_sequence_seq'::regclass);\n\nALTER TABLE ONLY public.rh2_outbox ALTER COLUMN event_id SET DEFAULT nextval('public.rh2_outbox_event_id_seq'::regclass);\n\nALTER TABLE ONLY public.rh2_account_grants\n    ADD CONSTRAINT rh2_account_grants_key_unique UNIQUE (authority_id, account_id, grant_key);\n\nALTER TABLE ONLY public.rh2_account_grants\n    ADD CONSTRAINT rh2_account_grants_pkey PRIMARY KEY (authority_id, grant_id);\n\nALTER TABLE ONLY public.rh2_app_installations\n    ADD CONSTRAINT rh2_app_installations_pkey PRIMARY KEY (authority_id, installation_id);\n\nALTER TABLE ONLY public.rh2_app_signin_codes\n    ADD CONSTRAINT rh2_app_signin_codes_pkey PRIMARY KEY (authority_id, code_digest);\n\nALTER TABLE ONLY public.rh2_apps\n    ADD CONSTRAINT rh2_apps_pkey PRIMARY KEY (authority_id, app_id);\n\nALTER TABLE ONLY public.rh2_artifacts\n    ADD CONSTRAINT rh2_artifacts_authority_artifact_key UNIQUE (authority_id, artifact_id);\n\nALTER TABLE ONLY public.rh2_artifacts\n    ADD CONSTRAINT rh2_artifacts_authority_id_bucket_object_key_key UNIQUE (authority_id, bucket, object_key);\n\nALTER TABLE ONLY public.rh2_artifacts\n    ADD CONSTRAINT rh2_artifacts_pkey PRIMARY KEY (artifact_id);\n\nALTER TABLE ONLY public.rh2_attention\n    ADD CONSTRAINT rh2_attention_authority_id_principal_id_message_id_reason_key UNIQUE (authority_id, principal_id, message_id, reason);\n\nALTER TABLE ONLY public.rh2_attention\n    ADD CONSTRAINT rh2_attention_pkey PRIMARY KEY (authority_id, attention_id);\n\nALTER TABLE ONLY public.rh2_authorities\n    ADD CONSTRAINT rh2_authorities_pkey PRIMARY KEY (authority_id);\n\nALTER TABLE ONLY public.rh2_authority_decision_receipts\n    ADD CONSTRAINT rh2_authority_decision_receipts_pkey PRIMARY KEY (authority_id, receipt_id);\n\nALTER TABLE ONLY public.rh2_authority_grants\n    ADD CONSTRAINT rh2_authority_grants_pkey PRIMARY KEY (authority_id, grant_id);\n\nALTER TABLE ONLY public.rh2_authority_principal_organizations\n    ADD CONSTRAINT rh2_authority_principal_organizations_pkey PRIMARY KEY (authority_id, principal_id, organization_id);\n\nALTER TABLE ONLY public.rh2_authority_principals\n    ADD CONSTRAINT rh2_authority_principals_pkey PRIMARY KEY (authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_authority_sessions\n    ADD CONSTRAINT rh2_authority_sessions_pkey PRIMARY KEY (authority_id, session_id);\n\nALTER TABLE ONLY public.rh2_command_receipts\n    ADD CONSTRAINT rh2_command_receipts_pkey PRIMARY KEY (authority_id, command, idempotency_key);\n\nALTER TABLE ONLY public.rh2_consumer_receipts\n    ADD CONSTRAINT rh2_consumer_receipts_authority_id_consumer_event_id_key UNIQUE (authority_id, consumer, event_id);\n\nALTER TABLE ONLY public.rh2_consumer_receipts\n    ADD CONSTRAINT rh2_consumer_receipts_pkey PRIMARY KEY (authority_id, consumer, effect_key);\n\nALTER TABLE ONLY public.rh2_controller_cursors\n    ADD CONSTRAINT rh2_controller_cursors_pkey PRIMARY KEY (authority_id, controller);\n\nALTER TABLE ONLY public.rh2_conversation_messages\n    ADD CONSTRAINT rh2_conversation_messages_correlation_unique UNIQUE (authority_id, conversation_id, correlation_id);\n\nALTER TABLE ONLY public.rh2_conversation_messages\n    ADD CONSTRAINT rh2_conversation_messages_pkey PRIMARY KEY (authority_id, message_id);\n\nALTER TABLE ONLY public.rh2_conversation_messages\n    ADD CONSTRAINT rh2_conversation_messages_sequence_unique UNIQUE (authority_id, conversation_id, sequence);\n\nALTER TABLE ONLY public.rh2_conversation_notification_settings\n    ADD CONSTRAINT rh2_conversation_notification_settings_pkey PRIMARY KEY (authority_id, conversation_id, principal_id);\n\nALTER TABLE ONLY public.rh2_conversation_participants\n    ADD CONSTRAINT rh2_conversation_participants_pkey PRIMARY KEY (authority_id, conversation_id, principal_id);\n\nALTER TABLE ONLY public.rh2_conversation_presence\n    ADD CONSTRAINT rh2_conversation_presence_pkey PRIMARY KEY (authority_id, conversation_id, principal_id);\n\nALTER TABLE ONLY public.rh2_conversation_read_boundaries\n    ADD CONSTRAINT rh2_conversation_read_boundaries_pkey PRIMARY KEY (authority_id, conversation_id, principal_id);\n\nALTER TABLE ONLY public.rh2_conversation_triggers\n    ADD CONSTRAINT rh2_conversation_triggers_key_unique UNIQUE (authority_id, room_id, trigger_key);\n\nALTER TABLE ONLY public.rh2_conversation_triggers\n    ADD CONSTRAINT rh2_conversation_triggers_pkey PRIMARY KEY (authority_id, trigger_id);\n\nALTER TABLE ONLY public.rh2_conversations\n    ADD CONSTRAINT rh2_conversations_key_unique UNIQUE (authority_id, room_id, conversation_key);\n\nALTER TABLE ONLY public.rh2_conversations\n    ADD CONSTRAINT rh2_conversations_pkey PRIMARY KEY (authority_id, conversation_id);\n\nALTER TABLE ONLY public.rh2_durable_operations\n    ADD CONSTRAINT rh2_durable_operations_correlation_unique UNIQUE (authority_id, kind, correlation_id);\n\nALTER TABLE ONLY public.rh2_durable_operations\n    ADD CONSTRAINT rh2_durable_operations_pkey PRIMARY KEY (authority_id, operation_id);\n\nALTER TABLE ONLY public.rh2_edge_access_factor_uses\n    ADD CONSTRAINT rh2_edge_access_factor_uses_pkey PRIMARY KEY (authority_id, factor_sha256);\n\nALTER TABLE ONLY public.rh2_human_assignment_events\n    ADD CONSTRAINT rh2_human_assignment_events_correlation_unique UNIQUE (authority_id, assignment_id, correlation_id);\n\nALTER TABLE ONLY public.rh2_human_assignment_events\n    ADD CONSTRAINT rh2_human_assignment_events_pkey PRIMARY KEY (authority_id, event_id);\n\nALTER TABLE ONLY public.rh2_human_assignment_events\n    ADD CONSTRAINT rh2_human_assignment_events_version_unique UNIQUE (authority_id, assignment_id, version);\n\nALTER TABLE ONLY public.rh2_human_assignments\n    ADD CONSTRAINT rh2_human_assignments_pkey PRIMARY KEY (authority_id, assignment_id);\n\nALTER TABLE ONLY public.rh2_job_criteria\n    ADD CONSTRAINT rh2_job_criteria_key_unique UNIQUE (authority_id, job_id, criterion_key);\n\nALTER TABLE ONLY public.rh2_job_criteria\n    ADD CONSTRAINT rh2_job_criteria_pkey PRIMARY KEY (authority_id, criterion_id);\n\nALTER TABLE ONLY public.rh2_job_criterion_decisions\n    ADD CONSTRAINT rh2_job_criterion_decisions_correlation_unique UNIQUE (authority_id, criterion_id, correlation_id);\n\nALTER TABLE ONLY public.rh2_job_criterion_decisions\n    ADD CONSTRAINT rh2_job_criterion_decisions_pkey PRIMARY KEY (authority_id, decision_id);\n\nALTER TABLE ONLY public.rh2_job_criterion_decisions\n    ADD CONSTRAINT rh2_job_criterion_decisions_version_unique UNIQUE (authority_id, criterion_id, version);\n\nALTER TABLE ONLY public.rh2_job_history\n    ADD CONSTRAINT rh2_job_history_correlation_unique UNIQUE (authority_id, job_id, correlation_id);\n\nALTER TABLE ONLY public.rh2_job_history\n    ADD CONSTRAINT rh2_job_history_pkey PRIMARY KEY (authority_id, history_id);\n\nALTER TABLE ONLY public.rh2_job_result_shares\n    ADD CONSTRAINT rh2_job_result_shares_pkey PRIMARY KEY (authority_id, share_id);\n\nALTER TABLE ONLY public.rh2_job_result_shares\n    ADD CONSTRAINT rh2_job_result_shares_token_unique UNIQUE (authority_id, token_digest);\n\nALTER TABLE ONLY public.rh2_job_results\n    ADD CONSTRAINT rh2_job_results_correlation_unique UNIQUE (authority_id, job_id, correlation_id);\n\nALTER TABLE ONLY public.rh2_job_results\n    ADD CONSTRAINT rh2_job_results_pkey PRIMARY KEY (authority_id, result_id);\n\nALTER TABLE ONLY public.rh2_job_room_stays\n    ADD CONSTRAINT rh2_job_room_stays_pkey PRIMARY KEY (authority_id, stay_id);\n\nALTER TABLE ONLY public.rh2_jobs\n    ADD CONSTRAINT rh2_jobs_authority_id_idempotency_key_key UNIQUE (authority_id, idempotency_key);\n\nALTER TABLE ONLY public.rh2_jobs\n    ADD CONSTRAINT rh2_jobs_pkey PRIMARY KEY (authority_id, job_id);\n\nALTER TABLE ONLY public.rh2_livekit_webhook_receipts\n    ADD CONSTRAINT rh2_livekit_webhook_receipts_authority_id_event_digest_key UNIQUE (authority_id, event_digest);\n\nALTER TABLE ONLY public.rh2_livekit_webhook_receipts\n    ADD CONSTRAINT rh2_livekit_webhook_receipts_pkey PRIMARY KEY (authority_id, event_id);\n\nALTER TABLE ONLY public.rh2_media_publications\n    ADD CONSTRAINT rh2_media_publications_pkey PRIMARY KEY (authority_id, publication_id);\n\nALTER TABLE ONLY public.rh2_memberships\n    ADD CONSTRAINT rh2_memberships_pkey PRIMARY KEY (authority_id, principal_id, organization_id, project_id);\n\nALTER TABLE ONLY public.rh2_message_pins\n    ADD CONSTRAINT rh2_message_pins_pkey PRIMARY KEY (authority_id, message_id);\n\nALTER TABLE ONLY public.rh2_message_reactions\n    ADD CONSTRAINT rh2_message_reactions_pkey PRIMARY KEY (authority_id, message_id, principal_id, emoji);\n\nALTER TABLE ONLY public.rh2_notification_deliveries\n    ADD CONSTRAINT rh2_notification_deliveries_pkey PRIMARY KEY (authority_id, principal_id, source_kind, source_id, channel);\n\nALTER TABLE ONLY public.rh2_organizations\n    ADD CONSTRAINT rh2_organizations_pkey PRIMARY KEY (authority_id, organization_id);\n\nALTER TABLE ONLY public.rh2_outbox\n    ADD CONSTRAINT rh2_outbox_authority_id_dedupe_key_key UNIQUE (authority_id, dedupe_key);\n\nALTER TABLE ONLY public.rh2_outbox\n    ADD CONSTRAINT rh2_outbox_pkey PRIMARY KEY (event_id);\n\nALTER TABLE ONLY public.rh2_person_notification_preferences\n    ADD CONSTRAINT rh2_person_notification_preferences_pkey PRIMARY KEY (authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_person_records\n    ADD CONSTRAINT rh2_person_records_pkey PRIMARY KEY (authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_platform_providers\n    ADD CONSTRAINT rh2_platform_providers_pkey PRIMARY KEY (authority_id, provider_id);\n\nALTER TABLE ONLY public.rh2_platform_settings\n    ADD CONSTRAINT rh2_platform_settings_pkey PRIMARY KEY (authority_id, key);\n\nALTER TABLE ONLY public.rh2_projects\n    ADD CONSTRAINT rh2_projects_pkey PRIMARY KEY (authority_id, organization_id, project_id);\n\nALTER TABLE ONLY public.rh2_push_subscriptions\n    ADD CONSTRAINT rh2_push_subscriptions_pkey PRIMARY KEY (authority_id, endpoint);\n\nALTER TABLE ONLY public.rh2_roles\n    ADD CONSTRAINT rh2_roles_pkey PRIMARY KEY (authority_id, organization_id, role);\n\nALTER TABLE ONLY public.rh2_room_demands\n    ADD CONSTRAINT rh2_room_demands_pkey PRIMARY KEY (authority_id, demand_id);\n\nALTER TABLE ONLY public.rh2_room_invitation_claims\n    ADD CONSTRAINT rh2_room_invitation_claims_pkey PRIMARY KEY (authority_id, invitation_id, principal_id);\n\nALTER TABLE ONLY public.rh2_room_invitations\n    ADD CONSTRAINT rh2_room_invitations_pkey PRIMARY KEY (authority_id, invitation_id);\n\nALTER TABLE ONLY public.rh2_room_invitations\n    ADD CONSTRAINT rh2_room_invitations_token_unique UNIQUE (authority_id, token_digest);\n\nALTER TABLE ONLY public.rh2_room_media_requests\n    ADD CONSTRAINT rh2_room_media_requests_pkey PRIMARY KEY (authority_id, request_id);\n\nALTER TABLE ONLY public.rh2_room_members\n    ADD CONSTRAINT rh2_room_members_pkey PRIMARY KEY (authority_id, room_id, principal_id);\n\nALTER TABLE ONLY public.rh2_room_presets\n    ADD CONSTRAINT rh2_room_presets_pkey PRIMARY KEY (authority_id, organization_id, preset_key);\n\nALTER TABLE ONLY public.rh2_room_role_assignments\n    ADD CONSTRAINT rh2_room_role_assignments_pkey PRIMARY KEY (authority_id, room_id, principal_id, role_id);\n\nALTER TABLE ONLY public.rh2_room_roles\n    ADD CONSTRAINT rh2_room_roles_key_unique UNIQUE (authority_id, room_id, role_key);\n\nALTER TABLE ONLY public.rh2_room_roles\n    ADD CONSTRAINT rh2_room_roles_pkey PRIMARY KEY (authority_id, role_id);\n\nALTER TABLE ONLY public.rh2_room_surfaces\n    ADD CONSTRAINT rh2_room_surfaces_key_unique UNIQUE (authority_id, room_id, surface_key);\n\nALTER TABLE ONLY public.rh2_room_surfaces\n    ADD CONSTRAINT rh2_room_surfaces_pkey PRIMARY KEY (authority_id, surface_id);\n\nALTER TABLE ONLY public.rh2_rooms\n    ADD CONSTRAINT rh2_rooms_pkey PRIMARY KEY (authority_id, room_id);\n\nALTER TABLE ONLY public.rh2_secret_envelopes\n    ADD CONSTRAINT rh2_secret_envelopes_authority_id_purpose_scope_id_key UNIQUE (authority_id, purpose, scope_id);\n\nALTER TABLE ONLY public.rh2_secret_envelopes\n    ADD CONSTRAINT rh2_secret_envelopes_pkey PRIMARY KEY (authority_id, secret_id);\n\nALTER TABLE ONLY public.rh2_surface_relay_objects\n    ADD CONSTRAINT rh2_surface_relay_objects_authority_id_object_key_key UNIQUE (authority_id, object_key);\n\nALTER TABLE ONLY public.rh2_surface_relay_objects\n    ADD CONSTRAINT rh2_surface_relay_objects_authority_id_surface_session_id_s_key UNIQUE (authority_id, surface_session_id, sequence);\n\nALTER TABLE ONLY public.rh2_surface_relay_objects\n    ADD CONSTRAINT rh2_surface_relay_objects_pkey PRIMARY KEY (authority_id, operation_id);\n\nALTER TABLE ONLY public.rh2_vendor_accounts\n    ADD CONSTRAINT rh2_vendor_accounts_key_unique UNIQUE (authority_id, organization_id, account_key);\n\nALTER TABLE ONLY public.rh2_vendor_accounts\n    ADD CONSTRAINT rh2_vendor_accounts_pkey PRIMARY KEY (authority_id, account_id);\n\nALTER TABLE ONLY public.rh2_webhook_destinations\n    ADD CONSTRAINT rh2_webhook_destinations_pkey PRIMARY KEY (authority_id, destination_id);\n\nCREATE INDEX rh2_account_grants_account_idx ON public.rh2_account_grants USING btree (authority_id, account_id) WHERE (status = 'active'::text);\n\nCREATE UNIQUE INDEX rh2_app_installations_active_idx ON public.rh2_app_installations USING btree (authority_id, app_id, organization_id) WHERE (state = 'active'::text);\n\nCREATE INDEX rh2_app_installations_code_idx ON public.rh2_app_installations USING btree (authority_id, code_digest) WHERE (code_digest IS NOT NULL);\n\nCREATE INDEX rh2_artifacts_job_scope_idx ON public.rh2_artifacts USING btree (authority_id, organization_id, project_id, job_id, run_id, assignment_id, work_item_id, criterion_id, created_at DESC);\n\nCREATE INDEX rh2_artifacts_lifecycle_idx ON public.rh2_artifacts USING btree (authority_id, state, expires_at);\n\nCREATE INDEX rh2_artifacts_parent_idx ON public.rh2_artifacts USING btree (authority_id, parent_artifact_id) WHERE (parent_artifact_id IS NOT NULL);\n\nCREATE INDEX rh2_artifacts_resource_idx ON public.rh2_artifacts USING btree (authority_id, job_resource_kind, job_id, created_at);\n\nCREATE INDEX rh2_artifacts_search_document_idx ON public.rh2_artifacts USING gin (search_document);\n\nCREATE INDEX rh2_artifacts_search_idx ON public.rh2_artifacts USING btree (authority_id, organization_id, project_id, artifact_kind, sensitivity, retention_class, state, created_at DESC);\n\nCREATE INDEX rh2_attention_feed_idx ON public.rh2_attention USING btree (authority_id, organization_id, sequence);\n\nCREATE INDEX rh2_authority_decision_receipts_retention_idx ON public.rh2_authority_decision_receipts USING btree (authority_id, at);\n\nCREATE UNIQUE INDEX rh2_authority_grants_idempotency_idx ON public.rh2_authority_grants USING btree (authority_id, COALESCE(organization_id, '__platform__'::text), idempotency_key);\n\nCREATE INDEX rh2_authority_grants_principal_idx ON public.rh2_authority_grants USING btree (authority_id, principal_id) WHERE (revoked_at IS NULL);\n\nCREATE UNIQUE INDEX rh2_authority_principals_address_idx ON public.rh2_authority_principals USING btree (authority_id, address);\n\nCREATE UNIQUE INDEX rh2_authority_sessions_generation_idx ON public.rh2_authority_sessions USING btree (authority_id, principal_id, kind, generation);\n\nCREATE INDEX rh2_authority_sessions_principal_idx ON public.rh2_authority_sessions USING btree (authority_id, principal_id) WHERE (revoked_at IS NULL);\n\nCREATE INDEX rh2_command_receipts_retention_idx ON public.rh2_command_receipts USING btree (created_at);\n\nCREATE UNIQUE INDEX rh2_conversation_participants_base_idx ON public.rh2_conversation_participants USING btree (authority_id, conversation_id) WHERE ((base = true) AND (state = 'active'::text));\n\nCREATE INDEX rh2_durable_operations_due_idx ON public.rh2_durable_operations USING btree (authority_id, next_attempt_at) WHERE (state = ANY (ARRAY['intended'::text, 'attempting'::text]));\n\nCREATE INDEX rh2_edge_access_factor_uses_expiry_idx ON public.rh2_edge_access_factor_uses USING btree (expires_at);\n\nCREATE INDEX rh2_human_assignments_due_idx ON public.rh2_human_assignments USING btree (authority_id, due_at) WHERE ((due_at IS NOT NULL) AND (status = ANY (ARRAY['open'::text, 'claimed'::text])));\n\nCREATE INDEX rh2_human_assignments_provider_idx ON public.rh2_human_assignments USING btree (authority_id, target_organization_id) WHERE (target_organization_id IS NOT NULL);\n\nCREATE INDEX rh2_human_assignments_room_idx ON public.rh2_human_assignments USING btree (authority_id, room_id, status);\n\nCREATE INDEX rh2_job_history_job_idx ON public.rh2_job_history USING btree (authority_id, job_id, at);\n\nCREATE UNIQUE INDEX rh2_job_room_stays_open_idx ON public.rh2_job_room_stays USING btree (authority_id, job_id) WHERE (exited_at IS NULL);\n\nCREATE INDEX rh2_jobs_pool_idx ON public.rh2_jobs USING btree (authority_id, organization_id, project_id, status);\n\nCREATE INDEX rh2_jobs_tenant_state_idx ON public.rh2_jobs USING btree (authority_id, organization_id, project_id, status, created_at DESC, job_id);\n\nCREATE INDEX rh2_memberships_project_idx ON public.rh2_memberships USING btree (authority_id, organization_id, project_id) WHERE (state = 'active'::text);\n\nCREATE INDEX rh2_message_pins_conversation_idx ON public.rh2_message_pins USING btree (authority_id, conversation_id, pinned_at);\n\nCREATE INDEX rh2_notification_deliveries_created_idx ON public.rh2_notification_deliveries USING btree (authority_id, created_at);\n\nCREATE INDEX rh2_outbox_claim_idx ON public.rh2_outbox USING btree (authority_id, available_at, event_id) WHERE (state = ANY (ARRAY['pending'::text, 'processing'::text]));\n\nCREATE INDEX rh2_platform_providers_kind_idx ON public.rh2_platform_providers USING btree (authority_id, kind) WHERE (state = 'active'::text);\n\nCREATE INDEX rh2_push_subscriptions_principal_idx ON public.rh2_push_subscriptions USING btree (authority_id, principal_id);\n\nCREATE INDEX rh2_room_demands_open_idx ON public.rh2_room_demands USING btree (authority_id, created_at) WHERE (state = ANY (ARRAY['open'::text, 'serving'::text]));\n\nCREATE INDEX rh2_room_invitations_idempotency_idx ON public.rh2_room_invitations USING btree (authority_id, room_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);\n\nCREATE INDEX rh2_room_media_requests_room_idx ON public.rh2_room_media_requests USING btree (authority_id, room_id, created_at);\n\nCREATE UNIQUE INDEX rh2_trigger_firings_due_idx ON public.rh2_trigger_firings USING btree (authority_id, trigger_id, due_at) WHERE (due_at IS NOT NULL);\n\nCREATE UNIQUE INDEX rh2_trigger_firings_event_idx ON public.rh2_trigger_firings USING btree (authority_id, trigger_id, outbox_event_id) WHERE (outbox_event_id IS NOT NULL);\n\nCREATE INDEX rh2_webhook_destinations_organization_idx ON public.rh2_webhook_destinations USING btree (authority_id, organization_id) WHERE (state = 'active'::text);\n\nCREATE TRIGGER rh2_authorities_job_state_guard BEFORE INSERT OR UPDATE OF job_authority, state ON public.rh2_authorities FOR EACH ROW EXECUTE FUNCTION public.rh2_enforce_authority_job_state();\n\nCREATE TRIGGER rh2_jobs_authority_guard BEFORE INSERT OR DELETE OR UPDATE ON public.rh2_jobs FOR EACH ROW EXECUTE FUNCTION public.rh2_enforce_normalized_job_authority();\n\nALTER TABLE ONLY public.rh2_account_grants\n    ADD CONSTRAINT rh2_account_grants_account_fkey FOREIGN KEY (authority_id, account_id) REFERENCES public.rh2_vendor_accounts(authority_id, account_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_app_installations\n    ADD CONSTRAINT rh2_app_installations_authority_id_app_id_fkey FOREIGN KEY (authority_id, app_id) REFERENCES public.rh2_apps(authority_id, app_id);\n\nALTER TABLE ONLY public.rh2_artifacts\n    ADD CONSTRAINT rh2_artifacts_authority_id_organization_id_fkey FOREIGN KEY (authority_id, organization_id) REFERENCES public.rh2_organizations(authority_id, organization_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_artifacts\n    ADD CONSTRAINT rh2_artifacts_authority_id_organization_id_project_id_fkey FOREIGN KEY (authority_id, organization_id, project_id) REFERENCES public.rh2_projects(authority_id, organization_id, project_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_artifacts\n    ADD CONSTRAINT rh2_artifacts_parent_fk FOREIGN KEY (authority_id, parent_artifact_id) REFERENCES public.rh2_artifacts(authority_id, artifact_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_attention\n    ADD CONSTRAINT rh2_attention_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_attention\n    ADD CONSTRAINT rh2_attention_authority_id_room_id_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_decision_receipts\n    ADD CONSTRAINT rh2_authority_decision_receipts_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_grants\n    ADD CONSTRAINT rh2_authority_grants_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_grants\n    ADD CONSTRAINT rh2_authority_grants_principal_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_grants\n    ADD CONSTRAINT rh2_authority_grants_source_fkey FOREIGN KEY (authority_id, source_grant_id) REFERENCES public.rh2_authority_grants(authority_id, grant_id) ON DELETE SET NULL;\n\nALTER TABLE ONLY public.rh2_authority_principal_organizations\n    ADD CONSTRAINT rh2_authority_principal_organizations_organization_fkey FOREIGN KEY (authority_id, organization_id) REFERENCES public.rh2_organizations(authority_id, organization_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_principal_organizations\n    ADD CONSTRAINT rh2_authority_principal_organizations_principal_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_principals\n    ADD CONSTRAINT rh2_authority_principals_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_principals\n    ADD CONSTRAINT rh2_authority_principals_replaced_by_fkey FOREIGN KEY (authority_id, replaced_by_principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE SET NULL;\n\nALTER TABLE ONLY public.rh2_authority_sessions\n    ADD CONSTRAINT rh2_authority_sessions_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_sessions\n    ADD CONSTRAINT rh2_authority_sessions_principal_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_authority_sessions\n    ADD CONSTRAINT rh2_authority_sessions_represented_fkey FOREIGN KEY (authority_id, represented_principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_command_receipts\n    ADD CONSTRAINT rh2_command_receipts_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_consumer_receipts\n    ADD CONSTRAINT rh2_consumer_receipts_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_consumer_receipts\n    ADD CONSTRAINT rh2_consumer_receipts_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.rh2_outbox(event_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_controller_cursors\n    ADD CONSTRAINT rh2_controller_cursors_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_conversation_messages\n    ADD CONSTRAINT rh2_conversation_messages_conversation_fkey FOREIGN KEY (authority_id, conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_conversation_messages\n    ADD CONSTRAINT rh2_conversation_messages_parent_fkey FOREIGN KEY (authority_id, parent_message_id) REFERENCES public.rh2_conversation_messages(authority_id, message_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_conversation_notification_settings\n    ADD CONSTRAINT rh2_conversation_notification_authority_id_conversation_id_fkey FOREIGN KEY (authority_id, conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_conversation_notification_settings\n    ADD CONSTRAINT rh2_conversation_notification_se_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_conversation_participants\n    ADD CONSTRAINT rh2_conversation_participants_conversation_fkey FOREIGN KEY (authority_id, conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_conversation_participants\n    ADD CONSTRAINT rh2_conversation_participants_principal_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_conversation_presence\n    ADD CONSTRAINT rh2_conversation_presence_authority_id_conversation_id_fkey FOREIGN KEY (authority_id, conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id);\n\nALTER TABLE ONLY public.rh2_conversation_presence\n    ADD CONSTRAINT rh2_conversation_presence_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_conversation_read_boundaries\n    ADD CONSTRAINT rh2_conversation_read_boundaries_conversation_fkey FOREIGN KEY (authority_id, conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_conversation_read_boundaries\n    ADD CONSTRAINT rh2_conversation_read_boundaries_message_fkey FOREIGN KEY (authority_id, last_read_message_id) REFERENCES public.rh2_conversation_messages(authority_id, message_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_conversation_triggers\n    ADD CONSTRAINT rh2_conversation_triggers_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_conversations\n    ADD CONSTRAINT rh2_conversations_anchor_fkey FOREIGN KEY (authority_id, anchor_conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_conversations\n    ADD CONSTRAINT rh2_conversations_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_durable_operations\n    ADD CONSTRAINT rh2_durable_operations_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_edge_access_factor_uses\n    ADD CONSTRAINT rh2_edge_access_factor_uses_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_human_assignment_events\n    ADD CONSTRAINT rh2_human_assignment_events_assignment_fkey FOREIGN KEY (authority_id, assignment_id) REFERENCES public.rh2_human_assignments(authority_id, assignment_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_human_assignments\n    ADD CONSTRAINT rh2_human_assignments_conversation_fkey FOREIGN KEY (authority_id, conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_human_assignments\n    ADD CONSTRAINT rh2_human_assignments_criterion_fkey FOREIGN KEY (authority_id, criterion_id) REFERENCES public.rh2_job_criteria(authority_id, criterion_id) ON DELETE SET NULL (criterion_id);\n\nALTER TABLE ONLY public.rh2_human_assignments\n    ADD CONSTRAINT rh2_human_assignments_job_fkey FOREIGN KEY (authority_id, job_id) REFERENCES public.rh2_jobs(authority_id, job_id) ON DELETE SET NULL (job_id);\n\nALTER TABLE ONLY public.rh2_human_assignments\n    ADD CONSTRAINT rh2_human_assignments_message_fkey FOREIGN KEY (authority_id, message_id) REFERENCES public.rh2_conversation_messages(authority_id, message_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_human_assignments\n    ADD CONSTRAINT rh2_human_assignments_role_fkey FOREIGN KEY (authority_id, target_role_id) REFERENCES public.rh2_room_roles(authority_id, role_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_human_assignments\n    ADD CONSTRAINT rh2_human_assignments_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_job_criteria\n    ADD CONSTRAINT rh2_job_criteria_job_fkey FOREIGN KEY (authority_id, job_id) REFERENCES public.rh2_jobs(authority_id, job_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_job_criterion_decisions\n    ADD CONSTRAINT rh2_job_criterion_decisions_criterion_fkey FOREIGN KEY (authority_id, criterion_id) REFERENCES public.rh2_job_criteria(authority_id, criterion_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_job_history\n    ADD CONSTRAINT rh2_job_history_job_fkey FOREIGN KEY (authority_id, job_id) REFERENCES public.rh2_jobs(authority_id, job_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_job_result_shares\n    ADD CONSTRAINT rh2_job_result_shares_job_fkey FOREIGN KEY (authority_id, job_id) REFERENCES public.rh2_jobs(authority_id, job_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_job_results\n    ADD CONSTRAINT rh2_job_results_job_fkey FOREIGN KEY (authority_id, job_id) REFERENCES public.rh2_jobs(authority_id, job_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_job_room_stays\n    ADD CONSTRAINT rh2_job_room_stays_job_fkey FOREIGN KEY (authority_id, job_id) REFERENCES public.rh2_jobs(authority_id, job_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_job_room_stays\n    ADD CONSTRAINT rh2_job_room_stays_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_jobs\n    ADD CONSTRAINT rh2_jobs_authority_id_organization_id_project_id_fkey FOREIGN KEY (authority_id, organization_id, project_id) REFERENCES public.rh2_projects(authority_id, organization_id, project_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_jobs\n    ADD CONSTRAINT rh2_jobs_room_fk FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) DEFERRABLE INITIALLY DEFERRED;\n\nALTER TABLE ONLY public.rh2_livekit_webhook_receipts\n    ADD CONSTRAINT rh2_livekit_webhook_receipts_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_livekit_webhook_receipts\n    ADD CONSTRAINT rh2_livekit_webhook_receipts_authority_id_publication_id_fkey FOREIGN KEY (authority_id, publication_id) REFERENCES public.rh2_media_publications(authority_id, publication_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_memberships\n    ADD CONSTRAINT rh2_memberships_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_memberships\n    ADD CONSTRAINT rh2_memberships_principal_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_memberships\n    ADD CONSTRAINT rh2_memberships_project_fkey FOREIGN KEY (authority_id, organization_id, project_id) REFERENCES public.rh2_projects(authority_id, organization_id, project_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_memberships\n    ADD CONSTRAINT rh2_memberships_role_fkey FOREIGN KEY (authority_id, organization_id, role) REFERENCES public.rh2_roles(authority_id, organization_id, role) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_memberships\n    ADD CONSTRAINT rh2_memberships_standing_fkey FOREIGN KEY (authority_id, principal_id, organization_id) REFERENCES public.rh2_authority_principal_organizations(authority_id, principal_id, organization_id);\n\nALTER TABLE ONLY public.rh2_message_pins\n    ADD CONSTRAINT rh2_message_pins_authority_id_conversation_id_fkey FOREIGN KEY (authority_id, conversation_id) REFERENCES public.rh2_conversations(authority_id, conversation_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_message_pins\n    ADD CONSTRAINT rh2_message_pins_authority_id_message_id_fkey FOREIGN KEY (authority_id, message_id) REFERENCES public.rh2_conversation_messages(authority_id, message_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_message_pins\n    ADD CONSTRAINT rh2_message_pins_authority_id_pinned_by_principal_id_fkey FOREIGN KEY (authority_id, pinned_by_principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_message_reactions\n    ADD CONSTRAINT rh2_message_reactions_authority_id_message_id_fkey FOREIGN KEY (authority_id, message_id) REFERENCES public.rh2_conversation_messages(authority_id, message_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_message_reactions\n    ADD CONSTRAINT rh2_message_reactions_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_organizations\n    ADD CONSTRAINT rh2_organizations_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_outbox\n    ADD CONSTRAINT rh2_outbox_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_person_notification_preferences\n    ADD CONSTRAINT rh2_person_notification_preferen_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_person_records\n    ADD CONSTRAINT rh2_person_records_principal_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_platform_providers\n    ADD CONSTRAINT rh2_platform_providers_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_projects\n    ADD CONSTRAINT rh2_projects_authority_id_organization_id_fkey FOREIGN KEY (authority_id, organization_id) REFERENCES public.rh2_organizations(authority_id, organization_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_push_subscriptions\n    ADD CONSTRAINT rh2_push_subscriptions_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_roles\n    ADD CONSTRAINT rh2_roles_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_roles\n    ADD CONSTRAINT rh2_roles_organization_fkey FOREIGN KEY (authority_id, organization_id) REFERENCES public.rh2_organizations(authority_id, organization_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_demands\n    ADD CONSTRAINT rh2_room_demands_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_invitations\n    ADD CONSTRAINT rh2_room_invitations_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_media_requests\n    ADD CONSTRAINT rh2_room_media_requests_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_room_media_requests\n    ADD CONSTRAINT rh2_room_media_requests_authority_id_requested_by_fkey FOREIGN KEY (authority_id, requested_by) REFERENCES public.rh2_authority_principals(authority_id, principal_id);\n\nALTER TABLE ONLY public.rh2_room_media_requests\n    ADD CONSTRAINT rh2_room_media_requests_authority_id_room_id_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id);\n\nALTER TABLE ONLY public.rh2_room_members\n    ADD CONSTRAINT rh2_room_members_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_members\n    ADD CONSTRAINT rh2_room_members_standing_fkey FOREIGN KEY (authority_id, principal_id, organization_id) REFERENCES public.rh2_authority_principal_organizations(authority_id, principal_id, organization_id);\n\nALTER TABLE ONLY public.rh2_room_presets\n    ADD CONSTRAINT rh2_room_presets_organization_fkey FOREIGN KEY (authority_id, organization_id) REFERENCES public.rh2_organizations(authority_id, organization_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_role_assignments\n    ADD CONSTRAINT rh2_room_role_assignments_member_fkey FOREIGN KEY (authority_id, room_id, principal_id) REFERENCES public.rh2_room_members(authority_id, room_id, principal_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_role_assignments\n    ADD CONSTRAINT rh2_room_role_assignments_role_fkey FOREIGN KEY (authority_id, role_id) REFERENCES public.rh2_room_roles(authority_id, role_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_roles\n    ADD CONSTRAINT rh2_room_roles_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_room_surfaces\n    ADD CONSTRAINT rh2_room_surfaces_room_fkey FOREIGN KEY (authority_id, room_id) REFERENCES public.rh2_rooms(authority_id, room_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_rooms\n    ADD CONSTRAINT rh2_rooms_authority_id_job_id_fkey FOREIGN KEY (authority_id, job_id) REFERENCES public.rh2_jobs(authority_id, job_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_rooms\n    ADD CONSTRAINT rh2_rooms_authority_id_organization_id_project_id_fkey FOREIGN KEY (authority_id, organization_id, project_id) REFERENCES public.rh2_projects(authority_id, organization_id, project_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_secret_envelopes\n    ADD CONSTRAINT rh2_secret_envelopes_authority_id_fkey FOREIGN KEY (authority_id) REFERENCES public.rh2_authorities(authority_id) ON DELETE RESTRICT;\n\nALTER TABLE ONLY public.rh2_trigger_firings\n    ADD CONSTRAINT rh2_trigger_firings_trigger_fkey FOREIGN KEY (authority_id, trigger_id) REFERENCES public.rh2_conversation_triggers(authority_id, trigger_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_vendor_accounts\n    ADD CONSTRAINT rh2_vendor_accounts_organization_fkey FOREIGN KEY (authority_id, organization_id) REFERENCES public.rh2_organizations(authority_id, organization_id) ON DELETE CASCADE;\n\nALTER TABLE ONLY public.rh2_webhook_destinations\n    ADD CONSTRAINT rh2_webhook_destinations_authority_id_principal_id_fkey FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id);\n\n"
+  },
+  {
+   "name": "It records migration 71 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "e15eb7f4740622c7583891a38b18dd07384d6c7fa47a7bafb6d5991e8f09ba68",
+    "the platform schema",
+    "71"
+   ]
+  },
+  {
+   "name": "It commits migration 71 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 72's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 72, \"slash commands: an app declares the commands it answers, and each invocation is recorded for the app to answer once delivered\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_apps ADD COLUMN commands jsonb DEFAULT '[]'::jsonb NOT NULL;\nCREATE TABLE public.rh2_command_invocations (\n    authority_id text NOT NULL,\n    invocation_id text NOT NULL,\n    app_id text NOT NULL,\n    installation_id text NOT NULL,\n    organization_id text NOT NULL,\n    room_id text NOT NULL,\n    conversation_id text NOT NULL,\n    principal_id text NOT NULL,\n    command text NOT NULL,\n    text text DEFAULT ''::text NOT NULL,\n    responses integer DEFAULT 0 NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    PRIMARY KEY (authority_id, invocation_id),\n    CHECK (length(text) <= 4000),\n    CHECK (responses >= 0)\n);\nCREATE INDEX rh2_command_invocations_app_idx ON public.rh2_command_invocations (authority_id, app_id, created_at);\n"
+  },
+  {
+   "name": "It records migration 72 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "c0d1a3f54f30dcce52ca96ae7f4bc505b0d6d7f97a750fc99ac0ddf5275737a9",
+    "slash commands: an app declares the commands it answers, and each invocation is recorded for the app to answer once delivered",
+    "72"
+   ]
+  },
+  {
+   "name": "It commits migration 72 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 73's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 73, \"the mobile app's push tokens: a person's phone is told of what waits for them as their browser is (Web Push), through the push token the app registered\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE TABLE public.rh2_device_push_tokens (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    token text NOT NULL,\n    platform text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    PRIMARY KEY (authority_id, token),\n    FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE,\n    CHECK (length(token) >= 1 AND length(token) <= 256),\n    CHECK (platform IN ('ios', 'android'))\n);\nCREATE INDEX rh2_device_push_tokens_principal_idx ON public.rh2_device_push_tokens (authority_id, principal_id);\n"
+  },
+  {
+   "name": "It records migration 73 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "ba44ddacb876da3840ddfddbaf291e062a68d1d8c17479e07bd8a28f09186b22",
+    "the mobile app's push tokens: a person's phone is told of what waits for them as their browser is (Web Push), through the push token the app registered",
+    "73"
+   ]
+  },
+  {
+   "name": "It commits migration 73 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 74's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 74, \"linked Conversations: a bot's line may carry the external person it bridges, and a Conversation the channel it is linked to\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_conversation_messages ADD COLUMN bridged_author jsonb;\nALTER TABLE public.rh2_conversations ADD COLUMN external_link jsonb;\n"
+  },
+  {
+   "name": "It records migration 74 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "91ac358bb6b32dd06fa4566de608d1a1b9afe88d7422090bc2ce85cc396b2b9c",
+    "linked Conversations: a bot's line may carry the external person it bridges, and a Conversation the channel it is linked to",
+    "74"
+   ]
+  },
+  {
+   "name": "It commits migration 74 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 75's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 75, \"message shortcuts: an app's shortcut taken on a message records which message\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_command_invocations ADD COLUMN message_id text;\n"
+  },
+  {
+   "name": "It records migration 75 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "ec25efdc52c43252883dc4dc48d7b4f23cc8fea3171cad110adbc100305716f8",
+    "message shortcuts: an app's shortcut taken on a message records which message",
+    "75"
+   ]
+  },
+  {
+   "name": "It commits migration 75 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 76's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 76, \"an organization's name, as its document declares it (its id stays its address)\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_organizations ADD COLUMN name text;\n"
+  },
+  {
+   "name": "It records migration 76 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "cf9a5abd431bd3ce120bf9baf8afc6ac7d3b29e8a3399266c2a06c497bfedeb6",
+    "an organization's name, as its document declares it (its id stays its address)",
+    "76"
+   ]
+  },
+  {
+   "name": "It commits migration 76 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 77's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 77, \"closing an organization: when, by whom (its records stay; its id is never taken again)\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_organizations ADD COLUMN closed_at timestamp with time zone;\nALTER TABLE public.rh2_organizations ADD COLUMN closed_by text;\n"
+  },
+  {
+   "name": "It records migration 77 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "00d32559d2cb3aa3d2779e8934c708ebefd7fb85528787d2b1a404127b19794e",
+    "closing an organization: when, by whom (its records stay; its id is never taken again)",
+    "77"
+   ]
+  },
+  {
+   "name": "It commits migration 77 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 78's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 78, \"an organization's own sign-in connections (OIDC): its issuer and client, the client secret sealed, the e-mail domains it speaks for\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE TABLE public.rh2_organization_sign_in_connections (\n    authority_id text NOT NULL,\n    organization_id text NOT NULL,\n    connection_key text NOT NULL,\n    name text NOT NULL,\n    issuer text NOT NULL,\n    client_id text NOT NULL,\n    client_secret_id text NOT NULL,\n    domains text[] NOT NULL,\n    state text DEFAULT 'active'::text NOT NULL,\n    created_by text NOT NULL,\n    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    updated_by text NOT NULL,\n    updated_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    PRIMARY KEY (authority_id, organization_id, connection_key),\n    CHECK (connection_key ~ '^[a-z][a-z0-9-]{0,31}$'),\n    CHECK (length(name) BETWEEN 1 AND 80),\n    CHECK (issuer ~ '^https://' AND length(issuer) <= 512),\n    CHECK (length(client_id) BETWEEN 1 AND 256),\n    CHECK (cardinality(domains) BETWEEN 1 AND 20),\n    CHECK (state = ANY (ARRAY['active'::text, 'retired'::text])),\n    CHECK (version > 0)\n);\n"
+  },
+  {
+   "name": "It records migration 78 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "bdb5703a33e2a0768ffb3a78372344cc4e26063d941abed66117983ae3bb8fd7",
+    "an organization's own sign-in connections (OIDC): its issuer and client, the client secret sealed, the e-mail domains it speaks for",
+    "78"
+   ]
+  },
+  {
+   "name": "It commits migration 78 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 79's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 79, \"an invitation may name the Request it brings a person to: claiming it opens that Request\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_room_invitations ADD COLUMN request_id text;\n"
+  },
+  {
+   "name": "It records migration 79 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "67550dad6dee15baf687ba925238ef6803d659f328473ea4cf203c51102d3096",
+    "an invitation may name the Request it brings a person to: claiming it opens that Request",
+    "79"
+   ]
+  },
+  {
+   "name": "It commits migration 79 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 80's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 80, \"when a principal last spoke: the console shows an agent that has gone quiet (a mention of it may not be answered)\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE INDEX rh2_conversation_messages_author_idx ON public.rh2_conversation_messages (authority_id, author_principal_id, created_at DESC);\n"
+  },
+  {
+   "name": "It records migration 80 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "6d26f84a7f59b3ea0e3363387414ae2be69ed5b09c10779a8d65d5229df05af1",
+    "when a principal last spoke: the console shows an agent that has gone quiet (a mention of it may not be answered)",
+    "80"
+   ]
+  },
+  {
+   "name": "It commits migration 80 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 81's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 81, \"a job agent's model usage, reported per call by who runs it: the market prices a provider's agent as it prices a provider's person\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE TABLE public.rh2_agent_usage (\n    authority_id text NOT NULL,\n    principal_id text NOT NULL,\n    usage_id text NOT NULL,\n    room_id text NOT NULL,\n    organization_id text NOT NULL,\n    request_id text,\n    reported_by_principal_id text NOT NULL,\n    provider text NOT NULL,\n    model text NOT NULL,\n    input_tokens bigint DEFAULT 0 NOT NULL,\n    cached_tokens bigint DEFAULT 0 NOT NULL,\n    output_tokens bigint DEFAULT 0 NOT NULL,\n    cost_usd numeric(14,6),\n    at timestamp with time zone NOT NULL,\n    recorded_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    PRIMARY KEY (authority_id, principal_id, usage_id),\n    CHECK (length(usage_id) BETWEEN 1 AND 128),\n    CHECK (length(provider) BETWEEN 1 AND 160 AND length(model) BETWEEN 1 AND 160),\n    CHECK (input_tokens >= 0 AND cached_tokens >= 0 AND output_tokens >= 0),\n    CHECK (cost_usd IS NULL OR cost_usd >= 0)\n);\nCREATE INDEX rh2_agent_usage_organization_at_idx ON public.rh2_agent_usage (authority_id, organization_id, at);\n"
+  },
+  {
+   "name": "It records migration 81 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "84f344208d8f165559ea7252f55dc54689a1eb09043dc537ca4f18bb67436c23",
+    "a job agent's model usage, reported per call by who runs it: the market prices a provider's agent as it prices a provider's person",
+    "81"
+   ]
+  },
+  {
+   "name": "It commits migration 81 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 82's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 82, \"a Conversation bound to an agent session (ADR 0008): the Room reads the session's transcript from its Teams server, and typing sends the session a turn\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_conversations ADD COLUMN session_binding jsonb;\n"
+  },
+  {
+   "name": "It records migration 82 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "d0ccd827953359448501015e2f4828d0bf4cf929806a58defc623676abda97f8",
+    "a Conversation bound to an agent session (ADR 0008): the Room reads the session's transcript from its Teams server, and typing sends the session a turn",
+    "82"
+   ]
+  },
+  {
+   "name": "It commits migration 82 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 83's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 83, \"an agent in a Room's call: whether it joins whenever a person is in the call (auto) or only when someone invites it (invited, the default), and the invitation (Meet's companion, Discord's summoned bot)\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_room_members ADD COLUMN call_mode text;\nALTER TABLE public.rh2_room_members ADD COLUMN call_invited_at timestamp with time zone;\nALTER TABLE public.rh2_room_members ADD COLUMN call_invited_by text;\n"
+  },
+  {
+   "name": "It records migration 83 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "f0f00aeed17fef647d98f13b07a214d210e0e728fc2c446a5fbd3e32f7395bb8",
+    "an agent in a Room's call: whether it joins whenever a person is in the call (auto) or only when someone invites it (invited, the default), and the invitation (Meet's companion, Discord's summoned bot)",
+    "83"
+   ]
+  },
+  {
+   "name": "It commits migration 83 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 84's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 84, \"a person's work in a Room, minute by minute (Slack's and Hubstaff's activity record): what their Room page saw them do in each minute, the evidence each billed minute of a seat carries\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE TABLE public.rh2_room_activity (\n    authority_id text NOT NULL,\n    room_id text NOT NULL,\n    principal_id text NOT NULL,\n    minute timestamp with time zone NOT NULL,\n    signals text[] NOT NULL,\n    PRIMARY KEY (authority_id, room_id, principal_id, minute)\n);\n"
+  },
+  {
+   "name": "It records migration 84 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "e86457cd6500581ebc81e81b8a5e27ed7d0ec77b69f10aa7a03cdae995ea94c8",
+    "a person's work in a Room, minute by minute (Slack's and Hubstaff's activity record): what their Room page saw them do in each minute, the evidence each billed minute of a seat carries",
+    "84"
+   ]
+  },
+  {
+   "name": "It commits migration 84 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 85's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 85, \"an organization's applied document (RFC 0015, Terraform's state file): the last document every step of whose apply succeeded, its git sha, its version, when and by whom, and the keys it manages (what it declared, and what earlier documents declared that still stands until it is removed) — the declared side a plan diffs against and every admin page shows beside live\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_organizations ADD COLUMN document jsonb;\nALTER TABLE public.rh2_organizations ADD COLUMN document_sha text;\nALTER TABLE public.rh2_organizations ADD COLUMN document_version bigint DEFAULT 0 NOT NULL;\nALTER TABLE public.rh2_organizations ADD COLUMN document_applied_at timestamp with time zone;\nALTER TABLE public.rh2_organizations ADD COLUMN document_applied_by text;\nALTER TABLE public.rh2_organizations ADD COLUMN document_keys text[] DEFAULT '{}'::text[] NOT NULL;\n"
+  },
+  {
+   "name": "It records migration 85 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "cf18376a311e08654da86cbbfae1cbb517696a17f871559048a16fead3c9bf8a",
+    "an organization's applied document (RFC 0015, Terraform's state file): the last document every step of whose apply succeeded, its git sha, its version, when and by whom, and the keys it manages (what it declared, and what earlier documents declared that still stands until it is removed) — the declared side a plan diffs against and every admin page shows beside live",
+    "85"
+   ]
+  },
+  {
+   "name": "It commits migration 85 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 86's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 86, \"a Request to an organization names the agreement it is served under (RFC 0015 unit 7, RFC 0014 unit 4): an opaque reference the core stores and returns and never interprets, the market's to check\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_human_assignments ADD COLUMN provider_agreement_id text;\n"
+  },
+  {
+   "name": "It records migration 86 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "64d7a24240653080a3c549613fac6c0502fa24124c61f2351c59d846b2ad054e",
+    "a Request to an organization names the agreement it is served under (RFC 0015 unit 7, RFC 0014 unit 4): an opaque reference the core stores and returns and never interprets, the market's to check",
+    "86"
+   ]
+  },
+  {
+   "name": "It commits migration 86 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 87's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 87, \"a Conversation closed and kept (Slack's archive): its history stays readable, it takes no new lines, and it leaves the Room's list\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_conversations ADD COLUMN closed_at timestamp with time zone;\nALTER TABLE public.rh2_conversations ADD COLUMN closed_by text;\n"
+  },
+  {
+   "name": "It records migration 87 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "ca04b38a6eb83536896fd97acaf922d8e5598f6fdd5204822194fc3f303f52d9",
+    "a Conversation closed and kept (Slack's archive): its history stays readable, it takes no new lines, and it leaves the Room's list",
+    "87"
+   ]
+  },
+  {
+   "name": "It commits migration 87 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 88's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 88, \"one ontology (RFC 0016): an organization's applied document names its people (each one entry: address, name, role, agent) where it named principals and seats, and a preset's default Conversation is its first unless it names another (defaultConversation) and its roles' order is their position; the Request's agreement column of the market's time leaves the core, its four stale values kept as the agreement each Request names (provider_agreement_id)\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nUPDATE public.rh2_organizations AS org\n   SET document = (org.document - 'principals' - 'seats') || jsonb_build_object('people', (\n     SELECT coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(\n              'address', principal.value->>'address',\n              'name', principal.value->>'displayName',\n              'role', (SELECT seat.value->>'role' FROM jsonb_array_elements(coalesce(org.document->'seats', '[]'::jsonb)) AS seat(value) WHERE seat.value->>'address' = principal.value->>'address' LIMIT 1),\n              'agent', principal.value->'agent')) ORDER BY principal.ordinality), '[]'::jsonb)\n       FROM jsonb_array_elements(coalesce(org.document->'principals', '[]'::jsonb)) WITH ORDINALITY AS principal(value, ordinality)))\n WHERE org.document ? 'principals' OR org.document ? 'seats';\nUPDATE public.rh2_organizations AS org\n   SET document = jsonb_set(org.document, '{presets}', (\n     SELECT jsonb_object_agg(preset.key,\n              (preset.value - 'defaultConversationKey' - 'roles')\n              || CASE WHEN preset.value->>'defaultConversationKey' IS NULL OR preset.value->>'defaultConversationKey' = preset.value->'conversations'->0->>'key' THEN '{}'::jsonb\n                      ELSE jsonb_build_object('defaultConversation', preset.value->>'defaultConversationKey') END\n              || CASE WHEN jsonb_typeof(preset.value->'roles') = 'array' THEN jsonb_build_object('roles', (SELECT coalesce(jsonb_agg(role.value - 'position' ORDER BY role.ordinality), '[]'::jsonb) FROM jsonb_array_elements(preset.value->'roles') WITH ORDINALITY AS role(value, ordinality)))\n                      ELSE '{}'::jsonb END)\n       FROM jsonb_each(org.document->'presets') AS preset(key, value)))\n WHERE jsonb_typeof(org.document->'presets') = 'object' AND org.document->'presets' <> '{}'::jsonb;\nDO $$\nBEGIN\n  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'rh2_human_assignments' AND column_name = 'agreement_id') THEN\n    EXECUTE 'UPDATE public.rh2_human_assignments SET provider_agreement_id = agreement_id WHERE provider_agreement_id IS NULL AND agreement_id IS NOT NULL';\n    EXECUTE 'ALTER TABLE public.rh2_human_assignments DROP COLUMN agreement_id';\n  END IF;\nEND $$;\n"
+  },
+  {
+   "name": "It records migration 88 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "671944567f066fab7bfcb7babf0b0a87ac9bd1c4aab57da4be5210ba27deb736",
+    "one ontology (RFC 0016): an organization's applied document names its people (each one entry: address, name, role, agent) where it named principals and seats, and a preset's default Conversation is its first unless it names another (defaultConversation) and its roles' order is their position; the Request's agreement column of the market's time leaves the core, its four stale values kept as the agreement each Request names (provider_agreement_id)",
+    "88"
+   ]
+  },
+  {
+   "name": "It commits migration 88 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 89's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 89, \"an organization's file names its members (a person or an agent, each one entry) where it named its people: the applied documents follow; and a preset's roles carry no position, their order being the order they are written in\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nUPDATE public.rh2_organizations\n   SET document = (document - 'people') || jsonb_build_object('members', document->'people')\n WHERE document ? 'people';\nUPDATE public.rh2_room_presets\n   SET roles = (SELECT jsonb_agg(role.value - 'position' ORDER BY role.ordinality) FROM jsonb_array_elements(roles) WITH ORDINALITY AS role(value, ordinality))\n WHERE jsonb_typeof(roles) = 'array' AND EXISTS (SELECT 1 FROM jsonb_array_elements(roles) AS role(value) WHERE role.value ? 'position');\n"
+  },
+  {
+   "name": "It records migration 89 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "eeedd1ed565f259f863cccfbc1314883092f906197805f4c6d8489fe644df2d0",
+    "an organization's file names its members (a person or an agent, each one entry) where it named its people: the applied documents follow; and a preset's roles carry no position, their order being the order they are written in",
+    "89"
+   ]
+  },
+  {
+   "name": "It commits migration 89 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 90's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 90, \"ADR 0020 C2: a task can be decomposed by its holder into child tasks\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_human_assignments ADD COLUMN parent_task_id text;\nCREATE INDEX rh2_task_parent_idx ON public.rh2_human_assignments (authority_id, parent_task_id) WHERE parent_task_id IS NOT NULL;\n"
+  },
+  {
+   "name": "It records migration 90 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "a75116e752606b3f954be94454fda1046cac1b4708f514ea55d4d3c34b84f81e",
+    "ADR 0020 C2: a task can be decomposed by its holder into child tasks",
+    "90"
+   ]
+  },
+  {
+   "name": "It commits migration 90 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 91's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 91, \"Room voice floor and server-timed hosted awake intervals\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE TABLE public.rh2_voice_rooms (\n  authority_id text NOT NULL,\n  room_id text NOT NULL,\n  state jsonb NOT NULL DEFAULT '{}'::jsonb,\n  PRIMARY KEY (authority_id, room_id)\n);\nCREATE TABLE public.rh2_voice_usage (\n  authority_id text NOT NULL,\n  room_id text NOT NULL,\n  organization_id text NOT NULL,\n  principal_id text NOT NULL,\n  session_id text NOT NULL,\n  provider text NOT NULL,\n  started_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n  heartbeat_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n  ended_at timestamptz,\n  awake_ms bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (authority_id, room_id, principal_id, session_id)\n);\nCREATE INDEX rh2_voice_usage_organization ON public.rh2_voice_usage (authority_id, organization_id, started_at);\n"
+  },
+  {
+   "name": "It records migration 91 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "cb73b14b589096ab2ea455d5776f8a6356d149bd0f4a18b3a769d22b76a25860",
+    "Room voice floor and server-timed hosted awake intervals",
+    "91"
+   ]
+  },
+  {
+   "name": "It commits migration 91 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 92's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 92, \"ADR 0020 C3: typed task form values and return definition\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_human_assignments ADD COLUMN form_definition jsonb;\nALTER TABLE public.rh2_human_assignments ADD COLUMN form_fields jsonb;\nALTER TABLE public.rh2_human_assignments ADD COLUMN returns_definition jsonb;\n"
+  },
+  {
+   "name": "It records migration 92 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "24f20d2577201d307af08fe9d0b95184e55bf0bdd5ae4b26c88ae713621a4b50",
+    "ADR 0020 C3: typed task form values and return definition",
+    "92"
+   ]
+  },
+  {
+   "name": "It commits migration 92 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 93's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 93, \"ADR 0020 C5: canonical Task storage for composition, acceptance, answers and history\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE TABLE public.rh2_tasks (\n  authority_id text NOT NULL,\n  task_id text NOT NULL,\n  organization_id text NOT NULL,\n  parent_task_id text,\n  room_id text,\n  conversation_id text,\n  message_id text,\n  title text NOT NULL,\n  instructions text NOT NULL,\n  form_definition jsonb,\n  form_fields jsonb NOT NULL DEFAULT '{}'::jsonb,\n  returns_definition jsonb,\n  response_definition jsonb,\n  criterion_id text,\n  target_kind text NOT NULL DEFAULT 'any-member',\n  target_principal_id text,\n  target_role_id text,\n  target_organization_id text,\n  assignee_principal_id text,\n  assigned_at timestamptz,\n  assignee_conversation_id text,\n  assignee_room_id text,\n  assignee_version bigint NOT NULL DEFAULT 0,\n  answer jsonb,\n  answered_by_principal_id text,\n  answered_at timestamptz,\n  answer_id text,\n  due_at timestamptz,\n  status text NOT NULL DEFAULT 'open',\n  closed_status text,\n  closed_note text,\n  from_contract text,\n  blocked_by text,\n  waiting_on text,\n  priority text NOT NULL DEFAULT 'normal',\n  created_by_principal_id text NOT NULL,\n  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n  updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n  version bigint NOT NULL DEFAULT 1,\n  correlation_id text,\n  idempotency_key text,\n  idempotency_fingerprint text,\n  PRIMARY KEY (authority_id, task_id),\n  CHECK (parent_task_id IS NULL OR parent_task_id <> task_id),\n  CHECK (blocked_by IS NULL OR blocked_by <> task_id),\n  CHECK (blocked_by IS NULL OR waiting_on IS NULL),\n  CHECK (version > 0)\n);\nCREATE INDEX rh2_tasks_parent ON public.rh2_tasks (authority_id, parent_task_id);\nCREATE INDEX rh2_tasks_room ON public.rh2_tasks (authority_id, room_id, created_at);\nCREATE INDEX rh2_tasks_organization ON public.rh2_tasks (authority_id, organization_id, status, created_at);\nCREATE INDEX rh2_tasks_provider ON public.rh2_tasks (authority_id, target_organization_id, status, created_at);\nCREATE INDEX rh2_tasks_assignee ON public.rh2_tasks (authority_id, assignee_principal_id, status);\nCREATE TABLE public.rh2_task_history (\n  authority_id text NOT NULL, history_id text NOT NULL, task_id text NOT NULL,\n  kind text NOT NULL, actor_principal_id text NOT NULL, at timestamptz NOT NULL,\n  correlation_id text NOT NULL, payload jsonb NOT NULL DEFAULT '{}'::jsonb,\n  PRIMARY KEY (authority_id, history_id)\n);\nCREATE INDEX rh2_task_history_task ON public.rh2_task_history (authority_id, task_id, at);\nCREATE TABLE public.rh2_task_acceptance (\n  authority_id text NOT NULL, criterion_id text NOT NULL, task_id text NOT NULL,\n  criterion_key text NOT NULL, title text NOT NULL, status text NOT NULL DEFAULT 'pending',\n  evidence text, position integer NOT NULL DEFAULT 0, version bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (authority_id, criterion_id), UNIQUE (authority_id, task_id, criterion_key)\n);\nCREATE TABLE public.rh2_task_acceptance_decisions (\n  authority_id text NOT NULL, decision_id text NOT NULL, criterion_id text NOT NULL, task_id text NOT NULL,\n  action text NOT NULL, actor_principal_id text NOT NULL, at timestamptz NOT NULL,\n  correlation_id text NOT NULL, evidence text NOT NULL, observation text NOT NULL,\n  reason_code text NOT NULL, artifact_ids text[] NOT NULL DEFAULT '{}', version bigint NOT NULL,\n  PRIMARY KEY (authority_id, decision_id)\n);\nCREATE TABLE public.rh2_task_answers (\n  authority_id text NOT NULL, answer_id text NOT NULL, task_id text NOT NULL,\n  outcome text NOT NULL, summary text NOT NULL, artifact_ids text[] NOT NULL DEFAULT '{}',\n  accepted_criterion_ids text[] NOT NULL DEFAULT '{}', failed_criterion_ids text[] NOT NULL DEFAULT '{}',\n  waived_criterion_ids text[] NOT NULL DEFAULT '{}', actor_principal_id text NOT NULL,\n  correlation_id text NOT NULL, created_at timestamptz NOT NULL,\n  PRIMARY KEY (authority_id, answer_id)\n);\nCREATE TABLE public.rh2_task_answer_shares (\n  authority_id text NOT NULL, share_id text NOT NULL, task_id text NOT NULL, answer_id text NOT NULL,\n  token_digest text NOT NULL, created_by_principal_id text NOT NULL, created_at timestamptz NOT NULL,\n  expires_at timestamptz NOT NULL, revoked_at timestamptz, revoked_by_principal_id text,\n  PRIMARY KEY (authority_id, share_id), UNIQUE (authority_id, token_digest)\n);\nCREATE TABLE public.rh2_task_room_stays (\n  authority_id text NOT NULL, stay_id text NOT NULL, task_id text NOT NULL, room_id text NOT NULL,\n  entered_at timestamptz NOT NULL, entered_by_principal_id text NOT NULL,\n  exited_at timestamptz, exited_by_principal_id text,\n  PRIMARY KEY (authority_id, stay_id)\n);\nCREATE TABLE public.rh2_data_moves (\n  name text PRIMARY KEY, authority_cursor text NOT NULL DEFAULT '', id_cursor text NOT NULL DEFAULT '',\n  completed_at timestamptz, updated_at timestamptz NOT NULL DEFAULT clock_timestamp()\n);\n"
+  },
+  {
+   "name": "It records migration 93 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "ec7c1e6276dddc0a1d27cd47494626f8cabda9cb9c877519e372d3d5bdec1a88",
+    "ADR 0020 C5: canonical Task storage for composition, acceptance, answers and history",
+    "93"
+   ]
+  },
+  {
+   "name": "It commits migration 93 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 94's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 94, \"ADR 0020 C6: retire creation of redundant Project rows after the production identity audit\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_artifacts DROP CONSTRAINT rh2_artifacts_authority_id_organization_id_project_id_fkey;\nALTER TABLE public.rh2_jobs DROP CONSTRAINT rh2_jobs_authority_id_organization_id_project_id_fkey;\nALTER TABLE public.rh2_memberships DROP CONSTRAINT rh2_memberships_project_fkey;\nALTER TABLE public.rh2_rooms DROP CONSTRAINT rh2_rooms_authority_id_organization_id_project_id_fkey;\n"
+  },
+  {
+   "name": "It records migration 94 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "48e77317ec9659280cc68e87fffe28085de4e81e0a4bbadd2a4c64c300549f27",
+    "ADR 0020 C6: retire creation of redundant Project rows after the production identity audit",
+    "94"
+   ]
+  },
+  {
+   "name": "It commits migration 94 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 95's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 95, \"ADR 0020 C5: canonical Task attachments and command timestamps\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_authority_principals ADD COLUMN room_agent_room_id text;\nALTER TABLE public.rh2_artifacts ALTER COLUMN job_resource_kind DROP NOT NULL;\nALTER TABLE public.rh2_artifacts ALTER COLUMN retention_class SET DEFAULT 'task';\nALTER TABLE public.rh2_authorities ADD COLUMN task_authority text;\nALTER TABLE public.rh2_authorities ALTER COLUMN job_authority DROP NOT NULL;\nALTER TABLE public.rh2_task_history ALTER COLUMN at SET DEFAULT clock_timestamp();\nALTER TABLE public.rh2_task_acceptance_decisions ALTER COLUMN at SET DEFAULT clock_timestamp();\nALTER TABLE public.rh2_task_answers ALTER COLUMN created_at SET DEFAULT clock_timestamp();\nALTER TABLE public.rh2_task_answer_shares ALTER COLUMN created_at SET DEFAULT clock_timestamp();\nALTER TABLE public.rh2_task_room_stays ALTER COLUMN entered_at SET DEFAULT clock_timestamp();\nALTER TABLE public.rh2_artifacts ADD COLUMN task_id text;\nALTER TABLE public.rh2_attention ADD COLUMN task_id text;\nALTER TABLE public.rh2_rooms ADD COLUMN task_id text;\nALTER TABLE public.rh2_room_invitations ADD COLUMN task_id text;\nALTER TABLE public.rh2_agent_usage ADD COLUMN task_id text;\nCREATE INDEX rh2_artifacts_task ON public.rh2_artifacts (authority_id, task_id, created_at);\nCREATE INDEX rh2_attention_task ON public.rh2_attention (authority_id, task_id);\nALTER TABLE public.rh2_rooms ALTER COLUMN project_id DROP NOT NULL;\nALTER TABLE public.rh2_account_grants ALTER COLUMN project_id DROP NOT NULL;\nALTER TABLE public.rh2_room_invitations ALTER COLUMN project_id DROP NOT NULL;\nCREATE TABLE public.rh2_organization_memberships (\n  authority_id text NOT NULL, principal_id text NOT NULL, organization_id text NOT NULL,\n  role text NOT NULL, state text NOT NULL CHECK (state IN ('active', 'revoked')),\n  created_by_principal_id text, created_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n  updated_at timestamptz NOT NULL DEFAULT clock_timestamp(), revoked_at timestamptz,\n  revoked_by text, revocation_reason text, version bigint NOT NULL DEFAULT 1 CHECK (version > 0), expires_at timestamptz,\n  PRIMARY KEY (authority_id, principal_id, organization_id),\n  FOREIGN KEY (authority_id, principal_id, organization_id) REFERENCES public.rh2_authority_principal_organizations(authority_id, principal_id, organization_id),\n  FOREIGN KEY (authority_id, organization_id, role) REFERENCES public.rh2_roles(authority_id, organization_id, role),\n  CHECK ((state = 'revoked') = (revoked_at IS NOT NULL)),\n  CHECK ((revoked_at IS NULL AND revoked_by IS NULL AND revocation_reason IS NULL) OR (revoked_at IS NOT NULL AND revoked_by IS NOT NULL AND length(revocation_reason) >= 1))\n);\nCREATE INDEX rh2_organization_memberships_org ON public.rh2_organization_memberships (authority_id, organization_id) WHERE state = 'active';\n\n"
+  },
+  {
+   "name": "It records migration 95 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "b782dff5732f7f262ca046a7d7d465d6477bbf4041fb6d33221d4fae2e363c79",
+    "ADR 0020 C5: canonical Task attachments and command timestamps",
+    "95"
+   ]
+  },
+  {
+   "name": "It commits migration 95 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 96's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 96, \"ADR 0020: allow Task retention while the legacy artifact constraint retires\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "ALTER TABLE public.rh2_artifacts DROP CONSTRAINT rh2_artifacts_retention_class_check;"
+  },
+  {
+   "name": "It records migration 96 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "3df817e22fd619bc16c30e8361b82085997cdaa3a0003e9ad81a5c1f7f7cca17",
+    "ADR 0020: allow Task retention while the legacy artifact constraint retires",
+    "96"
+   ]
+  },
+  {
+   "name": "It commits migration 96 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 97's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 97, \"ADR 0020 C6: retire copied work stores, Project and seat demands\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nDO $$\nDECLARE legacy_table text; differs boolean;\nBEGIN\n  IF NOT EXISTS (SELECT 1 FROM public.rh2_data_moves WHERE name = 'work-ontology-cutover:v1' AND completed_at IS NOT NULL) THEN\n    IF EXISTS (SELECT 1 FROM public.rh2_authorities) THEN\n      RAISE EXCEPTION 'Release the Task cutover and complete its data move before retiring work stores';\n    END IF;\n    -- A fresh database has no predecessor or data to copy.\n    INSERT INTO public.rh2_data_moves (name, completed_at) VALUES ('work-ontology-cutover:v1', clock_timestamp()) ON CONFLICT (name) DO UPDATE SET completed_at = EXCLUDED.completed_at;\n  END IF;\n  IF EXISTS (SELECT 1 FROM public.rh2_authorities) AND NOT EXISTS (SELECT 1 FROM public.rh2_data_moves WHERE name = 'work-ontology-consumers:v1' AND completed_at IS NOT NULL) THEN\n    RAISE EXCEPTION 'Release every Task consumer before retiring its old storage';\n  END IF;\n  FOREACH legacy_table IN ARRAY ARRAY['rh2_account_grants','rh2_artifacts','rh2_authority_decision_receipts','rh2_authority_grants','rh2_jobs','rh2_memberships','rh2_projects','rh2_room_invitations','rh2_rooms'] LOOP\n    EXECUTE format('SELECT EXISTS (SELECT 1 FROM public.%I WHERE project_id IS NOT NULL AND project_id IS DISTINCT FROM organization_id)', legacy_table) INTO differs;\n    IF differs THEN RAISE EXCEPTION 'Project is not an organization identity in %', legacy_table; END IF;\n  END LOOP;\n  IF EXISTS (SELECT 1 FROM public.rh2_authority_grants WHERE resource_project_id IS NOT NULL AND resource_project_id IS DISTINCT FROM COALESCE(resource_organization_id, organization_id)) THEN\n    RAISE EXCEPTION 'A grant still names an independent Project';\n  END IF;\n  IF EXISTS (SELECT 1 FROM public.rh2_authorities WHERE jsonb_array_length(state->'jobs') > 0) THEN\n    RAISE EXCEPTION 'An aggregate authority still contains work outside the Task store';\n  END IF;\nEND $$;\n\nALTER TABLE public.rh2_rooms DROP CONSTRAINT rh2_rooms_authority_id_job_id_fkey;\nDROP TABLE public.rh2_human_assignment_events;\nDROP TABLE public.rh2_human_assignments;\nDROP TABLE public.rh2_job_criterion_decisions;\nDROP TABLE public.rh2_job_criteria;\nDROP TABLE public.rh2_job_result_shares;\nDROP TABLE public.rh2_job_results;\nDROP TABLE public.rh2_job_room_stays;\nDROP TABLE public.rh2_job_history;\nDROP TRIGGER rh2_jobs_authority_guard ON public.rh2_jobs;\nDROP TABLE public.rh2_jobs;\nDROP TABLE public.rh2_memberships;\nDROP TABLE public.rh2_room_demands;\nDROP TABLE public.rh2_projects;\nDROP TRIGGER rh2_authorities_job_state_guard ON public.rh2_authorities;\nDROP FUNCTION public.rh2_enforce_normalized_job_authority();\nDROP FUNCTION public.rh2_enforce_authority_job_state();\n\nALTER TABLE public.rh2_authorities DROP CONSTRAINT rh2_authorities_check;\nUPDATE public.rh2_authorities SET state = (state - 'jobs') || jsonb_build_object('tasks', '[]'::jsonb);\nALTER TABLE public.rh2_authorities DROP COLUMN job_authority;\nALTER TABLE public.rh2_authorities ALTER COLUMN task_authority SET NOT NULL;\nALTER TABLE public.rh2_authorities ADD CONSTRAINT rh2_authorities_task_authority_check CHECK (task_authority IN ('aggregate','distributed'));\nALTER TABLE public.rh2_authorities ADD CONSTRAINT rh2_authorities_check CHECK (jsonb_typeof(state) = 'object' AND jsonb_typeof(state->'tasks') = 'array' AND jsonb_array_length(state->'tasks') = 0 AND jsonb_typeof(state->'organizations') = 'array' AND jsonb_typeof(state->'workers') = 'array' AND (state->>'schemaVersion')::integer = schema_version);\n\nALTER TABLE public.rh2_artifacts DROP COLUMN search_document;\nALTER TABLE public.rh2_artifacts DROP CONSTRAINT rh2_artifacts_scope_lengths_check;\nALTER TABLE public.rh2_artifacts DROP COLUMN assignment_id, DROP COLUMN job_id, DROP COLUMN job_resource_kind, DROP COLUMN project_id;\nALTER TABLE public.rh2_artifacts ADD COLUMN search_document tsvector GENERATED ALWAYS AS (to_tsvector('simple', regexp_replace(COALESCE(artifact_id,'') || ' ' || COALESCE(content_type,'') || ' ' || COALESCE(created_by,'') || ' ' || COALESCE(task_id,'') || ' ' || COALESCE(owner_principal,''), '[^[:alnum:]]+', ' ', 'g'))) STORED;\nCREATE INDEX rh2_artifacts_search_document_idx ON public.rh2_artifacts USING gin (search_document);\nCREATE INDEX rh2_artifacts_organization_search_idx ON public.rh2_artifacts (authority_id, organization_id, artifact_kind, sensitivity, retention_class, state, created_at DESC);\nALTER TABLE public.rh2_artifacts ADD CONSTRAINT rh2_artifacts_scope_lengths_check CHECK ((task_id IS NULL OR length(task_id) BETWEEN 1 AND 128) AND (criterion_id IS NULL OR length(criterion_id) BETWEEN 1 AND 128) AND (run_id IS NULL OR length(run_id) BETWEEN 1 AND 128) AND (work_item_id IS NULL OR length(work_item_id) BETWEEN 1 AND 128));\nUPDATE public.rh2_artifacts SET retention_class = 'task' WHERE retention_class = 'job';\nALTER TABLE public.rh2_artifacts ADD CONSTRAINT rh2_artifacts_retention_class_check CHECK (retention_class IN ('task','legal-hold','organization','transient'));\nALTER TABLE public.rh2_attention DROP COLUMN assignment_id;\nALTER TABLE public.rh2_agent_usage DROP COLUMN request_id;\nALTER TABLE public.rh2_rooms DROP COLUMN job_id, DROP COLUMN project_id;\nALTER TABLE public.rh2_room_invitations DROP COLUMN request_id, DROP COLUMN project_id;\nALTER TABLE public.rh2_account_grants DROP COLUMN project_id;\nALTER TABLE public.rh2_authority_decision_receipts DROP COLUMN project_id;\nALTER TABLE public.rh2_authority_grants DROP CONSTRAINT rh2_authority_grants_resource_shape_check;\nALTER TABLE public.rh2_authority_grants DROP COLUMN project_id, DROP COLUMN resource_project_id;\nALTER TABLE public.rh2_authority_grants ADD CONSTRAINT rh2_authority_grants_resource_shape_check CHECK ((resource_scope = 'exact' AND resource_id IS NOT NULL AND resource_organization_id IS NULL) OR (resource_scope = 'collection' AND resource_id IS NULL AND resource_organization_id IS NOT NULL) OR (resource_scope = 'platform' AND resource_id IS NULL AND resource_organization_id IS NULL));\n"
+  },
+  {
+   "name": "It records migration 97 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "c52f2746e2dc029d2ab904fc142957bb5bb276c38b941d81880c7a7e707f8801",
+    "ADR 0020 C6: retire copied work stores, Project and seat demands",
+    "97"
+   ]
+  },
+  {
+   "name": "It commits migration 97 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 98's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 98, \"attach an agent session to Room membership; preserve existing session sharing and permission anchors\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_room_members ADD COLUMN session_binding jsonb;\nALTER TABLE public.rh2_room_members ADD COLUMN session_conversation_id text;\nALTER TABLE public.rh2_room_members ADD COLUMN bio text;\nWITH bindings AS (\n SELECT authority_id, room_id, session_binding->>'agentPrincipalId' AS agent_id,\n        min(conversation_id) AS conversation_id\n FROM public.rh2_conversations WHERE session_binding IS NOT NULL\n GROUP BY authority_id, room_id, session_binding->>'agentPrincipalId' HAVING count(*) = 1\n)\nUPDATE public.rh2_room_members m SET session_binding = c.session_binding, session_conversation_id = c.conversation_id\nFROM bindings b JOIN public.rh2_conversations c ON c.authority_id = b.authority_id AND c.conversation_id = b.conversation_id\nWHERE m.authority_id = b.authority_id AND m.room_id = b.room_id AND m.principal_id = b.agent_id;\n"
+  },
+  {
+   "name": "It records migration 98 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "ae34498f5b246561ae7ed9641c638f7e1c67e0851d3561cb75744a277c6f04a6",
+    "attach an agent session to Room membership; preserve existing session sharing and permission anchors",
+    "98"
+   ]
+  },
+  {
+   "name": "It commits migration 98 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 99's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 99, \"optional Room-named default Conversations, independently of agent DMs\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nALTER TABLE public.rh2_room_presets ALTER COLUMN default_conversation_key DROP NOT NULL;\nALTER TABLE public.rh2_room_members ADD COLUMN session_access_conversation_id text;\nUPDATE public.rh2_room_members m SET session_access_conversation_id = r.default_conversation_id\nFROM public.rh2_rooms r WHERE m.authority_id = r.authority_id AND m.room_id = r.room_id AND m.session_binding IS NOT NULL;\nUPDATE public.rh2_conversations c SET name = r.name, updated_at = clock_timestamp(), version = c.version + 1\nFROM public.rh2_rooms r WHERE c.authority_id = r.authority_id AND c.conversation_id = r.default_conversation_id\nAND c.session_binding IS NULL AND c.name <> r.name;\nUPDATE public.rh2_rooms r SET default_conversation_id = NULL, updated_at = clock_timestamp(), version = r.version + 1\nWHERE EXISTS (SELECT 1 FROM public.rh2_conversations c WHERE c.authority_id = r.authority_id AND c.conversation_id = r.default_conversation_id AND (c.session_binding IS NOT NULL OR c.closed_at IS NOT NULL));\n"
+  },
+  {
+   "name": "It records migration 99 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "e7c8c2f4d8762927c1c5b1612a31809512b6819caf1c7c3b11ac3e7a607bb69f",
+    "optional Room-named default Conversations, independently of agent DMs",
+    "99"
+   ]
+  },
+  {
+   "name": "It commits migration 99 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 100's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 100, \"Room-owned session context defaults on\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "ALTER TABLE public.rh2_rooms ADD COLUMN session_notices boolean NOT NULL DEFAULT true;"
+  },
+  {
+   "name": "It records migration 100 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "fc4f4a13de2be370953da6f1b670b8215ed9ba95b949e5318117255484c056f6",
+    "Room-owned session context defaults on",
+    "100"
+   ]
+  },
+  {
+   "name": "It commits migration 100 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 101's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 101, \"agent end-of-turn notices and member DM notification preferences; working presence\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nCREATE TABLE public.rh2_agent_session_turns (\n authority_id text NOT NULL, room_id text NOT NULL, agent_principal_id text NOT NULL,\n turn_id text NOT NULL, sequence bigserial NOT NULL, body text NOT NULL,\n source_conversation_id text, created_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n PRIMARY KEY (authority_id, room_id, agent_principal_id, turn_id),\n FOREIGN KEY (authority_id, room_id, agent_principal_id) REFERENCES public.rh2_room_members(authority_id, room_id, principal_id)\n);\nCREATE INDEX rh2_agent_session_turns_recent ON public.rh2_agent_session_turns(authority_id, room_id, agent_principal_id, sequence DESC);\nCREATE TABLE public.rh2_agent_dm_settings (\n authority_id text NOT NULL, room_id text NOT NULL, agent_principal_id text NOT NULL, principal_id text NOT NULL,\n level text NOT NULL DEFAULT 'all' CHECK (level IN ('all','nothing')), muted boolean NOT NULL DEFAULT false,\n read_sequence bigint NOT NULL DEFAULT 0, updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n PRIMARY KEY (authority_id, room_id, agent_principal_id, principal_id),\n FOREIGN KEY (authority_id, room_id, agent_principal_id) REFERENCES public.rh2_room_members(authority_id, room_id, principal_id),\n FOREIGN KEY (authority_id, room_id, principal_id) REFERENCES public.rh2_room_members(authority_id, room_id, principal_id)\n);\nALTER TABLE public.rh2_notification_deliveries DROP CONSTRAINT rh2_notification_deliveries_source_kind_check;\nALTER TABLE public.rh2_notification_deliveries ADD CONSTRAINT rh2_notification_deliveries_source_kind_check CHECK (source_kind IN ('mention','request','turn'));\nALTER TABLE public.rh2_conversation_presence DROP CONSTRAINT rh2_conversation_presence_state_check;\nALTER TABLE public.rh2_conversation_presence ADD CONSTRAINT rh2_conversation_presence_state_check CHECK (state IN ('typing','reading','working'));\n"
+  },
+  {
+   "name": "It records migration 101 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "1522d140284bd72e49b3155f0648c45c9f0bf631cfac858cb34f9899a9c23d41",
+    "agent end-of-turn notices and member DM notification preferences; working presence",
+    "101"
+   ]
+  },
+  {
+   "name": "It commits migration 101 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 102's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 102, \"finish Task action names in persisted Room presets, roles and organization documents\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "\nUPDATE public.rh2_room_presets preset\n SET roles = (SELECT jsonb_agg(role || jsonb_build_object('actions', (\n       SELECT COALESCE(jsonb_agg(action ORDER BY first_position), '[]'::jsonb) FROM (\n         SELECT regexp_replace(value, '^(jobs|requests)[.]', 'tasks.') AS action, min(action_position) AS first_position\n         FROM jsonb_array_elements_text(role->'actions') WITH ORDINALITY AS entry(value, action_position)\n         GROUP BY regexp_replace(value, '^(jobs|requests)[.]', 'tasks.')\n       ) canonical)) ORDER BY role_position)\n     FROM jsonb_array_elements(preset.roles) WITH ORDINALITY AS entry(role, role_position)),\n     updated_at = clock_timestamp(), version = version + 1\n WHERE roles::text ~ '\"(jobs|requests)[.](create|update|complete|\\*)\"';\nUPDATE public.rh2_room_roles\n SET actions = ARRAY(SELECT DISTINCT regexp_replace(action, '^(jobs|requests)[.]', 'tasks.') FROM unnest(actions) action),\n     updated_at = clock_timestamp(), version = version + 1\n WHERE EXISTS (SELECT 1 FROM unnest(actions) action WHERE action ~ '^(jobs|requests)[.]');\nUPDATE public.rh2_roles\n SET actions = ARRAY(SELECT DISTINCT regexp_replace(action, '^(jobs|requests)[.]', 'tasks.') FROM unnest(actions) action),\n     updated_at = clock_timestamp(), version = version + 1\n WHERE EXISTS (SELECT 1 FROM unnest(actions) action WHERE action ~ '^(jobs|requests)[.]');\nUPDATE public.rh2_organizations\n SET document = document\n       || CASE WHEN document ? 'roles' THEN jsonb_build_object('roles', regexp_replace((document->'roles')::text, '\"(jobs|requests)[.](create|update|complete|\\*)\"', '\"tasks.\\2\"', 'g')::jsonb) ELSE '{}'::jsonb END\n       || CASE WHEN document ? 'presets' THEN jsonb_build_object('presets', regexp_replace((document->'presets')::text, '\"(jobs|requests)[.](create|update|complete|\\*)\"', '\"tasks.\\2\"', 'g')::jsonb) ELSE '{}'::jsonb END,\n     document_sha = NULL, document_version = document_version + 1\n WHERE (document->'roles')::text ~ '\"(jobs|requests)[.](create|update|complete|\\*)\"'\n    OR (document->'presets')::text ~ '\"(jobs|requests)[.](create|update|complete|\\*)\"';\n"
+  },
+  {
+   "name": "It records migration 102 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "8fa8450bb15ba64909c46687eaa06a2d39e833a5d1e9d5b07990a729fdf69fed",
+    "finish Task action names in persisted Room presets, roles and organization documents",
+    "102"
+   ]
+  },
+  {
+   "name": "It commits migration 102 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 103's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 103, \"deleted conversation messages retain their sequence and references\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "ALTER TABLE public.rh2_conversation_messages ADD COLUMN deleted_at timestamptz;\nALTER TABLE public.rh2_conversation_messages DROP CONSTRAINT rh2_conversation_messages_body_check;\nALTER TABLE public.rh2_conversation_messages ADD CONSTRAINT rh2_conversation_messages_body_check CHECK (\n (deleted_at IS NULL AND char_length(body) BETWEEN 1 AND 20000) OR (deleted_at IS NOT NULL AND body = '')\n);"
+  },
+  {
+   "name": "It records migration 103 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "4f52e830efb3b25f8c76b929404ae4ef6155ee036a805d0bf8e8aed83373c5f1",
+    "deleted conversation messages retain their sequence and references",
+    "103"
+   ]
+  },
+  {
+   "name": "It commits migration 103 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 104's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 104, \"person-owned theme and appearance with explicit onboarding completion\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "CREATE TABLE public.rh2_person_appearance (\n      authority_id text NOT NULL, principal_id text NOT NULL,\n      theme text NOT NULL DEFAULT 'rh2' CHECK (theme IN ('rh2','discord','slack','teams','zoom')),\n      mode text NOT NULL DEFAULT 'light' CHECK (mode IN ('light','dark')),\n      onboarding_complete boolean NOT NULL DEFAULT false,\n      version integer NOT NULL DEFAULT 1 CHECK (version > 0),\n      updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n      PRIMARY KEY (authority_id, principal_id),\n      FOREIGN KEY (authority_id, principal_id) REFERENCES public.rh2_authority_principals(authority_id, principal_id) ON DELETE CASCADE\n    );"
+  },
+  {
+   "name": "It records migration 104 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "ecf489b686513830e0dad562cf1fe2cf0b30f880193ee1c946def141dfa14d05",
+    "person-owned theme and appearance with explicit onboarding completion",
+    "104"
+   ]
+  },
+  {
+   "name": "It commits migration 104 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 105's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 105, \"bounded outbox failure attempts retain redacted response diagnostics\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "CREATE TABLE public.rh2_outbox_attempts (\n      attempt_id bigserial PRIMARY KEY,\n      authority_id text NOT NULL,\n      event_id bigint NOT NULL REFERENCES public.rh2_outbox(event_id) ON DELETE CASCADE,\n      replay_count integer NOT NULL CHECK (replay_count >= 0),\n      attempt integer NOT NULL CHECK (attempt > 0),\n      consumer text NOT NULL CHECK (char_length(consumer) BETWEEN 1 AND 128),\n      error_code text NOT NULL CHECK (char_length(error_code) BETWEEN 1 AND 128),\n      response jsonb CHECK (response IS NULL OR octet_length(response::text) <= 32768),\n      recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n      UNIQUE (authority_id, event_id, replay_count, attempt)\n    );\n    CREATE INDEX rh2_outbox_attempts_event_idx ON public.rh2_outbox_attempts(event_id);"
+  },
+  {
+   "name": "It records migration 105 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "3ef139014d81fd43841454e44c9cb9a1daaca19917ddfc95df05c60b7f30767b",
+    "bounded outbox failure attempts retain redacted response diagnostics",
+    "105"
+   ]
+  },
+  {
+   "name": "It commits migration 105 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It begins migration 106's transaction (apps/rh2/src/database/migrate.ts:79)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "Migration 106, \"audited terminal outbox failure dispositions retain event history\": the file, sent as one query (apps/rh2/src/database/migrate.ts:81)",
+   "sql": "CREATE TABLE public.rh2_outbox_dispositions (\n      authority_id text NOT NULL,\n      event_id bigint NOT NULL REFERENCES public.rh2_outbox(event_id) ON DELETE CASCADE,\n      replay_count integer NOT NULL CHECK (replay_count >= 0),\n      actor text NOT NULL CHECK (char_length(actor) BETWEEN 1 AND 128),\n      reason text NOT NULL CHECK (char_length(reason) BETWEEN 1 AND 1000),\n      recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n      PRIMARY KEY (authority_id, event_id, replay_count)\n    );"
+  },
+  {
+   "name": "It records migration 106 in the ledger, with its checksum (apps/rh2/src/database/migrate.ts:82)",
+   "sql": "INSERT INTO rh2_schema_migrations (checksum, description, version) VALUES ($1, $2, $3)",
+   "values": [
+    "254a0f8a6c16fd876ef2d7c0719b465734e671e24415ab74812c77a9ef3e7b9b",
+    "audited terminal outbox failure dispositions retain event history",
+    "106"
+   ]
+  },
+  {
+   "name": "It commits migration 106 (apps/rh2/src/database/migrate.ts:86)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "It reads the whole ledger back, each migration stamped when it was applied (apps/rh2/src/database/migrate.ts:92)",
+   "sql": "SELECT applied_at, checksum, description, version FROM rh2_schema_migrations ORDER BY version",
+   "expect": [
+    {
+     "path": "rows.35.version",
+     "equals": "106"
+    },
+    {
+     "path": "rows.0.applied_at",
+     "equals": "2026-01-05 09:00:00+00"
+    },
+    {
+     "path": "rows.35.applied_at",
+     "equals": "2026-01-05 09:00:00+00"
+    }
+   ]
+  },
+  {
+   "name": "It releases the migration lock (apps/rh2/src/database/migrate.ts:103)",
+   "sql": "SELECT pg_advisory_unlock(hashtext($1))",
+   "values": [
+    "rh2:database-migrations:v1"
+   ]
+  },
+  {
+   "name": "The Task copy takes its lock (apps/rh2/src/database/move-tasks.ts:268)",
+   "sql": "SELECT pg_advisory_lock(hashtext('rh2:task-copy:v1'))"
+  },
+  {
+   "name": "It finds the Task cutover already complete on this schema, so there is nothing to copy (apps/rh2/src/database/move-tasks.ts:269)",
+   "sql": "SELECT EXISTS (\n  SELECT 1 FROM rh2_data_moves\n  WHERE name IN ('work-ontology-cutover:v1', 'release-writer-admission:v1') AND completed_at IS NOT NULL\n) AS completed_at",
+   "expect": [
+    {
+     "path": "rows.0.completed_at",
+     "equals": "t"
+    }
+   ]
+  },
+  {
+   "name": "It releases its lock (apps/rh2/src/database/move-tasks.ts:299)",
+   "sql": "SELECT pg_advisory_unlock(hashtext('rh2:task-copy:v1'))"
+  },
+  {
+   "name": "Declaring the authority (--declare-distributed-authority, the fresh database's act): it begins one transaction (apps/rh2/src/database/migrate-cli.ts:101)",
+   "sql": "BEGIN"
+  },
+  {
+   "name": "It takes the migration lock for the transaction (apps/rh2/src/database/migrate-cli.ts:102)",
+   "sql": "SELECT pg_advisory_xact_lock(hashtext($1))",
+   "values": [
+    "rh2:database-migrations:v1"
+   ]
+  },
+  {
+   "name": "It reads the authorities the database declares: none (apps/rh2/src/database/migrate-cli.ts:103)",
+   "sql": "SELECT authority_id, task_authority FROM rh2_authorities",
+   "expect": [
+    {
+     "path": "command",
+     "equals": "SELECT 0"
+    }
+   ]
+  },
+  {
+   "name": "It declares the empty primary authority document as distributed (apps/rh2/src/database/migrate-cli.ts:112)",
+   "sql": "INSERT INTO rh2_authorities (authority_id, schema_version, state, task_authority)\n         VALUES ('primary', 1, '{\"tasks\":[],\"organizations\":[],\"workers\":[],\"schemaVersion\":1}'::jsonb, 'distributed')"
+  },
+  {
+   "name": "It commits the declaration (apps/rh2/src/database/migrate-cli.ts:116)",
+   "sql": "COMMIT"
+  },
+  {
+   "name": "RH2's Worker asks the database for its readiness after the operator declares: schema 106, the primary authority distributed, work admitted (apps/rh2/src/edge/database.ts:315)",
+   "sql": "SELECT (SELECT max(version)::integer FROM rh2_schema_migrations) AS version,\n              (SELECT task_authority FROM rh2_authorities WHERE authority_id = 'primary') AS authority,\n              COALESCE(\n  (SELECT completed_at IS NOT NULL AND id_cursor::integer <= $1\n   FROM rh2_data_moves WHERE name = 'release-writer-admission:v1'),\n  EXISTS (SELECT 1 FROM rh2_data_moves WHERE name = 'work-ontology-cutover:v1' AND completed_at IS NOT NULL)\n) AS work_ready",
+   "values": [
+    "106"
+   ],
+   "expect": [
+    {
+     "path": "rows.0.version",
+     "equals": "106"
+    },
+    {
+     "path": "rows.0.authority",
+     "equals": "distributed"
+    },
+    {
+     "path": "rows.0.work_ready",
+     "equals": "t"
+    }
+   ]
+  },
+  {
+   "name": "Monday 12 January 2026, 09:00: the next release",
+   "wait": "7d"
+  },
+  {
+   "name": "The release's migrate step asks whether the migration ledger exists (apps/rh2/src/database/migrate-cli.ts:54)",
+   "sql": "SELECT to_regclass('rh2_schema_migrations') IS NOT NULL AS present",
+   "expect": [
+    {
+     "path": "rows.0.present",
+     "equals": "t"
+    }
+   ]
+  },
+  {
+   "name": "It counts the migrations the ledger holds (apps/rh2/src/database/migrate-cli.ts:55)",
+   "sql": "SELECT count(*)::text AS count FROM rh2_schema_migrations",
+   "expect": [
+    {
+     "path": "rows.0.count",
+     "equals": "36"
+    }
+   ]
+  },
+  {
+   "name": "It takes the migration lock (apps/rh2/src/database/migrate.ts:53)",
+   "sql": "SELECT pg_advisory_lock(hashtext($1))",
+   "values": [
+    "rh2:database-migrations:v1"
+   ]
+  },
+  {
+   "name": "It makes the migration ledger if it is not there (apps/rh2/src/database/migrate.ts:38)",
+   "sql": "\n    CREATE TABLE IF NOT EXISTS rh2_schema_migrations (\n      applied_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n      checksum text NOT NULL CHECK (checksum ~ '^[a-f0-9]{64}$'),\n      description text NOT NULL,\n      version integer PRIMARY KEY CHECK (version > 0)\n    )\n  "
+  },
+  {
+   "name": "It reads the ledger's applied versions and checksums (apps/rh2/src/database/migrate.ts:55)",
+   "sql": "SELECT checksum, version FROM rh2_schema_migrations ORDER BY version",
+   "expect": [
+    {
+     "path": "rows.35.version",
+     "equals": "106"
+    }
+   ]
+  },
+  {
+   "name": "It reads the whole ledger back, each migration stamped when it was applied (apps/rh2/src/database/migrate.ts:92)",
+   "sql": "SELECT applied_at, checksum, description, version FROM rh2_schema_migrations ORDER BY version",
+   "expect": [
+    {
+     "path": "rows.35.version",
+     "equals": "106"
+    },
+    {
+     "path": "rows.0.applied_at",
+     "equals": "2026-01-05 09:00:00+00"
+    },
+    {
+     "path": "rows.35.applied_at",
+     "equals": "2026-01-05 09:00:00+00"
+    }
+   ]
+  },
+  {
+   "name": "It releases the migration lock (apps/rh2/src/database/migrate.ts:103)",
+   "sql": "SELECT pg_advisory_unlock(hashtext($1))",
+   "values": [
+    "rh2:database-migrations:v1"
+   ]
+  },
+  {
+   "name": "The Task copy takes its lock (apps/rh2/src/database/move-tasks.ts:268)",
+   "sql": "SELECT pg_advisory_lock(hashtext('rh2:task-copy:v1'))"
+  },
+  {
+   "name": "It finds the Task cutover already complete on this schema, so there is nothing to copy (apps/rh2/src/database/move-tasks.ts:269)",
+   "sql": "SELECT EXISTS (\n  SELECT 1 FROM rh2_data_moves\n  WHERE name IN ('work-ontology-cutover:v1', 'release-writer-admission:v1') AND completed_at IS NOT NULL\n) AS completed_at",
+   "expect": [
+    {
+     "path": "rows.0.completed_at",
+     "equals": "t"
+    }
+   ]
+  },
+  {
+   "name": "It releases its lock (apps/rh2/src/database/move-tasks.ts:299)",
+   "sql": "SELECT pg_advisory_unlock(hashtext('rh2:task-copy:v1'))"
+  },
+  {
+   "name": "The release's --complete-work-cutover migrate asks whether the ledger exists (apps/rh2/scripts/release.sh:107; apps/rh2/src/database/migrate-cli.ts:54)",
+   "sql": "SELECT to_regclass('rh2_schema_migrations') IS NOT NULL AS present",
+   "expect": [
+    {
+     "path": "rows.0.present",
+     "equals": "t"
+    }
+   ]
+  },
+  {
+   "name": "Cutover migrate: It counts the migrations the ledger holds (apps/rh2/src/database/migrate-cli.ts:55)",
+   "sql": "SELECT count(*)::text AS count FROM rh2_schema_migrations",
+   "expect": [
+    {
+     "path": "rows.0.count",
+     "equals": "36"
+    }
+   ]
+  },
+  {
+   "name": "Cutover migrate: It takes the migration lock (apps/rh2/src/database/migrate.ts:53)",
+   "sql": "SELECT pg_advisory_lock(hashtext($1))",
+   "values": [
+    "rh2:database-migrations:v1"
+   ]
+  },
+  {
+   "name": "Cutover migrate: It makes the migration ledger if it is not there (apps/rh2/src/database/migrate.ts:38)",
+   "sql": "\n    CREATE TABLE IF NOT EXISTS rh2_schema_migrations (\n      applied_at timestamptz NOT NULL DEFAULT clock_timestamp(),\n      checksum text NOT NULL CHECK (checksum ~ '^[a-f0-9]{64}$'),\n      description text NOT NULL,\n      version integer PRIMARY KEY CHECK (version > 0)\n    )\n  "
+  },
+  {
+   "name": "Cutover migrate: It reads the ledger's applied versions and checksums (apps/rh2/src/database/migrate.ts:55)",
+   "sql": "SELECT checksum, version FROM rh2_schema_migrations ORDER BY version",
+   "expect": [
+    {
+     "path": "rows.35.version",
+     "equals": "106"
+    }
+   ]
+  },
+  {
+   "name": "Cutover migrate: It reads the whole ledger back, each migration stamped when it was applied (apps/rh2/src/database/migrate.ts:92)",
+   "sql": "SELECT applied_at, checksum, description, version FROM rh2_schema_migrations ORDER BY version",
+   "expect": [
+    {
+     "path": "rows.35.version",
+     "equals": "106"
+    },
+    {
+     "path": "rows.0.applied_at",
+     "equals": "2026-01-05 09:00:00+00"
+    },
+    {
+     "path": "rows.35.applied_at",
+     "equals": "2026-01-05 09:00:00+00"
+    }
+   ]
+  },
+  {
+   "name": "Cutover migrate: It releases the migration lock (apps/rh2/src/database/migrate.ts:103)",
+   "sql": "SELECT pg_advisory_unlock(hashtext($1))",
+   "values": [
+    "rh2:database-migrations:v1"
+   ]
+  },
+  {
+   "name": "Cutover migrate: The Task copy takes its lock (apps/rh2/src/database/move-tasks.ts:268)",
+   "sql": "SELECT pg_advisory_lock(hashtext('rh2:task-copy:v1'))"
+  },
+  {
+   "name": "Cutover migrate: It finds the Task cutover already complete on this schema, so there is nothing to copy (apps/rh2/src/database/move-tasks.ts:269)",
+   "sql": "SELECT EXISTS (\n  SELECT 1 FROM rh2_data_moves\n  WHERE name IN ('work-ontology-cutover:v1', 'release-writer-admission:v1') AND completed_at IS NOT NULL\n) AS completed_at",
+   "expect": [
+    {
+     "path": "rows.0.completed_at",
+     "equals": "t"
+    }
+   ]
+  },
+  {
+   "name": "Cutover migrate: It releases its lock (apps/rh2/src/database/move-tasks.ts:299)",
+   "sql": "SELECT pg_advisory_unlock(hashtext('rh2:task-copy:v1'))"
+  },
+  {
+   "name": "RH2's Worker asks the database for its readiness after the release's cutover migrate: schema 106, the primary authority distributed, work admitted (apps/rh2/src/edge/database.ts:315)",
+   "sql": "SELECT (SELECT max(version)::integer FROM rh2_schema_migrations) AS version,\n              (SELECT task_authority FROM rh2_authorities WHERE authority_id = 'primary') AS authority,\n              COALESCE(\n  (SELECT completed_at IS NOT NULL AND id_cursor::integer <= $1\n   FROM rh2_data_moves WHERE name = 'release-writer-admission:v1'),\n  EXISTS (SELECT 1 FROM rh2_data_moves WHERE name = 'work-ontology-cutover:v1' AND completed_at IS NOT NULL)\n) AS work_ready",
+   "values": [
+    "106"
+   ],
+   "expect": [
+    {
+     "path": "rows.0.version",
+     "equals": "106"
+    },
+    {
+     "path": "rows.0.authority",
+     "equals": "distributed"
+    },
+    {
+     "path": "rows.0.work_ready",
+     "equals": "t"
+    }
+   ]
+  }
+ ]
+}

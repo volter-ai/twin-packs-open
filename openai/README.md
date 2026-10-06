@@ -7,7 +7,7 @@ A local OpenAI API. It serves the calls the applications make (`journeys/demand.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.89 @volter/twin-openai@3.0.2
+npm install --save-dev --save-exact @volter/world@3.0.92 @volter/twin-openai@3.0.2
 npx volter world init --name my-app --twins openai --source openai=@volter/twin-openai
 ```
 
