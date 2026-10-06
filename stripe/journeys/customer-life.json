@@ -1,0 +1,6108 @@
+{
+  "vendor": "stripe",
+  "author": "Contributor 88",
+  "about": "Kestrel Labs uses shipped Dub, Rallly and Postiz billing, Twenty\u2019s workflow HTTP actions, the Twin sample shop, the Harness dashboard and Open Autonomy\u2019s card rail. Third-party install-only or disabled feature paths are recorded in demand.optional.",
+  "steps": [
+    {
+      "name": "Monday 5 January, 09:00: Kestrel Labs sets up Stripe",
+      "wait": "6300m",
+      "evidence": ""
+    },
+    {
+      "name": "The World: the platform's keys, as the Dashboard's API keys page shows them",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "capture": {
+        "sk": "secret_key",
+        "pk": "publishable_key",
+        "whsec": "webhook_secret",
+        "basic_empty": "text:^()"
+      },
+      "expect": [
+        {
+          "path": "secret_key",
+          "contains": "sk_test_51"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "The World operator retains the platform balance for monthly partner commissions (Dashboard manual payouts)",
+      "method": "POST",
+      "path": "/_twin/account",
+      "body": {
+        "settings": {
+          "payouts": {
+            "schedule": {
+              "interval": "manual"
+            }
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "settings.payouts.schedule.interval",
+          "equals": "manual"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "Femke sets the business name on Public details",
+      "method": "POST",
+      "path": "https://dashboard.stripe.com/settings/public",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "business_name=Kestrel+Labs",
+      "status": 303,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "?saved=1"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "Femke follows Save and sees Kestrel\u2019s public business name",
+      "method": "GET",
+      "path": "https://dashboard.stripe.com/settings/public?saved=1",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Kestrel Labs"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/payments/checkout/customization/appearance"
+    },
+    {
+      "name": "The World: Tallyforge's webhook endpoint, added on the Dashboard's Webhooks page",
+      "method": "POST",
+      "path": "/_twin/webhook-endpoints",
+      "status": 201,
+      "body": {
+        "url": "https://app.tallyforge.test/api/stripe/webhook",
+        "events": [
+          "checkout.session.completed",
+          "customer.subscription.updated",
+          "customer.subscription.deleted",
+          "invoice.paid",
+          "invoice.payment_failed"
+        ]
+      },
+      "capture": {
+        "we": "id"
+      },
+      "expect": [
+        {
+          "path": "secret",
+          "contains": "whsec_"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "The product Tallyforge",
+      "method": "POST",
+      "path": "/v1/products",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "Tallyforge",
+        "active": true
+      },
+      "capture": {
+        "prod": "id"
+      },
+      "evidence": "Twin: apps/platform/src/sample.ts:44; Stripe operator catalog setup, spec:PostProducts"
+    },
+    {
+      "name": "Femke seeds the monthly price and Dub lookup key through Stripe\u2019s Prices API",
+      "method": "POST",
+      "path": "/v1/prices",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "product": "{prod}",
+        "unit_amount": 4900,
+        "currency": "usd",
+        "recurring": {
+          "interval": "month"
+        },
+        "active": true,
+        "nickname": "Tallyforge MONTHLY",
+        "lookup_key": "pro_monthly"
+      },
+      "capture": {
+        "monthly": "id"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "recurring"
+        },
+        {
+          "path": "lookup_key",
+          "equals": "pro_monthly"
+        }
+      ],
+      "evidence": "Stripe operator: https://docs.stripe.com/products-prices/manage-prices#lookup-keys (create a price with lookup_key); spec:PostPrices"
+    },
+    {
+      "name": "Femke adds the upgraded monthly plan at $98",
+      "method": "POST",
+      "path": "/v1/prices",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "product": "{prod}",
+        "unit_amount": 9800,
+        "currency": "usd",
+        "recurring": {
+          "interval": "month"
+        },
+        "active": true,
+        "nickname": "Tallyforge BUSINESS MONTHLY",
+        "lookup_key": "business_monthly"
+      },
+      "capture": {
+        "upgrade_monthly": "id"
+      },
+      "expect": [
+        {
+          "path": "unit_amount",
+          "equals": 9800
+        }
+      ],
+      "evidence": "Stripe operator: https://docs.stripe.com/products-prices/manage-prices#lookup-keys (create a price with lookup_key); spec:PostPrices"
+    },
+    {
+      "name": "and yearly, $490",
+      "method": "POST",
+      "path": "/v1/prices",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "product": "{prod}",
+        "unit_amount": 49000,
+        "currency": "usd",
+        "recurring": {
+          "interval": "year"
+        },
+        "active": true,
+        "nickname": "Tallyforge YEARLY"
+      },
+      "capture": {
+        "yearly": "id"
+      },
+      "evidence": "Twin: apps/platform/src/sample.ts:45; Stripe operator catalog setup, spec:PostPrices",
+      "expect": []
+    },
+    {
+      "name": "The Add-on seats product",
+      "method": "POST",
+      "path": "/v1/products",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "Add-on seats",
+        "active": true
+      },
+      "capture": {
+        "seats_prod": "id"
+      },
+      "evidence": "Twin: apps/platform/src/sample.ts:44; Stripe operator catalog setup, spec:PostProducts"
+    },
+    {
+      "name": "its per-seat price, $8 a month",
+      "method": "POST",
+      "path": "/v1/prices",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "product": "{seats_prod}",
+        "unit_amount": 800,
+        "currency": "usd",
+        "recurring": {
+          "interval": "month"
+        },
+        "active": true,
+        "nickname": "Add-on seats MONTHLY"
+      },
+      "capture": {
+        "seat": "id"
+      },
+      "evidence": "Twin: apps/platform/src/sample.ts:45; Stripe operator catalog setup, spec:PostPrices",
+      "expect": []
+    },
+    {
+      "name": "Tallyforge lists its prices",
+      "method": "GET",
+      "path": "/v1/prices?lookup_keys[]=pro_monthly",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{monthly}"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ],
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/upgrade/route.ts:37"
+    },
+    {
+      "name": "Tallyforge reads its monthly price by id",
+      "method": "GET",
+      "path": "/v1/prices/{monthly}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{monthly}"
+        },
+        {
+          "path": "unit_amount",
+          "equals": 4900
+        },
+        {
+          "path": "recurring.interval",
+          "equals": "month"
+        }
+      ],
+      "evidence": "Rallly: apps/web/src/features/billing/mutations.ts:58"
+    },
+    {
+      "name": "Tuesday 6 January: the first subscriber",
+      "wait": "1440m",
+      "evidence": ""
+    },
+    {
+      "name": "Dub\u2019s upgrade page loads its pinned Stripe.js release train",
+      "method": "GET",
+      "path": "https://js.stripe.com/basil/stripe.js",
+      "expect": [
+        {
+          "path": "",
+          "contains": "window.Stripe"
+        }
+      ],
+      "evidence": "Dub: apps/web/package.json:49, pnpm-lock.yaml @stripe/stripe-js@7.3.1; pinned SDK dist/index.mjs loadScript"
+    },
+    {
+      "name": "Ravel Agency starts Checkout for the monthly plan",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2025-05-28.basil"
+      },
+      "body": {
+        "mode": "subscription",
+        "line_items": [
+          {
+            "price": "{monthly}",
+            "quantity": 1
+          }
+        ],
+        "customer_email": "billing@ravel.test",
+        "success_url": "https://app.tallyforge.test/ravel?upgraded=true&plan=pro&period=monthly",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "billing_address_collection": "required",
+        "automatic_tax": {
+          "enabled": true
+        },
+        "tax_id_collection": {
+          "enabled": true
+        },
+        "client_reference_id": "workspace_ravel",
+        "metadata": {
+          "dubCustomerId": "user_ravel"
+        },
+        "allow_promotion_codes": true
+      },
+      "capture": {
+        "cs1": "id",
+        "cs1_url": "url"
+      },
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/upgrade/route.ts:141; apps/web/lib/stripe/index.ts:5"
+    },
+    {
+      "name": "Stripe's payment page shows the business name",
+      "method": "GET",
+      "path": "{cs1_url}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Kestrel Labs"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "Ravel pays with a card",
+      "method": "POST",
+      "path": "{cs1_url}",
+      "status": 303,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=billing%40ravel.test&cardNumber=4242424242424242&cardExpiry=09%2F29&cardCvc=314&billingName=Ravel+Agency&billingCountry=NL&billingPostalCode=3011",
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "Tallyforge reads the completed session and its subscription",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{cs1}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "capture": {
+        "ravel": "customer",
+        "ravel_sub": "subscription"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "complete"
+        },
+        {
+          "path": "payment_status",
+          "equals": "paid"
+        }
+      ],
+      "evidence": "Rallly: apps/web/src/app/api/stripe/portal/route.ts:34; spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "and the session's line items",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{cs1}/line_items?expand[]=data.price.product&limit=10",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "acct_twin_self"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "list"
+        },
+        {
+          "path": "data.0.quantity",
+          "equals": 1
+        },
+        {
+          "path": "data.0.price.id",
+          "equals": "{monthly}"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/integration/webhook/utils/get-checkout-session-products.ts:47"
+    },
+    {
+      "name": "two hours later",
+      "wait": "120m",
+      "evidence": ""
+    },
+    {
+      "name": "Nordlicht Studio starts Checkout",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2025-05-28.basil"
+      },
+      "body": {
+        "mode": "subscription",
+        "line_items": [
+          {
+            "price": "{monthly}",
+            "quantity": 1
+          }
+        ],
+        "customer_email": "finance@nordlicht.test",
+        "success_url": "https://app.tallyforge.test/nordlicht?upgraded=true&plan=pro&period=monthly",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "billing_address_collection": "required",
+        "automatic_tax": {
+          "enabled": true
+        },
+        "tax_id_collection": {
+          "enabled": true
+        },
+        "client_reference_id": "workspace_nordlicht",
+        "metadata": {
+          "dubCustomerId": "user_nordlicht"
+        },
+        "allow_promotion_codes": true
+      },
+      "capture": {
+        "cs2": "id",
+        "cs2_url": "url"
+      },
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/upgrade/route.ts:141; apps/web/lib/stripe/index.ts:5"
+    },
+    {
+      "name": "Nordlicht's first card is declined",
+      "method": "POST",
+      "path": "{cs2_url}",
+      "status": 402,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=finance%40nordlicht.test&cardNumber=4000000000000002&cardExpiry=09%2F29&cardCvc=314&billingName=Nordlicht+Studio&billingCountry=NL&billingPostalCode=3011",
+      "expect": [
+        {
+          "path": "",
+          "contains": "declined"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "its second card works",
+      "method": "POST",
+      "path": "{cs2_url}",
+      "status": 303,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=finance%40nordlicht.test&cardNumber=5555555555554444&cardExpiry=09%2F29&cardCvc=314&billingName=Nordlicht+Studio&billingCountry=NL&billingPostalCode=3011",
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "Tallyforge reads the session",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{cs2}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "capture": {
+        "nordlicht": "customer",
+        "nord_sub": "subscription"
+      },
+      "expect": [
+        {
+          "path": "payment_status",
+          "equals": "paid"
+        }
+      ],
+      "evidence": "Rallly: apps/web/src/app/api/stripe/portal/route.ts:34; spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "Tallyforge finds Ravel by email",
+      "method": "GET",
+      "path": "/v1/customers/search?query=email~%22billing%40ravel.test%22&limit=100&expand[]=data.subscriptions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "acct_twin_self"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{ravel}"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/customers/search-stripe/route.ts:53"
+    },
+    {
+      "name": "and lists customers",
+      "method": "GET",
+      "path": "/v1/customers?email=billing%40ravel.test&limit=1",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{ravel}"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ],
+      "evidence": "Twin: apps/platform/src/sample.ts:40"
+    },
+    {
+      "name": "and Ravel's subscriptions",
+      "method": "GET",
+      "path": "/v1/subscriptions?customer={ravel}&status=all",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{ravel_sub}"
+        }
+      ],
+      "evidence": "Volter Harness: container/retake/stack/app/src/app.py:115 (status=all)",
+      "capture": {
+        "ravel_primary_item": "data.0.items.data.0.id"
+      }
+    },
+    {
+      "name": "The operations dashboard counts every subscription, canceled ones too",
+      "method": "GET",
+      "path": "/v1/subscriptions?limit=100&status=all",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0",
+          "exists": true
+        }
+      ],
+      "evidence": "Volter Harness: container/retake/stack/app/src/app.py:115"
+    },
+    {
+      "name": "and every customer",
+      "method": "GET",
+      "path": "/v1/customers?limit=100",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0",
+          "exists": true
+        }
+      ],
+      "evidence": "Volter Harness: container/retake/stack/app/src/app.py:116"
+    },
+    {
+      "name": "The sample shop's seeder looks its first customer up by email before seeding",
+      "method": "GET",
+      "path": "/v1/customers?email=billing%40ravel.test",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{ravel}"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ],
+      "evidence": "Twin: apps/platform/src/sample.ts:40"
+    },
+    {
+      "name": "Dub reads Ravel\u2019s billing customer",
+      "method": "GET",
+      "path": "/v1/customers/{ravel}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{ravel}"
+        },
+        {
+          "path": "email",
+          "equals": "billing@ravel.test"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/payment-methods/route.ts:66"
+    },
+    {
+      "name": "Twenty\u2019s app health check reads its Stripe account with the user-supplied key",
+      "method": "GET",
+      "path": "/v1/account",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "object",
+          "equals": "account"
+        }
+      ],
+      "evidence": "Twenty: packages/twenty-docs/developers/extend/apps/logic/logic-functions.mdx:850 (GET, Authorization only)"
+    },
+    {
+      "name": "Twenty\u2019s invoice workflow creates the quote invoice for Ravel",
+      "method": "POST",
+      "path": "/v1/invoices",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "draft"
+        },
+        {
+          "path": "customer",
+          "equals": "{ravel}"
+        },
+        {
+          "path": "collection_method",
+          "equals": "send_invoice"
+        },
+        {
+          "path": "due_date",
+          "equals": 1770289200
+        }
+      ],
+      "evidence": "Twenty: packages/twenty-docs/user-guide/workflows/how-tos/connect-to-other-tools/generate-quote-or-invoice-from-twenty.mdx:101; packages/twenty-server/src/modules/workflow/workflow-executor/workflow-actions/http-request/http-request.workflow-action.ts:28",
+      "body": {
+        "customer": "{ravel}",
+        "collection_method": "send_invoice",
+        "days_until_due": 30
+      },
+      "capture": {
+        "workflow_invoice": "id"
+      }
+    },
+    {
+      "name": "The invoice workflow reads the saved draft",
+      "method": "GET",
+      "path": "/v1/invoices/{workflow_invoice}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "draft"
+        },
+        {
+          "path": "customer",
+          "equals": "{ravel}"
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract"
+    },
+    {
+      "name": "An uninstalled payment app\u2019s setup request receives Stripe\u2019s unknown-URL answer",
+      "method": "POST",
+      "path": "/v1/setup_intents",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        },
+        {
+          "path": "error.message",
+          "equals": "Unrecognized request URL (POST: /v1/setup_intents). Please see https://stripe.com/docs or we can help at https://support.stripe.com/."
+        }
+      ],
+      "evidence": "Stripe: https://github.com/stripe/stripe-mock/issues/31; Cal payment app requires an app-store install (demand.optional)",
+      "body": {}
+    },
+    {
+      "name": "Monday 2 February: launch pricing",
+      "wait": "38760m",
+      "evidence": ""
+    },
+    {
+      "name": "Femke makes a coupon: 20% off for three months",
+      "method": "POST",
+      "path": "/v1/coupons",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "percent_off": 20,
+        "duration": "repeating",
+        "duration_in_months": 3,
+        "name": "Admin coupon for Kestrel",
+        "metadata": {
+          "campaign": "kestrel-launch"
+        }
+      },
+      "capture": {
+        "coupon": "id"
+      },
+      "evidence": "Dub: apps/web/lib/discounts/discount-provider-stripe.ts:136",
+      "expect": []
+    },
+    {
+      "name": "and reads it",
+      "method": "GET",
+      "path": "/v1/coupons/{coupon}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "acct_twin_self"
+      },
+      "expect": [
+        {
+          "path": "percent_off",
+          "equals": 20
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/rewardful/import-campaigns.ts:184; apps/web/lib/discounts/discount-provider-stripe.ts:87"
+    },
+    {
+      "name": "and its promotion code LAUNCH20",
+      "method": "POST",
+      "path": "/v1/promotion_codes",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2025-05-28.basil",
+        "stripe-account": "acct_twin_self"
+      },
+      "body": {
+        "coupon": "{coupon}",
+        "code": "LAUNCH20",
+        "restrictions": {
+          "first_time_transaction": false
+        }
+      },
+      "capture": {
+        "promo": "id"
+      },
+      "evidence": "Dub: apps/web/lib/discounts/discount-provider-stripe.ts:184; apps/web/lib/stripe/index.ts:23",
+      "expect": [
+        {
+          "path": "coupon.id",
+          "equals": "{coupon}"
+        },
+        {
+          "path": "code",
+          "equals": "LAUNCH20"
+        }
+      ]
+    },
+    {
+      "name": "Tallyforge finds the code by its text",
+      "method": "GET",
+      "path": "/v1/promotion_codes?code=LAUNCH20&limit=1",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "acct_twin_self"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{promo}"
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/discounts/discount-provider-stripe.ts:275"
+    },
+    {
+      "name": "and reads the code it names",
+      "method": "GET",
+      "path": "/v1/promotion_codes/{promo}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "acct_twin_self"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{promo}"
+        },
+        {
+          "path": "code",
+          "equals": "LAUNCH20"
+        },
+        {
+          "path": "active",
+          "equals": true
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/integration/webhook/utils/get-promotion-code.ts:18"
+    },
+    {
+      "name": "Veldkamp starts Checkout with the code",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2025-05-28.basil"
+      },
+      "body": {
+        "mode": "subscription",
+        "line_items": [
+          {
+            "price": "{monthly}",
+            "quantity": 1
+          }
+        ],
+        "discounts": [
+          {
+            "coupon": "{coupon}"
+          }
+        ],
+        "customer_email": "ops@veldkamp.test",
+        "success_url": "https://app.tallyforge.test/veldkamp?upgraded=true&plan=pro&period=monthly",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "billing_address_collection": "required",
+        "automatic_tax": {
+          "enabled": true
+        },
+        "tax_id_collection": {
+          "enabled": true
+        },
+        "client_reference_id": "workspace_veldkamp",
+        "metadata": {
+          "dubCustomerId": "user_veldkamp"
+        }
+      },
+      "capture": {
+        "cs4": "id",
+        "cs4_url": "url"
+      },
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/upgrade/route.ts:141; apps/web/lib/stripe/index.ts:5"
+    },
+    {
+      "name": "and pays",
+      "method": "POST",
+      "path": "{cs4_url}",
+      "status": 303,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=ops%40veldkamp.test&cardNumber=4242424242424242&cardExpiry=09%2F29&cardCvc=314&billingName=Veldkamp&billingCountry=NL&billingPostalCode=3011",
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "The session's discount",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{cs4}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "capture": {
+        "veldkamp": "customer",
+        "veld_sub": "subscription"
+      },
+      "expect": [
+        {
+          "path": "total_details.amount_discount",
+          "equals": 980
+        }
+      ],
+      "evidence": "Rallly: apps/web/src/app/api/stripe/portal/route.ts:34; spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "Postiz\u2019s subscription screen loads its pinned Stripe.js script",
+      "method": "GET",
+      "path": "https://js.stripe.com/clover/stripe.js",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "initCheckout"
+        }
+      ],
+      "evidence": "Postiz package.json @stripe/stripe-js ^8.6.0; CheckoutProvider delegates initCheckout/loadActions"
+    },
+    {
+      "name": "Postiz starts its default web billing with a seven-day custom Checkout trial",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2025-09-30.clover"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "ui_mode",
+          "equals": "custom"
+        },
+        {
+          "path": "url",
+          "equals": null
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "ui_mode": "custom",
+        "customer": "{ravel}",
+        "return_url": "https://app.tallyforge.test/launches",
+        "mode": "subscription",
+        "subscription_data": {
+          "trial_period_days": 7,
+          "metadata": {
+            "organization": "ravel"
+          }
+        },
+        "allow_promotion_codes": true,
+        "line_items": [
+          {
+            "price": "{monthly}",
+            "quantity": 1
+          }
+        ]
+      },
+      "capture": {
+        "postiz_cs": "id",
+        "postiz_secret": "client_secret"
+      }
+    },
+    {
+      "name": "CheckoutProvider loads actions and the subscription summary",
+      "method": "POST",
+      "path": "https://api.stripe.com/v1/payment_pages/{postiz_cs}/init",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "success"
+        },
+        {
+          "path": "session.status.type",
+          "equals": "open"
+        },
+        {
+          "path": "session.lineItems.0.unitAmount.amount",
+          "equals": "$49.00"
+        },
+        {
+          "path": "session.total.total.amount",
+          "equals": "$0.00"
+        },
+        {
+          "path": "session.recurring.trial.trialPeriodDays",
+          "equals": 7
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "client_secret": "{postiz_secret}"
+      }
+    },
+    {
+      "name": "The subscriber\u2019s mistyped promotion receives its refusal",
+      "method": "POST",
+      "path": "https://api.stripe.com/v1/payment_pages/{postiz_cs}/apply_promotion_code",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "error"
+        },
+        {
+          "path": "error.code",
+          "equals": "invalidPromotionCode"
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "client_secret": "{postiz_secret}",
+        "promotion_code": "MISSPELLED"
+      }
+    },
+    {
+      "name": "The subscriber applies Postiz\u2019s campaign promotion",
+      "method": "POST",
+      "path": "https://api.stripe.com/v1/payment_pages/{postiz_cs}/apply_promotion_code",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "success"
+        },
+        {
+          "path": "session.discountAmounts.0.promotionCode",
+          "equals": "LAUNCH20"
+        },
+        {
+          "path": "session.total.discount.minorUnitsAmount",
+          "equals": 980
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "client_secret": "{postiz_secret}",
+        "promotion_code": "LAUNCH20"
+      }
+    },
+    {
+      "name": "The subscriber removes the campaign promotion",
+      "method": "POST",
+      "path": "https://api.stripe.com/v1/payment_pages/{postiz_cs}/remove_promotion_code",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "success"
+        },
+        {
+          "path": "session.discountAmounts",
+          "equals": []
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "client_secret": "{postiz_secret}"
+      }
+    },
+    {
+      "name": "The PaymentElement refuses an incomplete card",
+      "method": "POST",
+      "path": "https://api.stripe.com/v1/payment_pages/{postiz_cs}/confirm",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "error"
+        },
+        {
+          "path": "error.code",
+          "equals": "paymentFailed"
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "client_secret": "{postiz_secret}",
+        "payment_details": {
+          "cardNumber": "42",
+          "cardExpiry": "12 / 99",
+          "cardCvc": "123"
+        }
+      }
+    },
+    {
+      "name": "The subscriber confirms through CheckoutProvider\u2019s PaymentElement",
+      "method": "POST",
+      "path": "https://api.stripe.com/v1/payment_pages/{postiz_cs}/confirm",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "success"
+        },
+        {
+          "path": "session.status.type",
+          "equals": "complete"
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "client_secret": "{postiz_secret}",
+        "payment_details": {
+          "cardNumber": "4242424242424242",
+          "cardExpiry": "12 / 99",
+          "cardCvc": "123",
+          "billingName": "Ravel Agency"
+        }
+      }
+    },
+    {
+      "name": "Postiz reads the completed session and resulting trial subscription",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{postiz_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "complete"
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "capture": {
+        "postiz_sub": "subscription"
+      }
+    },
+    {
+      "name": "Postiz previews the next subscription invoice",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "object",
+          "equals": "invoice"
+        },
+        {
+          "path": "customer",
+          "equals": "{ravel}"
+        },
+        {
+          "path": "amount_due",
+          "equals": 4900
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:1126-1129 (customer, subscription)",
+      "body": {
+        "customer": "{ravel}",
+        "subscription": "{postiz_sub}"
+      }
+    },
+    {
+      "name": "Postiz reads the trial\u2019s current line before showing a plan-change quote",
+      "method": "GET",
+      "path": "/v1/subscriptions/{postiz_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "trialing"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "capture": {
+        "postiz_item": "items.data.0.id"
+      }
+    },
+    {
+      "name": "Postiz reads the active subscription item for the plan-change quote",
+      "method": "GET",
+      "path": "/v1/subscriptions/{veld_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "capture": {
+        "quote_item": "items.data.0.id"
+      },
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:950 (retrieve(id))"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:343-355; Stripe: https://docs.stripe.com/billing/subscriptions/prorations",
+      "name": "Postiz quotes a plan change while the current subscription discount applies",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "always_invoice",
+          "items": [
+            {
+              "id": "{quote_item}",
+              "price": "{upgrade_monthly}",
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "subtotal",
+          "equals": 3920
+        },
+        {
+          "path": "total",
+          "equals": 3920
+        },
+        {
+          "path": "amount_due",
+          "equals": 3920
+        },
+        {
+          "path": "lines.data.0.amount",
+          "equals": -3920
+        },
+        {
+          "path": "lines.data.1.amount",
+          "equals": 7840
+        },
+        {
+          "path": "lines.data.0.parent.subscription_item_details.proration",
+          "equals": true
+        },
+        {
+          "path": "lines.data.1.parent.subscription_item_details.proration",
+          "equals": true
+        },
+        {
+          "path": "lines.data.0.pricing.price_details.price",
+          "equals": "{monthly}"
+        },
+        {
+          "path": "lines.data.1.pricing.price_details.price",
+          "equals": "{upgrade_monthly}"
+        },
+        {
+          "path": "lines.total_count",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "name": "Postiz removes the applied subscription discount before the next billing period",
+      "method": "DELETE",
+      "path": "/v1/subscriptions/{veld_sub}/discount",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "deleted",
+          "equals": true
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:1230 (deleteDiscount(id), no parameters)"
+    },
+    {
+      "name": "Postiz reads the active subscription item for the plan-change quote",
+      "method": "GET",
+      "path": "/v1/subscriptions/{veld_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "capture": {
+        "quote_item": "items.data.0.id"
+      },
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:950 (retrieve(id))"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:343-355; Stripe: https://docs.stripe.com/billing/subscriptions/prorations",
+      "name": "Postiz quotes its plan change at the current time without supplying proration_date",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "always_invoice",
+          "items": [
+            {
+              "id": "{quote_item}",
+              "price": "{upgrade_monthly}",
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "subtotal",
+          "equals": 4900
+        },
+        {
+          "path": "total",
+          "equals": 4900
+        },
+        {
+          "path": "amount_due",
+          "equals": 4900
+        },
+        {
+          "path": "lines.data.0.amount",
+          "equals": -4900
+        },
+        {
+          "path": "lines.data.1.amount",
+          "equals": 9800
+        },
+        {
+          "path": "lines.data.0.parent.subscription_item_details.proration",
+          "equals": true
+        },
+        {
+          "path": "lines.data.1.parent.subscription_item_details.proration",
+          "equals": true
+        },
+        {
+          "path": "lines.data.0.pricing.price_details.price",
+          "equals": "{monthly}"
+        },
+        {
+          "path": "lines.data.1.pricing.price_details.price",
+          "equals": "{upgrade_monthly}"
+        },
+        {
+          "path": "lines.total_count",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Stripe: https://docs.stripe.com/api/invoices/create_preview?query=subscription_details",
+      "name": "The documented quote option create_prorations previews the next invoice",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "create_prorations",
+          "items": [
+            {
+              "id": "{quote_item}",
+              "price": "{upgrade_monthly}",
+              "quantity": 1
+            }
+          ],
+          "proration_date": 1771232400
+        }
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": 12250
+        },
+        {
+          "path": "lines.data.0.amount",
+          "equals": -2450
+        },
+        {
+          "path": "lines.data.1.amount",
+          "equals": 4900
+        },
+        {
+          "path": "lines.data.2.amount",
+          "equals": 9800
+        },
+        {
+          "path": "lines.data.0.period.start",
+          "equals": 1771232400
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Stripe: https://docs.stripe.com/api/invoices/create_preview?query=subscription_details",
+      "name": "The documented quote option none previews the next invoice",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "none",
+          "items": [
+            {
+              "id": "{quote_item}",
+              "price": "{upgrade_monthly}",
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": 9800
+        },
+        {
+          "path": "lines.total_count",
+          "equals": 1
+        },
+        {
+          "path": "lines.data.0.parent.subscription_item_details.proration",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:343-355; Stripe: https://docs.stripe.com/billing/subscriptions/prorations",
+      "name": "An unchanged plan creates no proration even with always_invoice",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "always_invoice",
+          "items": [
+            {
+              "id": "{quote_item}",
+              "price": "{monthly}",
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": 4900
+        },
+        {
+          "path": "lines.total_count",
+          "equals": 1
+        },
+        {
+          "path": "lines.data.0.parent.subscription_item_details.proration",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Stripe: https://docs.stripe.com/api/invoices/create_preview.md?query=subscription_details",
+      "name": "The documented preview credits unused time when removing a paid subscription item",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "items": [
+            {
+              "id": "{quote_item}",
+              "deleted": true
+            }
+          ],
+          "proration_date": 1771232400
+        }
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": -2450
+        },
+        {
+          "path": "amount_due",
+          "equals": 0
+        },
+        {
+          "path": "lines.data.0.amount",
+          "equals": -2450
+        },
+        {
+          "path": "lines.total_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Stripe: https://docs.stripe.com/api/invoices/create_preview.md?query=subscription_details",
+      "name": "The documented preview charges remaining time when adding a subscription item",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "always_invoice",
+          "items": [
+            {
+              "price": "{seat}",
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": 800
+        },
+        {
+          "path": "lines.total_count",
+          "equals": 1
+        },
+        {
+          "path": "lines.data.0.amount",
+          "equals": 800
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "evidence": "Stripe: https://docs.stripe.com/api/invoices/create_preview.md?query=subscription_details",
+      "name": "At the billing boundary there is no unused time to prorate",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "always_invoice",
+          "items": [
+            {
+              "id": "{quote_item}",
+              "price": "{upgrade_monthly}",
+              "quantity": 1
+            }
+          ],
+          "proration_date": 1772442000
+        }
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": 9800
+        },
+        {
+          "path": "lines.total_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "evidence": "Stripe: https://docs.stripe.com/api/invoices/create_preview.md?query=subscription_details",
+      "name": "The preview refuses a proration time outside the current billing period",
+      "body": {
+        "customer": "{veldkamp}",
+        "subscription": "{veld_sub}",
+        "subscription_details": {
+          "proration_behavior": "always_invoice",
+          "items": [
+            {
+              "id": "{quote_item}",
+              "price": "{upgrade_monthly}",
+              "quantity": 1
+            }
+          ],
+          "proration_date": 1775000000
+        }
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ]
+    },
+    {
+      "name": "The quoted subscription still has one monthly unit",
+      "method": "GET",
+      "path": "/v1/subscriptions/{veld_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "items.data.0.quantity",
+          "equals": 1
+        },
+        {
+          "path": "items.data.0.price.id",
+          "equals": "{monthly}"
+        },
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:343-355; Stripe preview leaves the subscription unchanged"
+    },
+    {
+      "name": "The quote removes its existing monthly line",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "amount_due",
+          "equals": 0
+        },
+        {
+          "path": "lines.data",
+          "equals": []
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "subscription": "{postiz_sub}",
+        "subscription_details": {
+          "items": [
+            {
+              "id": "{postiz_item}",
+              "deleted": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "The quote finds the customer\u2019s first current subscription when its id is omitted",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "customer",
+          "equals": "{ravel}"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "customer": "{ravel}"
+      }
+    },
+    {
+      "name": "A stale subscription id is refused in the quote",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "resource_missing"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "subscription": "sub_stale"
+      }
+    },
+    {
+      "name": "The admin recovers the current subscription from its saved Checkout session",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{postiz_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "complete"
+        },
+        {
+          "path": "subscription",
+          "equals": "{postiz_sub}"
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:261,950; Stripe catalog and saved Checkout recovery"
+    },
+    {
+      "name": "A stale subscription line is refused in a plan-change quote",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "resource_missing"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "subscription": "{postiz_sub}",
+        "subscription_details": {
+          "items": [
+            {
+              "id": "si_stale",
+              "quantity": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "A stale catalog price is refused in a plan-change quote",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "resource_missing"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "subscription": "{postiz_sub}",
+        "subscription_details": {
+          "items": [
+            {
+              "price": "price_stale"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "The admin reloads the current monthly catalog price before repairing the quote",
+      "method": "GET",
+      "path": "/v1/prices/{monthly}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{monthly}"
+        },
+        {
+          "path": "unit_amount",
+          "equals": 4900
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:261,950; Stripe catalog and saved Checkout recovery"
+    },
+    {
+      "name": "A workflow\u2019s incomplete quote configuration requires a customer",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_missing"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {}
+    },
+    {
+      "name": "The quote refuses a deleted customer id",
+      "method": "POST",
+      "path": "/v1/invoices/create_preview",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "resource_missing"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "customer": "cus_stale"
+      }
+    },
+    {
+      "name": "The workflow asks to include its customer\u2019s pending items in a new draft",
+      "method": "POST",
+      "path": "/v1/invoices",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "draft"
+        },
+        {
+          "path": "lines.data",
+          "equals": []
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "customer": "{ravel}",
+        "pending_invoice_items_behavior": "include"
+      }
+    },
+    {
+      "name": "After launch week the code is switched off",
+      "method": "POST",
+      "path": "/v1/promotion_codes/{promo}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "acct_twin_self"
+      },
+      "body": {
+        "active": false
+      },
+      "expect": [
+        {
+          "path": "active",
+          "equals": false
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/discounts/discount-provider-stripe.ts:294"
+    },
+    {
+      "name": "Rallly configures billing details and card updates",
+      "method": "POST",
+      "path": "/v1/billing_portal/configurations",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "business_profile": {
+          "headline": "Manage your billing details"
+        },
+        "features": {
+          "customer_update": {
+            "enabled": true,
+            "allowed_updates": [
+              "name",
+              "address",
+              "tax_id"
+            ]
+          },
+          "payment_method_update": {
+            "enabled": true
+          },
+          "invoice_history": {
+            "enabled": true
+          },
+          "subscription_update": {
+            "enabled": false,
+            "default_allowed_updates": null,
+            "products": null
+          },
+          "subscription_cancel": {
+            "enabled": false
+          }
+        },
+        "metadata": {
+          "purpose": "account",
+          "version": "1"
+        }
+      },
+      "capture": {
+        "portal_cfg": "id"
+      },
+      "evidence": "Rallly: apps/web/src/features/billing/mutations.ts:103",
+      "expect": [
+        {
+          "path": "features.payment_method_update.enabled",
+          "equals": true
+        },
+        {
+          "path": "features.subscription_cancel.enabled",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Tallyforge lists the portal's configurations",
+      "method": "GET",
+      "path": "/v1/billing_portal/configurations?active=true&limit=100",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "exists": true
+        }
+      ],
+      "evidence": "Rallly: apps/web/src/features/billing/mutations.ts:35"
+    },
+    {
+      "name": "Nordlicht opens the portal",
+      "method": "POST",
+      "path": "/v1/billing_portal/sessions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "customer": "{nordlicht}",
+        "return_url": "https://app.tallyforge.test/billing"
+      },
+      "capture": {
+        "portal": "id",
+        "portal_url": "url"
+      },
+      "evidence": "Rallly: apps/web/src/features/billing/mutations.ts:22"
+    },
+    {
+      "name": "The portal page",
+      "method": "GET",
+      "path": "{portal_url}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Kestrel Labs"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "Nordlicht adds a new card",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{portal}/payment_method",
+      "status": 303,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "cardNumber=4000056655665556&cardExpiry=10%2F30&cardCvc=118&billingName=Nordlicht+Studio&billingCountry=NL&billingPostalCode=3012",
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "Monday 2 March: the monthly subscriptions renew",
+      "wait": "40320m",
+      "evidence": ""
+    },
+    {
+      "name": "Wednesday 1 April: the launch promotion closes",
+      "wait": "43200m",
+      "evidence": ""
+    },
+    {
+      "name": "The webinar long over, Femke switches LAUNCH20 off again",
+      "method": "POST",
+      "path": "/v1/promotion_codes/{promo}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "acct_twin_self"
+      },
+      "body": {
+        "active": false
+      },
+      "expect": [
+        {
+          "path": "active",
+          "equals": false
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/discounts/discount-provider-stripe.ts:294"
+    },
+    {
+      "name": "Monday 4 May: a storage add-on and fraud investigation",
+      "wait": "47520m",
+      "evidence": ""
+    },
+    {
+      "name": "A storage add-on charged on the server at once, with Stripe's test card",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "amount=2900&currency=usd&customer=%7Bravel%7D&payment_method=pm_card_visa&confirm=true&automatic_payment_methods%5Benabled%5D=true&automatic_payment_methods%5Ballow_redirects%5D=never&description=Pro+plan",
+      "expect": [
+        {
+          "path": "status",
+          "equals": "succeeded"
+        },
+        {
+          "path": "amount_received",
+          "equals": 2900
+        }
+      ],
+      "evidence": "Twin: apps/platform/src/sample.ts:47",
+      "capture": {
+        "shop_charge": "latest_charge"
+      }
+    },
+    {
+      "name": "Kestrel reads the receipt for its storage add-on",
+      "method": "GET",
+      "path": "/v1/charges/{shop_charge}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "succeeded"
+        }
+      ],
+      "capture": {
+        "fraud_card_fingerprint": "payment_method_details.card.fingerprint"
+      },
+      "evidence": "Dub: apps/web/app/(ee)/api/cron/payouts/charge-succeeded/utils.ts:78; spec:GetChargesCharge"
+    },
+    {
+      "name": "Postiz refunds the canceled storage add-on",
+      "method": "POST",
+      "path": "/v1/refunds",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "object",
+          "equals": "refund"
+        },
+        {
+          "path": "amount",
+          "equals": 2900
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:1027 (refunds.create({charge}))",
+      "body": {
+        "charge": "{shop_charge}"
+      },
+      "capture": {
+        "postiz_refund": "id"
+      }
+    },
+    {
+      "name": "Tallyforge lists Nordlicht's cards",
+      "method": "GET",
+      "path": "/v1/payment_methods?customer={nordlicht}&type=card",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "evidence": "Dub: apps/web/lib/stripe/create-payment-intent.ts:20"
+    },
+    {
+      "name": "Femke opens the Radar Lists page before entering the fraud lists",
+      "method": "GET",
+      "path": "https://dashboard.stripe.com/radar/lists",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Radar Lists"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/radar/lists"
+    },
+    {
+      "name": "The fraud operator creates Fraud customers in Radar Lists",
+      "method": "POST",
+      "path": "https://dashboard.stripe.com/radar/lists",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "name=Fraud+customers&alias=fraud_customer&item_type=customer_id",
+      "status": 303,
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/webhook/utils/add-to-stripe-fraud-value-lists.ts:3-7; https://docs.stripe.com/radar/lists#create-and-edit-lists",
+      "capture": {
+        "fraud_customer": "header:location:/radar/lists/([^/?]+)"
+      }
+    },
+    {
+      "name": "The fraud operator creates Fraud emails in Radar Lists",
+      "method": "POST",
+      "path": "https://dashboard.stripe.com/radar/lists",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "name=Fraud+emails&alias=fraud_email&item_type=email",
+      "status": 303,
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/webhook/utils/add-to-stripe-fraud-value-lists.ts:3-7; https://docs.stripe.com/radar/lists#create-and-edit-lists",
+      "capture": {
+        "fraud_email": "header:location:/radar/lists/([^/?]+)"
+      }
+    },
+    {
+      "name": "The fraud operator creates Fraud card fingerprints in Radar Lists",
+      "method": "POST",
+      "path": "https://dashboard.stripe.com/radar/lists",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "name=Fraud+card+fingerprints&alias=fraud_fingerprint&item_type=card_fingerprint",
+      "status": 303,
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/webhook/utils/add-to-stripe-fraud-value-lists.ts:3-7; https://docs.stripe.com/radar/lists#create-and-edit-lists",
+      "capture": {
+        "fraud_fingerprint": "header:location:/radar/lists/([^/?]+)"
+      }
+    },
+    {
+      "name": "Dub adds the flagged customer to its configured Radar list",
+      "method": "POST",
+      "path": "/v1/radar/value_list_items",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "value_list": "{fraud_customer}",
+        "value": "{ravel}"
+      },
+      "expect": [
+        {
+          "path": "value",
+          "equals": "{ravel}"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/webhook/utils/add-to-stripe-fraud-value-lists.ts:28"
+    },
+    {
+      "name": "Dub adds the flagged email to its configured Radar list",
+      "method": "POST",
+      "path": "/v1/radar/value_list_items",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "value_list": "{fraud_email}",
+        "value": "billing@ravel.test"
+      },
+      "expect": [
+        {
+          "path": "value",
+          "equals": "billing@ravel.test"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/webhook/utils/add-to-stripe-fraud-value-lists.ts:28"
+    },
+    {
+      "name": "Dub adds the flagged fingerprint to its configured Radar list",
+      "method": "POST",
+      "path": "/v1/radar/value_list_items",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "value_list": "{fraud_fingerprint}",
+        "value": "{fraud_card_fingerprint}"
+      },
+      "expect": [
+        {
+          "path": "value",
+          "equals": "{fraud_card_fingerprint}"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/stripe/webhook/utils/add-to-stripe-fraud-value-lists.ts:28"
+    },
+    {
+      "name": "Wednesday 1 July: the partner program",
+      "wait": "83520m",
+      "evidence": ""
+    },
+    {
+      "name": "A partner agency: an Express account",
+      "method": "POST",
+      "path": "/v1/accounts",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "type": "express",
+        "business_type": "individual",
+        "country": "US",
+        "individual": {},
+        "capabilities": {
+          "transfers": {
+            "requested": true
+          },
+          "card_payments": {
+            "requested": true
+          }
+        }
+      },
+      "capture": {
+        "partner": "id"
+      },
+      "evidence": "Dub: apps/web/lib/stripe/create-connected-account.ts:13"
+    },
+    {
+      "name": "An onboarding link",
+      "method": "POST",
+      "path": "/v1/account_links",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "account": "{partner}",
+        "refresh_url": "https://partners.tallyforge.test/payouts?settings=true",
+        "return_url": "https://partners.tallyforge.test/payouts?settings=true",
+        "type": "account_onboarding",
+        "collect": "eventually_due"
+      },
+      "capture": {
+        "link_url": "url"
+      },
+      "evidence": "Dub: apps/web/lib/actions/partners/generate-stripe-account-link.ts:71"
+    },
+    {
+      "name": "The partner opens it",
+      "method": "GET",
+      "path": "{link_url}",
+      "status": 302,
+      "capture": {
+        "onb": "header:location"
+      },
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "The onboarding page",
+      "method": "GET",
+      "path": "{onb}",
+      "status": 200,
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "and submits it",
+      "method": "POST",
+      "path": "{onb}",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "mcc=7372&url=https%3A%2F%2Fbrightwell.test&statement_descriptor=BRIGHTWELL&first_name=Sanne&last_name=de+Vries&email=payouts%40brightwell.test&phone=%2B14155550100&dob=1988-04-12&line1=1+Market+St&city=San+Francisco&state=CA&postal_code=94105&ssn_last_4=0000&tos=accepted&routing_number=110000000&account_number=000123456789",
+      "expect": [
+        {
+          "header": "location",
+          "equals": "https://partners.tallyforge.test/payouts?settings=true"
+        }
+      ],
+      "evidence": "World operator or vendor-hosted browser continuation of the application call named in this act (customer-life.outline.md)"
+    },
+    {
+      "name": "The account, read",
+      "method": "GET",
+      "path": "/v1/accounts/{partner}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "charges_enabled",
+          "equals": true
+        },
+        {
+          "path": "payouts_enabled",
+          "equals": true
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/actions/partners/generate-stripe-account-link.ts:66"
+    },
+    {
+      "name": "its bank account",
+      "method": "GET",
+      "path": "/v1/accounts/{partner}/external_accounts?object=bank_account",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.last4",
+          "equals": "6789"
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/partners/get-partner-bank-account.ts:25"
+    },
+    {
+      "name": "a login link to its Express dashboard",
+      "method": "POST",
+      "path": "/v1/accounts/{partner}/login_links",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "exists": true
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/actions/partners/generate-stripe-account-link.ts:70"
+    },
+    {
+      "name": "Kestrel's balance",
+      "method": "GET",
+      "path": "/v1/balance",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "available",
+          "exists": true
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/cron/trigger-withdrawal/route.ts:14"
+    },
+    {
+      "name": "Monday 3 August: July commissions",
+      "wait": "47520m",
+      "evidence": ""
+    },
+    {
+      "name": "The partner's commission transferred",
+      "method": "POST",
+      "path": "/v1/transfers",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "idempotency-key": "invoice-july-partner-transfer"
+      },
+      "body": {
+        "amount": 12000,
+        "currency": "usd",
+        "destination": "{partner}",
+        "description": "Dub Partners payout transfer (Kestrel)",
+        "transfer_group": "inv_july"
+      },
+      "capture": {
+        "transfer": "id"
+      },
+      "evidence": "Dub: apps/web/lib/partners/create-stripe-transfer.ts:203"
+    },
+    {
+      "name": "Transfers to the partner",
+      "method": "GET",
+      "path": "/v1/transfers?destination={partner}&limit=100",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{transfer}"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/cron/payouts/balance-available/route.ts:151"
+    },
+    {
+      "name": "The partner is paid out from their balance",
+      "method": "POST",
+      "path": "/v1/payouts",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "{partner}"
+      },
+      "body": {
+        "amount": 12000,
+        "currency": "usd",
+        "description": "Dub Partners auto-withdrawal (Aug 3, 2026)",
+        "method": "standard"
+      },
+      "capture": {
+        "payout": "id"
+      },
+      "evidence": "Dub: apps/web/app/(ee)/api/cron/payouts/balance-available/route.ts:134"
+    },
+    {
+      "name": "Dub checks when the platform's add-on charge settles",
+      "method": "GET",
+      "path": "/v1/balance_transactions?source={shop_charge}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "exists": true
+        },
+        {
+          "path": "data.0.source",
+          "equals": "{shop_charge}"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/cron/payouts/charge-succeeded/utils.ts:78"
+    },
+    {
+      "name": "The partner program keeps its integration secret in the secret store",
+      "method": "POST",
+      "path": "/v1/apps/secrets",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "dub_token",
+        "payload": "tok-7f3a",
+        "scope": {
+          "type": "account"
+        }
+      },
+      "evidence": "Dub: packages/stripe-app/src/utils/secrets.ts:20",
+      "expect": []
+    },
+    {
+      "name": "and finds it",
+      "method": "GET",
+      "path": "/v1/apps/secrets/find?name=dub_token&scope[type]=account&expand[]=payload",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "payload",
+          "equals": "tok-7f3a"
+        }
+      ],
+      "evidence": "Dub: packages/stripe-app/src/utils/secrets.ts:36"
+    },
+    {
+      "name": "and deletes it at the rotation",
+      "method": "POST",
+      "path": "/v1/apps/secrets/delete",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "dub_token",
+        "scope": {
+          "type": "account"
+        }
+      },
+      "expect": [
+        {
+          "path": "deleted",
+          "equals": true
+        }
+      ],
+      "evidence": "Dub: packages/stripe-app/src/utils/secrets.ts:60"
+    },
+    {
+      "name": "Monday 31 August: a partner leaves",
+      "wait": "40320m",
+      "evidence": ""
+    },
+    {
+      "name": "A second partner, who leaves before onboarding",
+      "method": "POST",
+      "path": "/v1/accounts",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "type": "express",
+        "business_type": "individual",
+        "country": "US",
+        "individual": {},
+        "capabilities": {
+          "transfers": {
+            "requested": true
+          },
+          "card_payments": {
+            "requested": true
+          }
+        }
+      },
+      "capture": {
+        "partner2": "id"
+      },
+      "evidence": "Dub: apps/web/lib/stripe/create-connected-account.ts:13"
+    },
+    {
+      "name": "is deleted",
+      "method": "DELETE",
+      "path": "/v1/accounts/{partner2}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "deleted",
+          "equals": true
+        }
+      ],
+      "evidence": "Dub: apps/web/app/(ee)/api/admin/partners/delete-account/route.ts:64"
+    },
+    {
+      "name": "Monday 2 November: cancellations",
+      "wait": "90720m",
+      "evidence": ""
+    },
+    {
+      "name": "Veldkamp cancels at once",
+      "method": "DELETE",
+      "path": "/v1/subscriptions/{veld_sub}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "canceled"
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/stripe/cancel-subscription.ts:20"
+    },
+    {
+      "name": "The subscription, read",
+      "method": "GET",
+      "path": "/v1/subscriptions/{veld_sub}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "canceled"
+        }
+      ],
+      "evidence": "Dub: apps/web/lib/stripe/cancel-subscription.ts:18"
+    },
+    {
+      "name": "Products listed",
+      "method": "GET",
+      "path": "/v1/products?active=true&expand[]=data.prices",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "evidence": "Stripe operator catalog read-back: spec:GetProducts"
+    },
+    {
+      "name": "Monday 7 December: Kestrel's agents get a card rail",
+      "wait": "50400m",
+      "evidence": ""
+    },
+    {
+      "name": "The treasurer opens Stripe\u2019s test Issuing balance page",
+      "method": "GET",
+      "path": "https://dashboard.stripe.com/test/issuing/balance",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Test Issuing balance"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/issuing/testing"
+    },
+    {
+      "name": "The operator funds the sandbox Issuing balance for the domain purchase",
+      "method": "POST",
+      "path": "https://dashboard.stripe.com/test/issuing/balance",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "amount=2000",
+      "status": 303,
+      "evidence": "https://docs.stripe.com/issuing/testing#fund-your-test-issuing-balance"
+    },
+    {
+      "name": "Kestrel's platform enrols its webhook endpoint for the Issuing events",
+      "method": "POST",
+      "path": "/v1/webhook_endpoints",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "url=http%3A%2F%2F127.0.0.1%3A24444%2Fwebhooks%2Fstripe&enabled_events[0]=issuing_authorization.request&enabled_events[1]=issuing_authorization.created&enabled_events[2]=issuing_transaction.created",
+      "capture": {
+        "we_rail": "id"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "enabled"
+        },
+        {
+          "path": "secret",
+          "contains": "whsec_"
+        }
+      ],
+      "evidence": "Open Autonomy: apps/platform/world.ts:46"
+    },
+    {
+      "name": "The rail's cardholder: the account the agents spend for",
+      "method": "POST",
+      "path": "/v1/issuing/cardholders",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "Open Autonomy \u00b7 kestrel",
+        "type": "company",
+        "billing": {
+          "address": {
+            "line1": "1 World Street",
+            "city": "Twin City",
+            "state": "CA",
+            "postal_code": "00000",
+            "country": "US"
+          }
+        },
+        "metadata": {
+          "account": "kestrel"
+        }
+      },
+      "capture": {
+        "ich": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Open Autonomy \u00b7 kestrel"
+        },
+        {
+          "path": "type",
+          "equals": "company"
+        }
+      ],
+      "evidence": "Open Autonomy: packages/backend/src/rails.ts:35; apps/platform/world.ts:45"
+    },
+    {
+      "name": "The treasurer obtains a single-use virtual card for the domain, at most $2.50",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "spending_controls": {
+          "spending_limits": [
+            {
+              "amount": 250,
+              "interval": "per_authorization"
+            }
+          ],
+          "allowed_categories": [
+            "computer_software_stores"
+          ]
+        },
+        "metadata": {
+          "account": "kestrel",
+          "purpose": "domain todo-cli.example",
+          "request_id": "00000000-0000-4000-8000-000000000001"
+        }
+      },
+      "capture": {
+        "ic": "id",
+        "ic_last4": "last4"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "virtual"
+        },
+        {
+          "path": "status",
+          "equals": "inactive"
+        },
+        {
+          "path": "cardholder.id",
+          "equals": "{ich}"
+        },
+        {
+          "path": "last4",
+          "exists": true
+        }
+      ],
+      "evidence": "Open Autonomy: packages/backend/src/rails.ts:40"
+    },
+    {
+      "name": "The agent reads the card's number and CVC",
+      "method": "GET",
+      "path": "/v1/issuing/cards/{ic}?expand[]=number&expand[]=cvc",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "expect": [
+        {
+          "path": "number",
+          "contains": "{ic_last4}"
+        },
+        {
+          "path": "cvc",
+          "exists": true
+        }
+      ],
+      "evidence": "Open Autonomy: packages/backend/src/rails.ts:48"
+    },
+    {
+      "name": "The product World presents the domain purchase at Namecheap",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "{basic:sk:basic_empty}",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "card={ic}&amount=200&merchant_data[category]=computer_software_stores&merchant_data[name]=Namecheap",
+      "capture": {
+        "domain_auth": "id"
+      },
+      "expect": [
+        {
+          "path": "approved",
+          "equals": false
+        },
+        {
+          "path": "status",
+          "equals": "closed"
+        },
+        {
+          "path": "request_history.0.reason",
+          "equals": "card_inactive"
+        },
+        {
+          "path": "card.status",
+          "equals": "inactive"
+        },
+        {
+          "path": "merchant_data.name",
+          "equals": "Namecheap"
+        },
+        {
+          "path": "card.id",
+          "equals": "{ic}"
+        }
+      ],
+      "evidence": "Open Autonomy: world/model/scenario.ts:60-61; packages/backend/src/rails.ts:40 (no status); https://docs.stripe.com/api/issuing/cards/create#create_issuing_card-status (Defaults to inactive); spec:/components/schemas/issuing_authorization_request/properties/reason/enum (card_inactive)"
+    },
+    {
+      "name": "The rail retires the unused card when the issuer reports its decline",
+      "method": "POST",
+      "path": "/v1/issuing/cards/{ic}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "status": "canceled"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "canceled"
+        }
+      ],
+      "evidence": "Open Autonomy: packages/backend/src/rails.ts:93-99"
+    },
+    {
+      "name": "Ravel\u2019s admin reads its current monthly line before upgrading",
+      "method": "GET",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "capture": {
+        "ravel_item": "items.data.0.id"
+      },
+      "evidence": "Stripe: spec:GetSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Ravel switches its existing line to the yearly price",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "items.data.0.price.id",
+          "equals": "{yearly}"
+        },
+        {
+          "path": "items.data.0.quantity",
+          "equals": 2
+        }
+      ],
+      "body": {
+        "items": [
+          {
+            "id": "{ravel_item}",
+            "price": "{yearly}",
+            "quantity": 2
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "The billing admin gives Ravel a second add-on line",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "items.data.1.quantity",
+          "equals": 3
+        }
+      ],
+      "body": {
+        "items": [
+          {
+            "price": "{seat}",
+            "quantity": 3,
+            "metadata": {
+              "purpose": "editors"
+            }
+          }
+        ]
+      },
+      "capture": {
+        "addon_item": "items.data.1.id"
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Ravel removes the extra editor line after consolidating workspaces",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "items.data.0.id",
+          "equals": "{ravel_item}"
+        }
+      ],
+      "body": {
+        "items": [
+          {
+            "id": "{addon_item}",
+            "deleted": true
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "A negotiated yearly price is created inline on Ravel\u2019s line",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "items.data.0.price.unit_amount",
+          "equals": 42000
+        }
+      ],
+      "body": {
+        "items": [
+          {
+            "id": "{ravel_item}",
+            "price_data": {
+              "currency": "usd",
+              "product": "{prod}",
+              "unit_amount_decimal": "42000",
+              "recurring": {
+                "interval": "year"
+              }
+            }
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "During a seasonal shutdown the admin pauses collection",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "pause_collection.behavior",
+          "equals": "void"
+        }
+      ],
+      "body": {
+        "pause_collection": {
+          "behavior": "void"
+        }
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Ravel returns and the admin resumes collection",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "pause_collection",
+          "equals": null
+        }
+      ],
+      "body": {
+        "pause_collection": ""
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "The admin renews Ravel\u2019s launch discount using the existing coupon",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "discounts.0.coupon.id",
+          "equals": "{coupon}"
+        }
+      ],
+      "body": {
+        "discounts": [
+          {
+            "coupon": "{coupon}"
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Ravel starts a two-day trial with a one-time onboarding fee",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "mode",
+          "equals": "subscription"
+        }
+      ],
+      "body": {
+        "success_url": "https://app.tallyforge.test/billing/done",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "mode": "subscription",
+        "customer": "{ravel}",
+        "subscription_data": {
+          "trial_period_days": 2
+        },
+        "line_items": [
+          {
+            "price": "{monthly}"
+          },
+          {
+            "price_data": {
+              "currency": "usd",
+              "product_data": {
+                "name": "Onboarding"
+              },
+              "unit_amount": 500
+            },
+            "quantity": 1
+          }
+        ]
+      },
+      "capture": {
+        "trial_cs": "id",
+        "trial_cs_url": "url"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "Checkout explains the trial and the fee due today",
+      "method": "GET",
+      "path": "{trial_cs_url}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "trial"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/payments/checkout/free-trials"
+    },
+    {
+      "name": "The subscriber enters a card",
+      "method": "POST",
+      "path": "{trial_cs_url}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "email=billing%40ravel.test&cardNumber=4242424242424242&cardExpiry=12%2F35&cardCvc=123&billingName=Ravel+Agency&billingCountry=US&billingPostalCode=78701",
+      "evidence": "Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works"
+    },
+    {
+      "name": "The app reads the new trial subscription",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{trial_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "complete"
+        }
+      ],
+      "capture": {
+        "trial_sub": "subscription"
+      },
+      "evidence": "Stripe: spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "The customer\u2019s double-click revisits its completed payment page",
+      "method": "POST",
+      "path": "{trial_cs_url}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 404,
+      "expect": [],
+      "body": "",
+      "evidence": "Stripe: spec:/components/schemas/checkout.session/properties/status"
+    },
+    {
+      "name": "Nordlicht tries a second project free for one day",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "mode",
+          "equals": "subscription"
+        }
+      ],
+      "body": {
+        "success_url": "https://app.tallyforge.test/billing/done",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "mode": "subscription",
+        "customer": "{nordlicht}",
+        "subscription_data": {
+          "trial_period_days": 1
+        },
+        "line_items": [
+          {
+            "price_data": {
+              "currency": "usd",
+              "product": "{prod}",
+              "unit_amount": 4900,
+              "recurring": {
+                "interval": "month"
+              }
+            }
+          },
+          {
+            "price": "{seat}"
+          }
+        ]
+      },
+      "capture": {
+        "overdue_cs": "id",
+        "overdue_cs_url": "url"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "The hosted page shows when the recurring plan starts",
+      "method": "GET",
+      "path": "{overdue_cs_url}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "trial"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/payments/checkout/free-trials"
+    },
+    {
+      "name": "The subscriber enters a card",
+      "method": "POST",
+      "path": "{overdue_cs_url}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "email=billing%40ravel.test&cardNumber=4242424242424242&cardExpiry=12%2F35&cardCvc=123&billingName=Ravel+Agency&billingCountry=US&billingPostalCode=78701",
+      "evidence": "Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works"
+    },
+    {
+      "name": "The app reads Nordlicht\u2019s new trial",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{overdue_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "complete"
+        }
+      ],
+      "capture": {
+        "overdue_sub": "subscription"
+      },
+      "evidence": "Stripe: spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "Nordlicht\u2019s bank card is replaced before the trial ends",
+      "method": "POST",
+      "path": "/v1/subscriptions/{overdue_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "default_payment_method",
+          "equals": "pm_card_chargeDeclined"
+        }
+      ],
+      "body": {
+        "default_payment_method": "pm_card_chargeDeclined"
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Two days pass; the trial ends and its renewal is attempted",
+      "wait": "2d",
+      "evidence": ""
+    },
+    {
+      "name": "The subscription is overdue after its bank decline",
+      "method": "GET",
+      "path": "/v1/subscriptions/{overdue_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "past_due"
+        }
+      ],
+      "capture": {
+        "overdue_inv": "latest_invoice"
+      },
+      "evidence": "Stripe: spec:GetSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Nordlicht opens its billing portal to settle the invoice",
+      "method": "POST",
+      "path": "/v1/billing_portal/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "customer",
+          "equals": "{nordlicht}"
+        }
+      ],
+      "body": {
+        "customer": "{nordlicht}",
+        "return_url": "https://app.tallyforge.test/billing"
+      },
+      "capture": {
+        "overdue_portal": "id",
+        "overdue_portal_url": "url"
+      },
+      "evidence": "Rallly: apps/web/src/features/billing/mutations.ts:22"
+    },
+    {
+      "name": "The portal shows the unpaid invoice",
+      "method": "GET",
+      "path": "{overdue_portal_url}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Invoice history"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/customer-management"
+    },
+    {
+      "name": "Nordlicht tries its declined card on the unpaid invoice",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{overdue_portal}/pay",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 402,
+      "expect": [],
+      "body": "invoice={overdue_inv}",
+      "evidence": "Stripe: https://docs.stripe.com/customer-management"
+    },
+    {
+      "name": "Nordlicht updates its billing card",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{overdue_portal}/payment_method",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "email=billing%40ravel.test&cardNumber=4242424242424242&cardExpiry=12%2F35&cardCvc=123&billingName=Ravel+Agency&billingCountry=US&billingPostalCode=78701",
+      "evidence": "Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works"
+    },
+    {
+      "name": "Nordlicht pays the overdue invoice with the new card",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{overdue_portal}/pay",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "invoice={overdue_inv}",
+      "evidence": "Stripe: https://docs.stripe.com/customer-management"
+    },
+    {
+      "name": "Its subscription is active again",
+      "method": "GET",
+      "path": "/v1/subscriptions/{overdue_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "evidence": "Stripe: spec:GetSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "A queued collection job reaches the invoice after the customer paid",
+      "method": "POST",
+      "path": "/v1/invoices/{overdue_inv}/pay",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invoice_payment_intent_requires_action"
+        }
+      ],
+      "evidence": "Stripe: spec:PostInvoicesInvoicePay"
+    },
+    {
+      "name": "Nordlicht schedules the new project to end at renewal",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{overdue_portal}/cancel",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "subscription={overdue_sub}",
+      "evidence": "Stripe: https://docs.stripe.com/customer-management"
+    },
+    {
+      "name": "The project is renewed after its owner changes their mind",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{overdue_portal}/renew",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "subscription={overdue_sub}",
+      "evidence": "Stripe: https://docs.stripe.com/customer-management"
+    },
+    {
+      "name": "The owner schedules it to end after all",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{overdue_portal}/cancel",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "subscription={overdue_sub}",
+      "evidence": "Stripe: https://docs.stripe.com/customer-management"
+    },
+    {
+      "name": "One billing period passes; the canceled project is not renewed",
+      "wait": "32d",
+      "evidence": ""
+    },
+    {
+      "name": "The scheduled cancellation has completed",
+      "method": "GET",
+      "path": "/v1/subscriptions/{overdue_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "canceled"
+        }
+      ],
+      "evidence": "Stripe: spec:GetSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Ravel buys a lifetime upgrade in Checkout",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "mode",
+          "equals": "payment"
+        }
+      ],
+      "body": {
+        "success_url": "https://app.tallyforge.test/billing/done",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "mode": "payment",
+        "customer": "{ravel}",
+        "customer_creation": "always",
+        "line_items": [
+          {
+            "price_data": {
+              "currency": "usd",
+              "product": "{prod}",
+              "unit_amount": 14900
+            },
+            "quantity": 1
+          }
+        ],
+        "payment_intent_data": {
+          "description": "Lifetime upgrade",
+          "setup_future_usage": "off_session",
+          "metadata": {
+            "workspace": "ravel"
+          }
+        }
+      },
+      "capture": {
+        "lifetime_cs": "id",
+        "lifetime_cs_url": "url"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "The subscriber enters a card",
+      "method": "POST",
+      "path": "{lifetime_cs_url}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "email=billing%40ravel.test&cardNumber=4242424242424242&cardExpiry=12%2F35&cardCvc=123&billingName=Ravel+Agency&billingCountry=US&billingPostalCode=78701",
+      "evidence": "Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works"
+    },
+    {
+      "name": "The completed lifetime checkout names its payment",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{lifetime_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "payment_status",
+          "equals": "paid"
+        }
+      ],
+      "capture": {
+        "lifetime_pi": "payment_intent"
+      },
+      "evidence": "Stripe: spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "Femke reopens the launch promotion for an alumni webinar",
+      "method": "POST",
+      "path": "/v1/promotion_codes/{promo}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "active",
+          "equals": true
+        }
+      ],
+      "body": {
+        "active": true
+      },
+      "evidence": "Dub: apps/web/lib/discounts/discount-provider-stripe.ts:294"
+    },
+    {
+      "name": "Ravel buys a third workspace with the reopened promotion",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "mode",
+          "equals": "subscription"
+        }
+      ],
+      "body": {
+        "success_url": "https://app.tallyforge.test/billing/done",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "mode": "subscription",
+        "customer": "{ravel}",
+        "discounts": [
+          {
+            "promotion_code": "{promo}"
+          }
+        ],
+        "line_items": [
+          {
+            "price": "{monthly}",
+            "quantity": 1
+          }
+        ]
+      },
+      "capture": {
+        "promo_cs": "id",
+        "promo_cs_url": "url"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "The subscriber enters a card",
+      "method": "POST",
+      "path": "{promo_cs_url}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "email=billing%40ravel.test&cardNumber=4242424242424242&cardExpiry=12%2F35&cardCvc=123&billingName=Ravel+Agency&billingCountry=US&billingPostalCode=78701",
+      "evidence": "Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works"
+    },
+    {
+      "name": "The discounted checkout is complete",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{promo_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "payment_status",
+          "equals": "paid"
+        }
+      ],
+      "evidence": "Stripe: spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "Postiz verifies the customer\u2019s card with a one-dollar manual authorization",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "requires_capture"
+        }
+      ],
+      "body": {
+        "customer": "{ravel}",
+        "amount": 100,
+        "currency": "usd",
+        "payment_method": "pm_card_visa",
+        "confirm": true,
+        "capture_method": "manual",
+        "off_session": true
+      },
+      "capture": {
+        "hold_pi": "id"
+      },
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:115-123"
+    },
+    {
+      "name": "Postiz releases its card-verification authorization",
+      "method": "POST",
+      "path": "/v1/payment_intents/{hold_pi}/cancel",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "canceled"
+        },
+        {
+          "path": "amount_capturable",
+          "equals": 0
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts:133 (cancel(id), no parameters)"
+    },
+    {
+      "name": "The collection job meets a bank account waiting for micro-deposits",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "requires_action"
+        },
+        {
+          "path": "next_action.type",
+          "equals": "verify_with_microdeposits"
+        }
+      ],
+      "body": {
+        "customer": "{ravel}",
+        "amount": 1500,
+        "currency": "usd",
+        "payment_method": "pm_usBankAccount",
+        "payment_method_data": {
+          "type": "us_bank_account",
+          "us_bank_account": {
+            "account_number": "000123456789",
+            "routing_number": "110000000"
+          }
+        },
+        "payment_method_options": {
+          "us_bank_account": {
+            "verification_method": "microdeposits"
+          }
+        },
+        "confirm": true
+      },
+      "evidence": "Dub: apps/web/lib/stripe/microdeposits.ts:99; Stripe: spec:PostPaymentIntents"
+    },
+    {
+      "name": "A saved test card is declined during automatic collection",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 402,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "card_error"
+        }
+      ],
+      "body": {
+        "customer": "{ravel}",
+        "amount": 1500,
+        "currency": "usd",
+        "payment_method": "pm_card_visa_chargeDeclined",
+        "confirm": true
+      },
+      "evidence": "Stripe: https://docs.stripe.com/testing#declined-payments"
+    },
+    {
+      "name": "An admin creates a billing customer with a saved test card and launch coupon",
+      "method": "POST",
+      "path": "/v1/customers",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Maren Consulting"
+        }
+      ],
+      "body": {
+        "name": "Maren Consulting",
+        "email": "maren@consulting.example",
+        "payment_method": "pm_card_visa"
+      },
+      "capture": {
+        "maren": "id"
+      },
+      "evidence": "Stripe: spec:PostCustomers; https://docs.stripe.com/api/customers/create"
+    },
+    {
+      "name": "Ravel\u2019s subscription falls back to its customer invoice default",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "default_payment_method",
+          "equals": ""
+        }
+      ],
+      "body": {
+        "default_payment_method": ""
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Dub schedules Ravel\u2019s cancellation at the end of its period",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "cancel_at_period_end",
+          "equals": true
+        }
+      ],
+      "body": {
+        "cancel_at_period_end": true
+      },
+      "evidence": "Dub: apps/web/lib/stripe/cancel-subscription.ts:23"
+    },
+    {
+      "name": "Ravel changes its mind before the period ends",
+      "method": "POST",
+      "path": "/v1/subscriptions/{ravel_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "cancel_at_period_end",
+          "equals": false
+        }
+      ],
+      "body": {
+        "cancel_at_period_end": false
+      },
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/cancel/route.ts:56"
+    },
+    {
+      "name": "Maren takes a one-day trial of a new workspace",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "mode",
+          "equals": "subscription"
+        }
+      ],
+      "body": {
+        "success_url": "https://app.tallyforge.test/billing/done",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "mode": "subscription",
+        "customer": "{maren}",
+        "subscription_data": {
+          "trial_period_days": 1
+        },
+        "line_items": [
+          {
+            "price": "{monthly}"
+          }
+        ]
+      },
+      "capture": {
+        "draft_cs": "id",
+        "draft_cs_url": "url"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "The subscriber enters a card",
+      "method": "POST",
+      "path": "{draft_cs_url}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "email=billing%40ravel.test&cardNumber=4242424242424242&cardExpiry=12%2F35&cardCvc=123&billingName=Ravel+Agency&billingCountry=US&billingPostalCode=78701",
+      "evidence": "Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works"
+    },
+    {
+      "name": "The app retains the trial subscription",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{draft_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "complete"
+        }
+      ],
+      "capture": {
+        "draft_sub": "subscription"
+      },
+      "evidence": "Stripe: spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "Exactly one day later, the subscription renews; its invoice is still a draft",
+      "wait": "1d",
+      "evidence": ""
+    },
+    {
+      "name": "Maren\u2019s app reads the invoice awaiting collection",
+      "method": "GET",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "capture": {
+        "draft_invoice": "latest_invoice"
+      },
+      "evidence": "Stripe: spec:GetSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Maren chooses Pay now before automatic finalization but has no invoice default",
+      "method": "POST",
+      "path": "/v1/invoices/{draft_invoice}/pay",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "missing"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/retry-payment/route.ts:44"
+    },
+    {
+      "name": "Maren sets the saved test card as her invoice default",
+      "method": "POST",
+      "path": "/v1/customers/{maren}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "invoice_settings.default_payment_method",
+          "equals": "pm_card_visa"
+        }
+      ],
+      "body": {
+        "invoice_settings": {
+          "default_payment_method": "pm_card_visa"
+        }
+      },
+      "evidence": "Stripe: spec:PostCustomersCustomer"
+    },
+    {
+      "name": "Her retry finalizes the draft and pays the receipt",
+      "method": "POST",
+      "path": "/v1/invoices/{draft_invoice}/pay",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "paid"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/retry-payment/route.ts:44"
+    },
+    {
+      "name": "The launch catalog upload omits the tier scheme",
+      "method": "POST",
+      "path": "/v1/prices",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_missing"
+        }
+      ],
+      "body": {
+        "product": "{prod}",
+        "currency": "usd",
+        "billing_scheme": "tiered"
+      },
+      "evidence": "Stripe: spec:PostPrices"
+    },
+    {
+      "name": "The catalog admin consults the tier-pricing instructions and fixes its scheme",
+      "wait": "5m",
+      "evidence": ""
+    },
+    {
+      "name": "Its corrected scheme still lacks the uploaded tiers",
+      "method": "POST",
+      "path": "/v1/prices",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_missing"
+        }
+      ],
+      "body": {
+        "product": "{prod}",
+        "currency": "usd",
+        "billing_scheme": "tiered",
+        "tiers_mode": "volume"
+      },
+      "evidence": "Stripe: spec:PostPrices"
+    },
+    {
+      "name": "The catalog admin verifies the product that will own those tiers",
+      "method": "GET",
+      "path": "/v1/products?active=true",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "evidence": "Stripe: spec:GetProducts"
+    },
+    {
+      "name": "A tier with neither an amount nor a flat fee is refused",
+      "method": "POST",
+      "path": "/v1/prices",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_empty"
+        }
+      ],
+      "body": {
+        "product": "{prod}",
+        "currency": "usd",
+        "billing_scheme": "tiered",
+        "tiers_mode": "volume",
+        "tiers": [
+          {
+            "up_to": "inf"
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostPrices"
+    },
+    {
+      "name": "The admin publishes volume pricing with a flat fee and an unlimited final tier",
+      "method": "POST",
+      "path": "/v1/prices",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "billing_scheme",
+          "equals": "tiered"
+        },
+        {
+          "path": "tiers.1.up_to",
+          "equals": null
+        }
+      ],
+      "body": {
+        "product": "{prod}",
+        "currency": "usd",
+        "billing_scheme": "tiered",
+        "tiers_mode": "volume",
+        "tiers": [
+          {
+            "up_to": 10,
+            "unit_amount": 800,
+            "flat_amount": 100
+          },
+          {
+            "up_to": "inf",
+            "unit_amount": 600
+          }
+        ],
+        "recurring": {
+          "interval": "month"
+        }
+      },
+      "capture": {
+        "tier_price": "id"
+      },
+      "evidence": "Stripe: spec:PostPrices"
+    },
+    {
+      "name": "Harness reviews one customer per page",
+      "method": "GET",
+      "path": "/v1/customers?limit=1",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{maren}"
+        }
+      ],
+      "capture": {
+        "newest_customer": "data.0.id"
+      },
+      "evidence": "Stripe: spec:GetCustomers"
+    },
+    {
+      "name": "The admin advances to the next billing customer",
+      "method": "GET",
+      "path": "/v1/customers?limit=1&starting_after={newest_customer}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "capture": {
+        "next_customer": "data.0.id"
+      },
+      "evidence": "Stripe: spec:GetCustomers"
+    },
+    {
+      "name": "The admin pages back to the customer just reviewed",
+      "method": "GET",
+      "path": "/v1/customers?limit=1&ending_before={next_customer}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{maren}"
+        }
+      ],
+      "evidence": "Stripe: spec:GetCustomers"
+    },
+    {
+      "name": "Dub filters its active monthly subscriptions by price",
+      "method": "GET",
+      "path": "/v1/subscriptions?price={monthly}&status=all",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "evidence": "Stripe: spec:GetSubscriptions"
+    },
+    {
+      "name": "The bookkeeper limits invoice history to this billing year",
+      "method": "GET",
+      "path": "/v1/invoices?created[gte]=1798761600&created[lt]=1830297600",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "evidence": "Stripe: spec:GetInvoices"
+    },
+    {
+      "name": "Customer search accepts a campaign tag and a numeric date range",
+      "method": "GET",
+      "path": "/v1/customers/search?query=metadata['campaign']:'none'%20OR%20created%3E1798761600",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "evidence": "Stripe: https://docs.stripe.com/search#search-query-language"
+    },
+    {
+      "name": "The bookkeeper finds customer records created before the cutoff",
+      "method": "GET",
+      "path": "/v1/customers/search?query=created%3C1830297600%20AND%20created%3C%3D1830297600",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "evidence": "Stripe: https://docs.stripe.com/search#search-query-language"
+    },
+    {
+      "name": "The search panel refuses an empty query before finding customers",
+      "method": "GET",
+      "path": "/v1/customers/search",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_missing"
+        }
+      ],
+      "evidence": "Stripe: spec:GetCustomersCustomer"
+    },
+    {
+      "name": "The public key cannot read the billing customer list",
+      "method": "GET",
+      "path": "/v1/customers",
+      "headers": {
+        "authorization": "Bearer {pk}"
+      },
+      "status": 403,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "secret_key_required"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/error-codes"
+    },
+    {
+      "name": "The worker\u2019s restored server key reads its billing customers",
+      "method": "GET",
+      "path": "/v1/customers?limit=1",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{maren}"
+        }
+      ],
+      "evidence": "Stripe: spec:GetCustomers"
+    },
+    {
+      "name": "A rotated secret key fails the dashboard\u2019s customer read",
+      "method": "GET",
+      "path": "/v1/customers",
+      "headers": {
+        "authorization": "Bearer sk_test_retired1234"
+      },
+      "status": 401,
+      "expect": [
+        {
+          "path": "error.message",
+          "equals": "Invalid API Key provided: sk_test_*******1234"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/api/authentication"
+    },
+    {
+      "name": "The developer checks which key the worker actually loads",
+      "wait": "5m",
+      "evidence": ""
+    },
+    {
+      "name": "A missing API key is refused before billing data is read",
+      "method": "GET",
+      "path": "/v1/customers",
+      "headers": {
+        "authorization": ""
+      },
+      "status": 401,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/api/authentication"
+    },
+    {
+      "name": "Rallly\u2019s operator enables immediate cancellation in a second portal configuration",
+      "method": "POST",
+      "path": "/v1/billing_portal/configurations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "features.subscription_cancel.mode",
+          "equals": "immediately"
+        }
+      ],
+      "body": {
+        "business_profile": {
+          "headline": "Close a workspace"
+        },
+        "features": {
+          "subscription_cancel": {
+            "enabled": true,
+            "mode": "immediately"
+          },
+          "payment_method_update": {
+            "enabled": true
+          },
+          "invoice_history": {
+            "enabled": true
+          }
+        }
+      },
+      "capture": {
+        "instant_cfg": "id"
+      },
+      "evidence": "Stripe: spec:PostBillingPortalConfigurations"
+    },
+    {
+      "name": "Ravel opens that portal to close its trial workspace",
+      "method": "POST",
+      "path": "/v1/billing_portal/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "customer",
+          "equals": "{ravel}"
+        }
+      ],
+      "body": {
+        "customer": "{ravel}",
+        "configuration": "{instant_cfg}"
+      },
+      "capture": {
+        "instant_portal": "id"
+      },
+      "evidence": "Stripe: spec:PostBillingPortalSessions"
+    },
+    {
+      "name": "Ravel cancels the trial workspace immediately",
+      "method": "POST",
+      "path": "https://billing.stripe.com/p/session/{instant_portal}/cancel",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 303,
+      "expect": [],
+      "body": "subscription={trial_sub}",
+      "evidence": "Stripe: https://docs.stripe.com/customer-management"
+    },
+    {
+      "name": "Kestrel adds a company partner to its payout program",
+      "method": "POST",
+      "path": "/v1/accounts",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "company.tax_id_provided",
+          "equals": true
+        }
+      ],
+      "body": {
+        "type": "express",
+        "country": "US",
+        "business_type": "company",
+        "company": {
+          "tax_id": "000000000"
+        },
+        "capabilities": {
+          "transfers": {
+            "requested": true
+          },
+          "card_payments": {
+            "requested": true
+          }
+        }
+      },
+      "capture": {
+        "company_partner": "id"
+      },
+      "evidence": "Stripe: spec:PostAccounts"
+    },
+    {
+      "name": "The company\u2019s owner gets its onboarding link",
+      "method": "POST",
+      "path": "/v1/account_links",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "body": {
+        "account": "{company_partner}",
+        "type": "account_onboarding",
+        "refresh_url": "https://partners.tallyforge.test/payouts",
+        "return_url": "https://partners.tallyforge.test/payouts"
+      },
+      "capture": {
+        "company_link": "url"
+      },
+      "evidence": "Dub: apps/web/lib/actions/partners/generate-stripe-account-link.ts:71"
+    },
+    {
+      "name": "The owner opens its company onboarding",
+      "method": "GET",
+      "path": "{company_link}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 302,
+      "expect": [],
+      "capture": {
+        "company_onb": "header:location"
+      },
+      "evidence": "Stripe: https://docs.stripe.com/connect/hosted-onboarding"
+    },
+    {
+      "name": "The owner starts the company form but leaves required banking details blank",
+      "method": "POST",
+      "path": "{company_onb}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Still required"
+        }
+      ],
+      "body": "company_name=Maren+Agency",
+      "evidence": "Stripe: https://docs.stripe.com/connect/hosted-onboarding"
+    },
+    {
+      "name": "The owner supplies company, representative, owner and bank details",
+      "method": "POST",
+      "path": "{company_onb}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 302,
+      "expect": [],
+      "body": "mcc=7311&url=https%3A%2F%2Fcompany.example&statement_descriptor=COMPANY&company_name=Maren+Agency&company_phone=%2B14155550100&company_tax_id=000000000&company_line1=500+Market+St&company_city=San+Francisco&company_state=CA&company_postal_code=94105&first_name=Maren&last_name=Smith&email=maren%40company.example&phone=%2B14155550101&dob=1988-04-12&line1=500+Market+St&city=San+Francisco&state=CA&postal_code=94105&ssn_last_4=0000&title=CEO&owner_first_name=Maren&owner_last_name=Smith&owner_email=maren%40company.example&tos=accepted&owners_provided=provided&routing_number=110000000&account_number=000123456789",
+      "evidence": "Stripe: https://docs.stripe.com/connect/required-verification-information"
+    },
+    {
+      "name": "The treasurer replaces the retired agent card with an active sandbox card",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "status": "active",
+        "spending_controls": {
+          "spending_limits": [
+            {
+              "amount": 250,
+              "interval": "weekly"
+            },
+            {
+              "amount": 1000,
+              "interval": "yearly"
+            },
+            {
+              "amount": 200,
+              "interval": "per_authorization"
+            }
+          ]
+        }
+      },
+      "capture": {
+        "replacement_card": "id"
+      },
+      "evidence": "Stripe: spec:PostIssuingCards"
+    },
+    {
+      "name": "The treasurer restricts the card to online purchases",
+      "method": "POST",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "spending_controls.allowed_card_presences",
+          "equals": [
+            "not_present"
+          ]
+        }
+      ],
+      "evidence": "Open Autonomy card rail; Stripe: spec PostIssuingCardsCard spending_controls.allowed_card_presences",
+      "body": {
+        "spending_controls": {
+          "allowed_card_presences": [
+            "not_present"
+          ]
+        }
+      }
+    },
+    {
+      "name": "The rail reads back the online-only policy and previous spending limits",
+      "method": "GET",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "spending_controls.allowed_card_presences",
+          "equals": [
+            "not_present"
+          ]
+        },
+        {
+          "path": "spending_controls.spending_limits.0.amount",
+          "equals": 250
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract"
+    },
+    {
+      "name": "The treasurer changes the merchant country without clearing card presence",
+      "method": "POST",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "spending_controls.allowed_card_presences",
+          "equals": [
+            "not_present"
+          ]
+        },
+        {
+          "path": "spending_controls.allowed_merchant_countries",
+          "equals": [
+            "US"
+          ]
+        }
+      ],
+      "evidence": "Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract",
+      "body": {
+        "spending_controls": {
+          "allowed_merchant_countries": [
+            "US"
+          ]
+        }
+      }
+    },
+    {
+      "name": "The treasurer pauses the replacement during a credential check",
+      "method": "POST",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "inactive"
+        }
+      ],
+      "body": {
+        "status": "inactive"
+      },
+      "evidence": "Stripe: spec:PostIssuingCardsCard"
+    },
+    {
+      "name": "The check finishes and the card is active again",
+      "method": "POST",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "body": {
+        "status": "active"
+      },
+      "evidence": "Stripe: spec:PostIssuingCardsCard"
+    },
+    {
+      "name": "The merchant\u2019s larger estimate exceeds the per-purchase limit",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "approved",
+          "equals": false
+        },
+        {
+          "path": "request_history.0.reason",
+          "equals": "spending_controls"
+        }
+      ],
+      "body": {
+        "card": "{replacement_card}",
+        "amount": 201,
+        "merchant_data": {
+          "category": "computer_software_stores",
+          "name": "Namecheap"
+        }
+      },
+      "evidence": "Open Autonomy: world/model/scenario.ts:60; Stripe: spec:PostTestHelpersIssuingAuthorizations"
+    },
+    {
+      "name": "The merchant retries the $2 domain purchase",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ],
+      "body": {
+        "card": "{replacement_card}",
+        "amount": 200,
+        "merchant_data": {
+          "category": "computer_software_stores",
+          "name": "Namecheap"
+        }
+      },
+      "capture": {
+        "replacement_auth": "id"
+      },
+      "evidence": "Open Autonomy: world/model/scenario.ts:60; Stripe: spec:PostTestHelpersIssuingAuthorizations"
+    },
+    {
+      "name": "A duplicate decline callback arrives after that purchase was decided",
+      "method": "POST",
+      "path": "/v1/issuing/authorizations/{replacement_auth}/decline",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "authorization_already_finalized"
+        }
+      ],
+      "evidence": "Open Autonomy: packages/backend/src/rails.ts:109; Stripe: spec:PostIssuingAuthorizationsAuthorizationDecline"
+    },
+    {
+      "name": "A duplicate approval arrives after the decision too",
+      "method": "POST",
+      "path": "/v1/issuing/authorizations/{replacement_auth}/approve",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "authorization_already_finalized"
+        }
+      ],
+      "evidence": "Open Autonomy: packages/backend/src/rails.ts:109; Stripe: spec:PostIssuingAuthorizationsAuthorizationApprove"
+    },
+    {
+      "name": "Namecheap captures the first dollar and keeps the authorization open",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations/{replacement_auth}/capture",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ],
+      "body": {
+        "capture_amount": 100,
+        "close_authorization": false
+      },
+      "evidence": "Stripe: spec:PostTestHelpersIssuingAuthorizationsAuthorizationCapture"
+    },
+    {
+      "name": "It captures the remaining dollar and closes the authorization",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations/{replacement_auth}/capture",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "closed"
+        }
+      ],
+      "evidence": "Open Autonomy: world/model/scenario.ts:62"
+    },
+    {
+      "name": "A second purchase exceeds the remaining weekly allowance",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "approved",
+          "equals": false
+        },
+        {
+          "path": "request_history.0.reason",
+          "equals": "spending_controls"
+        }
+      ],
+      "body": {
+        "card": "{replacement_card}",
+        "amount": 100,
+        "merchant_data": {
+          "category": "computer_software_stores",
+          "name": "Namecheap"
+        }
+      },
+      "evidence": "Open Autonomy: world/model/scenario.ts:60; Stripe: spec:PostTestHelpersIssuingAuthorizations"
+    },
+    {
+      "name": "Maren clears the subscription-specific card to use her invoice default",
+      "method": "POST",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "default_payment_method",
+          "equals": ""
+        }
+      ],
+      "body": {
+        "default_payment_method": ""
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "A backdated extension cannot start Maren\u2019s new trial",
+      "method": "POST",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.param",
+          "equals": "trial_end"
+        }
+      ],
+      "body": {
+        "trial_end": 100
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "The extension is corrected to a future trial",
+      "method": "POST",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "trialing"
+        }
+      ],
+      "body": {
+        "trial_end": 1810000000
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Dub activates the paid plan early, changing its price at the same time",
+      "method": "POST",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "body": {
+        "trial_end": "now",
+        "items": [
+          {
+            "price_data": {
+              "currency": "usd",
+              "product": "{prod}",
+              "unit_amount_decimal": "4900.5",
+              "recurring": {
+                "interval": "month"
+              }
+            }
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "An unpriced add-on submitted by the admin is refused",
+      "method": "POST",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_missing"
+        }
+      ],
+      "body": {
+        "items": [
+          {
+            "quantity": 1
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "The admin reads the subscription before correcting the add-on",
+      "method": "GET",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "capture": {
+        "decimal_item": "items.data.1.id"
+      },
+      "evidence": "Stripe: spec:GetSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Maren\u2019s bank card is declined before another trial would end",
+      "method": "POST",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "trialing"
+        }
+      ],
+      "body": {
+        "default_payment_method": "pm_card_chargeDeclined",
+        "trial_end": 1810000000
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Her activation asks Stripe to keep the trial if payment fails",
+      "method": "POST",
+      "path": "/v1/subscriptions/{draft_sub}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 402,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "card_error"
+        }
+      ],
+      "body": {
+        "trial_end": "now",
+        "payment_behavior": "error_if_incomplete",
+        "items": [
+          {
+            "id": "{decimal_item}",
+            "price": "{monthly}",
+            "quantity": 1
+          }
+        ]
+      },
+      "evidence": "Stripe: spec:PostSubscriptionsSubscriptionExposedId"
+    },
+    {
+      "name": "Harness pages through the newer subscription first",
+      "method": "GET",
+      "path": "/v1/subscriptions?status=all&limit=1",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "capture": {
+        "last_subscription": "data.0.id"
+      },
+      "evidence": "Stripe: spec:GetSubscriptions"
+    },
+    {
+      "name": "The admin advances to an older subscription",
+      "method": "GET",
+      "path": "/v1/subscriptions?status=all&limit=1&starting_after={last_subscription}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "capture": {
+        "previous_subscription": "data.0.id"
+      },
+      "evidence": "Stripe: spec:GetSubscriptions"
+    },
+    {
+      "name": "The admin returns to the newer subscription",
+      "method": "GET",
+      "path": "/v1/subscriptions?status=all&limit=1&ending_before={previous_subscription}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{last_subscription}"
+        }
+      ],
+      "evidence": "Stripe: spec:GetSubscriptions"
+    },
+    {
+      "name": "Dub reconciles ledger entries created during this billing year",
+      "method": "GET",
+      "path": "/v1/balance_transactions?created[gte]=1798761600&created[lt]=1830297600",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "evidence": "Stripe: spec:GetBalanceTransactions"
+    },
+    {
+      "name": "A new plan cannot start Checkout before its price is entered",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_missing"
+        }
+      ],
+      "body": {
+        "mode": "subscription",
+        "customer": "{ravel}",
+        "success_url": "https://app.tallyforge.test/done",
+        "cancel_url": "https://app.tallyforge.test/billing"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "The admin reads its published prices before repairing that plan",
+      "method": "GET",
+      "path": "/v1/prices?lookup_keys[]=pro_monthly",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{monthly}"
+        }
+      ],
+      "evidence": "Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/upgrade/route.ts:37"
+    },
+    {
+      "name": "A partner charge template still names an account already deleted",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "resource_missing"
+        }
+      ],
+      "body": {
+        "mode": "payment",
+        "customer": "{ravel}",
+        "line_items": [
+          {
+            "price_data": {
+              "currency": "usd",
+              "product": "{prod}",
+              "unit_amount": 1000
+            }
+          }
+        ],
+        "payment_intent_data": {
+          "transfer_data": {
+            "destination": "{partner2}"
+          }
+        },
+        "success_url": "https://app.tallyforge.test/done",
+        "cancel_url": "https://app.tallyforge.test/billing"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "The configured trial interval must be at least a day",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.param",
+          "equals": "subscription_data[trial_period_days]"
+        }
+      ],
+      "body": {
+        "mode": "subscription",
+        "customer": "{ravel}",
+        "line_items": [
+          {
+            "price": "{monthly}"
+          }
+        ],
+        "subscription_data": {
+          "trial_period_days": 0
+        },
+        "success_url": "https://app.tallyforge.test/done",
+        "cancel_url": "https://app.tallyforge.test/billing"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "Ravel starts a project whose trial ends at a fixed campaign date",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "mode",
+          "equals": "subscription"
+        }
+      ],
+      "body": {
+        "success_url": "https://app.tallyforge.test/billing/done",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "mode": "subscription",
+        "customer": "{ravel}",
+        "line_items": [
+          {
+            "price": "{monthly}"
+          }
+        ],
+        "subscription_data": {
+          "trial_end": 1810000000
+        }
+      },
+      "capture": {
+        "dated_trial_cs": "id",
+        "dated_trial_cs_url": "url"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "Checkout shows the fixed trial end to the customer",
+      "method": "GET",
+      "path": "{dated_trial_cs_url}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "trial"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/payments/checkout/free-trials"
+    },
+    {
+      "name": "A European customer chooses SEPA for its first add-on collection",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "requires_confirmation"
+        }
+      ],
+      "body": {
+        "amount": 1200,
+        "currency": "eur",
+        "customer": "{ravel}",
+        "payment_method_data": {
+          "type": "sepa_debit",
+          "sepa_debit": {
+            "iban": "DE89370400440532013000"
+          }
+        }
+      },
+      "evidence": "Stripe: spec:PostPaymentIntents"
+    },
+    {
+      "name": "Another customer chooses its Cash App wallet for an add-on",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "requires_confirmation"
+        }
+      ],
+      "body": {
+        "amount": 1200,
+        "currency": "usd",
+        "customer": "{ravel}",
+        "payment_method_data": {
+          "type": "cashapp"
+        }
+      },
+      "evidence": "Stripe: spec:PostPaymentIntents"
+    },
+    {
+      "name": "The sample shop explicitly limits its confirmed card payment to cards",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "succeeded"
+        }
+      ],
+      "body": {
+        "amount": 1200,
+        "currency": "usd",
+        "customer": "{ravel}",
+        "allowed_payment_method_types": [
+          "card"
+        ],
+        "payment_method": "pm_card_visa",
+        "confirm": true
+      },
+      "evidence": "Stripe: spec:PostPaymentIntents"
+    },
+    {
+      "name": "An old Checkout method name in a deployed template is refused",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2025-08-27.basil"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.param",
+          "equals": "payment_method_types[0]"
+        }
+      ],
+      "body": {
+        "mode": "subscription",
+        "customer": "{ravel}",
+        "line_items": [
+          {
+            "price": "{monthly}"
+          }
+        ],
+        "payment_method_types": [
+          "not_a_method"
+        ],
+        "success_url": "https://app.tallyforge.test/done",
+        "cancel_url": "https://app.tallyforge.test/billing"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "The new API version refuses the removed method parameter",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2026-09-30.endive"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "payment_method_types_no_longer_supported"
+        }
+      ],
+      "body": {
+        "amount": 1200,
+        "currency": "usd",
+        "payment_method_types": [
+          "card"
+        ]
+      },
+      "evidence": "Stripe: https://docs.stripe.com/changelog/clover/2026-01-28/remove-payment-method-types"
+    },
+    {
+      "name": "The partner\u2019s billable service pays the platform its agreed application fee",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "{partner}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "succeeded"
+        }
+      ],
+      "body": {
+        "amount": 5000,
+        "currency": "usd",
+        "payment_method": "pm_card_visa",
+        "confirm": true,
+        "application_fee_amount": 250
+      },
+      "evidence": "Stripe: spec:PostPaymentIntents; https://docs.stripe.com/connect/direct-charges"
+    },
+    {
+      "name": "A commission uses the settled add-on\u2019s source transaction",
+      "method": "POST",
+      "path": "/v1/transfers",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "amount",
+          "equals": 100
+        }
+      ],
+      "body": {
+        "amount": 100,
+        "currency": "usd",
+        "destination": "{partner}",
+        "source_transaction": "{shop_charge}"
+      },
+      "evidence": "Dub: apps/web/lib/partners/create-stripe-transfer.ts:203; https://docs.stripe.com/connect/separate-charges-and-transfers"
+    },
+    {
+      "name": "A payout template names euros before this partner adds a euro bank",
+      "method": "POST",
+      "path": "/v1/payouts",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-account": "{partner}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ],
+      "body": {
+        "amount": 100,
+        "currency": "eur"
+      },
+      "evidence": "Stripe: spec:PostPayouts"
+    },
+    {
+      "name": "A company chooses platform-collected onboarding instead of Express",
+      "method": "POST",
+      "path": "/v1/accounts",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "charges_enabled",
+          "equals": false
+        }
+      ],
+      "body": {
+        "type": "custom",
+        "country": "US",
+        "business_type": "company",
+        "company": {
+          "name": "Custom Agency"
+        },
+        "capabilities": {
+          "transfers": {
+            "requested": true
+          },
+          "card_payments": {
+            "requested": true
+          }
+        }
+      },
+      "evidence": "Stripe: spec:PostAccounts"
+    },
+    {
+      "name": "A UK partner begins the program but its country\u2019s onboarding requirements remain outside the authored hosted flow",
+      "method": "POST",
+      "path": "/v1/accounts",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "country",
+          "equals": "GB"
+        }
+      ],
+      "body": {
+        "type": "express",
+        "country": "GB",
+        "business_type": "company"
+      },
+      "capture": {
+        "uk_partner": "id"
+      },
+      "evidence": "Stripe: spec:PostAccounts"
+    },
+    {
+      "name": "The partner receives its onboarding link",
+      "method": "POST",
+      "path": "/v1/account_links",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [],
+      "body": {
+        "account": "{uk_partner}",
+        "type": "account_onboarding",
+        "refresh_url": "https://partners.tallyforge.test/refresh",
+        "return_url": "https://partners.tallyforge.test/return"
+      },
+      "capture": {
+        "uk_link": "url"
+      },
+      "evidence": "Stripe: spec:PostAccountLinks"
+    },
+    {
+      "name": "The link redirects to its hosted setup page",
+      "method": "GET",
+      "path": "{uk_link}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 302,
+      "expect": [],
+      "capture": {
+        "uk_onb": "header:location"
+      },
+      "evidence": "Stripe: https://docs.stripe.com/connect/hosted-onboarding"
+    },
+    {
+      "name": "The hosted page explains the documented coverage gap",
+      "method": "GET",
+      "path": "{uk_onb}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 501,
+      "expect": [
+        {
+          "path": "",
+          "contains": "not modelled"
+        }
+      ],
+      "evidence": "Stripe: https://docs.stripe.com/connect/required-verification-information; manifest.todo hosted requirements scope"
+    },
+    {
+      "name": "A week passes before the next domain renewal purchase",
+      "wait": "7d",
+      "evidence": ""
+    },
+    {
+      "name": "Open Autonomy refuses a purchase its treasurer did not authorize",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "approved",
+          "equals": false
+        },
+        {
+          "path": "request_history.0.reason",
+          "equals": "webhook_declined"
+        }
+      ],
+      "body": {
+        "card": "{replacement_card}",
+        "amount": 100,
+        "merchant_data": {
+          "category": "computer_software_stores",
+          "name": "Namecheap"
+        }
+      },
+      "evidence": "Open Autonomy: world/model/scenario.ts:60; Stripe: spec:PostTestHelpersIssuingAuthorizations"
+    },
+    {
+      "name": "The imported card controls must be a dictionary",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        },
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_dictionary"
+        }
+      ],
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "spending_controls": "invalid"
+      },
+      "evidence": "Stripe: spec:PostIssuingCards; pinned SDK Issuing/Cards.d.ts SpendingControls"
+    },
+    {
+      "name": "The imported category policy cannot both allow and block a category",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ],
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "spending_controls": {
+          "allowed_categories": [
+            "computer_software_stores"
+          ],
+          "blocked_categories": [
+            "computer_software_stores"
+          ]
+        }
+      },
+      "evidence": "Stripe: spec:PostIssuingCards; pinned SDK Issuing/Cards.d.ts SpendingControls"
+    },
+    {
+      "name": "The treasurer compares the stored card with the rejected import",
+      "method": "GET",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "evidence": "Stripe: spec:GetIssuingCardsCard"
+    },
+    {
+      "name": "The imported country policy cannot both allow and block a country",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ],
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "spending_controls": {
+          "allowed_merchant_countries": [
+            "US"
+          ],
+          "blocked_merchant_countries": [
+            "US"
+          ]
+        }
+      },
+      "evidence": "Stripe: spec:PostIssuingCards; pinned SDK Issuing/Cards.d.ts SpendingControls"
+    },
+    {
+      "name": "Every imported spending limit must be a dictionary",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        },
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_dictionary"
+        }
+      ],
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "spending_controls": {
+          "spending_limits": [
+            "invalid"
+          ]
+        }
+      },
+      "evidence": "Stripe: spec:PostIssuingCards; pinned SDK Issuing/Cards.d.ts SpendingControls"
+    },
+    {
+      "name": "The treasurer compares the stored card with the rejected import",
+      "method": "GET",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "evidence": "Stripe: spec:GetIssuingCardsCard"
+    },
+    {
+      "name": "The imported zero-dollar limit must be positive",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        },
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_integer"
+        }
+      ],
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "spending_controls": {
+          "spending_limits": [
+            {
+              "amount": 0,
+              "interval": "weekly"
+            }
+          ]
+        }
+      },
+      "evidence": "Stripe: spec:PostIssuingCards; pinned SDK Issuing/Cards.d.ts SpendingControls"
+    },
+    {
+      "name": "The imported fortnight interval must use Stripe\u2019s named intervals",
+      "method": "POST",
+      "path": "/v1/issuing/cards",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        },
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_string_enum"
+        }
+      ],
+      "body": {
+        "cardholder": "{ich}",
+        "currency": "usd",
+        "type": "virtual",
+        "spending_controls": {
+          "spending_limits": [
+            {
+              "amount": 100,
+              "interval": "fortnight"
+            }
+          ]
+        }
+      },
+      "evidence": "Stripe: spec:PostIssuingCards; pinned SDK Issuing/Cards.d.ts SpendingControls"
+    },
+    {
+      "name": "The treasurer compares the stored card with the rejected import",
+      "method": "GET",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "evidence": "Stripe: spec:GetIssuingCardsCard"
+    },
+    {
+      "name": "An imported suspended status is replaced by Stripe\u2019s inactive status",
+      "method": "POST",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_string_enum"
+        }
+      ],
+      "body": {
+        "status": "suspended"
+      },
+      "evidence": "Stripe: spec:PostIssuingCardsCard"
+    },
+    {
+      "name": "The issuer does not recognize the imported authorization method",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_string_enum"
+        }
+      ],
+      "body": {
+        "card": "{replacement_card}",
+        "amount": 100,
+        "authorization_method": "magstripe"
+      },
+      "evidence": "Stripe: spec:PostTestHelpersIssuingAuthorizations"
+    },
+    {
+      "name": "The treasurer reads the card after correcting the imported method name",
+      "method": "GET",
+      "path": "/v1/issuing/cards/{replacement_card}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        }
+      ],
+      "evidence": "Stripe: spec:GetIssuingCardsCard"
+    },
+    {
+      "name": "A delayed product reply leaves a renewal request pending",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ],
+      "body": {
+        "card": "{replacement_card}",
+        "amount": 100,
+        "merchant_data": {
+          "category": "computer_software_stores",
+          "name": "Namecheap"
+        },
+        "is_amount_controllable": true
+      },
+      "capture": {
+        "pending_partial": "id"
+      },
+      "evidence": "Open Autonomy: world/model/scenario.ts:60; Stripe: spec:PostTestHelpersIssuingAuthorizations"
+    },
+    {
+      "name": "The treasurer\u2019s zero-dollar approval is refused",
+      "method": "POST",
+      "path": "/v1/issuing/authorizations/{pending_partial}/approve",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "parameter_invalid_integer"
+        }
+      ],
+      "body": {
+        "amount": 0
+      },
+      "evidence": "Stripe: spec:PostIssuingAuthorizationsAuthorizationApprove"
+    },
+    {
+      "name": "The treasurer approves only the $0.75 domain charge",
+      "method": "POST",
+      "path": "/v1/issuing/authorizations/{pending_partial}/approve",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "approved",
+          "equals": true
+        },
+        {
+          "path": "amount",
+          "equals": 75
+        }
+      ],
+      "body": {
+        "amount": 75
+      },
+      "evidence": "Stripe: spec:PostIssuingAuthorizationsAuthorizationApprove"
+    },
+    {
+      "name": "A fixed-amount domain request waits on a delayed reply",
+      "method": "POST",
+      "path": "/v1/test_helpers/issuing/authorizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ],
+      "body": {
+        "card": "{replacement_card}",
+        "amount": 50,
+        "merchant_data": {
+          "category": "computer_software_stores",
+          "name": "Namecheap"
+        }
+      },
+      "capture": {
+        "pending_fixed": "id"
+      },
+      "evidence": "Open Autonomy: world/model/scenario.ts:60; Stripe: spec:PostTestHelpersIssuingAuthorizations"
+    },
+    {
+      "name": "The treasurer cannot override a fixed-amount request",
+      "method": "POST",
+      "path": "/v1/issuing/authorizations/{pending_fixed}/approve",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ],
+      "body": {
+        "amount": 25
+      },
+      "evidence": "Stripe: spec:PostIssuingAuthorizationsAuthorizationApprove"
+    },
+    {
+      "name": "It approves the request\u2019s fixed amount instead",
+      "method": "POST",
+      "path": "/v1/issuing/authorizations/{pending_fixed}/approve",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "approved",
+          "equals": true
+        },
+        {
+          "path": "amount",
+          "equals": 50
+        }
+      ],
+      "evidence": "Open Autonomy: packages/backend/src/rails.ts:109"
+    },
+    {
+      "name": "A deployed payment template names an obsolete payment method",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "stripe-version": "2025-08-27.basil"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.param",
+          "equals": "payment_method_types"
+        }
+      ],
+      "body": {
+        "amount": 1200,
+        "currency": "usd",
+        "payment_method_types": [
+          "legacy_wallet"
+        ]
+      },
+      "evidence": "Stripe: spec:PostPaymentIntents"
+    },
+    {
+      "name": "Femke creates a fixed $5 alumni coupon for the next workspace",
+      "method": "POST",
+      "path": "/v1/coupons",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "amount_off",
+          "equals": 500
+        }
+      ],
+      "body": {
+        "amount_off": 500,
+        "currency": "usd",
+        "duration": "once",
+        "name": "Alumni $5"
+      },
+      "capture": {
+        "alumni_coupon": "id"
+      },
+      "evidence": "Dub: apps/web/lib/discounts/discount-provider-stripe.ts:136; Stripe: spec:PostCoupons"
+    },
+    {
+      "name": "Ravel starts its alumni workspace with $5 off the first month",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "mode",
+          "equals": "subscription"
+        }
+      ],
+      "body": {
+        "success_url": "https://app.tallyforge.test/billing/done",
+        "cancel_url": "https://app.tallyforge.test/billing",
+        "mode": "subscription",
+        "customer": "{ravel}",
+        "line_items": [
+          {
+            "price": "{monthly}"
+          }
+        ],
+        "discounts": [
+          {
+            "coupon": "{alumni_coupon}"
+          }
+        ]
+      },
+      "capture": {
+        "alumni_cs": "id",
+        "alumni_cs_url": "url"
+      },
+      "evidence": "Stripe: spec:PostCheckoutSessions"
+    },
+    {
+      "name": "Checkout deducts the fixed amount from the first bill",
+      "method": "GET",
+      "path": "/v1/checkout/sessions/{alumni_cs}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "amount_subtotal",
+          "equals": 4900
+        },
+        {
+          "path": "amount_total",
+          "equals": 4400
+        },
+        {
+          "path": "total_details.amount_discount",
+          "equals": 500
+        }
+      ],
+      "evidence": "Stripe: spec:GetCheckoutSessionsSession"
+    },
+    {
+      "name": "A new subscriber opens custom Checkout before a customer exists",
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "ui_mode",
+          "equals": "elements"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "ui_mode": "custom",
+        "mode": "subscription",
+        "return_url": "https://app.tallyforge.test/launches",
+        "line_items": [
+          {
+            "price": "{monthly}"
+          }
+        ]
+      },
+      "capture": {
+        "anonymous_cs": "id",
+        "anonymous_secret": "client_secret"
+      }
+    },
+    {
+      "name": "The new subscriber supplies its contact and card in PaymentElement",
+      "method": "POST",
+      "path": "https://api.stripe.com/v1/payment_pages/{anonymous_cs}/confirm",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "success"
+        },
+        {
+          "path": "session.status.type",
+          "equals": "complete"
+        }
+      ],
+      "evidence": "Stripe: spec PostInvoicesCreatePreview and PostInvoices documented options of Twenty workflow and Postiz billing calls",
+      "body": {
+        "client_secret": "{anonymous_secret}",
+        "email": "new@ravel.test",
+        "payment_details": {
+          "cardNumber": "4242424242424242",
+          "cardExpiry": "12 / 99",
+          "cardCvc": "123"
+        }
+      }
+    }
+  ],
+  "application": [
+    {
+      "url": "http://127.0.0.1:24444/webhooks/stripe",
+      "status": 200,
+      "body": {
+        "approved": true
+      }
+    },
+    {
+      "url": "http://127.0.0.1:24444/webhooks/stripe",
+      "status": 200,
+      "body": {
+        "approved": false
+      }
+    }
+  ]
+}

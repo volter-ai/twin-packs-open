@@ -1,0 +1,943 @@
+{
+  "vendor": "anthropic",
+  "author": "Contributor 67",
+  "host": "api.anthropic.com",
+  "about": "The vendor's published API reference samples, message fragments, streaming clients, client-tool continuation and server web-search requests. Synthetic scripts supply web-search results and preserve their vendor wire. The reference renderer's two contradictory sampling requests are replayed as the spec's documented 400 refusal, with unchanged inputs.",
+  "steps": [
+    {
+      "name": "October 2026, after the examples' models were released",
+      "wait": "393120m"
+    },
+    {
+      "name": "The World supplies the workspace API key used by these client examples",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "body": {
+        "email": "examples@northdesk.be",
+        "organization": "Example workspace",
+        "name": "examples"
+      },
+      "capture": {
+        "key": "key"
+      }
+    },
+    {
+      "name": "Reference request and rendered response",
+      "example": "messages_post#doc Reference request and rendered response",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 400,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "content": "Hello, world",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-5",
+        "stream": false,
+        "system": [
+          {
+            "text": "Today's date is 2024-06-01.",
+            "type": "text"
+          }
+        ],
+        "temperature": 1,
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [
+          {
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "location": "bar",
+                "unit": "bar"
+              },
+              "required": [
+                "location"
+              ]
+            },
+            "name": "name"
+          }
+        ],
+        "top_k": 5,
+        "top_p": 0.7
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ],
+      "exampleDiffers": {
+        "status": "The reference renderer shows a success with Opus 5 plus top_k:5/top_p:0.7, but spec:/components/schemas/CreateMessageParams/properties/top_k and top_p (and the beta equivalents) explicitly reject top_k and top_p below 0.99 with 400 on models released after Opus 4.6. The published input is retained; this response is its documented refusal."
+      }
+    },
+    {
+      "name": "Reference request and rendered response",
+      "example": "beta_messages_post#doc Reference request and rendered response",
+      "method": "POST",
+      "path": "/v1/messages?beta=true",
+      "status": 400,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "content": "Hello, world",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-5",
+        "stream": false,
+        "system": [
+          {
+            "text": "Today's date is 2024-06-01.",
+            "type": "text"
+          }
+        ],
+        "temperature": 1,
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [
+          {
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "location": "bar",
+                "unit": "bar"
+              },
+              "required": [
+                "location"
+              ]
+            },
+            "name": "name"
+          }
+        ],
+        "top_k": 5,
+        "top_p": 0.7
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ],
+      "exampleDiffers": {
+        "status": "The reference renderer shows a success with Opus 5 plus top_k:5/top_p:0.7, but spec:/components/schemas/CreateMessageParams/properties/top_k and top_p (and the beta equivalents) explicitly reject top_k and top_p below 0.99 with 400 on models released after Opus 4.6. The published input is retained; this response is its documented refusal."
+      }
+    },
+    {
+      "name": "Reference request and rendered response",
+      "example": "beta_messages_count_tokens_post#doc Reference request and rendered response",
+      "method": "POST",
+      "path": "/v1/messages/count_tokens?beta=true",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "messages": [
+          {
+            "content": "Hello, world",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-5",
+        "system": [
+          {
+            "text": "Today's date is 2024-06-01.",
+            "type": "text"
+          }
+        ],
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [
+          {
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "location": "bar",
+                "unit": "bar"
+              },
+              "required": [
+                "location"
+              ]
+            },
+            "name": "name"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "input_tokens",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "List available models",
+      "example": "models_list#doc List available models",
+      "method": "GET",
+      "path": "/v1/models",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "data.0.type",
+          "equals": "model"
+        },
+        {
+          "path": "has_more",
+          "exists": true
+        }
+      ],
+      "undecided": {
+        "data.2.id": "The prior request chose claude-opus-5; a static model catalog does not inherit that choice. Catalog membership and order are vendor data, not created by those calls."
+      }
+    },
+    {
+      "name": "Single user message",
+      "example": "messages_post#doc Single user message",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello, Claude"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "claude-opus-5"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        }
+      ]
+    },
+    {
+      "name": "Conversation",
+      "example": "messages_post#doc Conversation",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello there."
+          },
+          {
+            "role": "assistant",
+            "content": "Hi, I'm Claude. How can I help you?"
+          },
+          {
+            "role": "user",
+            "content": "Can you explain LLMs in plain English?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "claude-opus-5"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        }
+      ]
+    },
+    {
+      "name": "Assistant prefill",
+      "example": "messages_post#doc Assistant prefill",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "What's the Greek name for Sun? (A) Sol (B) Helios (C) Sun"
+          },
+          {
+            "role": "assistant",
+            "content": "The best answer is ("
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "claude-opus-5"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        }
+      ]
+    },
+    {
+      "name": "Explicit text block",
+      "example": "messages_post#doc Explicit text block",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Hello, Claude"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "claude-opus-5"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        },
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        }
+      ]
+    },
+    {
+      "name": "Streaming text iterator",
+      "example": "messages_post#doc Streaming text iterator",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "model": "claude-opus-5-5",
+        "stream": true
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        }
+      ]
+    },
+    {
+      "name": "Long streaming response",
+      "example": "messages_post#doc Long streaming response",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "max_tokens": 128000,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Write a detailed analysis..."
+          }
+        ],
+        "model": "claude-opus-5-5",
+        "stream": true
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        }
+      ]
+    },
+    {
+      "name": "Basic streaming example",
+      "example": "messages_post#doc Basic streaming example",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5-5",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "max_tokens": 256,
+        "stream": true
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        }
+      ]
+    },
+    {
+      "name": "Streaming a client tool",
+      "example": "messages_post#doc Streaming a client tool",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5",
+        "max_tokens": 1024,
+        "tools": [
+          {
+            "name": "get_weather",
+            "description": "Get the current weather in a given location",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "The city and state, e.g. San Francisco, CA"
+                }
+              },
+              "required": [
+                "location"
+              ]
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "any"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is the weather like in San Francisco?"
+          }
+        ],
+        "stream": true
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"input_json_delta\""
+        }
+      ]
+    },
+    {
+      "name": "Streaming adaptive thinking",
+      "example": "messages_post#doc Streaming adaptive thinking",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5-5",
+        "max_tokens": 20000,
+        "thinking": {
+          "type": "adaptive",
+          "display": "summarized"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is the greatest common divisor of 1071 and 462?"
+          }
+        ],
+        "stream": true
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"signature_delta\""
+        }
+      ]
+    },
+    {
+      "name": "Client weather tool",
+      "example": "messages_post#doc Client weather tool",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5-5",
+        "max_tokens": 1024,
+        "tools": [
+          {
+            "name": "get_weather",
+            "description": "Get the current weather for a given location.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "City and state, e.g. San Francisco, CA"
+                }
+              },
+              "required": [
+                "location"
+              ]
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "auto",
+          "disable_parallel_tool_use": true
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "What's the weather in San Francisco?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "claude-opus-5-5"
+        },
+        {
+          "path": "content.0.name",
+          "equals": "get_weather"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "tool_use"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        }
+      ],
+      "capture": {
+        "tool": "content.0.id",
+        "toolInput": "content.0.input"
+      }
+    },
+    {
+      "name": "Client weather tool continuation",
+      "example": "messages_post#doc Client weather tool continuation",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5-5",
+        "max_tokens": 1024,
+        "tools": [
+          {
+            "name": "get_weather",
+            "description": "Get the current weather for a given location.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "City and state, e.g. San Francisco, CA"
+                }
+              },
+              "required": [
+                "location"
+              ]
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "auto",
+          "disable_parallel_tool_use": true
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "What's the weather in San Francisco?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{tool}",
+                "name": "get_weather",
+                "input": "{toolInput}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{tool}",
+                "content": "15 degrees Celsius, partly cloudy"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "claude-opus-5-5"
+        },
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        }
+      ]
+    },
+    {
+      "name": "No tools allowed",
+      "example": "messages_post#doc No tools allowed",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 256,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "tools": [
+          {
+            "name": "get_weather",
+            "description": "Get the current weather for a given location.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "City and state, e.g. San Francisco, CA"
+                }
+              },
+              "required": [
+                "location"
+              ]
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "none"
+        }
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        },
+        {
+          "path": "model",
+          "equals": "claude-sonnet-4-5"
+        }
+      ]
+    },
+    {
+      "name": "Thinking minimum",
+      "example": "messages_post#doc Thinking minimum",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 400,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 8000,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 512
+        }
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ]
+    },
+    {
+      "name": "Manual thinking unsupported",
+      "example": "messages_post#doc Manual thinking unsupported",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 400,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-4-8",
+        "max_tokens": 8000,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 2000
+        }
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ]
+    },
+    {
+      "name": "Server web search",
+      "example": "messages_post#doc Server web search",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5-5",
+        "max_tokens": 1024,
+        "tools": [
+          {
+            "type": "web_search_20260209",
+            "name": "web_search"
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "What's the latest on the Mars rover?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "claude-opus-5-5"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        },
+        {
+          "path": "content.0.type",
+          "equals": "server_tool_use"
+        },
+        {
+          "path": "content.0.name",
+          "equals": "web_search"
+        },
+        {
+          "path": "content.1.type",
+          "equals": "web_search_tool_result"
+        },
+        {
+          "path": "content.1.tool_use_id",
+          "equals": "{searchId}"
+        }
+      ],
+      "capture": {
+        "searchId": "content.0.id"
+      }
+    },
+    {
+      "name": "Streaming server web search",
+      "example": "messages_post#doc Streaming server web search",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-opus-5-5",
+        "max_tokens": 1024,
+        "tools": [
+          {
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": 5
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is the weather like in New York City today?"
+          }
+        ],
+        "stream": true
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"type\":\"server_tool_use\""
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"web_search_tool_result\""
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        }
+      ]
+    }
+  ],
+  "scenario": "examples-scenario.json"
+}

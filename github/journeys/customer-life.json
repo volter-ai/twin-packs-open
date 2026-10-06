@@ -1,0 +1,6625 @@
+{
+  "vendor": "github",
+  "author": "Contributor 101",
+  "about": "Tessellate, an open-source geometry library, over 2026 on GitHub: octocat puts it in her organization and runs Open Autonomy's setup in January, its agent takes the community desk, reviews and releases, she works in the Volter Editor, the Team editor and the platform read the project, 1.0's releases are read by installers and update checks, and the services around the library sign people in with GitHub.",
+  "headers": {
+    "accept": "application/vnd.github+json"
+  },
+  "steps": [
+    {
+      "name": "Monday 5 January, 9 in the morning: octocat sits down to put Tessellate in an organization of its own and hand its running to an agent",
+      "wait": "105h"
+    },
+    {
+      "name": "octocat's github.com password, which she chose when she made her account (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/users/octocat/password",
+      "body": {
+        "password": "ear-clipping-2026"
+      },
+      "status": 204
+    },
+    {
+      "name": "and the two-factor authentication she turned on then, with her authenticator app, which saved the setup key",
+      "method": "POST",
+      "path": "/_twin/users/octocat/two-factor",
+      "body": {},
+      "status": 201,
+      "capture": {
+        "octocat_totp_secret": "secret"
+      }
+    },
+    {
+      "name": "and the personal access token her scripts use, made on her settings page (the twin's door stands in for it)",
+      "method": "POST",
+      "path": "/_twin/users/octocat/tokens",
+      "body": {
+        "note": "scripts",
+        "scopes": [
+          "repo",
+          "workflow",
+          "admin:org",
+          "admin:public_key",
+          "admin:repo_hook",
+          "read:org",
+          "user"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "octocat_pat": "token"
+      }
+    },
+    {
+      "name": "She signs the gh command line in on her laptop as Open Autonomy's setup asks (gh auth login --web with repo, workflow, admin:public_key and read:org): gh asks GitHub for a device code for GitHub CLI's OAuth app",
+      "method": "POST",
+      "path": "https://github.com/login/device/code",
+      "body": "client_id=178c6fc778ccc68e1d6a&scope=repo+read%3Aorg+gist+workflow+admin%3Apublic_key",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "gh_device": "device_code",
+        "gh_user_code": "user_code"
+      },
+      "expect": [
+        {
+          "path": "verification_uri",
+          "equals": "https://github.com/login/device"
+        },
+        {
+          "path": "interval",
+          "equals": 5
+        },
+        {
+          "path": "expires_in",
+          "equals": 899
+        }
+      ]
+    },
+    {
+      "name": "gh shows her the code and polls for the token; she has not entered it yet",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id=178c6fc778ccc68e1d6a&device_code={gh_device}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "authorization_pending"
+        }
+      ]
+    },
+    {
+      "name": "She opens github.com/login/device; her laptop's browser is not signed in to GitHub, so it sends her to sign in first",
+      "method": "GET",
+      "path": "https://github.com/login/device",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "equals": "/login?return_to=%2Flogin%2Fdevice"
+        }
+      ]
+    },
+    {
+      "name": "She follows GitHub\u2019s redirect and reads the sign-in form before giving her password",
+      "method": "GET",
+      "path": "/login?return_to=%2Flogin%2Fdevice",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Username or email address"
+        },
+        {
+          "path": "",
+          "contains": "/session"
+        }
+      ]
+    },
+    {
+      "name": "She gives her password; GitHub asks for her two-factor code",
+      "method": "POST",
+      "path": "/session",
+      "body": "login=octocat&password=ear-clipping-2026&return_to=%2Flogin%2Fdevice",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 302,
+      "capture": {
+        "laptop_pending": "header:set-cookie:_gh_sess=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "location",
+          "equals": "/sessions/two-factor/app"
+        }
+      ]
+    },
+    {
+      "name": "Her authenticator app shows the code (the twin's door stands in for her phone)",
+      "method": "GET",
+      "path": "/_twin/users/octocat/totp",
+      "status": 200,
+      "capture": {
+        "laptop_otp": "code"
+      }
+    },
+    {
+      "name": "Her browser follows the password reply to the authenticator-code form",
+      "method": "GET",
+      "path": "/sessions/two-factor/app",
+      "headers": {
+        "cookie": "_gh_sess={laptop_pending}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authentication code"
+        }
+      ]
+    },
+    {
+      "name": "She enters it; GitHub signs her in and returns her to the device page",
+      "method": "POST",
+      "path": "/sessions/two-factor",
+      "body": "app_otp={laptop_otp}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "_gh_sess={laptop_pending}"
+      },
+      "status": 302,
+      "capture": {
+        "laptop_session": "header:set-cookie:user_session=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "location",
+          "equals": "/login/device"
+        }
+      ]
+    },
+    {
+      "name": "Back on the device activation page, she reads the code-entry form before entering gh\u2019s code",
+      "method": "GET",
+      "path": "https://github.com/login/device",
+      "headers": {
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Enter the code displayed on your device"
+        }
+      ]
+    },
+    {
+      "name": "She types the code gh shows; GitHub asks her to authorize GitHub CLI for the scopes it asked",
+      "method": "POST",
+      "path": "https://github.com/login/device",
+      "body": "user_code={gh_user_code}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize GitHub CLI"
+        },
+        {
+          "path": "",
+          "contains": "admin:public_key"
+        }
+      ]
+    },
+    {
+      "name": "and authorizes it",
+      "method": "POST",
+      "path": "https://github.com/login/device/confirm",
+      "body": "user_code={gh_user_code}&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Congratulations, you're all set!"
+        }
+      ],
+      "view": "text"
+    },
+    {
+      "name": "A minute later",
+      "wait": "1m"
+    },
+    {
+      "name": "gh's next poll gets its token, with the scopes she authorized",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id=178c6fc778ccc68e1d6a&device_code={gh_device}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "gh_tok": "access_token"
+      },
+      "expect": [
+        {
+          "path": "scope",
+          "equals": "admin:public_key,gist,read:org,repo,workflow"
+        },
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        }
+      ]
+    },
+    {
+      "name": "and checks who it is signed in as",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "me": "login"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "octocat"
+        },
+        {
+          "path": "type",
+          "equals": "User"
+        }
+      ]
+    },
+    {
+      "name": "She makes the tessellate-dev organization on github.com's new-organization page, signed in there (the twin's door stands in for the page)",
+      "method": "POST",
+      "path": "/_twin/orgs",
+      "body": {
+        "login": "tessellate-dev",
+        "name": "Tessellate"
+      },
+      "headers": {
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 201
+    },
+    {
+      "name": "An hour later she runs Open Autonomy's setup in her checkout of the library",
+      "wait": "1h"
+    },
+    {
+      "name": "Setup asks gh who she is (gh api user)",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "octocat"
+        }
+      ]
+    },
+    {
+      "name": "and whether the account it will live under is an organization (gh api orgs/tessellate-dev)",
+      "method": "GET",
+      "path": "/orgs/tessellate-dev",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "tessellate-dev"
+        },
+        {
+          "path": "type",
+          "equals": "Organization"
+        }
+      ]
+    },
+    {
+      "name": "It looks for the repository and finds none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "message",
+          "equals": "Not Found"
+        }
+      ]
+    },
+    {
+      "name": "so it creates it as gh repo create does: gh reads the owner's account for its node id",
+      "method": "GET",
+      "path": "/users/tessellate-dev",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "org_node": "node_id"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "tessellate-dev"
+        },
+        {
+          "path": "type",
+          "equals": "Organization"
+        }
+      ]
+    },
+    {
+      "name": "and creates the public repository under it (GraphQL's createRepository)",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "\n\tmutation RepositoryCreate($input: CreateRepositoryInput!) {\n\t\tcreateRepository(input: $input) {\n\t\t\trepository {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\towner { login }\n\t\t\t\turl\n\t\t\t}\n\t\t}\n\t}\n\t",
+        "variables": {
+          "input": {
+            "name": "tessellate",
+            "visibility": "PUBLIC",
+            "ownerId": "{org_node}",
+            "hasIssuesEnabled": true,
+            "hasWikiEnabled": true
+          }
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "repo_node": "data.createRepository.repository.id"
+      },
+      "expect": [
+        {
+          "path": "data.createRepository.repository.name",
+          "equals": "tessellate"
+        },
+        {
+          "path": "data.createRepository.repository.owner.login",
+          "equals": "tessellate-dev"
+        },
+        {
+          "path": "data.createRepository.repository.url",
+          "equals": "https://github.com/tessellate-dev/tessellate"
+        }
+      ]
+    },
+    {
+      "name": "gh pushes her checkout to it over HTTPS: the triangulator, the README, a skill for coding agents, and the Open Autonomy configuration",
+      "git": "push",
+      "repo": "tessellate-dev/tessellate",
+      "ref": "refs/heads/main",
+      "files": {
+        ".open-autonomy/config.yaml": "account: tessellate-dev/tessellate\nlive: https://tessellate.dev\nteam:\n  - id: octocat\n    name: octocat\n    scopes: [owner]\n    github: { id: \"583231\", login: octocat }\n    availability: Europe/London; mon-fri 09:00-17:00\n    source: setup\n",
+        "README.md": "# Tessellate\n\nPolygon triangulation for the web: ear clipping, holes, and an indexed buffer ready for WebGL.\n\n![CI](https://img.shields.io/badge/ci-passing-brightgreen.svg)\n\n![A floor plan, triangulated](docs/floor-plan.png)\n\n![The ear-clipping walk](https://tessellate.dev/media/ears.gif)\n\n## Install\n\n```sh\nnpm install tessellate\n```\n\nSee the [guide](https://tessellate.dev/guide) for more.\n",
+        "skills/triangulate/SKILL.md": "---\nname: triangulate\ndescription: Triangulate a polygon with Tessellate and check the result covers it.\n---\n\n# Triangulate\n\nCall `triangulate(points)` with the outline's points in order; it answers triples of indices.\n",
+        "src/index.js": "export { triangulate } from './triangulate.js';\n",
+        "src/triangulate.js": "// Ear clipping: the triangles of a simple polygon, as triples of indices into its points.\nconst cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);\n\nexport function triangulate(points) {\n  const ring = points.map((_, i) => i);\n  const triangles = [];\n  while (ring.length > 3) {\n    const [i, j, l] = ring;\n    triangles.push([i, j, l]);\n    ring.splice(1, 1);\n  }\n  if (ring.length === 3) triangles.push(ring);\n  return triangles;\n}\n",
+        "wrangler.toml": "name = \"tessellate-site\"\nmain = \"site/worker.js\"\ncompatibility_date = \"2026-01-01\"\n",
+        "site/worker.js": "export default { fetch: () => new Response('Tessellate') };\n"
+      },
+      "message": "Tessellate",
+      "author": "octocat <octocat@github.com>",
+      "headers": {
+        "authorization": "{basic:me:gh_tok}"
+      },
+      "capture": {
+        "first_sha": "sha",
+        "first_short": "text:\"sha\":\"([0-9a-f]{7})"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Setup reads the repository back",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "full_name",
+          "equals": "tessellate-dev/tessellate"
+        },
+        {
+          "path": "private",
+          "equals": false
+        },
+        {
+          "path": "default_branch",
+          "equals": "main"
+        },
+        {
+          "path": "permissions.admin",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "It turns on auto-merge, which landing needs",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate",
+      "body": {
+        "allow_auto_merge": true
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "allow_auto_merge",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "It lists the repository's deploy keys and finds none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/keys?per_page=100&page=1",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "so it adds the agent's, with write access (gh repo deploy-key add --allow-write)",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/keys",
+      "body": {
+        "key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM81+Bp93YVu/0XF0w9lB3gmBcjzsaBSkBDY3tSJC0zO tessellate agent\n",
+        "read_only": false,
+        "title": "tessellate agent"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201,
+      "capture": {
+        "deploy_key": "id"
+      },
+      "expect": [
+        {
+          "path": "title",
+          "equals": "tessellate agent"
+        },
+        {
+          "path": "read_only",
+          "equals": false
+        },
+        {
+          "path": "verified",
+          "equals": true
+        },
+        {
+          "path": "key",
+          "equals": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM81+Bp93YVu/0XF0w9lB3gmBcjzsaBSkBDY3tSJC0zO"
+        }
+      ]
+    },
+    {
+      "name": "It lists the repository's rulesets and finds none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "so it adds main-protected: no deletion, no force push, and every change through a pull request with one approval",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "body": {
+        "name": "main-protected",
+        "target": "branch",
+        "enforcement": "active",
+        "bypass_actors": [],
+        "conditions": {
+          "ref_name": {
+            "include": [
+              "refs/heads/main"
+            ],
+            "exclude": []
+          }
+        },
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "required_approving_review_count": 1,
+              "dismiss_stale_reviews_on_push": true,
+              "require_code_owner_review": false,
+              "require_last_push_approval": false,
+              "required_review_thread_resolution": false
+            }
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201,
+      "capture": {
+        "main_rules": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "main-protected"
+        },
+        {
+          "path": "enforcement",
+          "equals": "active"
+        },
+        {
+          "path": "source_type",
+          "equals": "Repository"
+        },
+        {
+          "path": "source",
+          "equals": "tessellate-dev/tessellate"
+        },
+        {
+          "path": "rules.2.type",
+          "equals": "pull_request"
+        }
+      ]
+    },
+    {
+      "name": "It lists them again: main-protected",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.name",
+          "equals": "main-protected"
+        },
+        {
+          "path": "0.target",
+          "equals": "branch"
+        }
+      ]
+    },
+    {
+      "name": "A week later, Monday 12 January: she deploys the site from tags by hand while she decides on a production door",
+      "wait": "167h"
+    },
+    {
+      "name": "Her deploy script reads main's tip",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/branches/main",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "capture": {
+        "main_tip": "commit.sha"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "tags what it deployed with an annotated tag",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/git/tags",
+      "body": {
+        "tag": "deploy-v2026.01.12.1",
+        "message": "Deployed to tessellate.dev",
+        "object": "{main_tip}",
+        "type": "commit",
+        "tagger": {
+          "name": "octocat",
+          "email": "octocat@github.com",
+          "date": "2026-01-12T09:00:00Z"
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "deploy_tag": "sha"
+      },
+      "expect": [
+        {
+          "path": "tag",
+          "equals": "deploy-v2026.01.12.1"
+        },
+        {
+          "path": "object.sha",
+          "equals": "{main_tip}"
+        },
+        {
+          "path": "object.type",
+          "equals": "commit"
+        },
+        {
+          "path": "verification.verified",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "and makes its ref",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/git/refs",
+      "body": {
+        "ref": "refs/tags/deploy-v2026.01.12.1",
+        "sha": "{deploy_tag}"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "ref",
+          "equals": "refs/tags/deploy-v2026.01.12.1"
+        },
+        {
+          "path": "object.type",
+          "equals": "tag"
+        },
+        {
+          "path": "object.sha",
+          "equals": "{deploy_tag}"
+        }
+      ]
+    },
+    {
+      "name": "An hour later she reruns setup and takes the production door",
+      "wait": "1h"
+    },
+    {
+      "name": "Setup asks gh who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "octocat"
+        }
+      ]
+    },
+    {
+      "name": "It asks for the owners team, the Release's reviewer, and there is none",
+      "method": "GET",
+      "path": "/orgs/tessellate-dev/teams/owners",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 404
+    },
+    {
+      "name": "so it creates it",
+      "method": "POST",
+      "path": "/orgs/tessellate-dev/teams",
+      "body": {
+        "name": "owners",
+        "privacy": "closed",
+        "description": "Approves the Release: main to prod"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201,
+      "capture": {
+        "owners_team": "id"
+      },
+      "expect": [
+        {
+          "path": "slug",
+          "equals": "owners"
+        },
+        {
+          "path": "privacy",
+          "equals": "closed"
+        },
+        {
+          "path": "organization.login",
+          "equals": "tessellate-dev"
+        }
+      ]
+    },
+    {
+      "name": "makes octocat its maintainer",
+      "method": "PUT",
+      "path": "/orgs/tessellate-dev/teams/owners/memberships/octocat",
+      "body": {
+        "role": "maintainer"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "role",
+          "equals": "maintainer"
+        },
+        {
+          "path": "state",
+          "equals": "active"
+        }
+      ]
+    },
+    {
+      "name": "and gives it push on the repository",
+      "method": "PUT",
+      "path": "/orgs/tessellate-dev/teams/owners/repos/tessellate-dev/tessellate",
+      "body": {
+        "permission": "push"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 204
+    },
+    {
+      "name": "It looks for the prod branch and finds none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/branches/prod",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "message",
+          "equals": "Branch not found"
+        }
+      ]
+    },
+    {
+      "name": "so it starts prod where production last shipped: it lists the deploy tags",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/git/matching-refs/tags/deploy-v",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.ref",
+          "equals": "refs/tags/deploy-v2026.01.12.1"
+        },
+        {
+          "path": "0.object.type",
+          "equals": "tag"
+        },
+        {
+          "path": "0.object.sha",
+          "equals": "{deploy_tag}"
+        }
+      ]
+    },
+    {
+      "name": "reads the newest one's tag object for the commit it tags",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/git/tags/{deploy_tag}",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "tag",
+          "equals": "deploy-v2026.01.12.1"
+        },
+        {
+          "path": "object.sha",
+          "equals": "{main_tip}"
+        },
+        {
+          "path": "tagger.name",
+          "equals": "octocat"
+        }
+      ]
+    },
+    {
+      "name": "and makes prod there",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/git/refs",
+      "body": {
+        "ref": "refs/heads/prod",
+        "sha": "{main_tip}"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "ref",
+          "equals": "refs/heads/prod"
+        },
+        {
+          "path": "object.sha",
+          "equals": "{main_tip}"
+        }
+      ]
+    },
+    {
+      "name": "It lists the rulesets: main-protected only",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.name",
+          "equals": "main-protected"
+        }
+      ]
+    },
+    {
+      "name": "so it adds prod-protected, the owners team the Release's required reviewer",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "body": {
+        "name": "prod-protected",
+        "target": "branch",
+        "enforcement": "active",
+        "bypass_actors": [],
+        "conditions": {
+          "ref_name": {
+            "include": [
+              "refs/heads/prod"
+            ],
+            "exclude": []
+          }
+        },
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "required_approving_review_count": 1,
+              "dismiss_stale_reviews_on_push": true,
+              "require_code_owner_review": false,
+              "require_last_push_approval": false,
+              "required_review_thread_resolution": false,
+              "allowed_merge_methods": [
+                "merge"
+              ],
+              "required_reviewers": [
+                {
+                  "minimum_approvals": 1,
+                  "file_patterns": [
+                    "*"
+                  ],
+                  "reviewer": {
+                    "id": "{owners_team}",
+                    "type": "Team"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "prod-protected"
+        },
+        {
+          "path": "conditions.ref_name.include.0",
+          "equals": "refs/heads/prod"
+        }
+      ]
+    },
+    {
+      "name": "It creates the production environment, admitting the branches its policies name",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/tessellate/environments/production",
+      "body": {
+        "reviewers": [],
+        "can_admins_bypass": false,
+        "deployment_branch_policy": {
+          "protected_branches": false,
+          "custom_branch_policies": true
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "production"
+        },
+        {
+          "path": "deployment_branch_policy.custom_branch_policies",
+          "equals": true
+        },
+        {
+          "path": "deployment_branch_policy.protected_branches",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "lists its branch policies and finds none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/deployment-branch-policies",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "and adds prod",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/deployment-branch-policies",
+      "body": {
+        "name": "prod",
+        "type": "branch"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "prod"
+        },
+        {
+          "path": "type",
+          "equals": "branch"
+        }
+      ]
+    },
+    {
+      "name": "It lists the rulesets for the deploy tags' rules",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "1.name",
+          "equals": "prod-protected"
+        }
+      ]
+    },
+    {
+      "name": "finds none, lists them again as it ensures one, and adds deploy-tags-admin-only",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "1.name",
+          "equals": "prod-protected"
+        }
+      ]
+    },
+    {
+      "name": "deploy-tags-admin-only: only an organization admin moves or deletes a deploy tag",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "body": {
+        "name": "deploy-tags-admin-only",
+        "target": "tag",
+        "enforcement": "active",
+        "bypass_actors": [
+          {
+            "actor_id": 1,
+            "actor_type": "OrganizationAdmin",
+            "bypass_mode": "always"
+          }
+        ],
+        "conditions": {
+          "ref_name": {
+            "include": [
+              "refs/tags/deploy-v*"
+            ],
+            "exclude": []
+          }
+        },
+        "rules": [
+          {
+            "type": "update"
+          },
+          {
+            "type": "deletion"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201,
+      "capture": {
+        "tag_rules": "id"
+      },
+      "expect": [
+        {
+          "path": "target",
+          "equals": "tag"
+        },
+        {
+          "path": "bypass_actors.0.actor_type",
+          "equals": "OrganizationAdmin"
+        }
+      ]
+    },
+    {
+      "name": "The library deploys as a Cloudflare Worker: setup sets the account id as a repository variable (gh variable set)",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/actions/variables",
+      "body": {
+        "name": "CLOUDFLARE_ACCOUNT_ID",
+        "value": "9a7806061c88ada191ed06f989cc3dac"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201
+    },
+    {
+      "name": "lists the production environment's secrets and finds none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/secrets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "and seals the Cloudflare token to the environment's key (gh secret set --env production): gh fetches the key",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/secrets/public-key",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "env_key_id": "key_id",
+        "env_key": "key"
+      },
+      "expect": [
+        {
+          "path": "key_id",
+          "exists": true
+        },
+        {
+          "path": "key",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "and sends the token sealed to it (gh seals it with libsodium's sealed box)",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/secrets/CLOUDFLARE_API_TOKEN",
+      "body": {
+        "encrypted_value": "UvdTQn527FGRZfhzKWEfrQFESYzMu+LH889YuBxL6Xt2+WQYpPn0oYvlabQQb9SX8X1aehzntLx5dUh1VTq7o1q3VMl26k8S",
+        "key_id": "aaa74a91b273916b8538"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 201
+    },
+    {
+      "name": "Thursday 15 January: octocat lets release branches deploy to production too, from the environment's settings page",
+      "wait": "72h"
+    },
+    {
+      "name": "She adds release/* to its branch policies",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/deployment-branch-policies",
+      "body": {
+        "name": "release/*",
+        "type": "branch"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "capture": {
+        "release_policy": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "release/*"
+        }
+      ]
+    },
+    {
+      "name": "Monday 19 January: she reruns setup after updating the kit, which reconciles what she changed by hand",
+      "wait": "96h"
+    },
+    {
+      "name": "Setup finds the owners team",
+      "method": "GET",
+      "path": "/orgs/tessellate-dev/teams/owners",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "slug",
+          "equals": "owners"
+        },
+        {
+          "path": "members_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "keeps octocat its maintainer",
+      "method": "PUT",
+      "path": "/orgs/tessellate-dev/teams/owners/memberships/octocat",
+      "body": {
+        "role": "maintainer"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "role",
+          "equals": "maintainer"
+        }
+      ]
+    },
+    {
+      "name": "and its push on the repository",
+      "method": "PUT",
+      "path": "/orgs/tessellate-dev/teams/owners/repos/tessellate-dev/tessellate",
+      "body": {
+        "permission": "push"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 204
+    },
+    {
+      "name": "It finds prod, so leaves it where it is",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/branches/prod",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "commit.sha",
+          "equals": "{main_tip}"
+        }
+      ]
+    },
+    {
+      "name": "It lists the rulesets: prod-protected is there, so it adds nothing",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "1.name",
+          "equals": "prod-protected"
+        },
+        {
+          "path": "2.name",
+          "equals": "deploy-tags-admin-only"
+        }
+      ]
+    },
+    {
+      "name": "It sets the environment again",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/tessellate/environments/production",
+      "body": {
+        "reviewers": [],
+        "can_admins_bypass": false,
+        "deployment_branch_policy": {
+          "protected_branches": false,
+          "custom_branch_policies": true
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "production"
+        }
+      ]
+    },
+    {
+      "name": "lists its policies: prod, and release/*, which the production door does not admit",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/deployment-branch-policies",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 2
+        },
+        {
+          "path": "branch_policies.1.name",
+          "equals": "release/*"
+        }
+      ]
+    },
+    {
+      "name": "so it removes release/*",
+      "method": "DELETE",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/deployment-branch-policies/{release_policy}",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 204
+    },
+    {
+      "name": "It lists the rulesets and finds the deploy tags' rules",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/rulesets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "2.name",
+          "equals": "deploy-tags-admin-only"
+        }
+      ]
+    },
+    {
+      "name": "so it writes them again as the kit has them",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/tessellate/rulesets/{tag_rules}",
+      "body": {
+        "name": "deploy-tags-admin-only",
+        "target": "tag",
+        "enforcement": "active",
+        "bypass_actors": [
+          {
+            "actor_id": 1,
+            "actor_type": "OrganizationAdmin",
+            "bypass_mode": "always"
+          }
+        ],
+        "conditions": {
+          "ref_name": {
+            "include": [
+              "refs/tags/deploy-v*"
+            ],
+            "exclude": []
+          }
+        },
+        "rules": [
+          {
+            "type": "update"
+          },
+          {
+            "type": "deletion"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "deploy-tags-admin-only"
+        },
+        {
+          "path": "rules.0.type",
+          "equals": "update"
+        }
+      ]
+    },
+    {
+      "name": "It sets the account id again: gh is told the variable already exists",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/actions/variables",
+      "body": {
+        "name": "CLOUDFLARE_ACCOUNT_ID",
+        "value": "9a7806061c88ada191ed06f989cc3dac"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 409
+    },
+    {
+      "name": "so gh updates it",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate/actions/variables/CLOUDFLARE_ACCOUNT_ID",
+      "body": {
+        "value": "9a7806061c88ada191ed06f989cc3dac"
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "status": 204
+    },
+    {
+      "name": "The environment's secrets hold the token already, so setup asks for none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/environments/production/secrets",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "secrets.0.name",
+          "equals": "CLOUDFLARE_API_TOKEN"
+        }
+      ]
+    },
+    {
+      "name": "The deploy tag's ref stands where her script made it",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/git/ref/tags/deploy-v2026.01.12.1",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "object.sha",
+          "equals": "{deploy_tag}"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 20 January: setup's agent registers the project's GitHub App",
+      "wait": "24h"
+    },
+    {
+      "name": "The agent, in octocat's signed-in browser, posts the App's manifest to the organization's new-app page",
+      "method": "POST",
+      "path": "/organizations/tessellate-dev/settings/apps/new?state=oa-setup",
+      "body": "manifest=%7B%22name%22%3A%22Tessellate+Autonomy%22%2C%22url%22%3A%22https%3A%2F%2Fopen-autonomy.org%2Ftessellate-dev%2Ftessellate%22%2C%22description%22%3A%22Tessellate%27s+Open+Autonomy+agent.%22%2C%22hook_attributes%22%3A%7B%22url%22%3A%22https%3A%2F%2Fopen-autonomy.org%2Fhooks%2Ftessellate%22%2C%22active%22%3Afalse%7D%2C%22redirect_url%22%3A%22http%3A%2F%2F127.0.0.1%3A47123%2Fcallback%22%2C%22setup_url%22%3A%22http%3A%2F%2F127.0.0.1%3A47123%2Finstalled%22%2C%22public%22%3Afalse%2C%22default_permissions%22%3A%7B%22contents%22%3A%22write%22%2C%22issues%22%3A%22write%22%2C%22pull_requests%22%3A%22write%22%2C%22discussions%22%3A%22write%22%2C%22statuses%22%3A%22read%22%2C%22checks%22%3A%22read%22%2C%22actions%22%3A%22read%22%2C%22metadata%22%3A%22read%22%7D%2C%22default_events%22%3A%5B%5D%7D&state=oa-setup",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Create GitHub App for tessellate-dev"
+        }
+      ]
+    },
+    {
+      "name": "and creates it; GitHub sends the browser to the credentials receiver with a code",
+      "method": "POST",
+      "path": "/organizations/tessellate-dev/settings/apps/new",
+      "body": "create=1&state=oa-setup&manifest=%7B%22name%22%3A%22Tessellate+Autonomy%22%2C%22url%22%3A%22https%3A%2F%2Fopen-autonomy.org%2Ftessellate-dev%2Ftessellate%22%2C%22description%22%3A%22Tessellate%27s+Open+Autonomy+agent.%22%2C%22hook_attributes%22%3A%7B%22url%22%3A%22https%3A%2F%2Fopen-autonomy.org%2Fhooks%2Ftessellate%22%2C%22active%22%3Afalse%7D%2C%22redirect_url%22%3A%22http%3A%2F%2F127.0.0.1%3A47123%2Fcallback%22%2C%22setup_url%22%3A%22http%3A%2F%2F127.0.0.1%3A47123%2Finstalled%22%2C%22public%22%3Afalse%2C%22default_permissions%22%3A%7B%22contents%22%3A%22write%22%2C%22issues%22%3A%22write%22%2C%22pull_requests%22%3A%22write%22%2C%22discussions%22%3A%22write%22%2C%22statuses%22%3A%22read%22%2C%22checks%22%3A%22read%22%2C%22actions%22%3A%22read%22%2C%22metadata%22%3A%22read%22%7D%2C%22default_events%22%3A%5B%5D%7D",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 302,
+      "capture": {
+        "oa_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "oa-setup"
+        },
+        {
+          "path": "location",
+          "contains": "http://127.0.0.1:47123/callback?"
+        }
+      ]
+    },
+    {
+      "name": "The receiver exchanges the code for the App's id, private key and slug",
+      "method": "POST",
+      "path": "/app-manifests/{oa_code}/conversions",
+      "body": {},
+      "headers": {
+        "accept": "application/vnd.github+json"
+      },
+      "status": 201,
+      "capture": {
+        "oa_app": "id",
+        "oa_pem": "pem"
+      },
+      "expect": [
+        {
+          "path": "slug",
+          "equals": "tessellate-autonomy"
+        },
+        {
+          "path": "owner.login",
+          "equals": "tessellate-dev"
+        },
+        {
+          "path": "pem",
+          "exists": true
+        },
+        {
+          "path": "permissions.contents",
+          "equals": "write"
+        }
+      ]
+    },
+    {
+      "name": "A minute later the valve starts and is asked for its first token",
+      "wait": "1m"
+    },
+    {
+      "name": "The valve, with the App's JWT, looks for the App's installation on the repository: nobody has installed it yet",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/installation",
+      "status": 404,
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1768903260,
+          "exp": 1768903860,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "Ten minutes later",
+      "wait": "10m"
+    },
+    {
+      "name": "octocat opens the App's installation page for tessellate-dev",
+      "method": "GET",
+      "path": "/apps/tessellate-autonomy/installations/new?target_login=tessellate-dev",
+      "headers": {
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Only select repositories"
+        }
+      ]
+    },
+    {
+      "name": "and installs it on the library only",
+      "method": "POST",
+      "path": "/apps/tessellate-autonomy/installations/new",
+      "body": "install=1&target_login=tessellate-dev&repository_selection=selected&repositories=tessellate",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 302,
+      "expect": [
+        {
+          "path": "redirect.setup_action",
+          "equals": "install"
+        }
+      ]
+    },
+    {
+      "name": "The valve finds the installation now",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/installation",
+      "capture": {
+        "oa_inst": "id"
+      },
+      "expect": [
+        {
+          "path": "app_slug",
+          "equals": "tessellate-autonomy"
+        },
+        {
+          "path": "repository_selection",
+          "equals": "selected"
+        },
+        {
+          "path": "account.login",
+          "equals": "tessellate-dev"
+        },
+        {
+          "path": "suspended_at",
+          "equals": null
+        }
+      ],
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1768903860,
+          "exp": 1768904460,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "and mints a token for the one repository",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "expect": [
+        {
+          "path": "repository_selection",
+          "equals": "selected"
+        },
+        {
+          "path": "repositories.0.full_name",
+          "equals": "tessellate-dev/tessellate"
+        },
+        {
+          "path": "permissions.contents",
+          "equals": "write"
+        }
+      ],
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1768903860,
+          "exp": 1768904460,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "The agent's first look at the Release: no open pull request from main to prod",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/pulls?state=open&base=prod&head=tessellate-dev:main",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "prod stands",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/branches/prod",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "prod"
+        }
+      ]
+    },
+    {
+      "name": "and asked to open the Release, GitHub refuses: main has nothing prod lacks",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls",
+      "body": {
+        "title": "Release",
+        "head": "main",
+        "base": "prod",
+        "body": "Merging ships `main` to production: the workflows that run on a push to `prod` deploy and publish it."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "contains": "No commits between prod and main"
+        }
+      ]
+    },
+    {
+      "name": "Monday 2 February, 10 in the morning: octocat turns on Discussions for questions",
+      "wait": "18708m"
+    },
+    {
+      "name": "She turns them on",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate",
+      "body": {
+        "has_discussions": true
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "has_discussions",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Grace's github.com account: the email address and password she chose when she signed up (the twin's door stands in)",
+      "method": "POST",
+      "path": "/_twin/users",
+      "body": {
+        "login": "grace",
+        "email": "grace@hopper.dev",
+        "password": "floor-plans-2026",
+        "name": "Grace Hopper"
+      },
+      "status": 201
+    },
+    {
+      "name": "and the token she files issues with, made on her settings page",
+      "method": "POST",
+      "path": "/_twin/users/grace/tokens",
+      "body": {
+        "note": "issues",
+        "scopes": [
+          "public_repo",
+          "read:discussion",
+          "write:discussion"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "grace_pat": "token"
+      }
+    },
+    {
+      "name": "Grace, meshing floor plans, files a bug: walls with three points in a line lose a triangle",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues",
+      "body": {
+        "title": "Collinear points drop a triangle",
+        "body": "A wall of three points in a line comes out one triangle short.\n\n```js\ntriangulate([[0,0],[2,0],[4,0],[4,3],[0,3]])\n```"
+      },
+      "headers": {
+        "authorization": "Bearer {grace_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "bug": "number"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "open"
+        },
+        {
+          "path": "user.login",
+          "equals": "grace"
+        },
+        {
+          "path": "author_association",
+          "equals": "NONE"
+        }
+      ]
+    },
+    {
+      "name": "She opens the Discussions tab, which reads the repository's categories",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id discussionCategories(first: 25) { nodes { id slug } } } }",
+        "variables": {
+          "owner": "tessellate-dev",
+          "name": "tessellate"
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {grace_pat}"
+      },
+      "capture": {
+        "qa_category": "data.repository.discussionCategories.nodes.4.id"
+      },
+      "expect": [
+        {
+          "path": "data.repository.discussionCategories.nodes.4.slug",
+          "equals": "q-a"
+        },
+        {
+          "path": "data.repository.id",
+          "equals": "{repo_node}"
+        }
+      ]
+    },
+    {
+      "name": "and asks in Q&A how to keep a floor plan's rooms apart",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) { createDiscussion(input: { repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body }) { discussion { number url } } }",
+        "variables": {
+          "repositoryId": "{repo_node}",
+          "categoryId": "{qa_category}",
+          "title": "Keeping rooms apart",
+          "body": "Can I triangulate a floor plan so no triangle crosses a wall between rooms?"
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {grace_pat}"
+      },
+      "capture": {
+        "rooms_q": "data.createDiscussion.discussion.number"
+      },
+      "expect": [
+        {
+          "path": "data.createDiscussion.discussion.url",
+          "contains": "https://github.com/tessellate-dev/tessellate/discussions/"
+        }
+      ]
+    },
+    {
+      "name": "An hour later the agent's community desk polls for the first time",
+      "wait": "1h"
+    },
+    {
+      "name": "The valve renews the expired installation token before the community desk runs, using a fresh App JWT",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "expect": [
+        {
+          "path": "repository_selection",
+          "equals": "selected"
+        },
+        {
+          "path": "repositories.0.full_name",
+          "equals": "tessellate-dev/tessellate"
+        },
+        {
+          "path": "permissions.contents",
+          "equals": "write"
+        },
+        {
+          "path": "expires_at",
+          "equals": "2026-02-02T12:00:00Z"
+        }
+      ],
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1770029940,
+          "exp": 1770030540,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "It reads every issue and pull request (community poll, the first, with no since), a hundred a page",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues?state=all&per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.number",
+          "equals": "{bug}"
+        },
+        {
+          "path": "0.title",
+          "equals": "Collinear points drop a triangle"
+        },
+        {
+          "path": "0.user.login",
+          "equals": "grace"
+        }
+      ]
+    },
+    {
+      "name": "and the bug's comments: none yet",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues/{bug}/comments?per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "and every discussion with its replies, newest-updated first",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query($owner: String!, $name: String!, $after: String) { repository(owner: $owner, name: $name) { discussions(first: 50, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { id number title body createdAt updatedAt url author { login } comments(first: 50) { nodes { id body createdAt updatedAt url author { login } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } }",
+        "variables": {
+          "owner": "tessellate-dev",
+          "name": "tessellate",
+          "after": null
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "capture": {
+        "rooms_id": "data.repository.discussions.nodes.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.repository.discussions.nodes.0.title",
+          "equals": "Keeping rooms apart"
+        },
+        {
+          "path": "data.repository.discussions.nodes.0.author.login",
+          "equals": "grace"
+        },
+        {
+          "path": "data.repository.discussions.pageInfo.hasNextPage",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "It asks Grace for the input that loses the triangle (community comment)",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues/{bug}/comments",
+      "body": {
+        "body": "Thanks, Grace. Does the outline run clockwise or counter-clockwise when it loses the triangle?"
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "user.login",
+          "equals": "tessellate-autonomy[bot]"
+        },
+        {
+          "path": "user.type",
+          "equals": "Bot"
+        }
+      ]
+    },
+    {
+      "name": "and answers her discussion (community discuss)",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "mutation($discussionId: ID!, $body: String!) { addDiscussionComment(input: { discussionId: $discussionId, body: $body }) { comment { id } } }",
+        "variables": {
+          "discussionId": "{rooms_id}",
+          "body": "Yes: triangulate each room on its own outline; no triangle then crosses a wall."
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.addDiscussionComment.comment.id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "It opens the fix as a task, assigned to octocat (community issue open)",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues",
+      "body": {
+        "title": "Keep collinear points in the ear walk",
+        "body": "<!-- open-autonomy:task:collinear -->\nFix the walk so a vertex in line with its neighbours still closes its triangle.",
+        "assignees": [
+          "octocat"
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 201,
+      "capture": {
+        "task": "number"
+      },
+      "expect": [
+        {
+          "path": "assignees.0.login",
+          "equals": "octocat"
+        },
+        {
+          "path": "user.login",
+          "equals": "tessellate-autonomy[bot]"
+        }
+      ]
+    },
+    {
+      "name": "The next morning",
+      "wait": "23h"
+    },
+    {
+      "name": "Grace answers: counter-clockwise",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues/{bug}/comments",
+      "body": {
+        "body": "Counter-clockwise, as the README says."
+      },
+      "headers": {
+        "authorization": "Bearer {grace_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "grace_reply_at": "created_at"
+      }
+    },
+    {
+      "name": "An hour later the desk polls again",
+      "wait": "1h"
+    },
+    {
+      "name": "The valve renews the expired installation token before the community desk runs, using a fresh App JWT",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "expect": [
+        {
+          "path": "repository_selection",
+          "equals": "selected"
+        },
+        {
+          "path": "repositories.0.full_name",
+          "equals": "tessellate-dev/tessellate"
+        },
+        {
+          "path": "permissions.contents",
+          "equals": "write"
+        },
+        {
+          "path": "expires_at",
+          "equals": "2026-02-03T12:00:00Z"
+        }
+      ],
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1770116340,
+          "exp": 1770116940,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "since its last poll: Grace's bug, which her reply changed, and the agent's task",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues?state=all&since=2026-02-02T11%3A00%3A00Z&per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Collinear points drop a triangle"
+        }
+      ]
+    },
+    {
+      "name": "and the bug's comments since then: its own question, made as that poll ran, and Grace's reply",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues/{bug}/comments?since=2026-02-02T11%3A00%3A00Z&per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "1.user.login",
+          "equals": "grace"
+        },
+        {
+          "path": "1.body",
+          "equals": "Counter-clockwise, as the README says."
+        }
+      ]
+    },
+    {
+      "name": "The discussions again",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query($owner: String!, $name: String!, $after: String) { repository(owner: $owner, name: $name) { discussions(first: 50, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { id number title body createdAt updatedAt url author { login } comments(first: 50) { nodes { id body createdAt updatedAt url author { login } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } }",
+        "variables": {
+          "owner": "tessellate-dev",
+          "name": "tessellate",
+          "after": null
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.repository.discussions.nodes.0.comments.nodes.0.author.login",
+          "equals": "tessellate-autonomy[bot]"
+        }
+      ]
+    },
+    {
+      "name": "The task waits on the fix: the agent marks it blocked (community issue update)",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate/issues/{task}",
+      "body": {
+        "body": "<!-- open-autonomy:blocked:collinear -->\nWaiting on the ear walk rewrite."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "body",
+          "contains": "open-autonomy:blocked"
+        }
+      ]
+    },
+    {
+      "name": "and reminds octocat on it (community issue remind)",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues/{task}/comments",
+      "body": {
+        "body": "@octocat this blocks Grace's bug."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 201
+    },
+    {
+      "name": "The monitor checks what changed last: the newest-updated issue",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues?state=all&sort=updated&direction=desc&per_page=1",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.number",
+          "equals": "{task}"
+        }
+      ]
+    },
+    {
+      "name": "and the newest-updated discussion",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { discussions(first: 1, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { number updatedAt } } } }",
+        "variables": {
+          "owner": "tessellate-dev",
+          "name": "tessellate"
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.repository.discussions.nodes.0.number",
+          "equals": "{rooms_q}"
+        }
+      ]
+    },
+    {
+      "name": "It posts the month's memo as a new discussion in Announcements (community discussion-new): the categories first",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id discussionCategories(first: 25) { nodes { id slug } } } }",
+        "variables": {
+          "owner": "tessellate-dev",
+          "name": "tessellate"
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "capture": {
+        "announce": "data.repository.discussionCategories.nodes.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.repository.discussionCategories.nodes.0.slug",
+          "equals": "announcements"
+        }
+      ]
+    },
+    {
+      "name": "then the discussion",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) { createDiscussion(input: { repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body }) { discussion { number url } } }",
+        "variables": {
+          "repositoryId": "{repo_node}",
+          "categoryId": "{announce}",
+          "title": "February",
+          "body": "This month: the collinear fix, then 1.0."
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.createDiscussion.discussion.number",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 3 February, 3 in the afternoon: octocat starts Twin's on-call recipe on the library, whose first run triages the open bug",
+      "wait": "4h"
+    },
+    {
+      "name": "The recipe reads the bug by its number (github.issues.get, through Octokit with her token)",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues/{bug}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "number",
+          "equals": "{bug}"
+        },
+        {
+          "path": "title",
+          "equals": "Collinear points drop a triangle"
+        },
+        {
+          "path": "user.login",
+          "equals": "grace"
+        },
+        {
+          "path": "state",
+          "equals": "open"
+        },
+        {
+          "path": "comments",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "name": "and answers on it with the ticket it filed in her tracker (github.issues.createComment)",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues/{bug}/comments",
+      "body": {
+        "body": "Tracked as TES-1. A bug: a vertex in line with its neighbours drops the next triangle."
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "user.login",
+          "equals": "octocat"
+        },
+        {
+          "path": "author_association",
+          "equals": "MEMBER"
+        }
+      ]
+    },
+    {
+      "name": "Monday 9 February, 10 in the morning: octocat adds a webhook for the Volter Harness board, which takes the repository's events",
+      "wait": "139h"
+    },
+    {
+      "name": "She adds the repository webhook, signed with the board's secret",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/hooks",
+      "body": {
+        "name": "web",
+        "active": true,
+        "events": [
+          "pull_request",
+          "issues"
+        ],
+        "config": {
+          "url": "https://board.tessellate.dev/webhook",
+          "content_type": "json",
+          "secret": "board-hook-2026",
+          "insecure_ssl": "0"
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "board_hook": "id"
+      },
+      "expect": [
+        {
+          "path": "config.secret",
+          "equals": "********"
+        },
+        {
+          "path": "events.0",
+          "equals": "pull_request"
+        },
+        {
+          "path": "active",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "An hour later the agent takes the task",
+      "wait": "1h"
+    },
+    {
+      "name": "The valve mints a fresh token",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1770634740,
+          "exp": 1770635340,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "The agent pushes its fix to a branch over HTTPS, through the valve, the installation token its password",
+      "git": "push",
+      "repo": "tessellate-dev/tessellate",
+      "ref": "refs/heads/agent/collinear",
+      "files": {
+        "src/triangulate.js": "// Ear clipping: the triangles of a simple polygon, as triples of indices into its points.\nconst cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);\n\nexport function triangulate(points) {\n  const ring = points.map((_, i) => i);\n  const triangles = [];\n  while (ring.length > 3) {\n    const [i, j, l] = ring;\n    // a vertex in line with its neighbours still closes the triangle of the next ear\n    triangles.push([i, j, l]);\n    ring.splice(1, 1);\n  }\n  if (ring.length === 3) triangles.push(ring);\n  return triangles;\n}\n"
+      },
+      "message": "Keep collinear points in the ear walk",
+      "author": "tessellate-autonomy[bot] <tessellate-autonomy[bot]@users.noreply.github.com>",
+      "headers": {
+        "authorization": "{basic:me:oa_tok}"
+      },
+      "capture": {
+        "fix_1": "sha"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "and opens a pull request that fixes Grace's bug",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls",
+      "body": {
+        "title": "Keep collinear points in the ear walk",
+        "head": "agent/collinear",
+        "base": "main",
+        "body": "Fixes #{bug}."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 201,
+      "capture": {
+        "fix_pr": "number",
+        "fix_pr_url": "html_url"
+      },
+      "expect": [
+        {
+          "path": "head.ref",
+          "equals": "agent/collinear"
+        },
+        {
+          "path": "user.login",
+          "equals": "tessellate-autonomy[bot]"
+        }
+      ]
+    },
+    {
+      "name": "The pull request's event went to the board's webhook: its deliveries show it",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/hooks/{board_hook}/deliveries",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.event",
+          "equals": "pull_request"
+        },
+        {
+          "path": "0.action",
+          "equals": "opened"
+        }
+      ]
+    },
+    {
+      "name": "The board, given the pull request on a card, reads it",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/pulls/{fix_pr}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "open"
+        },
+        {
+          "path": "head.sha",
+          "equals": "{fix_1}"
+        },
+        {
+          "path": "base.ref",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "and the open pull requests, a hundred a page",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/pulls?state=open&per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.number",
+          "equals": "{fix_pr}"
+        }
+      ]
+    },
+    {
+      "name": "and when its head was committed",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/commits/{fix_1}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "sha",
+          "equals": "{fix_1}"
+        },
+        {
+          "path": "commit.message",
+          "equals": "Keep collinear points in the ear walk"
+        }
+      ]
+    },
+    {
+      "name": "Twin's World action, in the library's CI with the token the workflow gives it, looks for its own comment on the pull request",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues/{fix_pr}/comments?per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "finds none and posts the preview World's link",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues/{fix_pr}/comments",
+      "body": {
+        "body": "<!-- volter-world-preview -->\nPreview World: https://worlds.volter.ai/tessellate-dev/tessellate/previews/pr-collinear"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "preview_comment": "id"
+      }
+    },
+    {
+      "name": "The agent reviews the head it read and, being its own pull request, cannot approve it",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls/{fix_pr}/reviews",
+      "body": {
+        "event": "APPROVE",
+        "commit_id": "{fix_1}",
+        "body": "Reviewed at the head."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0",
+          "contains": "Can not approve your own pull request"
+        }
+      ]
+    },
+    {
+      "name": "octocat reviews it and asks for a test",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls/{fix_pr}/reviews",
+      "body": {
+        "event": "REQUEST_CHANGES",
+        "commit_id": "{fix_1}",
+        "body": "Add Grace's wall as a test."
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "CHANGES_REQUESTED"
+        },
+        {
+          "path": "commit_id",
+          "equals": "{fix_1}"
+        }
+      ]
+    },
+    {
+      "name": "That afternoon",
+      "wait": "4h"
+    },
+    {
+      "name": "The valve mints a fresh token",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1770649140,
+          "exp": 1770649740,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "The agent pushes the test",
+      "git": "push",
+      "repo": "tessellate-dev/tessellate",
+      "ref": "refs/heads/agent/collinear",
+      "files": {
+        "test/collinear.test.js": "import { triangulate } from '../src/index.js';\n// Grace's wall: five points, three in a line\nconsole.assert(triangulate([[0,0],[2,0],[4,0],[4,3],[0,3]]).length === 3);\n"
+      },
+      "message": "Test Grace's wall",
+      "author": "tessellate-autonomy[bot] <tessellate-autonomy[bot]@users.noreply.github.com>",
+      "headers": {
+        "authorization": "{basic:me:oa_tok}"
+      },
+      "capture": {
+        "fix_2": "sha"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Twin's action, on the new push, finds its comment",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues/{fix_pr}/comments?per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{preview_comment}"
+        }
+      ]
+    },
+    {
+      "name": "and edits it with the refreshed preview",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate/issues/comments/{preview_comment}",
+      "body": {
+        "body": "<!-- volter-world-preview -->\nPreview World (refreshed): https://worlds.volter.ai/tessellate-dev/tessellate/previews/pr-collinear"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "body",
+          "contains": "refreshed"
+        }
+      ]
+    },
+    {
+      "name": "octocat approves the new head",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls/{fix_pr}/reviews",
+      "body": {
+        "event": "APPROVE",
+        "commit_id": "{fix_2}",
+        "body": "Thanks."
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "APPROVED"
+        }
+      ]
+    },
+    {
+      "name": "Wanting it out today, she tries to push the fix to main directly: the ruleset refuses, main takes changes through pull requests",
+      "git": "push",
+      "repo": "tessellate-dev/tessellate",
+      "ref": "refs/heads/main",
+      "files": {
+        "src/triangulate.js": "// Ear clipping: the triangles of a simple polygon, as triples of indices into its points.\nconst cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);\n\nexport function triangulate(points) {\n  const ring = points.map((_, i) => i);\n  const triangles = [];\n  while (ring.length > 3) {\n    const [i, j, l] = ring;\n    // a vertex in line with its neighbours still closes the triangle of the next ear\n    triangles.push([i, j, l]);\n    ring.splice(1, 1);\n  }\n  if (ring.length === 3) triangles.push(ring);\n  return triangles;\n}\n"
+      },
+      "message": "Keep collinear points",
+      "author": "octocat <octocat@github.com>",
+      "headers": {
+        "authorization": "{basic:me:gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "contains": "GH013"
+        },
+        {
+          "path": "result",
+          "contains": "Changes must be made through a pull request."
+        }
+      ]
+    },
+    {
+      "name": "gh pr merge --merge (the agent's fix): gh reads which fields the schema has",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequest_fields{PullRequest: __type(name: \"PullRequest\"){fields(includeDeprecated: true){name}},StatusCheckRollupContextConnection: __type(name: \"StatusCheckRollupContextConnection\"){fields(includeDeprecated: true){name}}}",
+        "variables": null
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.PullRequest.fields",
+          "contains": "\"name\":\"mergeStateStatus\""
+        },
+        {
+          "path": "data.PullRequest.fields",
+          "contains": "\"name\":\"autoMergeRequest\""
+        },
+        {
+          "path": "data.StatusCheckRollupContextConnection.fields",
+          "contains": "\"name\":\"checkRunCount\""
+        }
+      ]
+    },
+    {
+      "name": "and the WorkflowRun type's",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequest_fields2{WorkflowRun: __type(name: \"WorkflowRun\"){fields(includeDeprecated: true){name}}}",
+        "variables": null
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.WorkflowRun.fields",
+          "contains": "\"name\":\"event\""
+        }
+      ]
+    },
+    {
+      "name": "finds the pull request by its branch",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequestForBranch($owner: String!, $repo: String!, $headRefName: String!, $states: [PullRequestState!]) {\n\t\trepository(owner: $owner, name: $repo) {\n\t\t\tpullRequests(headRefName: $headRefName, states: $states, first: 30, orderBy: { field: CREATED_AT, direction: DESC }) {\n\t\t\t\tnodes {\n\t\t\t\t\tid,number,state,title,commits(last:1){nodes{commit{oid}}},mergeStateStatus,headRepositoryOwner{id,login,...on User{name}},headRefName,baseRefName,headRefOid,isCrossRepository\n\t\t\t\t}\n\t\t\t}\n\t\t\tdefaultBranchRef { name }\n\t\t}\n\t}",
+        "variables": {
+          "headRefName": "agent/collinear",
+          "owner": "tessellate-dev",
+          "repo": "tessellate",
+          "states": null
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "fix_node": "data.repository.pullRequests.nodes.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.repository.pullRequests.nodes.0.headRefName",
+          "equals": "agent/collinear"
+        },
+        {
+          "path": "data.repository.defaultBranchRef.name",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "and merges it with a merge commit",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "mutation PullRequestMerge($input:MergePullRequestInput!){mergePullRequest(input: $input){clientMutationId}}",
+        "variables": {
+          "input": {
+            "pullRequestId": "{fix_node}",
+            "mergeMethod": "MERGE"
+          }
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.mergePullRequest",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "The merge closed Grace's bug",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues?state=closed&per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Collinear points drop a triangle"
+        }
+      ]
+    },
+    {
+      "name": "The valve mints a fresh token",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1770649140,
+          "exp": 1770649740,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "and the agent closes its task (community issue close)",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate/issues/{task}",
+      "body": {
+        "state": "closed"
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "closed"
+        },
+        {
+          "path": "state_reason",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "name": "Monday 2 March, 10 in the morning: octocat writes the guide in the Volter Editor",
+      "wait": "499h"
+    },
+    {
+      "name": "The Editor fetches from origin (git fetch --prune)",
+      "git": "clone",
+      "repo": "tessellate-dev/tessellate",
+      "headers": {
+        "authorization": "{basic:me:gh_tok}"
+      },
+      "capture": {
+        "main_now": "sha"
+      },
+      "expect": [
+        {
+          "path": "paths",
+          "members": [
+            ".open-autonomy/config.yaml",
+            "README.md",
+            "site/worker.js",
+            "skills/triangulate/SKILL.md",
+            "src/index.js",
+            "src/triangulate.js",
+            "test/collinear.test.js",
+            "wrangler.toml"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "and publishes her branch (git push --set-upstream origin docs/guide)",
+      "git": "push",
+      "repo": "tessellate-dev/tessellate",
+      "ref": "refs/heads/docs/guide",
+      "files": {
+        "docs/guide.md": "# Guide\n\nTriangulate a polygon:\n\n```js\ntriangulate(points)\n```\n"
+      },
+      "message": "Write the guide",
+      "author": "octocat <octocat@github.com>",
+      "headers": {
+        "authorization": "{basic:me:gh_tok}"
+      },
+      "capture": {
+        "guide_1": "sha"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "The Editor opens the pull request as gh pr create does: the repository's info",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "\n\tfragment repo on Repository {\n\t\tid\n\t\tname\n\t\towner { login }\n\t\thasIssuesEnabled\n\t\tdescription\n\t\thasWikiEnabled\n\t\tviewerPermission\n\t\tdefaultBranchRef {\n\t\t\tname\n\t\t}\n\t}\n\n\tquery RepositoryInfo($owner: String!, $name: String!) {\n\t\trepository(owner: $owner, name: $name) {\n\t\t\t...repo\n\t\t\tparent {\n\t\t\t\t...repo\n\t\t\t}\n\t\t\tmergeCommitAllowed\n\t\t\trebaseMergeAllowed\n\t\t\tsquashMergeAllowed\n\t\t}\n\t}",
+        "variables": {
+          "name": "tessellate",
+          "owner": "tessellate-dev"
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.repository.viewerPermission",
+          "equals": "ADMIN"
+        },
+        {
+          "path": "data.repository.parent",
+          "equals": null
+        },
+        {
+          "path": "data.repository.mergeCommitAllowed",
+          "equals": true
+        },
+        {
+          "path": "data.repository.defaultBranchRef.name",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "no open pull request for the branch yet",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequestForBranch($owner: String!, $repo: String!, $headRefName: String!, $states: [PullRequestState!]) {\n\t\trepository(owner: $owner, name: $repo) {\n\t\t\tpullRequests(headRefName: $headRefName, states: $states, first: 30, orderBy: { field: CREATED_AT, direction: DESC }) {\n\t\t\t\tnodes {\n\t\t\t\t\turl,id,number,state,baseRefName,headRefName,isCrossRepository,headRepositoryOwner{id,login,...on User{name}}\n\t\t\t\t}\n\t\t\t}\n\t\t\tdefaultBranchRef { name }\n\t\t}\n\t}",
+        "variables": {
+          "headRefName": "docs/guide",
+          "owner": "tessellate-dev",
+          "repo": "tessellate",
+          "states": [
+            "OPEN"
+          ]
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.repository.pullRequests.nodes",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "then the pull request",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "mutation PullRequestCreate($input: CreatePullRequestInput!) {\n\t\tcreatePullRequest(input: $input) {\n\t\t\tpullRequest {\n\t\t\t\tid\n\t\t\t\turl\n\t\t\t}\n\t\t}\n\t}",
+        "variables": {
+          "input": {
+            "baseRefName": "main",
+            "body": "The guide, from the Editor.",
+            "draft": false,
+            "headRefName": "docs/guide",
+            "maintainerCanModify": true,
+            "repositoryId": "{repo_node}",
+            "title": "Write the guide"
+          }
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "guide_pr_url": "data.createPullRequest.pullRequest.url"
+      },
+      "expect": [
+        {
+          "path": "data.createPullRequest.pullRequest.url",
+          "contains": "https://github.com/tessellate-dev/tessellate/pull/"
+        }
+      ]
+    },
+    {
+      "name": "Her CI service reports on the head with her token",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/statuses/{guide_1}",
+      "body": {
+        "state": "success",
+        "target_url": "https://ci.tessellate.dev/runs/41",
+        "description": "Docs build",
+        "context": "docs/build"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "state",
+          "equals": "success"
+        },
+        {
+          "path": "context",
+          "equals": "docs/build"
+        }
+      ]
+    },
+    {
+      "name": "The Editor's merge panel reads the pull request (gh pr view --json url,state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup): open, its check passing, a review required",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequestForBranch($owner: String!, $repo: String!, $headRefName: String!, $states: [PullRequestState!]) {\n\t\trepository(owner: $owner, name: $repo) {\n\t\t\tpullRequests(headRefName: $headRefName, states: $states, first: 30, orderBy: { field: CREATED_AT, direction: DESC }) {\n\t\t\t\tnodes {\n\t\t\t\t\turl,state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup: commits(last: 1) {nodes {commit {statusCheckRollup {contexts(first:100) {nodes {__typename...on StatusContext {context,state,targetUrl,createdAt,description},...on CheckRun {name,checkSuite{workflowRun{workflow{name}}},status,conclusion,startedAt,completedAt,detailsUrl}},pageInfo{hasNextPage,endCursor}}}}}},id,number,baseRefName,headRefName,isCrossRepository,headRepositoryOwner{id,login,...on User{name}}\n\t\t\t\t}\n\t\t\t}\n\t\t\tdefaultBranchRef { name }\n\t\t}\n\t}",
+        "variables": {
+          "headRefName": "docs/guide",
+          "owner": "tessellate-dev",
+          "repo": "tessellate",
+          "states": null
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.repository.pullRequests.nodes.0.state",
+          "equals": "OPEN"
+        },
+        {
+          "path": "data.repository.pullRequests.nodes.0.isDraft",
+          "equals": false
+        },
+        {
+          "path": "data.repository.pullRequests.nodes.0.reviewDecision",
+          "equals": "REVIEW_REQUIRED"
+        },
+        {
+          "path": "data.repository.pullRequests.nodes.0.mergeStateStatus",
+          "equals": "BLOCKED"
+        },
+        {
+          "path": "data.repository.pullRequests.nodes.0.statusCheckRollup.nodes.0.commit.statusCheckRollup.contexts.nodes.0.state",
+          "equals": "SUCCESS"
+        },
+        {
+          "path": "data.repository.pullRequests.nodes.0.statusCheckRollup.nodes.0.commit.statusCheckRollup.contexts.nodes.0.context",
+          "equals": "docs/build"
+        }
+      ]
+    },
+    {
+      "name": "gh pr merge --merge (before a review): gh reads which fields the schema has",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequest_fields{PullRequest: __type(name: \"PullRequest\"){fields(includeDeprecated: true){name}},StatusCheckRollupContextConnection: __type(name: \"StatusCheckRollupContextConnection\"){fields(includeDeprecated: true){name}}}",
+        "variables": null
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.PullRequest.fields",
+          "contains": "\"name\":\"mergeStateStatus\""
+        },
+        {
+          "path": "data.PullRequest.fields",
+          "contains": "\"name\":\"autoMergeRequest\""
+        },
+        {
+          "path": "data.StatusCheckRollupContextConnection.fields",
+          "contains": "\"name\":\"checkRunCount\""
+        }
+      ]
+    },
+    {
+      "name": "and the WorkflowRun type's",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequest_fields2{WorkflowRun: __type(name: \"WorkflowRun\"){fields(includeDeprecated: true){name}}}",
+        "variables": null
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.WorkflowRun.fields",
+          "contains": "\"name\":\"event\""
+        }
+      ]
+    },
+    {
+      "name": "finds the pull request by its branch",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequestForBranch($owner: String!, $repo: String!, $headRefName: String!, $states: [PullRequestState!]) {\n\t\trepository(owner: $owner, name: $repo) {\n\t\t\tpullRequests(headRefName: $headRefName, states: $states, first: 30, orderBy: { field: CREATED_AT, direction: DESC }) {\n\t\t\t\tnodes {\n\t\t\t\t\tid,number,state,title,commits(last:1){nodes{commit{oid}}},mergeStateStatus,headRepositoryOwner{id,login,...on User{name}},headRefName,baseRefName,headRefOid,isCrossRepository\n\t\t\t\t}\n\t\t\t}\n\t\t\tdefaultBranchRef { name }\n\t\t}\n\t}",
+        "variables": {
+          "headRefName": "docs/guide",
+          "owner": "tessellate-dev",
+          "repo": "tessellate",
+          "states": null
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "guide_node": "data.repository.pullRequests.nodes.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.repository.pullRequests.nodes.0.headRefName",
+          "equals": "docs/guide"
+        },
+        {
+          "path": "data.repository.defaultBranchRef.name",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "and merges it with a merge commit",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "mutation PullRequestMerge($input:MergePullRequestInput!){mergePullRequest(input: $input){clientMutationId}}",
+        "variables": {
+          "input": {
+            "pullRequestId": "{guide_node}",
+            "mergeMethod": "MERGE"
+          }
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.mergePullRequest",
+          "equals": null
+        },
+        {
+          "path": "errors.0.message",
+          "contains": "approving review"
+        }
+      ]
+    },
+    {
+      "name": "An hour later the agent reviews it",
+      "wait": "1h"
+    },
+    {
+      "name": "The valve mints a fresh token",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1772449140,
+          "exp": 1772449740,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "The agent reads the pull request it was asked to review",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/pulls?state=open&head=tessellate-dev:docs/guide",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "capture": {
+        "guide_pr": "0.number"
+      },
+      "expect": [
+        {
+          "path": "0.head.sha",
+          "equals": "{guide_1}"
+        }
+      ]
+    },
+    {
+      "name": "and approves it at the head it read (community review)",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls/{guide_pr}/reviews",
+      "body": {
+        "event": "APPROVE",
+        "commit_id": "{guide_1}",
+        "body": "Reads well; the example runs."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "APPROVED"
+        },
+        {
+          "path": "user.login",
+          "equals": "tessellate-autonomy[bot]"
+        }
+      ]
+    },
+    {
+      "name": "The merge panel reads it again: approved and clean",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequestForBranch($owner: String!, $repo: String!, $headRefName: String!, $states: [PullRequestState!]) {\n\t\trepository(owner: $owner, name: $repo) {\n\t\t\tpullRequests(headRefName: $headRefName, states: $states, first: 30, orderBy: { field: CREATED_AT, direction: DESC }) {\n\t\t\t\tnodes {\n\t\t\t\t\turl,state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup: commits(last: 1) {nodes {commit {statusCheckRollup {contexts(first:100) {nodes {__typename...on StatusContext {context,state,targetUrl,createdAt,description},...on CheckRun {name,checkSuite{workflowRun{workflow{name}}},status,conclusion,startedAt,completedAt,detailsUrl}},pageInfo{hasNextPage,endCursor}}}}}},id,number,baseRefName,headRefName,isCrossRepository,headRepositoryOwner{id,login,...on User{name}}\n\t\t\t\t}\n\t\t\t}\n\t\t\tdefaultBranchRef { name }\n\t\t}\n\t}",
+        "variables": {
+          "headRefName": "docs/guide",
+          "owner": "tessellate-dev",
+          "repo": "tessellate",
+          "states": null
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.repository.pullRequests.nodes.0.reviewDecision",
+          "equals": "APPROVED"
+        },
+        {
+          "path": "data.repository.pullRequests.nodes.0.mergeStateStatus",
+          "equals": "CLEAN"
+        }
+      ]
+    },
+    {
+      "name": "gh pr merge --merge (approved): gh reads which fields the schema has",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequest_fields{PullRequest: __type(name: \"PullRequest\"){fields(includeDeprecated: true){name}},StatusCheckRollupContextConnection: __type(name: \"StatusCheckRollupContextConnection\"){fields(includeDeprecated: true){name}}}",
+        "variables": null
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.PullRequest.fields",
+          "contains": "\"name\":\"mergeStateStatus\""
+        },
+        {
+          "path": "data.PullRequest.fields",
+          "contains": "\"name\":\"autoMergeRequest\""
+        },
+        {
+          "path": "data.StatusCheckRollupContextConnection.fields",
+          "contains": "\"name\":\"checkRunCount\""
+        }
+      ]
+    },
+    {
+      "name": "and the WorkflowRun type's",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequest_fields2{WorkflowRun: __type(name: \"WorkflowRun\"){fields(includeDeprecated: true){name}}}",
+        "variables": null
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.WorkflowRun.fields",
+          "contains": "\"name\":\"event\""
+        }
+      ]
+    },
+    {
+      "name": "finds the pull request by its branch",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequestForBranch($owner: String!, $repo: String!, $headRefName: String!, $states: [PullRequestState!]) {\n\t\trepository(owner: $owner, name: $repo) {\n\t\t\tpullRequests(headRefName: $headRefName, states: $states, first: 30, orderBy: { field: CREATED_AT, direction: DESC }) {\n\t\t\t\tnodes {\n\t\t\t\t\tid,number,state,title,commits(last:1){nodes{commit{oid}}},mergeStateStatus,headRepositoryOwner{id,login,...on User{name}},headRefName,baseRefName,headRefOid,isCrossRepository\n\t\t\t\t}\n\t\t\t}\n\t\t\tdefaultBranchRef { name }\n\t\t}\n\t}",
+        "variables": {
+          "headRefName": "docs/guide",
+          "owner": "tessellate-dev",
+          "repo": "tessellate",
+          "states": null
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "guide_node": "data.repository.pullRequests.nodes.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.repository.pullRequests.nodes.0.headRefName",
+          "equals": "docs/guide"
+        },
+        {
+          "path": "data.repository.defaultBranchRef.name",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "and merges it with a merge commit",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "mutation PullRequestMerge($input:MergePullRequestInput!){mergePullRequest(input: $input){clientMutationId}}",
+        "variables": {
+          "input": {
+            "pullRequestId": "{guide_node}",
+            "mergeMethod": "MERGE"
+          }
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.mergePullRequest",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "and reads it merged",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "query PullRequestForBranch($owner: String!, $repo: String!, $headRefName: String!, $states: [PullRequestState!]) {\n\t\trepository(owner: $owner, name: $repo) {\n\t\t\tpullRequests(headRefName: $headRefName, states: $states, first: 30, orderBy: { field: CREATED_AT, direction: DESC }) {\n\t\t\t\tnodes {\n\t\t\t\t\turl,state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup: commits(last: 1) {nodes {commit {statusCheckRollup {contexts(first:100) {nodes {__typename...on StatusContext {context,state,targetUrl,createdAt,description},...on CheckRun {name,checkSuite{workflowRun{workflow{name}}},status,conclusion,startedAt,completedAt,detailsUrl}},pageInfo{hasNextPage,endCursor}}}}}},id,number,baseRefName,headRefName,isCrossRepository,headRepositoryOwner{id,login,...on User{name}}\n\t\t\t\t}\n\t\t\t}\n\t\t\tdefaultBranchRef { name }\n\t\t}\n\t}",
+        "variables": {
+          "headRefName": "docs/guide",
+          "owner": "tessellate-dev",
+          "repo": "tessellate",
+          "states": null
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.repository.pullRequests.nodes.0.state",
+          "equals": "MERGED"
+        }
+      ]
+    },
+    {
+      "name": "Monday 9 March, 10 in the morning: Open Autonomy's platform, run by its own organization",
+      "wait": "167h"
+    },
+    {
+      "name": "Its operator's github.com account (the twin's door stands in for the sign-up)",
+      "method": "POST",
+      "path": "/_twin/users",
+      "body": {
+        "login": "oa-operator",
+        "email": "ops@open-autonomy.org",
+        "password": "platform-2026",
+        "name": "Open Autonomy"
+      },
+      "status": 201
+    },
+    {
+      "name": "who signs in to github.com",
+      "method": "POST",
+      "path": "/session",
+      "body": "login=oa-operator&password=platform-2026&return_to=%2F",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 302,
+      "capture": {
+        "ops_session": "header:set-cookie:user_session=([^;]+)"
+      }
+    },
+    {
+      "name": "makes the open-autonomy organization (the twin's door stands in for the page)",
+      "method": "POST",
+      "path": "/_twin/orgs",
+      "body": {
+        "login": "open-autonomy",
+        "name": "Open Autonomy"
+      },
+      "headers": {
+        "cookie": "user_session={ops_session}"
+      },
+      "status": 201
+    },
+    {
+      "name": "registers the platform as an OAuth app of it (the twin's door stands in for its settings page)",
+      "method": "POST",
+      "path": "/_twin/oauth_apps",
+      "body": {
+        "owner": "open-autonomy",
+        "name": "Open Autonomy",
+        "callback_url": "https://open-autonomy.org/give/callback",
+        "homepage_url": "https://open-autonomy.org"
+      },
+      "status": 201,
+      "capture": {
+        "oa_client": "client_id",
+        "oa_secret": "client_secret"
+      }
+    },
+    {
+      "name": "and makes the platform's reader token, which reads GitHub as the platform (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/users/oa-operator/tokens",
+      "body": {
+        "note": "platform",
+        "scopes": [
+          "read:org",
+          "public_repo"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_reader": "token"
+      }
+    },
+    {
+      "name": "octocat adds Ada to the team in the Team editor, which asks her GitHub for public_repo; she is signed in, so GitHub asks her to authorize the platform",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={oa_client}&redirect_uri=https%3A%2F%2Fopen-autonomy.org%2Fgive%2Fcallback&state=team-ada&scope=public_repo",
+      "headers": {
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize Open Autonomy"
+        },
+        {
+          "path": "",
+          "contains": "public_repo"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes it and goes back to the platform with a code",
+      "method": "POST",
+      "path": "/login/oauth/authorize",
+      "body": "client_id={oa_client}&redirect_uri=https%3A%2F%2Fopen-autonomy.org%2Fgive%2Fcallback&state=team-ada&scope=public_repo&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 302,
+      "capture": {
+        "team_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "team-ada"
+        }
+      ]
+    },
+    {
+      "name": "The platform exchanges the code (a JSON body)",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": {
+        "client_id": "{oa_client}",
+        "client_secret": "{oa_secret}",
+        "code": "{team_code}",
+        "redirect_uri": "https://open-autonomy.org/give/callback"
+      },
+      "headers": {
+        "accept": "application/json",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "team_tok": "access_token"
+      },
+      "expect": [
+        {
+          "path": "scope",
+          "equals": "public_repo"
+        }
+      ]
+    },
+    {
+      "name": "reads who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "capture": {
+        "octocat_id": "id"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "octocat"
+        },
+        {
+          "path": "type",
+          "equals": "User"
+        }
+      ]
+    },
+    {
+      "name": "The editor reads the repository: public, its default branch",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate",
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "expect": [
+        {
+          "path": "private",
+          "equals": false
+        },
+        {
+          "path": "default_branch",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "its head",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/git/ref/heads/main",
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "capture": {
+        "team_head": "object.sha"
+      },
+      "expect": [
+        {
+          "path": "ref",
+          "equals": "refs/heads/main"
+        },
+        {
+          "path": "object.type",
+          "equals": "commit"
+        }
+      ]
+    },
+    {
+      "name": "and the roster there",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/contents/.open-autonomy/config.yaml?ref={team_head}",
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "capture": {
+        "config_sha": "sha"
+      },
+      "expect": [
+        {
+          "path": "encoding",
+          "equals": "base64"
+        },
+        {
+          "path": "path",
+          "equals": ".open-autonomy/config.yaml"
+        }
+      ]
+    },
+    {
+      "name": "Ada's github.com account (the twin's door stands in for her sign-up)",
+      "method": "POST",
+      "path": "/_twin/users",
+      "body": {
+        "login": "ada",
+        "email": "ada@lovelace.dev",
+        "password": "engines-2026",
+        "name": "Ada Lovelace"
+      },
+      "status": 201
+    },
+    {
+      "name": "The editor checks Ada's GitHub account: a person, by its stable id",
+      "method": "GET",
+      "path": "/users/Ada",
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "ada"
+        },
+        {
+          "path": "type",
+          "equals": "User"
+        }
+      ]
+    },
+    {
+      "name": "It branches from the head",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/git/refs",
+      "body": {
+        "ref": "refs/heads/team/7f3c",
+        "sha": "{team_head}"
+      },
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "status": 201
+    },
+    {
+      "name": "and commits the new roster there with the file's sha",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/tessellate/contents/.open-autonomy/config.yaml",
+      "body": {
+        "branch": "team/7f3c",
+        "sha": "{config_sha}",
+        "content": "YWNjb3VudDogdGVzc2VsbGF0ZS1kZXYvdGVzc2VsbGF0ZQpsaXZlOiBodHRwczovL3Rlc3NlbGxhdGUuZGV2CnRlYW06CiAgLSBpZDogb2N0b2NhdAogICAgbmFtZTogb2N0b2NhdAogICAgc2NvcGVzOiBbb3duZXJdCiAgICBnaXRodWI6IHsgaWQ6ICI1ODMyMzEiLCBsb2dpbjogb2N0b2NhdCB9CiAgICBhdmFpbGFiaWxpdHk6IEV1cm9wZS9Mb25kb247IG1vbi1mcmkgMDk6MDAtMTc6MDAKICAgIHNvdXJjZTogc2V0dXAKICAtIGlkOiBhZGEKICAgIG5hbWU6IEFkYSBMb3ZlbGFjZQogICAgc2NvcGVzOiBbbWFpbnRhaW5lcl0KICAgIGdpdGh1YjogeyBsb2dpbjogYWRhIH0KICAgIHNvdXJjZTogVGVhbSBlZGl0b3IK",
+        "message": "team: add Ada Lovelace\n\nAuthorized by @octocat through the Team editor."
+      },
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "capture": {
+        "roster_commit": "commit.sha"
+      },
+      "expect": [
+        {
+          "path": "content.path",
+          "equals": ".open-autonomy/config.yaml"
+        },
+        {
+          "path": "commit.message",
+          "equals": "team: add Ada Lovelace\n\nAuthorized by @octocat through the Team editor."
+        }
+      ]
+    },
+    {
+      "name": "An edit sent again with the sha it read before is refused: the roster on the branch has moved",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/tessellate/contents/.open-autonomy/config.yaml",
+      "body": {
+        "branch": "team/7f3c",
+        "sha": "{config_sha}",
+        "content": "YWNjb3VudDogdGVzc2VsbGF0ZS1kZXYvdGVzc2VsbGF0ZQo=",
+        "message": "team: add Ada Lovelace"
+      },
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "status": 409,
+      "expect": [
+        {
+          "path": "message",
+          "contains": "does not match"
+        }
+      ]
+    },
+    {
+      "name": "It opens the roster change as a draft pull request for her to read",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls",
+      "body": {
+        "head": "team/7f3c",
+        "base": "main",
+        "title": "Team: add Ada Lovelace",
+        "body": "@octocat confirmed this identity and authority change in the Team editor.",
+        "draft": true
+      },
+      "headers": {
+        "authorization": "Bearer {team_tok}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "draft",
+          "equals": true
+        },
+        {
+          "path": "head.sha",
+          "equals": "{roster_commit}"
+        }
+      ]
+    },
+    {
+      "name": "Signed in, the platform checks with its own token whether she administers its grants pool: she is not a member of open-autonomy",
+      "method": "GET",
+      "path": "/orgs/open-autonomy/memberships/octocat",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "status": 404
+    },
+    {
+      "name": "and its operator, who is",
+      "method": "GET",
+      "path": "/orgs/open-autonomy/memberships/oa-operator",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "role",
+          "equals": "admin"
+        },
+        {
+          "path": "state",
+          "equals": "active"
+        }
+      ]
+    },
+    {
+      "name": "A Volter sign-in names her GitHub account by its id; the platform reads it as itself",
+      "method": "GET",
+      "path": "/user/{octocat_id}",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "octocat"
+        }
+      ]
+    },
+    {
+      "name": "octocat plans 1.0 as a milestone",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/milestones",
+      "body": {
+        "title": "1.0",
+        "description": "The frozen API",
+        "due_on": "2026-05-01T00:00:00Z"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "number",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "The platform's sync reads the repository",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "full_name",
+          "equals": "tessellate-dev/tessellate"
+        }
+      ]
+    },
+    {
+      "name": "its head commit",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/commits/main",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "capture": {
+        "sync_head": "sha",
+        "sync_parent": "parents.0.sha"
+      }
+    },
+    {
+      "name": "and compares what the site runs (the commit its health check names, abbreviated) with it",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/compare/{first_short}...{sync_head}",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "ahead"
+        },
+        {
+          "path": "base_commit.sha",
+          "equals": "{first_sha}"
+        }
+      ]
+    },
+    {
+      "name": "and walks a first parent",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/commits/{sync_parent}",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "sha",
+          "equals": "{sync_parent}"
+        }
+      ]
+    },
+    {
+      "name": "The milestones driver reads every milestone, open and closed",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/milestones?state=all&per_page=100",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "0.title",
+          "equals": "1.0"
+        },
+        {
+          "path": "0.state",
+          "equals": "open"
+        }
+      ]
+    },
+    {
+      "name": "Whether the account is an organization",
+      "method": "GET",
+      "path": "/users/tessellate-dev",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "Organization"
+        }
+      ]
+    },
+    {
+      "name": "The roster from the raw host, at the default branch",
+      "method": "GET",
+      "path": "https://raw.githubusercontent.com/tessellate-dev/tessellate/HEAD/.open-autonomy/config.yaml",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "account: tessellate-dev/tessellate"
+        }
+      ]
+    },
+    {
+      "name": "and, where the raw host misses, by the contents API",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/contents/.open-autonomy/config.yaml",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "file"
+        },
+        {
+          "path": "encoding",
+          "equals": "base64"
+        }
+      ]
+    },
+    {
+      "name": "The README, for the page's cover picture",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/readme",
+      "headers": {
+        "authorization": "Bearer {oa_reader}"
+      },
+      "expect": [
+        {
+          "path": "path",
+          "equals": "README.md"
+        },
+        {
+          "path": "encoding",
+          "equals": "base64"
+        }
+      ]
+    },
+    {
+      "name": "Monday 6 April, 10 in the morning: the agent's ship, with main ahead of prod",
+      "wait": "672h"
+    },
+    {
+      "name": "The valve mints a fresh token",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "oa_tok": "token"
+      },
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iat": 1775469540,
+          "exp": 1775470140,
+          "iss": "{oa_app}"
+        }
+      }
+    },
+    {
+      "name": "Ship finds no open Release",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/pulls?state=open&base=prod&head=tessellate-dev:main",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "prod stands",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/branches/prod",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "commit.sha",
+          "equals": "{main_tip}"
+        }
+      ]
+    },
+    {
+      "name": "so it opens the Release from main to prod",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/pulls",
+      "body": {
+        "title": "Release",
+        "head": "main",
+        "base": "prod",
+        "body": "Merging ships `main` to production: the workflows that run on a push to `prod` deploy and publish it. Read the whole diff first; money and auth changes are the owner's to read. Merge with a merge commit."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 201,
+      "capture": {
+        "release_pr": "number"
+      },
+      "expect": [
+        {
+          "path": "base.ref",
+          "equals": "prod"
+        },
+        {
+          "path": "head.ref",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "writes its review package into the body",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate/issues/{release_pr}",
+      "body": {
+        "body": "<!-- open-autonomy:release-ready -->\nRelease: 1.0\nScope: the collinear fix and the guide\n\nMerging ships `main` to production: the workflows that run on a push to `prod` deploy and publish it."
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "body",
+          "contains": "Release: 1.0"
+        }
+      ]
+    },
+    {
+      "name": "reads the Release's comments, to tell the owner once",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues/{release_pr}/comments?per_page=100&page=1",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "and tells her",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/issues/{release_pr}/comments",
+      "body": {
+        "body": "<!-- open-autonomy:release-ready -->\n@octocat The Release is ready: the collinear fix and the guide"
+      },
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "status": 201
+    },
+    {
+      "name": "Merged releases since: none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/pulls?state=closed&base=prod&head=tessellate-dev:main&per_page=20",
+      "headers": {
+        "authorization": "Bearer {oa_tok}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "Monday 4 May, 10 in the morning: octocat publishes 1.0",
+      "wait": "672h"
+    },
+    {
+      "name": "She publishes v1.0.0",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/releases",
+      "body": {
+        "tag_name": "v1.0.0",
+        "target_commitish": "main",
+        "name": "Tessellate 1.0",
+        "body": "The frozen API."
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "rel100": "id"
+      },
+      "expect": [
+        {
+          "path": "tag_name",
+          "equals": "v1.0.0"
+        },
+        {
+          "path": "draft",
+          "equals": false
+        },
+        {
+          "path": "prerelease",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "uploads the npm tarball to its upload URL",
+      "method": "POST",
+      "path": "https://uploads.github.com/repos/tessellate-dev/tessellate/releases/{rel100}/assets?name=tessellate-1.0.0.tgz",
+      "body": "tessellate 1.0.0 tarball",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}",
+        "content-type": "application/gzip"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "tessellate-1.0.0.tgz"
+        },
+        {
+          "path": "state",
+          "equals": "uploaded"
+        }
+      ]
+    },
+    {
+      "name": "and the Windows zip",
+      "method": "POST",
+      "path": "https://uploads.github.com/repos/tessellate-dev/tessellate/releases/{rel100}/assets?name=tessellate-x86_64-pc-windows-msvc.zip",
+      "body": "tessellate 1.0.0 windows zip",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}",
+        "content-type": "application/zip"
+      },
+      "status": 201,
+      "capture": {
+        "win_asset": "id",
+        "win_asset_url": "url"
+      },
+      "expect": [
+        {
+          "path": "content_type",
+          "equals": "application/zip"
+        }
+      ]
+    },
+    {
+      "name": "She writes up the parsing flaw 1.0 fixes as a draft advisory",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/tessellate/security-advisories",
+      "body": {
+        "summary": "SVG path reader backtracks on long numbers",
+        "description": "A crafted number in an SVG path made the reader backtrack for seconds.",
+        "severity": "medium",
+        "vulnerabilities": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "tessellate"
+            },
+            "vulnerable_version_range": "< 1.0.0",
+            "patched_versions": "1.0.0"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "ghsa": "ghsa_id"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "draft"
+        },
+        {
+          "path": "severity",
+          "equals": "medium"
+        },
+        {
+          "path": "vulnerabilities.0.package.ecosystem",
+          "equals": "npm"
+        }
+      ]
+    },
+    {
+      "name": "and publishes it",
+      "method": "PATCH",
+      "path": "/repos/tessellate-dev/tessellate/security-advisories/{ghsa}",
+      "body": {
+        "state": "published"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "published"
+        },
+        {
+          "path": "publisher.login",
+          "equals": "octocat"
+        },
+        {
+          "path": "published_at",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "A self-hosted Rallly's update check, with no token, lists the releases a hundred a page",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/releases?per_page=100&page=1",
+      "expect": [
+        {
+          "path": "0.tag_name",
+          "equals": "v1.0.0"
+        },
+        {
+          "path": "0.assets.1.name",
+          "equals": "tessellate-x86_64-pc-windows-msvc.zip"
+        }
+      ]
+    },
+    {
+      "name": "and the next page, empty: no older majors",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/releases?per_page=100&page=2",
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "and the published advisories",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/security-advisories?state=published&per_page=100",
+      "expect": [
+        {
+          "path": "0.ghsa_id",
+          "equals": "{ghsa}"
+        },
+        {
+          "path": "0.summary",
+          "equals": "SVG path reader backtracks on long numbers"
+        }
+      ]
+    },
+    {
+      "name": "The Volter Harness Windows installer, with a token, finds the latest release",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/releases/latest",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}",
+        "x-github-api-version": "2022-11-28"
+      },
+      "expect": [
+        {
+          "path": "tag_name",
+          "equals": "v1.0.0"
+        },
+        {
+          "path": "assets.1.id",
+          "equals": "{win_asset}"
+        }
+      ]
+    },
+    {
+      "name": "and, asked for a version, the release by its tag",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/releases/tags/v1.0.0",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}",
+        "x-github-api-version": "2022-11-28"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{rel100}"
+        }
+      ]
+    },
+    {
+      "name": "and downloads the zip's bytes from the asset's API URL",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/releases/assets/{win_asset}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}",
+        "accept": "application/octet-stream",
+        "x-github-api-version": "2022-11-28"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": "tessellate 1.0.0 windows zip"
+        }
+      ]
+    },
+    {
+      "name": "The Editor's workbench is released from a private repository: gh reads the owner",
+      "method": "GET",
+      "path": "/users/tessellate-dev",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "capture": {
+        "org_node": "node_id"
+      }
+    },
+    {
+      "name": "and creates it, private",
+      "method": "POST",
+      "path": "/graphql",
+      "body": {
+        "query": "\n\tmutation RepositoryCreate($input: CreateRepositoryInput!) {\n\t\tcreateRepository(input: $input) {\n\t\t\trepository {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\towner { login }\n\t\t\t\turl\n\t\t\t}\n\t\t}\n\t}\n\t",
+        "variables": {
+          "input": {
+            "name": "workbench",
+            "visibility": "PRIVATE",
+            "ownerId": "{org_node}",
+            "hasIssuesEnabled": true,
+            "hasWikiEnabled": true
+          }
+        }
+      },
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "data.createRepository.repository.name",
+          "equals": "workbench"
+        }
+      ]
+    },
+    {
+      "name": "She pushes the workbench's build recipe",
+      "git": "push",
+      "repo": "tessellate-dev/workbench",
+      "ref": "refs/heads/main",
+      "files": {
+        "BUILD.md": "# Workbench\n\nBuilt by build-release.mjs.\n"
+      },
+      "message": "Workbench",
+      "author": "octocat <octocat@github.com>",
+      "headers": {
+        "authorization": "{basic:me:gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "publishes the workbench release",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/workbench/releases",
+      "body": {
+        "tag_name": "workbench-2026.05.04",
+        "name": "Workbench 2026.05.04"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "wb_rel": "id"
+      }
+    },
+    {
+      "name": "with its BUILD.json",
+      "method": "POST",
+      "path": "https://uploads.github.com/repos/tessellate-dev/workbench/releases/{wb_rel}/assets?name=BUILD.json",
+      "body": {
+        "product": "tessellate-editor",
+        "platform": "darwin-arm64",
+        "sha256": "b1946ac92492d2347c6235b4d2611184"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}",
+        "content-type": "application/json"
+      },
+      "status": 201,
+      "capture": {
+        "build_json": "id"
+      }
+    },
+    {
+      "name": "A collaborator's Editor without a GitHub token asks for the release: the private repository answers 404",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/workbench/releases/tags/workbench-2026.05.04",
+      "status": 404
+    },
+    {
+      "name": "octocat's Editor, with her token, finds it",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/workbench/releases/tags/workbench-2026.05.04",
+      "headers": {
+        "authorization": "token {gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "assets.0.name",
+          "equals": "BUILD.json"
+        }
+      ]
+    },
+    {
+      "name": "and reads BUILD.json's bytes",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/workbench/releases/assets/{build_json}",
+      "headers": {
+        "authorization": "token {gh_tok}",
+        "accept": "application/octet-stream"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "tessellate-editor"
+        },
+        {
+          "header": "content-type",
+          "contains": "application/octet-stream"
+        }
+      ]
+    },
+    {
+      "name": "Twenty's site, which counts stars the same way, reads the library",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate",
+      "expect": [
+        {
+          "path": "stargazers_count",
+          "equals": 0
+        },
+        {
+          "path": "full_name",
+          "equals": "tessellate-dev/tessellate"
+        }
+      ]
+    },
+    {
+      "name": "Workbench's store page for Tessellate reads the repository",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate",
+      "headers": {
+        "accept": "application/vnd.github+json",
+        "user-agent": "workbench-store"
+      },
+      "expect": [
+        {
+          "path": "default_branch",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "and its README as GitHub renders it",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/readme",
+      "headers": {
+        "accept": "application/vnd.github.html+json",
+        "user-agent": "workbench-store"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "<div id=\"readme\" class=\"md\" data-path=\"README.md\">"
+        },
+        {
+          "path": "",
+          "contains": "data-canonical-src=\"https://tessellate.dev/media/ears.gif\""
+        },
+        {
+          "path": "",
+          "contains": "src=\"docs/floor-plan.png\""
+        },
+        {
+          "path": "",
+          "contains": "Polygon triangulation for the web"
+        }
+      ]
+    },
+    {
+      "name": "and installs it: git clone --depth 1, with no credential",
+      "git": "clone",
+      "repo": "tessellate-dev/tessellate",
+      "expect": [
+        {
+          "path": "paths",
+          "members": [
+            ".open-autonomy/config.yaml",
+            "README.md",
+            "docs/guide.md",
+            "site/worker.js",
+            "skills/triangulate/SKILL.md",
+            "src/index.js",
+            "src/triangulate.js",
+            "test/collinear.test.js",
+            "wrangler.toml"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "A file from the raw host, as Dub's cron reads its blocklist",
+      "method": "GET",
+      "path": "https://raw.githubusercontent.com/tessellate-dev/tessellate/main/README.md",
+      "expect": [
+        {
+          "path": "",
+          "contains": "# Tessellate"
+        }
+      ]
+    },
+    {
+      "name": "LibreChat syncs the skills the repository holds: the branch's commit",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/commits/main",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "capture": {
+        "skills_tree": "commit.tree.sha"
+      }
+    },
+    {
+      "name": "the root tree, to reach skills/",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/git/trees/{skills_tree}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "capture": {
+        "skills_dir": "tree.4.sha"
+      },
+      "expect": [
+        {
+          "path": "tree.4.path",
+          "equals": "skills"
+        },
+        {
+          "path": "tree.4.type",
+          "equals": "tree"
+        },
+        {
+          "path": "truncated",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "the skills tree, recursively",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/git/trees/{skills_dir}?recursive=1",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "capture": {
+        "skill_blob": "tree.1.sha"
+      },
+      "expect": [
+        {
+          "path": "tree.1.path",
+          "equals": "triangulate/SKILL.md"
+        },
+        {
+          "path": "tree.1.type",
+          "equals": "blob"
+        }
+      ]
+    },
+    {
+      "name": "and the skill's blob",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/git/blobs/{skill_blob}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "encoding",
+          "equals": "base64"
+        },
+        {
+          "path": "sha",
+          "equals": "{skill_blob}"
+        }
+      ]
+    },
+    {
+      "name": "Monday 1 June, 10 in the morning: the services around the library sign people in with GitHub",
+      "wait": "672h"
+    },
+    {
+      "name": "The library's self-hosted Dub is registered as an OAuth app of tessellate-dev (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/oauth_apps",
+      "body": {
+        "owner": "tessellate-dev",
+        "name": "Tessellate links (Dub)",
+        "callback_url": "https://links.tessellate.dev/api/auth/callback/github"
+      },
+      "status": 201,
+      "capture": {
+        "dub_client": "client_id",
+        "dub_secret": "client_secret"
+      }
+    },
+    {
+      "name": "Grace clicks Sign in with GitHub on Dub; GitHub sends her to sign in first",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={dub_client}&redirect_uri=https%3A%2F%2Flinks.tessellate.dev%2Fapi%2Fauth%2Fcallback%2Fgithub&scope=read%3Auser+user%3Aemail&state=dub-grace",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "contains": "/login?return_to="
+        }
+      ]
+    },
+    {
+      "name": "She signs in",
+      "method": "POST",
+      "path": "/session",
+      "body": "login=grace&password=floor-plans-2026&return_to=%2F",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 302,
+      "capture": {
+        "grace_session": "header:set-cookie:user_session=([^;]+)"
+      }
+    },
+    {
+      "name": "Dub: GitHub asks her to authorize it for read:user user:email",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={dub_client}&redirect_uri=https%3A%2F%2Flinks.tessellate.dev%2Fapi%2Fauth%2Fcallback%2Fgithub&scope=read%3Auser+user%3Aemail&state=dub-grace",
+      "headers": {
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes it and goes back with a code",
+      "method": "POST",
+      "path": "/login/oauth/authorize",
+      "body": "client_id={dub_client}&redirect_uri=https%3A%2F%2Flinks.tessellate.dev%2Fapi%2Fauth%2Fcallback%2Fgithub&scope=read%3Auser+user%3Aemail&state=dub-grace&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 302,
+      "capture": {
+        "dub_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "dub-grace"
+        }
+      ]
+    },
+    {
+      "name": "Its server exchanges the code",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={dub_client}&client_secret={dub_secret}&code={dub_code}&redirect_uri=https%3A%2F%2Flinks.tessellate.dev%2Fapi%2Fauth%2Fcallback%2Fgithub",
+      "headers": {
+        "accept": "application/json",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "capture": {
+        "dub_tok": "access_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        }
+      ]
+    },
+    {
+      "name": "reads who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "token {dub_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        },
+        {
+          "path": "name",
+          "equals": "Grace Hopper"
+        }
+      ]
+    },
+    {
+      "name": "and her email addresses",
+      "method": "GET",
+      "path": "/user/emails",
+      "headers": {
+        "authorization": "token {dub_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.email",
+          "equals": "grace@hopper.dev"
+        },
+        {
+          "path": "0.primary",
+          "equals": true
+        },
+        {
+          "path": "0.verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Its Postiz is registered as an OAuth app of tessellate-dev (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/oauth_apps",
+      "body": {
+        "owner": "tessellate-dev",
+        "name": "Tessellate social (Postiz)",
+        "callback_url": "https://social.tessellate.dev/settings"
+      },
+      "status": 201,
+      "capture": {
+        "postiz_client": "client_id",
+        "postiz_secret": "client_secret"
+      }
+    },
+    {
+      "name": "Postiz: GitHub asks her to authorize it for user:email",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={postiz_client}&redirect_uri=https%3A%2F%2Fsocial.tessellate.dev%2Fsettings&scope=user%3Aemail&state=login",
+      "headers": {
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes it and goes back with a code",
+      "method": "POST",
+      "path": "/login/oauth/authorize",
+      "body": "client_id={postiz_client}&redirect_uri=https%3A%2F%2Fsocial.tessellate.dev%2Fsettings&scope=user%3Aemail&state=login&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 302,
+      "capture": {
+        "postiz_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "login"
+        }
+      ]
+    },
+    {
+      "name": "Its server exchanges the code (a JSON body)",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": {
+        "client_id": "{postiz_client}",
+        "client_secret": "{postiz_secret}",
+        "code": "{postiz_code}",
+        "redirect_uri": "https://social.tessellate.dev/settings"
+      },
+      "headers": {
+        "accept": "application/json",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "postiz_tok": "access_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        }
+      ]
+    },
+    {
+      "name": "reads who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "token {postiz_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        },
+        {
+          "path": "name",
+          "equals": "Grace Hopper"
+        }
+      ]
+    },
+    {
+      "name": "and her email addresses",
+      "method": "GET",
+      "path": "/user/emails",
+      "headers": {
+        "authorization": "token {postiz_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.email",
+          "equals": "grace@hopper.dev"
+        },
+        {
+          "path": "0.primary",
+          "equals": true
+        },
+        {
+          "path": "0.verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Its LibreChat is registered as an OAuth app of tessellate-dev (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/oauth_apps",
+      "body": {
+        "owner": "tessellate-dev",
+        "name": "Tessellate chat (LibreChat)",
+        "callback_url": "https://chat.tessellate.dev/oauth/github/callback"
+      },
+      "status": 201,
+      "capture": {
+        "chat_client": "client_id",
+        "chat_secret": "client_secret"
+      }
+    },
+    {
+      "name": "LibreChat: GitHub asks her to authorize it for user:email",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={chat_client}&redirect_uri=https%3A%2F%2Fchat.tessellate.dev%2Foauth%2Fgithub%2Fcallback&scope=user%3Aemail&state=chat-grace",
+      "headers": {
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes it and goes back with a code",
+      "method": "POST",
+      "path": "/login/oauth/authorize",
+      "body": "client_id={chat_client}&redirect_uri=https%3A%2F%2Fchat.tessellate.dev%2Foauth%2Fgithub%2Fcallback&scope=user%3Aemail&state=chat-grace&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 302,
+      "capture": {
+        "chat_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "chat-grace"
+        }
+      ]
+    },
+    {
+      "name": "Its server exchanges the code",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={chat_client}&client_secret={chat_secret}&code={chat_code}&redirect_uri=https%3A%2F%2Fchat.tessellate.dev%2Foauth%2Fgithub%2Fcallback",
+      "headers": {
+        "accept": "application/json",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "capture": {
+        "chat_tok": "access_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        }
+      ]
+    },
+    {
+      "name": "reads who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "token {chat_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        },
+        {
+          "path": "name",
+          "equals": "Grace Hopper"
+        }
+      ]
+    },
+    {
+      "name": "and her email addresses",
+      "method": "GET",
+      "path": "/user/emails",
+      "headers": {
+        "authorization": "token {chat_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.email",
+          "equals": "grace@hopper.dev"
+        },
+        {
+          "path": "0.primary",
+          "equals": true
+        },
+        {
+          "path": "0.verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The Twin platform its World runs on is registered as an OAuth app of tessellate-dev (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/oauth_apps",
+      "body": {
+        "owner": "tessellate-dev",
+        "name": "Tessellate Worlds (Twin)",
+        "callback_url": "https://worlds.tessellate.dev/auth/callback"
+      },
+      "status": 201,
+      "capture": {
+        "twin_client": "client_id",
+        "twin_secret": "client_secret"
+      }
+    },
+    {
+      "name": "the Twin platform: GitHub asks her to authorize it for read:user user:email",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={twin_client}&redirect_uri=https%3A%2F%2Fworlds.tessellate.dev%2Fauth%2Fcallback&scope=read%3Auser+user%3Aemail&state=twin-grace",
+      "headers": {
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes it and goes back with a code",
+      "method": "POST",
+      "path": "/login/oauth/authorize",
+      "body": "client_id={twin_client}&redirect_uri=https%3A%2F%2Fworlds.tessellate.dev%2Fauth%2Fcallback&scope=read%3Auser+user%3Aemail&state=twin-grace&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 302,
+      "capture": {
+        "twin_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "twin-grace"
+        }
+      ]
+    },
+    {
+      "name": "Its server exchanges the code",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={twin_client}&client_secret={twin_secret}&code={twin_code}&redirect_uri=https%3A%2F%2Fworlds.tessellate.dev%2Fauth%2Fcallback",
+      "headers": {
+        "accept": "application/json",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "capture": {
+        "twin_tok": "access_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        }
+      ]
+    },
+    {
+      "name": "reads who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "token {twin_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        },
+        {
+          "path": "name",
+          "equals": "Grace Hopper"
+        }
+      ]
+    },
+    {
+      "name": "and her email addresses",
+      "method": "GET",
+      "path": "/user/emails",
+      "headers": {
+        "authorization": "token {twin_tok}"
+      },
+      "expect": [
+        {
+          "path": "0.email",
+          "equals": "grace@hopper.dev"
+        },
+        {
+          "path": "0.primary",
+          "equals": true
+        },
+        {
+          "path": "0.verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Twenty's marketplace, where the library publishes an app, is registered as an OAuth app of tessellate-dev (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/oauth_apps",
+      "body": {
+        "owner": "tessellate-dev",
+        "name": "Twenty app claims",
+        "callback_url": "https://twenty.tessellate.dev/oauth/github/claim"
+      },
+      "status": 201,
+      "capture": {
+        "twenty_client": "client_id",
+        "twenty_secret": "client_secret"
+      }
+    },
+    {
+      "name": "Grace tries to claim the library's Twenty app: GitHub asks her to authorize the claim for read:org (prompt=select_account)",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={twenty_client}&scope=read%3Aorg&redirect_uri=https%3A%2F%2Ftwenty.tessellate.dev%2Foauth%2Fgithub%2Fclaim&state=claim-grace&prompt=select_account",
+      "headers": {
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "read:org"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes it",
+      "method": "POST",
+      "path": "/login/oauth/authorize",
+      "body": "client_id={twenty_client}&scope=read%3Aorg&redirect_uri=https%3A%2F%2Ftwenty.tessellate.dev%2Foauth%2Fgithub%2Fclaim&state=claim-grace&prompt=select_account&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 302,
+      "capture": {
+        "twenty_code": "redirect.code"
+      }
+    },
+    {
+      "name": "Twenty exchanges the code",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={twenty_client}&client_secret={twenty_secret}&code={twenty_code}&redirect_uri=https%3A%2F%2Ftwenty.tessellate.dev%2Foauth%2Fgithub%2Fclaim",
+      "headers": {
+        "accept": "application/json",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "capture": {
+        "twenty_tok": "access_token"
+      },
+      "expect": [
+        {
+          "path": "scope",
+          "equals": "read:org"
+        }
+      ]
+    },
+    {
+      "name": "reads who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "Bearer {twenty_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        }
+      ]
+    },
+    {
+      "name": "and whether she administers tessellate-dev: she is not a member, so the claim is refused",
+      "method": "GET",
+      "path": "/user/memberships/orgs/tessellate-dev",
+      "headers": {
+        "authorization": "Bearer {twenty_tok}"
+      },
+      "status": 404
+    },
+    {
+      "name": "octocat claims it instead: GitHub asks her to authorize the claim",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={twenty_client}&scope=read%3Aorg&redirect_uri=https%3A%2F%2Ftwenty.tessellate.dev%2Foauth%2Fgithub%2Fclaim&state=claim-octocat&prompt=select_account",
+      "headers": {
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "read:org"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes it",
+      "method": "POST",
+      "path": "/login/oauth/authorize",
+      "body": "client_id={twenty_client}&scope=read%3Aorg&redirect_uri=https%3A%2F%2Ftwenty.tessellate.dev%2Foauth%2Fgithub%2Fclaim&state=claim-octocat&prompt=select_account&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={laptop_session}"
+      },
+      "status": 302,
+      "capture": {
+        "twenty_code_o": "redirect.code"
+      }
+    },
+    {
+      "name": "Twenty exchanges the code",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={twenty_client}&client_secret={twenty_secret}&code={twenty_code_o}&redirect_uri=https%3A%2F%2Ftwenty.tessellate.dev%2Foauth%2Fgithub%2Fclaim",
+      "headers": {
+        "accept": "application/json",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "capture": {
+        "twenty_tok_o": "access_token"
+      }
+    },
+    {
+      "name": "reads who she is",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "Bearer {twenty_tok_o}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "octocat"
+        }
+      ]
+    },
+    {
+      "name": "and her membership of tessellate-dev: an active admin, so the claim stands",
+      "method": "GET",
+      "path": "/user/memberships/orgs/tessellate-dev",
+      "headers": {
+        "authorization": "Bearer {twenty_tok_o}"
+      },
+      "expect": [
+        {
+          "path": "role",
+          "equals": "admin"
+        },
+        {
+          "path": "state",
+          "equals": "active"
+        },
+        {
+          "path": "organization.login",
+          "equals": "tessellate-dev"
+        }
+      ]
+    },
+    {
+      "name": "Substrate's company account on GitHub (the twin's door stands in for its sign-up)",
+      "method": "POST",
+      "path": "/_twin/users",
+      "body": {
+        "login": "volter-substrate",
+        "email": "github@substrate.volter.ai"
+      },
+      "status": 201
+    },
+    {
+      "name": "and its GitHub App, with expiring user tokens and the device flow on, as its owners registered it (the twin's door stands in for the settings page)",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "body": {
+        "owner": "volter-substrate",
+        "name": "Substrate",
+        "url": "https://substrate.volter.ai",
+        "public": true,
+        "callback_urls": [
+          "https://gateway.substrate.volter.ai/github/callback"
+        ],
+        "permissions": {
+          "metadata": "read"
+        }
+      },
+      "status": 201,
+      "capture": {
+        "sub_client": "client_id",
+        "sub_secret": "client_secret"
+      },
+      "expect": [
+        {
+          "path": "slug",
+          "equals": "substrate"
+        }
+      ]
+    },
+    {
+      "name": "Grace signs in to Substrate in a browser tab with no GitHub session of its own: the device flow's codes",
+      "method": "POST",
+      "path": "https://github.com/login/device/code",
+      "body": "client_id={sub_client}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "sub_device": "device_code",
+        "sub_user_code": "user_code"
+      }
+    },
+    {
+      "name": "Substrate polls; she has not entered the code",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={sub_client}&device_code={sub_device}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "authorization_pending"
+        }
+      ]
+    },
+    {
+      "name": "She enters it on github.com, where she is signed in",
+      "method": "POST",
+      "path": "https://github.com/login/device",
+      "body": "user_code={sub_user_code}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Substrate"
+        }
+      ]
+    },
+    {
+      "name": "and authorizes Substrate",
+      "method": "POST",
+      "path": "https://github.com/login/device/confirm",
+      "body": "user_code={sub_user_code}&authorize=1",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 200
+    },
+    {
+      "name": "Ten seconds later",
+      "wait": "10s"
+    },
+    {
+      "name": "Substrate's next poll gets an eight-hour user token and its refresh token",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={sub_client}&device_code={sub_device}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "sub_tok": "access_token",
+        "sub_refresh": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "expires_in",
+          "equals": 28800
+        },
+        {
+          "path": "refresh_token_expires_in",
+          "equals": 15897600
+        },
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        }
+      ]
+    },
+    {
+      "name": "which acts as Grace",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "Bearer {sub_tok}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        }
+      ]
+    },
+    {
+      "name": "Nine hours later the token has expired",
+      "wait": "9h"
+    },
+    {
+      "name": "The expired token is refused",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "Bearer {sub_tok}"
+      },
+      "status": 401,
+      "expect": [
+        {
+          "path": "message",
+          "equals": "Bad credentials"
+        }
+      ]
+    },
+    {
+      "name": "Substrate refreshes it through its gateway, a device-flow token needing no client secret",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={sub_client}&grant_type=refresh_token&refresh_token={sub_refresh}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "sub_tok2": "access_token",
+        "sub_refresh2": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "expires_in",
+          "equals": 28800
+        }
+      ]
+    },
+    {
+      "name": "The new token acts as Grace",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "Bearer {sub_tok2}"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        }
+      ]
+    },
+    {
+      "name": "Later she signs in from a tab that has her GitHub session: Substrate's web sign-in, asking no scope",
+      "method": "GET",
+      "path": "/login/oauth/authorize?client_id={sub_client}&redirect_uri=https%3A%2F%2Fgateway.substrate.volter.ai%2Fgithub%2Fcallback&scope=&state=sub-web",
+      "headers": {
+        "cookie": "user_session={grace_session}"
+      },
+      "status": 302,
+      "capture": {
+        "sub_code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "sub-web"
+        }
+      ]
+    },
+    {
+      "name": "The gateway exchanges the code with Substrate's secret",
+      "method": "POST",
+      "path": "https://github.com/login/oauth/access_token",
+      "body": "client_id={sub_client}&client_secret={sub_secret}&code={sub_code}&redirect_uri=https%3A%2F%2Fgateway.substrate.volter.ai%2Fgithub%2Fcallback",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      "status": 200,
+      "capture": {
+        "sub_web_tok": "access_token"
+      }
+    },
+    {
+      "name": "and the token acts as Grace",
+      "method": "GET",
+      "path": "/user",
+      "headers": {
+        "authorization": "Bearer {sub_web_tok}"
+      },
+      "capture": {
+        "grace_login": "login"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "grace"
+        }
+      ]
+    },
+    {
+      "name": "Substrate's git, in her browser, clones the library over HTTPS with her token",
+      "git": "clone",
+      "repo": "tessellate-dev/tessellate",
+      "headers": {
+        "authorization": "{basic:grace_login:sub_web_tok}"
+      },
+      "expect": [
+        {
+          "path": "paths",
+          "members": [
+            ".open-autonomy/config.yaml",
+            "README.md",
+            "docs/guide.md",
+            "site/worker.js",
+            "skills/triangulate/SKILL.md",
+            "src/index.js",
+            "src/triangulate.js",
+            "test/collinear.test.js",
+            "wrangler.toml"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Monday 6 July, 10 in the morning: octocat keeps a catalog of the library's packages, which publishes from Actions",
+      "wait": "49859m"
+    },
+    {
+      "name": "She creates the private catalog repository",
+      "method": "POST",
+      "path": "/orgs/tessellate-dev/repos",
+      "body": {
+        "name": "catalog",
+        "private": true
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "full_name",
+          "equals": "tessellate-dev/catalog"
+        },
+        {
+          "path": "private",
+          "equals": true
+        },
+        {
+          "path": "permissions.admin",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "gives it the registry's address as a variable",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/catalog/actions/variables",
+      "body": {
+        "name": "NPM_REGISTRY",
+        "value": "https://registry.npmjs.org"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201
+    },
+    {
+      "name": "and fetches the repository's key to seal the npm token to",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/secrets/public-key",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "key_id",
+          "exists": true
+        },
+        {
+          "path": "key",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "sets NPM_TOKEN, sealed to it",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/catalog/actions/secrets/NPM_TOKEN",
+      "body": {
+        "encrypted_value": "MO33r3dIiOB4Ow/c64YJVBBptSi2EOV0zLwQv2sqNV1E7ImcoIBZFoXlDVZTNcDkvJRdsgThqJB/tHSR7NAvIlVbEosBqx6NoQ==",
+        "key_id": "8e62a826fd81037ede41"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201
+    },
+    {
+      "name": "and pushes the catalog with its publish workflow",
+      "git": "push",
+      "repo": "tessellate-dev/catalog",
+      "ref": "refs/heads/main",
+      "files": {
+        ".github/workflows/publish.yml": "name: Publish\non:\n  push:\n    branches:\n      - main\n  pull_request:\npermissions:\n  contents: read\n  id-token: write\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm publish --registry \"${{ vars.NPM_REGISTRY }}\"\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n",
+        "catalog.json": "{\"packages\": [\"tessellate\"]}\n"
+      },
+      "message": "Catalog",
+      "author": "octocat <octocat@github.com>",
+      "headers": {
+        "authorization": "{basic:me:gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "The World's Actions runner, with the token it was given, finds the repositories it serves: the user's own",
+      "method": "GET",
+      "path": "/user/repos?per_page=100",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "tessellate-dev/catalog"
+        }
+      ]
+    },
+    {
+      "name": "the organizations the user belongs to",
+      "method": "GET",
+      "path": "/user/orgs?per_page=100",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.login",
+          "equals": "tessellate-dev"
+        }
+      ]
+    },
+    {
+      "name": "and each organization's repositories",
+      "method": "GET",
+      "path": "/orgs/tessellate-dev/repos?per_page=100",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "tessellate-dev/catalog"
+        }
+      ]
+    },
+    {
+      "name": "It looks for queued runs: the push queued Publish",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/runs?status=queued&per_page=100",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "capture": {
+        "pub_run": "workflow_runs.0.id",
+        "pub_path": "workflow_runs.0.path",
+        "pub_sha": "workflow_runs.0.head_sha"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.name",
+          "equals": "Publish"
+        },
+        {
+          "path": "workflow_runs.0.event",
+          "equals": "push"
+        }
+      ]
+    },
+    {
+      "name": "Twin's deploy scan asks for the workflow's successful releases before its first run finishes",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?status=success&per_page=1",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        },
+        {
+          "path": "workflow_runs",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "A workflow filename lists only its own queued runs",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?status=queued",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "capture": {
+        "pub_workflow": "workflow_runs.0.workflow_id",
+        "pub_suite": "workflow_runs.0.check_suite_id",
+        "pub_created": "workflow_runs.0.created_at"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "an exact timestamp selects its run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created={pub_created}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "the inclusive date range contains the run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=2026-01-01..2026-12-31",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "another day has no run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=1970-01-01",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        },
+        {
+          "path": "workflow_runs",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "strictly after that instant excludes the run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=%3E{pub_created}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        },
+        {
+          "path": "workflow_runs",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "on or after includes the boundary",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=%3E%3D{pub_created}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "strictly before excludes the boundary",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=%3C{pub_created}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        },
+        {
+          "path": "workflow_runs",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "on or before includes the boundary",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=%3C%3D{pub_created}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "an inclusive timestamp range includes both boundaries",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created={pub_created}..{pub_created}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "an open lower bound includes the run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=*..{pub_created}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "an open upper bound includes the run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created={pub_created}..*",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "the stored check suite identifies its run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?check_suite_id={pub_suite}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "another check suite selects no run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?check_suite_id=999999",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        },
+        {
+          "path": "workflow_runs",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "an invalid created qualifier is refused instead of ignored",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?created=not-a-date",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.field",
+          "equals": "created"
+        }
+      ]
+    },
+    {
+      "name": "Its numeric workflow id selects the same run",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/{pub_workflow}/runs?status=queued",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{pub_run}"
+        }
+      ]
+    },
+    {
+      "name": "An absent workflow has no list",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/absent.yml/runs",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 404
+    },
+    {
+      "name": "and picks it up through the twin's runner door: the job's token, the repository's secrets, and the request its OIDC token is asked with",
+      "method": "POST",
+      "path": "/_twin/repos/tessellate-dev/catalog/actions/runs/{pub_run}/start",
+      "capture": {
+        "job_tok": "token",
+        "idreq_url": "id_token_request.url",
+        "idreq_tok": "id_token_request.token"
+      },
+      "expect": [
+        {
+          "path": "permissions.id-token",
+          "equals": "write"
+        },
+        {
+          "path": "secrets.NPM_TOKEN",
+          "equals": "npm-token-tessellate-2026"
+        }
+      ]
+    },
+    {
+      "name": "It reads the organization's variables",
+      "method": "GET",
+      "path": "/orgs/tessellate-dev/actions/variables?per_page=30",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "and the repository's",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/variables?per_page=30",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "variables.0.name",
+          "equals": "NPM_REGISTRY"
+        },
+        {
+          "path": "variables.0.value",
+          "equals": "https://registry.npmjs.org"
+        }
+      ]
+    },
+    {
+      "name": "the workflow file at the run's commit",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/contents/{pub_path}?ref={pub_sha}",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "path",
+          "equals": ".github/workflows/publish.yml"
+        },
+        {
+          "path": "encoding",
+          "equals": "base64"
+        }
+      ]
+    },
+    {
+      "name": "and the repository",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "default_branch",
+          "equals": "main"
+        }
+      ]
+    },
+    {
+      "name": "It checks the repository out with the job's token",
+      "git": "clone",
+      "repo": "tessellate-dev/catalog",
+      "headers": {
+        "authorization": "{basic:me:job_tok}"
+      },
+      "expect": [
+        {
+          "path": "sha",
+          "equals": "{pub_sha}"
+        }
+      ]
+    },
+    {
+      "name": "The publish step asks Actions' OIDC provider for a token for npm's provenance, with the request the runner handed it",
+      "method": "GET",
+      "path": "{idreq_url}&audience=sigstore",
+      "headers": {
+        "authorization": "bearer {idreq_tok}"
+      },
+      "capture": {
+        "job_oidc": "value"
+      },
+      "expect": [
+        {
+          "path": "count",
+          "equals": 1
+        },
+        {
+          "path": "value",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Sigstore's Fulcio, given that token, reads the issuer's discovery document",
+      "method": "GET",
+      "path": "https://token.actions.githubusercontent.com/.well-known/openid-configuration",
+      "capture": {
+        "jwks_uri": "jwks_uri"
+      },
+      "expect": [
+        {
+          "path": "issuer",
+          "equals": "https://token.actions.githubusercontent.com"
+        },
+        {
+          "path": "jwks_uri",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "and its keys",
+      "method": "GET",
+      "path": "{jwks_uri}",
+      "expect": [
+        {
+          "path": "keys.0.kid",
+          "exists": true
+        },
+        {
+          "path": "keys.0.kty",
+          "equals": "RSA"
+        }
+      ]
+    },
+    {
+      "name": "The runner completes the run through the door",
+      "method": "POST",
+      "path": "/_twin/repos/tessellate-dev/catalog/actions/runs/{pub_run}/complete",
+      "body": {
+        "conclusion": "success"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "conclusion",
+          "equals": "success"
+        }
+      ]
+    },
+    {
+      "name": "Ada's package is submitted to the catalog on a branch",
+      "git": "push",
+      "repo": "tessellate-dev/catalog",
+      "ref": "refs/heads/submit/tessellate-cli",
+      "files": {
+        "packages/tessellate-cli.json": "{\"name\": \"tessellate-cli\"}\n"
+      },
+      "message": "Submit tessellate-cli",
+      "author": "octocat <octocat@github.com>",
+      "headers": {
+        "authorization": "{basic:me:gh_tok}"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "as a pull request",
+      "method": "POST",
+      "path": "/repos/tessellate-dev/catalog/pulls",
+      "body": {
+        "title": "Submit tessellate-cli",
+        "head": "submit/tessellate-cli",
+        "base": "main"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 201,
+      "capture": {
+        "submission": "number"
+      }
+    },
+    {
+      "name": "the PR-triggered run carries its pull request",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?event=pull_request",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.pull_requests.0.number",
+          "equals": "{submission}"
+        }
+      ],
+      "capture": {
+        "submission_run": "workflow_runs.0.id"
+      }
+    },
+    {
+      "name": "exclude_pull_requests=true changes only the response projection",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?event=pull_request&exclude_pull_requests=true",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.id",
+          "equals": "{submission_run}"
+        },
+        {
+          "path": "workflow_runs.0.pull_requests",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "exclude_pull_requests=false changes only the response projection",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows/publish.yml/runs?event=pull_request&exclude_pull_requests=false",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflow_runs.0.pull_requests.0.number",
+          "equals": "{submission}"
+        }
+      ]
+    },
+    {
+      "name": "whose run is queued",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/runs?event=pull_request",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "workflow_runs.0.event",
+          "equals": "pull_request"
+        },
+        {
+          "path": "workflow_runs.0.head_branch",
+          "equals": "submit/tessellate-cli"
+        }
+      ]
+    },
+    {
+      "name": "She merges it with a merge commit",
+      "method": "PUT",
+      "path": "/repos/tessellate-dev/catalog/pulls/{submission}/merge",
+      "body": {
+        "merge_method": "merge"
+      },
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "merged",
+          "equals": true
+        },
+        {
+          "path": "message",
+          "equals": "Pull Request successfully merged"
+        }
+      ]
+    },
+    {
+      "name": "and the merge's push queues Publish on main",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/runs?event=push",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "workflow_runs.0.event",
+          "equals": "push"
+        },
+        {
+          "path": "workflow_runs.0.head_branch",
+          "equals": "main"
+        },
+        {
+          "path": "total_count",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "name": "A vendor-backed World rooted at octocat's account refreshes what it reads back: her teams",
+      "method": "GET",
+      "path": "/user/teams",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.slug",
+          "equals": "owners"
+        },
+        {
+          "path": "0.organization.login",
+          "equals": "tessellate-dev"
+        },
+        {
+          "path": "1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "the library's labels",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/labels",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.name",
+          "equals": "bug"
+        },
+        {
+          "path": "0.default",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "its issues' and pull requests' comments, the first the App's question to Grace",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/issues/comments",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.user.login",
+          "equals": "tessellate-autonomy[bot]"
+        },
+        {
+          "path": "0.body",
+          "contains": "clockwise"
+        }
+      ]
+    },
+    {
+      "name": "v1.0.0's assets",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/releases/{rel100}/assets",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.name",
+          "equals": "tessellate-1.0.0.tgz"
+        },
+        {
+          "path": "1.id",
+          "equals": "{win_asset}"
+        },
+        {
+          "path": "2",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "a release the library does not have",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/releases/424242/assets",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "status": 404
+    },
+    {
+      "name": "its webhooks: the board's, its secret masked",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/hooks",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{board_hook}"
+        },
+        {
+          "path": "0.config.secret",
+          "equals": "********"
+        },
+        {
+          "path": "1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "its environments: production",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/tessellate/environments",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "environments.0.name",
+          "equals": "production"
+        }
+      ]
+    },
+    {
+      "name": "the catalog's workflows: Publish",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/workflows",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "workflows.0.path",
+          "equals": ".github/workflows/publish.yml"
+        }
+      ]
+    },
+    {
+      "name": "and its artifacts: its run uploaded none",
+      "method": "GET",
+      "path": "/repos/tessellate-dev/catalog/actions/artifacts",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "octocat makes a personal demo repository through the REST SDK, for a Workbench app-store walk",
+      "method": "POST",
+      "path": "/user/repos",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "body": {
+        "name": "workbench-demo",
+        "description": "A personal desktop app",
+        "auto_init": true
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "full_name",
+          "equals": "octocat/workbench-demo"
+        },
+        {
+          "path": "private",
+          "equals": false
+        },
+        {
+          "path": "permissions.admin",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "the REST-created demo has its actual initial README commit",
+      "method": "GET",
+      "path": "/repos/octocat/workbench-demo/readme",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}",
+        "accept": "application/vnd.github.raw+json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "workbench-demo"
+        }
+      ]
+    },
+    {
+      "name": "a second repository with that name is refused",
+      "method": "POST",
+      "path": "/user/repos",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "body": {
+        "name": "workbench-demo"
+      },
+      "status": 422
+    },
+    {
+      "name": "a caller without a credential cannot create a repository",
+      "method": "POST",
+      "path": "/user/repos",
+      "body": {
+        "name": "no-auth-demo"
+      },
+      "status": 401
+    },
+    {
+      "name": "octocat also creates a private personal repository with her repo-scoped token",
+      "method": "POST",
+      "path": "/user/repos",
+      "headers": {
+        "authorization": "Bearer {octocat_pat}"
+      },
+      "body": {
+        "name": "workbench-private",
+        "private": true
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "private",
+          "equals": true
+        },
+        {
+          "path": "owner.login",
+          "equals": "octocat"
+        }
+      ]
+    },
+    {
+      "name": "the valve renews the installation token for the personal-repository refusal",
+      "method": "POST",
+      "path": "/app/installations/{oa_inst}/access_tokens",
+      "body": {
+        "repositories": [
+          "tessellate"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "fresh_install_token": "token"
+      },
+      "jwt": {
+        "privatePem": "{oa_pem}",
+        "claims": {
+          "iss": "{oa_app}",
+          "iat": 1783331890,
+          "exp": 1783332490
+        }
+      }
+    },
+    {
+      "name": "a GitHub App installation cannot create a personal repository",
+      "method": "POST",
+      "path": "/user/repos",
+      "headers": {
+        "authorization": "Bearer {fresh_install_token}"
+      },
+      "body": {
+        "name": "installation-personal-repo"
+      },
+      "status": 403
+    },
+    {
+      "name": "she makes a read-user-only token to demonstrate the repository scope refusal",
+      "method": "POST",
+      "path": "/_twin/users/octocat/tokens",
+      "body": {
+        "note": "read-user only",
+        "scopes": [
+          "read:user"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "read_user_pat": "token"
+      }
+    },
+    {
+      "name": "that read-user token cannot create a public repository",
+      "method": "POST",
+      "path": "/user/repos",
+      "headers": {
+        "authorization": "Bearer {read_user_pat}"
+      },
+      "body": {
+        "name": "under-scoped-repo"
+      },
+      "status": 403
+    },
+    {
+      "name": "Workbench clones the personal demo through a GitHub URL without the optional .git suffix",
+      "method": "GET",
+      "path": "https://github.com/octocat/workbench-demo/info/refs?service=git-upload-pack",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "git-upload-pack"
+        }
+      ]
+    }
+  ]
+}

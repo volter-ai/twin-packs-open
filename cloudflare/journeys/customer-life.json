@@ -1,0 +1,5544 @@
+{
+ "vendor": "cloudflare",
+ "author": "Contributor 41",
+ "about": "Kiln's year on Cloudflare (journeys/customer-life.outline.md): Open Autonomy's deploy token and wrangler deploys (Durable Objects among them), R2 storage behind its link, media and recording apps (Dub's, Postiz's, RH2's code paths), a public bucket domain, its customers' own domains (Twenty's custom hostnames), Turnstile on sign-up and booking (Cal.com's, Rallly's, LibreChat's), a rolled deploy token and a revoked R2 token, the account read back, and the old bucket closed.",
+ "steps": [
+  {
+   "name": "Monday 5 January, 09:00: Kiln moves its site and its media to Cloudflare",
+   "wait": "6300m"
+  },
+  {
+   "name": "The World: Mina signs up at dash.cloudflare.com with her email and a password (the dashboard's sign-up, which no API makes)",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/_twin/users/mina@kiln.media",
+   "body": {
+    "password": "kiln-kilns-2026"
+   },
+   "status": 201
+  },
+  {
+   "name": "The World: her sign-up makes the account Kiln, Mina its Super Administrator, and the World's application its account token and R2 keys (the credential door)",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/_twin/app-credentials",
+   "body": {
+    "account": "kiln",
+    "owner": "mina@kiln.media"
+   },
+   "status": 201,
+   "capture": {
+    "account_id": "account_id",
+    "app_token": "api_token",
+    "app_akid": "r2_access_key_id",
+    "app_secret": "r2_secret_access_key"
+   },
+   "expect": [
+    {
+     "path": "api_token",
+     "matches": "^cfat_"
+    },
+    {
+     "path": "account_id",
+     "matches": "^[0-9a-f]{32}$"
+    }
+   ]
+  },
+  {
+   "name": "Open Autonomy's setup opens the API token page pre-filled from its template URL; signed out, the dashboard sends Mina to log in first",
+   "method": "GET",
+   "path": "https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22workers_scripts%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_settings%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22user_details%22%2C%22type%22%3A%22read%22%7D%5D&name=kiln-site-deploy",
+   "status": 302,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/login?next=%2Fprofile%2Fapi-tokens%3FpermissionGroupKeys%3D%255B%257B%2522key%2522%253A%2522workers_scripts%2522%252C%2522type%2522%253A%2522edit%2522%257D%252C%257B%2522key%2522%253A%2522account_settings%2522%252C%2522type%2522%253A%2522read%2522%257D%252C%257B%2522key%2522%253A%2522user_details%2522%252C%2522type%2522%253A%2522read%2522%257D%255D%26name%3Dkiln-site-deploy"
+    }
+   ]
+  },
+  {
+   "name": "The login page shows its form, the token page to come back to in its next field",
+   "method": "GET",
+   "path": "https://dash.cloudflare.com/login?next=%2Fprofile%2Fapi-tokens%3FpermissionGroupKeys%3D%255B%257B%2522key%2522%253A%2522workers_scripts%2522%252C%2522type%2522%253A%2522edit%2522%257D%252C%257B%2522key%2522%253A%2522account_settings%2522%252C%2522type%2522%253A%2522read%2522%257D%252C%257B%2522key%2522%253A%2522user_details%2522%252C%2522type%2522%253A%2522read%2522%257D%255D%26name%3Dkiln-site-deploy",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Log in to Cloudflare"
+    }
+   ]
+  },
+  {
+   "name": "She logs in, and the dashboard takes her back to the token page",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/login",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "next=%2Fprofile%2Fapi-tokens%3FpermissionGroupKeys%3D%255B%257B%2522key%2522%253A%2522workers_scripts%2522%252C%2522type%2522%253A%2522edit%2522%257D%252C%257B%2522key%2522%253A%2522account_settings%2522%252C%2522type%2522%253A%2522read%2522%257D%252C%257B%2522key%2522%253A%2522user_details%2522%252C%2522type%2522%253A%2522read%2522%257D%255D%26name%3Dkiln-site-deploy&email=mina%40kiln.media&password=kiln-kilns-2026",
+   "status": 302,
+   "capture": {
+    "mina_session": "header:set-cookie:cf_session=([^;]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22workers_scripts%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_settings%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22user_details%22%2C%22type%22%3A%22read%22%7D%5D&name=kiln-site-deploy"
+    }
+   ]
+  },
+  {
+   "name": "The form arrives filled in from the template: the name and the three permission groups",
+   "method": "GET",
+   "path": "https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22workers_scripts%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_settings%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22user_details%22%2C%22type%22%3A%22read%22%7D%5D&name=kiln-site-deploy",
+   "headers": {
+    "cookie": "cf_session={mina_session}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "kiln-site-deploy"
+    },
+    {
+     "path": "",
+     "contains": "Workers Scripts Write,Account Settings Read,User Details Read"
+    }
+   ]
+  },
+  {
+   "name": "She restricts it to Kiln's account and creates it; the page shows the token once",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22workers_scripts%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_settings%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22user_details%22%2C%22type%22%3A%22read%22%7D%5D&name=kiln-site-deploy",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "cf_session={mina_session}"
+   },
+   "body": "name=kiln-site-deploy&account_id={account_id}&groups=Workers%20Scripts%20Write%2CAccount%20Settings%20Read%2CUser%20Details%20Read",
+   "capture": {
+    "deploy_token": "text:(cfut_[A-Za-z0-9_-]+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "shown once"
+    }
+   ]
+  },
+  {
+   "name": "Pasted with its last characters cut off, a token is refused, and setup stops to ask again",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+   "headers": {
+    "authorization": "Bearer cfut_kilnSiteDeployTokenCutOff"
+   },
+   "status": 401,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "She corrects the pasted value; setup verifies it before putting it in the repository production environment: active",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    },
+    {
+     "path": "result.status",
+     "equals": "active"
+    }
+   ],
+   "capture": {
+    "deploy_id": "result.id"
+   }
+  },
+  {
+   "name": "Monday 5 January, 11:30: the repository is released for the first time, and its deploy workflow runs wrangler deploy",
+   "wait": "150m"
+  },
+  {
+   "name": "wrangler reads the account's workers.dev subdomain: the account has none yet, so the deploy cannot put the Worker there",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/subdomain",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Mina registers kiln.workers.dev for the account, as an owner does before a first deploy",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/subdomain",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "subdomain": "kiln"
+   },
+   "expect": [
+    {
+     "path": "result.subdomain",
+     "equals": "kiln"
+    }
+   ]
+  },
+  {
+   "name": "The Worker's cache bucket is made through the API, as the platform's deploy makes its own",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/buckets",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "kiln-site-cache"
+   },
+   "expect": [
+    {
+     "path": "result.name",
+     "equals": "kiln-site-cache"
+    }
+   ]
+  },
+  {
+   "name": "Before binding CACHE, wrangler reads the bucket the account created",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/buckets/kiln-site-cache",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.name",
+     "equals": "kiln-site-cache"
+    }
+   ]
+  },
+  {
+   "name": "Monday 5 January, 11:45: the workflow runs wrangler deploy again",
+   "wait": "15m"
+  },
+  {
+   "name": "wrangler reads the Worker's latest deployment: there is no Worker yet, which it takes as a first deploy",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/deployments",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "\u2026and its service, for the migration tag it holds: none",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/services/kiln-site",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "It reads the account's workers.dev subdomain: kiln",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/subdomain",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.subdomain",
+     "equals": "kiln"
+    }
+   ]
+  },
+  {
+   "name": "The site has static assets: an upload session over their manifest names the one file to send",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/assets-upload-session",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "b1946ac92492d2347c6235b4d2611184",
+      "size": 47
+     }
+    }
+   },
+   "capture": {
+    "assets_jwt": "result.jwt"
+   },
+   "expect": [
+    {
+     "path": "result.buckets.0.0",
+     "equals": "b1946ac92492d2347c6235b4d2611184"
+    }
+   ]
+  },
+  {
+   "name": "An upload sent with the deploy token, not the session's JWT, is refused",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/assets/upload?base64=true",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "multipart/form-data; boundary=----kilnassets"
+   },
+   "body": "------kilnassets\r\nContent-Disposition: form-data; name=\"b1946ac92492d2347c6235b4d2611184\"; filename=\"b1946ac92492d2347c6235b4d2611184\"\r\nContent-Type: text/html\r\n\r\nPCFkb2N0eXBlIGh0bWw+PHRpdGxlPktpbG48L3RpdGxlPjxoMT5LaWxuPC9oMT4=\r\n------kilnassets--\r\n",
+   "status": 401,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "The file goes up with the session's JWT: every file is in, and the answer is the completion token",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/assets/upload?base64=true",
+   "headers": {
+    "authorization": "Bearer {assets_jwt}",
+    "content-type": "multipart/form-data; boundary=----kilnassets"
+   },
+   "body": "------kilnassets\r\nContent-Disposition: form-data; name=\"b1946ac92492d2347c6235b4d2611184\"; filename=\"b1946ac92492d2347c6235b4d2611184\"\r\nContent-Type: text/html\r\n\r\nPCFkb2N0eXBlIGh0bWw+PHRpdGxlPktpbG48L3RpdGxlPjxoMT5LaWxuPC9oMT4=\r\n------kilnassets--\r\n",
+   "status": 201,
+   "capture": {
+    "assets_done": "result.jwt"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "wrangler uploads the Worker: its module, its metadata with the R2 bucket and the assets bound, the completion token among them",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site?excludeScript=true&bindings_inherit=strict",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "multipart/form-data; boundary=----wranglerkiln"
+   },
+   "body": "------wranglerkiln\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{\"main_module\":\"index.js\",\"compatibility_date\":\"2026-01-05\",\"bindings\":[{\"name\":\"CACHE\",\"type\":\"r2_bucket\",\"bucket_name\":\"kiln-site-cache\"},{\"name\":\"ASSETS\",\"type\":\"assets\"}],\"assets\":{\"jwt\":\"{assets_done}\",\"config\":{\"html_handling\":\"auto-trailing-slash\"}},\"observability\":{\"enabled\":true}}\r\n------wranglerkiln\r\nContent-Disposition: form-data; name=\"index.js\"; filename=\"index.js\"\r\nContent-Type: application/javascript+module\r\n\r\nexport default { async fetch(request, env) { return env.ASSETS.fetch(request); } };\r\n------wranglerkiln--\r\n",
+   "expect": [
+    {
+     "path": "result.id",
+     "equals": "kiln-site"
+    },
+    {
+     "path": "result.has_assets",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The site release schedules its background tick once a minute",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.schedules.1",
+     "exists": false
+    },
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "* * * * *"
+    }
+   ],
+   "body": [
+    {
+     "cron": "* * * * *"
+    }
+   ]
+  },
+  {
+   "name": "The deployment inventory reads the schedule back",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.schedules.1",
+     "exists": false
+    },
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "* * * * *"
+    }
+   ]
+  },
+  {
+   "name": "A later release reduces the background tick to twice an hour",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.schedules.1",
+     "exists": false
+    },
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "*/30 * * * *"
+    }
+   ],
+   "body": [
+    {
+     "cron": "*/30 * * * *"
+    }
+   ]
+  },
+  {
+   "name": "The inventory sees only the replacement expression",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.schedules.1",
+     "exists": false
+    },
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "*/30 * * * *"
+    }
+   ]
+  },
+  {
+   "name": "It reads whether the Worker is on the workers.dev route: not yet",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/subdomain",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.enabled",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "\u2026and puts it there",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/subdomain",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "application/json",
+    "cloudflare-workers-script-api-date": "2025-08-01"
+   },
+   "body": {
+    "enabled": true,
+    "previews_enabled": true
+   },
+   "expect": [
+    {
+     "path": "result.enabled",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Open Autonomy installs the monthly sponsorship accrual trigger during deploy",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "body": [
+    {
+     "cron": "0 6 1 * *"
+    }
+   ],
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "0 6 1 * *"
+    },
+    {
+     "path": "result.schedules.0.created_on",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "An invalid minute cannot replace the installed release schedule",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "body": [
+    {
+     "cron": "99 * * * *"
+    }
+   ],
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10000
+    }
+   ]
+  },
+  {
+   "name": "The release operator confirms the installed schedule survived: An invalid minute cannot replace the installed release schedule",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "0 6 1 * *"
+    }
+   ]
+  },
+  {
+   "name": "Cloudflare weekdays start at one, so zero cannot replace the release schedule",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "body": [
+    {
+     "cron": "* * * * 0"
+    }
+   ],
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10000
+    }
+   ]
+  },
+  {
+   "name": "The release operator confirms the installed schedule survived: Cloudflare weekdays start at one, so zero cannot replace the release schedule",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "0 6 1 * *"
+    }
+   ]
+  },
+  {
+   "name": "Newlines cannot separate the release schedule fields",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "body": [
+    {
+     "cron": "*\n* * * *"
+    }
+   ],
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10000
+    }
+   ]
+  },
+  {
+   "name": "The release operator reads the deployed trigger configuration",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/schedules",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.schedules.0.cron",
+     "equals": "0 6 1 * *"
+    }
+   ]
+  },
+  {
+   "name": "The deployed Worker workers.dev address serves its uploaded static asset",
+   "method": "GET",
+   "path": "https://kiln-site.kiln.workers.dev/",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln"
+    }
+   ]
+  },
+  {
+   "name": "The deploy's check reads the Worker's settings back: the bucket and the assets are bound",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/settings",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.bindings.0.name",
+     "equals": "CACHE"
+    },
+    {
+     "path": "result.bindings.0.bucket_name",
+     "equals": "kiln-site-cache"
+    },
+    {
+     "path": "result.bindings.1.type",
+     "equals": "assets"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 7 January, 10:00: the site's contact form needs its mail key",
+   "wait": "2775m"
+  },
+  {
+   "name": "Open Autonomy's admin workflow installs the production environment's secret as the Worker's own (wrangler secret put)",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/secrets",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "MAIL_KEY",
+    "text": "mk_live_kiln_7Q2p",
+    "type": "secret_text"
+   },
+   "expect": [
+    {
+     "path": "result.name",
+     "equals": "MAIL_KEY"
+    }
+   ]
+  },
+  {
+   "name": "The Worker's settings name the secret, never its text",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/settings",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "notContains": "mk_live_kiln_7Q2p"
+    }
+   ]
+  },
+  {
+   "name": "A secret for a Worker the account does not have (the workflow's script name mistyped as kiln-sites) is refused",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-sites/secrets",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "MAIL_KEY",
+    "text": "mk_live_kiln_7Q2p",
+    "type": "secret_text"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Monday 12 January, 16:00: a release adds the booking page's slot holds and visit counts as Durable Objects",
+   "wait": "7560m"
+  },
+  {
+   "name": "wrangler reads the latest deployment: the first, its one version at 100%",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/deployments",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.deployments.0.versions.0.percentage",
+     "equals": 100
+    },
+    {
+     "path": "result.deployments.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "\u2026and the Worker's service, its production environment's script: no migration applied yet",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/services/kiln-site",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.default_environment.environment",
+     "equals": "production"
+    },
+    {
+     "path": "result.default_environment.script.migration_tag",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "The assets have not changed: the session has nothing to send, and its token is already the completion token",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/assets-upload-session",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "b1946ac92492d2347c6235b4d2611184",
+      "size": 47
+     }
+    }
+   },
+   "capture": {
+    "assets_done2": "result.jwt"
+   },
+   "expect": [
+    {
+     "path": "result.buckets",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "It uploads the Worker with the migration that makes both classes, their bindings beside the bucket and the assets",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site?excludeScript=true&bindings_inherit=strict",
+   "headers": {
+    "authorization": "Bearer {deploy_token}",
+    "content-type": "multipart/form-data; boundary=----wranglerkiln"
+   },
+   "body": "------wranglerkiln\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{\"main_module\":\"index.js\",\"compatibility_date\":\"2026-01-12\",\"migrations\":{\"new_tag\":\"v1\",\"steps\":[{\"new_sqlite_classes\":[\"SlotHold\",\"VisitorCounter\"]}]},\"bindings\":[{\"name\":\"CACHE\",\"type\":\"r2_bucket\",\"bucket_name\":\"kiln-site-cache\"},{\"name\":\"ASSETS\",\"type\":\"assets\"},{\"name\":\"SLOTS\",\"type\":\"durable_object_namespace\",\"class_name\":\"SlotHold\"},{\"name\":\"VISITS\",\"type\":\"durable_object_namespace\",\"class_name\":\"VisitorCounter\"}],\"assets\":{\"jwt\":\"{assets_done2}\",\"config\":{\"html_handling\":\"auto-trailing-slash\"}},\"observability\":{\"enabled\":true}}\r\n------wranglerkiln\r\nContent-Disposition: form-data; name=\"index.js\"; filename=\"index.js\"\r\nContent-Type: application/javascript+module\r\n\r\nimport { DurableObject } from \"cloudflare:workers\";\nexport class SlotHold extends DurableObject { async hold(slot, until) { await this.ctx.storage.put(slot, until); return true; } }\nexport class VisitorCounter extends DurableObject { async hit() { const n = ((await this.ctx.storage.get(\"n\")) ?? 0) + 1; await this.ctx.storage.put(\"n\", n); return n; } }\nexport default { async fetch(request, env) { const url = new URL(request.url);\n  if (url.pathname === \"/api/hold\") return Response.json({ held: await env.SLOTS.get(env.SLOTS.idFromName(url.searchParams.get(\"slot\"))).hold(url.searchParams.get(\"slot\"), Date.now() + 600000) });\n  await env.VISITS.get(env.VISITS.idFromName(\"site\")).hit(); return env.ASSETS.fetch(request); } };\r\n------wranglerkiln--\r\n",
+   "expect": [
+    {
+     "path": "result.id",
+     "equals": "kiln-site"
+    },
+    {
+     "path": "result.migration_tag",
+     "equals": "v1"
+    }
+   ]
+  },
+  {
+   "name": "The release's check reads the settings back: the two Durable Object bindings, and the mail key, kept by name",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/settings",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.bindings.2.class_name",
+     "equals": "SlotHold"
+    },
+    {
+     "path": "result.bindings.3.class_name",
+     "equals": "VisitorCounter"
+    },
+    {
+     "path": "result.bindings.4.name",
+     "equals": "MAIL_KEY"
+    },
+    {
+     "path": "",
+     "notContains": "mk_live_kiln_7Q2p"
+    }
+   ]
+  },
+  {
+   "name": "The release dashboard lists the Worker's versions: two, the newest first",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "expect": [
+    {
+     "path": "result.items.0.number",
+     "equals": 2
+    },
+    {
+     "path": "result.items.1.number",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 14 January, 09:00: Kiln's link and media apps get their storage",
+   "wait": "2460m"
+  },
+  {
+   "name": "Kiln's link and media apps start in the World and are given the same account and its token by the credential door",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/_twin/app-credentials",
+   "body": {
+    "account": "kiln",
+    "owner": "mina@kiln.media"
+   },
+   "status": 201,
+   "expect": [
+    {
+     "path": "api_token",
+     "equals": "{app_token}"
+    },
+    {
+     "path": "r2_access_key_id",
+     "equals": "{app_akid}"
+    },
+    {
+     "path": "account_id",
+     "equals": "{account_id}"
+    }
+   ]
+  },
+  {
+   "name": "Mina opens R2's API Tokens page, already signed in",
+   "method": "GET",
+   "path": "https://dash.cloudflare.com/{account_id}/r2/api-tokens",
+   "headers": {
+    "cookie": "cf_session={mina_session}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "Create Account API token"
+    }
+   ]
+  },
+  {
+   "name": "She makes an Object Read only token for RH2, confined to the recordings bucket: its Access Key ID and Secret Access Key, shown once",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/{account_id}/r2/api-tokens",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "cf_session={mina_session}"
+   },
+   "body": "name=rh2-recordings&token_kind=account&permission=object-ro&bucket=kiln-recordings&jurisdiction=default",
+   "capture": {
+    "rh2_akid": "text:S3 Access Key ID: ([0-9a-f]{32})",
+    "rh2_secret": "text:Secret Access Key: ([0-9a-f]{64})"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "shown once"
+    }
+   ]
+  },
+  {
+   "name": "The apps' setup creates kiln-public through S3, region auto",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/kiln-public"
+    }
+   ]
+  },
+  {
+   "name": "The apps' setup creates kiln-private through S3, region auto",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-private",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/kiln-private"
+    }
+   ]
+  },
+  {
+   "name": "The apps' setup creates kiln-recordings through S3, region auto",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-recordings",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/kiln-recordings"
+    }
+   ]
+  },
+  {
+   "name": "The account's buckets, as S3 lists them",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "Buckets.Bucket.0.Name",
+     "equals": "kiln-private"
+    },
+    {
+     "path": "Buckets.Bucket.1.Name",
+     "equals": "kiln-public"
+    },
+    {
+     "path": "Buckets.Bucket.2.Name",
+     "equals": "kiln-recordings"
+    },
+    {
+     "path": "Buckets.Bucket.3.Name",
+     "equals": "kiln-site-cache"
+    }
+   ]
+  },
+  {
+   "name": "The app checks its bucket is there",
+   "method": "HEAD",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 200
+  },
+  {
+   "name": "\u2026and the bucket name mistyped in its first config, kiln-pubic, is not",
+   "method": "HEAD",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-pubic",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 404
+  },
+  {
+   "name": "The bucket's region is auto",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?location",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "LocationConstraint",
+     "equals": "auto"
+    }
+   ]
+  },
+  {
+   "name": "Browsers will upload from app.kiln.media: the public bucket takes a CORS rule for it",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?cors",
+   "headers": {
+    "content-type": "application/xml"
+   },
+   "body": "<CORSConfiguration><CORSRule><AllowedOrigin>https://app.kiln.media</AllowedOrigin><AllowedMethod>PUT</AllowedMethod><AllowedMethod>GET</AllowedMethod><AllowedHeader>content-type</AllowedHeader><AllowedHeader>content-length</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 200
+  },
+  {
+   "name": "\u2026which reads back",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?cors",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "CORSRule.AllowedOrigin",
+     "equals": "https://app.kiln.media"
+    },
+    {
+     "path": "CORSRule.AllowedMethod",
+     "equals": [
+      "PUT",
+      "GET"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Thursday 15 January, 10:00: Mina gives the media a domain of its own",
+   "wait": "1500m"
+  },
+  {
+   "name": "She adds kiln.media to the account: pending, with the two nameservers Cloudflare assigns",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/zones",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "account": {
+     "id": "{account_id}"
+    },
+    "name": "kiln.media",
+    "type": "full"
+   },
+   "capture": {
+    "zone_id": "result.id",
+    "ns0": "result.name_servers.0",
+    "ns1": "result.name_servers.1"
+   },
+   "expect": [
+    {
+     "path": "result.status",
+     "equals": "pending"
+    },
+    {
+     "path": "result.name_servers.0",
+     "matches": "\\.ns\\.cloudflare\\.com$"
+    }
+   ]
+  },
+  {
+   "name": "At her registrar she sets the first nameserver (a record outside Cloudflare)",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/_twin/dns",
+   "body": {
+    "name": "kiln.media",
+    "type": "NS",
+    "value": "{ns0}"
+   },
+   "status": 201
+  },
+  {
+   "name": "\u2026and the second",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/_twin/dns",
+   "body": {
+    "name": "kiln.media",
+    "type": "NS",
+    "value": "{ns1}"
+   },
+   "status": 201
+  },
+  {
+   "name": "The site operator checks the active zone before routing the studio website",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones?name=kiln.media",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.0.status",
+     "equals": "active"
+    },
+    {
+     "path": "result.0.id",
+     "equals": "{zone_id}"
+    }
+   ]
+  },
+  {
+   "name": "wrangler checks routes already bound to Workers in the zone",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/workers/routes",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "The operator reads the deployed booking Worker before attaching the website",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/workers/kiln-site",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.name",
+     "equals": "kiln-site"
+    },
+    {
+     "path": "result.subdomain.enabled",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Mina imports the cutover record with a millisecond TTL; DNS validation refuses it before creation",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "type": "CNAME",
+    "name": "www.kiln.media",
+    "content": "kiln-old.example",
+    "ttl": 3600000,
+    "proxied": false,
+    "comment": "Website cutover",
+    "tags": [],
+    "settings": {}
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 1004
+    }
+   ]
+  },
+  {
+   "name": "The DNS import also contains an MX priority of 65536; the mail record is refused",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "type": "MX",
+    "name": "mail.kiln.media",
+    "content": "mx.kiln-mail.example",
+    "priority": 65536,
+    "ttl": 3600,
+    "proxied": false,
+    "comment": "Website and mail cutover",
+    "settings": {},
+    "tags": []
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 1004
+    }
+   ]
+  },
+  {
+   "name": "Mina corrects the mail provider priority to zero and publishes the mail record with a one-hour TTL",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "type": "MX",
+    "name": "mail.kiln.media",
+    "content": "mx.kiln-mail.example",
+    "priority": 0,
+    "ttl": 3600,
+    "proxied": false,
+    "comment": "Website and mail cutover",
+    "settings": {},
+    "tags": []
+   },
+   "expect": [
+    {
+     "path": "result.priority",
+     "equals": 0
+    },
+    {
+     "path": "result.ttl",
+     "equals": 3600
+    }
+   ]
+  },
+  {
+   "name": "The studio\u2019s www DNS still points to its former website host",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "type": "CNAME",
+    "name": "www.kiln.media",
+    "content": "kiln-old.example",
+    "ttl": 1,
+    "proxied": false,
+    "comment": "Website cutover",
+    "tags": [],
+    "settings": {}
+   },
+   "expect": [
+    {
+     "path": "result.name",
+     "equals": "www.kiln.media"
+    },
+    {
+     "path": "result.content",
+     "equals": "kiln-old.example"
+    },
+    {
+     "path": "result.type",
+     "equals": "CNAME"
+    },
+    {
+     "path": "result.proxiable",
+     "equals": true
+    },
+    {
+     "path": "result.comment",
+     "equals": "Website cutover"
+    },
+    {
+     "path": "result.zone_id",
+     "exists": false
+    }
+   ],
+   "capture": {
+    "old_www_record": "result.id"
+   }
+  },
+  {
+   "name": "Cloudflare refuses to attach a Custom Domain over the old CNAME",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains",
+   "status": 409,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "hostname": "www.kiln.media",
+    "service": "kiln-site",
+    "zone_id": "{zone_id}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 100117
+    }
+   ]
+  },
+  {
+   "name": "Mina lists the exact record that must be removed for cutover",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?name=www.kiln.media&type=CNAME",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.id",
+     "equals": "{old_www_record}"
+    },
+    {
+     "path": "result.0.content",
+     "equals": "kiln-old.example"
+    },
+    {
+     "path": "result.0.zone_id",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Mina reads the retained DNS record by id before removing it; its parent stays out of the vendor answer",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{old_www_record}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.name",
+     "equals": "www.kiln.media"
+    },
+    {
+     "path": "result.zone_id",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "She deletes that predecessor DNS record before attaching the Worker",
+   "method": "DELETE",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{old_www_record}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The cutover check confirms the hostname has no old CNAME",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?name=www.kiln.media&type=CNAME",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "Mina initially routes www.kiln.media to the existing booking Worker",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "body": {
+    "hostname": "www.kiln.media",
+    "service": "kiln-site",
+    "zone_id": "{zone_id}"
+   },
+   "expect": [
+    {
+     "path": "result.hostname",
+     "equals": "www.kiln.media"
+    },
+    {
+     "path": "result.service",
+     "equals": "kiln-site"
+    }
+   ],
+   "capture": {
+    "website_domain": "result.id"
+   }
+  },
+  {
+   "name": "She checks the website domain by its id",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains/{website_domain}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.hostname",
+     "equals": "www.kiln.media"
+    },
+    {
+     "path": "result.service",
+     "equals": "kiln-site"
+    }
+   ]
+  },
+  {
+   "name": "The brochure build adapter leaves a file hash out of its manifest; no upload session is created",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/assets-upload-session",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "size": 22
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ],
+   "status": 400
+  },
+  {
+   "name": "The brochure release opens a session for its exported home, about, journal and download pages",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/assets-upload-session",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "74747fc4b2f9131a7175d932d3fd80df",
+      "size": 54
+     },
+     "/about.html": {
+      "hash": "a047e5cf409b5071d69c4f3eb2ba7482",
+      "size": 19
+     },
+     "/journal/index.html": {
+      "hash": "85780fdc6a2a9399af9a624caa2ae673",
+      "size": 21
+     },
+     "/404.html": {
+      "hash": "3622f59cd55adf5c184d31caf163ea1c",
+      "size": 28
+     },
+     "/journal/404.html": {
+      "hash": "c40ccba58b4851be3f94b9abdfb1948a",
+      "size": 31
+     },
+     "/downloads/readme.txt": {
+      "hash": "c7a11b5642353c6f7b32cc59128759ad",
+      "size": 26
+     },
+     "/guide.html": {
+      "hash": "7feebc313fdc74ef05a599ffc5c06e3e",
+      "size": 19
+     },
+     "/guide/index.html": {
+      "hash": "95536c58826d88b1259df1cd7ff2c079",
+      "size": 29
+     }
+    }
+   },
+   "capture": {
+    "brochure_upload": "result.jwt"
+   },
+   "expect": [
+    {
+     "path": "result.buckets.0.0",
+     "equals": "74747fc4b2f9131a7175d932d3fd80df"
+    }
+   ]
+  },
+  {
+   "name": "The release uploads the website export\u2019s bytes with the session credential",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/assets/upload?base64=true",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {brochure_upload}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ],
+   "capture": {
+    "brochure_done": "result.jwt"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "74747fc4b2f9131a7175d932d3fd80df",
+      "filename": "74747fc4b2f9131a7175d932d3fd80df",
+      "type": "text/html",
+      "base64": "UENGa2IyTjBlWEJsSUdoMGJXdytQSFJwZEd4bFBrdHBiRzQ4TDNScGRHeGxQanhvTVQ1TGFXeHVJSE4wZFdScGJ6d3ZhREUr"
+     },
+     {
+      "name": "a047e5cf409b5071d69c4f3eb2ba7482",
+      "filename": "a047e5cf409b5071d69c4f3eb2ba7482",
+      "type": "text/html",
+      "base64": "UEdneFBrRmliM1YwSUV0cGJHNDhMMmd4UGc9PQ=="
+     },
+     {
+      "name": "85780fdc6a2a9399af9a624caa2ae673",
+      "filename": "85780fdc6a2a9399af9a624caa2ae673",
+      "type": "text/html",
+      "base64": "UEdneFBrdHBiRzRnYW05MWNtNWhiRHd2YURFKw=="
+     },
+     {
+      "name": "3622f59cd55adf5c184d31caf163ea1c",
+      "filename": "3622f59cd55adf5c184d31caf163ea1c",
+      "type": "text/html",
+      "base64": "UEdneFBrdHBiRzRnY0dGblpTQnViM1FnWm05MWJtUThMMmd4UGc9PQ=="
+     },
+     {
+      "name": "c40ccba58b4851be3f94b9abdfb1948a",
+      "filename": "c40ccba58b4851be3f94b9abdfb1948a",
+      "type": "text/html",
+      "base64": "UEdneFBrcHZkWEp1WVd3Z2NHRm5aU0J1YjNRZ1ptOTFibVE4TDJneFBnPT0="
+     },
+     {
+      "name": "c7a11b5642353c6f7b32cc59128759ad",
+      "filename": "c7a11b5642353c6f7b32cc59128759ad",
+      "type": "text/plain",
+      "base64": "UzJsc2JpQmtiM2R1Ykc5aFpDQnBibk4wY25WamRHbHZibk09"
+     },
+     {
+      "name": "7feebc313fdc74ef05a599ffc5c06e3e",
+      "filename": "7feebc313fdc74ef05a599ffc5c06e3e",
+      "type": "text/html",
+      "base64": "UEdneFBrdHBiRzRnWjNWcFpHVThMMmd4UGc9PQ=="
+     },
+     {
+      "name": "95536c58826d88b1259df1cd7ff2c079",
+      "filename": "95536c58826d88b1259df1cd7ff2c079",
+      "type": "text/html",
+      "base64": "UEdneFBrdHBiRzRnWjNWcFpHVWdaR2x5WldOMGIzSjVQQzlvTVQ0PQ=="
+     }
+    ]
+   }
+  },
+  {
+   "name": "The build adapter cannot replace the live booking Worker with a binding missing its required bucket",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 400,
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "type": "application/json",
+      "value": "{\"main_module\": \"index.js\", \"compatibility_date\": \"2026-05-04\", \"bindings\": [{\"name\": \"CACHE\", \"type\": \"r2_bucket\"}, {\"name\": \"ASSETS\", \"type\": \"assets\"}, {\"name\": \"SLOTS\", \"type\": \"durable_object_namespace\", \"class_name\": \"SlotHold\"}, {\"name\": \"VISITS\", \"type\": \"durable_object_namespace\", \"class_name\": \"VisitorCounter\"}], \"observability\": {\"enabled\": true}, \"keep_assets\": true}"
+     },
+     {
+      "name": "index.js",
+      "filename": "index.js",
+      "type": "application/javascript+module",
+      "value": "import { DurableObject } from \"cloudflare:workers\";\nexport class SlotHold extends DurableObject { async hold(slot, until) { await this.ctx.storage.put(slot, until); return true; } }\nexport class VisitorCounter extends DurableObject { async hit() { const n = ((await this.ctx.storage.get(\"n\")) ?? 0) + 1; await this.ctx.storage.put(\"n\", n); return n; } }\nexport default { async fetch(request, env) { const url = new URL(request.url);\n  if (url.pathname === \"/api/hold\") return Response.json({ held: await env.SLOTS.get(env.SLOTS.idFromName(url.searchParams.get(\"slot\"))).hold(url.searchParams.get(\"slot\"), Date.now() + 600000) });\n  await env.VISITS.get(env.VISITS.idFromName(\"site\")).hit(); return env.ASSETS.fetch(request); } };"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ]
+  },
+  {
+   "name": "The public brochure becomes a separate static Worker, leaving the booking application intact",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ],
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "{\"assets\": {\"jwt\": \"{brochure_done}\", \"config\": {\"html_handling\": \"auto-trailing-slash\", \"not_found_handling\": \"404-page\", \"_redirects\": \"# Addresses printed in old flyers\\n/old-about /about 301\\nhttps://www.kiln.media/offer https://www.kiln.media/about 302\\n/signup https://book.kiln.media/start?from=site#booking 302\\n/journal/old/* /journal/:splat 301\\n/team/:person /about#person-:person 302\\n/preview /about 200\\n\", \"_headers\": \"# Kiln site policy\\n/*\\n  X-Kiln-Site: brochure\\n  X-Robots-Tag: index\\n  X-Robots-Tag: follow\\n  ! Cache-Control\\n/journal/*\\n  X-Kiln-Section: journal/:splat\\n  X-Kiln-Site: journal\\nhttps://www.kiln.media/about\\n  X-Kiln-Page: about\\n\"}}, \"compatibility_date\": \"2026-01-15\"}"
+     }
+    ]
+   }
+  },
+  {
+   "name": "The brochure release assigns its service tag and logging configuration",
+   "method": "PATCH",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/script-settings",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "body": {
+    "tags": [
+     "kiln",
+     "brochure"
+    ],
+    "logpush": true,
+    "observability": {
+     "enabled": true
+    },
+    "tail_consumers": [
+     {
+      "service": "kiln-site"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "result.tags",
+     "equals": [
+      "kiln",
+      "brochure"
+     ]
+    },
+    {
+     "path": "result.logpush",
+     "equals": true
+    },
+    {
+     "path": "result.observability.enabled",
+     "equals": true
+    },
+    {
+     "path": "result.tail_consumers.0.service",
+     "equals": "kiln-site"
+    }
+   ]
+  },
+  {
+   "name": "The operator reads back the settings that are independent of the version",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/script-settings",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.tags",
+     "equals": [
+      "kiln",
+      "brochure"
+     ]
+    },
+    {
+     "path": "result.logpush",
+     "equals": true
+    },
+    {
+     "path": "result.tail_consumers.0.service",
+     "equals": "kiln-site"
+    }
+   ]
+  },
+  {
+   "name": "A brochure-only launch hostname is attached during preparation",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "body": {
+    "hostname": "launch.kiln.media",
+    "service": "kiln-brochure",
+    "zone_name": "kiln.media"
+   },
+   "expect": [
+    {
+     "path": "result.hostname",
+     "equals": "launch.kiln.media"
+    },
+    {
+     "path": "result.service",
+     "equals": "kiln-brochure"
+    }
+   ],
+   "capture": {
+    "launch_domain": "result.id"
+   }
+  },
+  {
+   "name": "wrangler previews the cutover: move www from the booking Worker and remove the launch hostname",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/domains/changeset?replace_state=true",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "body": [
+    {
+     "hostname": "www.kiln.media",
+     "zone_name": "kiln.media",
+     "previews_enabled": true
+    }
+   ],
+   "expect": [
+    {
+     "path": "result.updated.0.hostname",
+     "equals": "www.kiln.media"
+    },
+    {
+     "path": "result.updated.0.modified",
+     "equals": true
+    },
+    {
+     "path": "result.removed.0.hostname",
+     "equals": "launch.kiln.media"
+    },
+    {
+     "path": "result.conflicting",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "wrangler reads the origin it would move before asking Mina to replace it",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains/records/{website_domain}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.service",
+     "equals": "kiln-site"
+    },
+    {
+     "path": "result.hostname",
+     "equals": "www.kiln.media"
+    }
+   ]
+  },
+  {
+   "name": "Mina approves moving www to the brochure and replacing its launch origins",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/domains/records",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "body": {
+    "origins": [
+     {
+      "hostname": "www.kiln.media",
+      "zone_name": "kiln.media",
+      "previews_enabled": true
+     }
+    ],
+    "override_scope": true,
+    "override_existing_origin": true,
+    "override_existing_dns_record": false
+   },
+   "expect": [
+    {
+     "path": "result.0.hostname",
+     "equals": "www.kiln.media"
+    },
+    {
+     "path": "result.0.service",
+     "equals": "kiln-brochure"
+    }
+   ]
+  },
+  {
+   "name": "The account inventory confirms the brochure has only its public website domain",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains?service=kiln-brochure&zone_name=kiln.media&hostname=www.kiln.media",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.0.hostname",
+     "equals": "www.kiln.media"
+    },
+    {
+     "path": "result.0.service",
+     "equals": "kiln-brochure"
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The retired launch origin can no longer be read",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains/{launch_domain}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Mina temporarily attaches a review hostname without specifying a zone; its owning zone is found",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "body": {
+    "hostname": "review.kiln.media",
+    "service": "kiln-brochure"
+   },
+   "expect": [
+    {
+     "path": "result.hostname",
+     "equals": "review.kiln.media"
+    }
+   ],
+   "capture": {
+    "review_domain": "result.id"
+   }
+  },
+  {
+   "name": "After approval she detaches the review hostname",
+   "method": "DELETE",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/domains/{review_domain}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "Mina follows Cloudflare\u2019s documentation link to her account\u2019s Workers & Pages",
+   "method": "GET",
+   "path": "https://dash.cloudflare.com/?to=/:account/workers-and-pages",
+   "headers": {
+    "cookie": "cf_session={mina_session}"
+   },
+   "status": 302,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/{account_id}/workers-and-pages"
+    }
+   ]
+  },
+  {
+   "name": "Her dashboard lists the booking Worker and the brochure with its public domain",
+   "method": "GET",
+   "path": "https://dash.cloudflare.com/{account_id}/workers-and-pages",
+   "headers": {
+    "cookie": "cf_session={mina_session}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "kiln-site"
+    },
+    {
+     "path": "",
+     "contains": "kiln-brochure"
+    },
+    {
+     "path": "",
+     "contains": "www.kiln.media"
+    }
+   ]
+  },
+  {
+   "name": "She opens the brochure\u2019s public domain from the dashboard",
+   "method": "GET",
+   "path": "https://www.kiln.media/",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln"
+    }
+   ]
+  },
+  {
+   "name": "Ana opens the about link on the brochure",
+   "method": "GET",
+   "path": "https://www.kiln.media/about",
+   "status": 200,
+   "expect": [
+    {
+     "header": "x-kiln-page",
+     "equals": "about"
+    },
+    {
+     "path": "",
+     "contains": "About Kiln"
+    }
+   ]
+  },
+  {
+   "name": "Jo\u2019s bookmarked HTML filename redirects to the about page",
+   "method": "GET",
+   "path": "https://www.kiln.media/about.html?from=mail",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about?from=mail"
+    }
+   ]
+  },
+  {
+   "name": "A directory-shaped old about bookmark redirects to the same page",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about"
+    }
+   ]
+  },
+  {
+   "name": "An old export\u2019s index link redirects to the flat about page",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/index",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about"
+    }
+   ]
+  },
+  {
+   "name": "The old index.html link for about also reaches its canonical URL",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/index.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about"
+    }
+   ]
+  },
+  {
+   "name": "The journal link resolves its directory index",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/",
+   "status": 200,
+   "expect": [
+    {
+     "header": "x-kiln-section",
+     "equals": "journal/"
+    },
+    {
+     "path": "",
+     "contains": "Kiln journal"
+    }
+   ]
+  },
+  {
+   "name": "A visitor follows the journal without its trailing slash",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/"
+    }
+   ]
+  },
+  {
+   "name": "The old journal index bookmark redirects to the journal",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/index",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/"
+    }
+   ]
+  },
+  {
+   "name": "The exported journal filename redirects to the journal",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/index.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/"
+    }
+   ]
+  },
+  {
+   "name": "The guide\u2019s explicit folder still has its own directory index",
+   "method": "GET",
+   "path": "https://www.kiln.media/guide/",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "guide directory"
+    }
+   ]
+  },
+  {
+   "name": "The printed flyer\u2019s former about address forwards to the new page",
+   "method": "GET",
+   "path": "https://www.kiln.media/old-about?flyer=jan",
+   "status": 301,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about?flyer=jan"
+    }
+   ]
+  },
+  {
+   "name": "An obsolete host-qualified redirect is ignored by the SDK parser; the offer address shows the branded 404",
+   "method": "GET",
+   "path": "https://www.kiln.media/offer?offer=winter",
+   "status": 404,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln page not found"
+    }
+   ]
+  },
+  {
+   "name": "The sign-up link leaves for the booking host with its own campaign query",
+   "method": "GET",
+   "path": "https://www.kiln.media/signup?old=flyer",
+   "status": 302,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "https://book.kiln.media/start?from=site#booking"
+    }
+   ]
+  },
+  {
+   "name": "An old journal campaign URL preserves the rest of its path",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/old/issue-one?utm=mail",
+   "status": 301,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/issue-one?utm=mail"
+    }
+   ]
+  },
+  {
+   "name": "The former team page keeps the person anchor at the about page",
+   "method": "GET",
+   "path": "https://www.kiln.media/team/mina",
+   "status": 302,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about#person-mina"
+    }
+   ]
+  },
+  {
+   "name": "The review link proxies the about file while keeping the review URL",
+   "method": "GET",
+   "path": "https://www.kiln.media/preview",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "About Kiln"
+    }
+   ]
+  },
+  {
+   "name": "A journal article removed from the export shows the journal\u2019s own 404 page",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/retired/article",
+   "status": 404,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Journal page not found"
+    }
+   ]
+  },
+  {
+   "name": "A misspelled top-level page shows Kiln\u2019s branded not-found page",
+   "method": "GET",
+   "path": "https://www.kiln.media/abotu",
+   "status": 404,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln page not found"
+    }
+   ]
+  },
+  {
+   "name": "A browser revalidates the home page ETag after opening it",
+   "method": "GET",
+   "path": "https://www.kiln.media/",
+   "status": 304,
+   "headers": {
+    "if-none-match": "\"74747fc4b2f9131a7175d932d3fd80df\""
+   },
+   "expect": []
+  },
+  {
+   "name": "A download preview uses HEAD and sees the exported content type",
+   "method": "HEAD",
+   "path": "https://www.kiln.media/downloads/readme.txt",
+   "status": 200,
+   "headers": {
+    "range": "bytes=0-10"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "text/plain"
+    }
+   ]
+  },
+  {
+   "name": "She first types the studio's old media domain, media.kiln.studio, which is no zone of the account: refused",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/buckets/kiln-public/domains/custom",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "domain": "media.kiln.studio",
+    "zoneId": "{zone_id}",
+    "enabled": true
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "She attaches assets.kiln.media to kiln-public: pending until its record is seen",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/buckets/kiln-public/domains/custom",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "domain": "assets.kiln.media",
+    "zoneId": "{zone_id}",
+    "enabled": true,
+    "minTLS": "1.2"
+   },
+   "expect": [
+    {
+     "path": "result.domain",
+     "equals": "assets.kiln.media"
+    },
+    {
+     "path": "result.enabled",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The domain's CNAME to the bucket is published",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/_twin/dns",
+   "body": {
+    "name": "assets.kiln.media",
+    "type": "CNAME",
+    "value": "kiln-public.{account_id}.r2.cloudflarestorage.com"
+   },
+   "status": 201
+  },
+  {
+   "name": "The World's router reads the hosts the twin claims, and learns assets.kiln.media",
+   "method": "GET",
+   "path": "https://dash.cloudflare.com/_twin/hosts",
+   "expect": [
+    {
+     "path": "hosts",
+     "equals": [
+      "assets.kiln.media",
+      "kiln-site.kiln.workers.dev",
+      "www.kiln.media"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Thursday 15 January, 10:20: Kiln's link app uploads its first logo",
+   "wait": "20m"
+  },
+  {
+   "name": "Dub's storage uploads the logo to the public bucket with its type and length",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/logos/kiln.png",
+   "headers": {
+    "content-type": "image/png",
+    "content-length": "79"
+   },
+   "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggmtpbG4tbG9nbw==",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"5036821dc3d7e3a739cf0bfd0b4ef079\""
+    }
+   ]
+  },
+  {
+   "name": "The app embeds the public logo from app.kiln.media; its custom-domain response exposes ETag through CORS",
+   "method": "GET",
+   "path": "https://assets.kiln.media/logos/kiln.png",
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "image/png"
+    },
+    {
+     "header": "content-length",
+     "equals": "79"
+    },
+    {
+     "header": "access-control-allow-origin",
+     "equals": "https://app.kiln.media"
+    },
+    {
+     "header": "access-control-expose-headers",
+     "contains": "ETag"
+    }
+   ],
+   "headers": {
+    "origin": "https://app.kiln.media"
+   }
+  },
+  {
+   "name": "On the upload's notification the app reads the object's head: its type, size and ETag",
+   "method": "HEAD",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/logos/kiln.png",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "image/png"
+    },
+    {
+     "header": "etag",
+     "equals": "\"5036821dc3d7e3a739cf0bfd0b4ef079\""
+    }
+   ]
+  },
+  {
+   "name": "\u2026and its first bytes, to check they are a PNG",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/logos/kiln.png",
+   "headers": {
+    "range": "bytes=0-4099"
+   },
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 206,
+   "expect": [
+    {
+     "header": "content-range",
+     "equals": "bytes 0-78/79"
+    }
+   ]
+  },
+  {
+   "name": "A misnamed key has no head",
+   "method": "HEAD",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/logos/kiln.jpg",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 404
+  },
+  {
+   "name": "Tuesday 20 January, 14:00: Ana uploads a flyer from the link app in her browser",
+   "wait": "7420m"
+  },
+  {
+   "name": "Her browser asks first whether app.kiln.media may PUT there (the CORS preflight)",
+   "method": "OPTIONS",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/flyers/spring-open-studio.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260120%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260120T140000Z&X-Amz-Expires=600&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost&X-Amz-Signature=0000",
+   "headers": {
+    "origin": "https://app.kiln.media",
+    "access-control-request-method": "PUT",
+    "access-control-request-headers": "content-type"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "header": "access-control-allow-origin",
+     "equals": "https://app.kiln.media"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and PUTs the file to the ten-minute URL the server signed with its type and length",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/flyers/spring-open-studio.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260120%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260120T140000Z&X-Amz-Expires=600&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost&X-Amz-Signature=0000",
+   "headers": {
+    "origin": "https://app.kiln.media",
+    "content-type": "image/png",
+    "content-length": "85"
+   },
+   "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggmtpbG4tZmx5ZXItMjAyNg==",
+   "presign": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"45aac128b2524bcb56b83fea528d967c\""
+    },
+    {
+     "header": "access-control-allow-origin",
+     "equals": "https://app.kiln.media"
+    }
+   ]
+  },
+  {
+   "name": "Jo, Ana's colleague, uploads a second flyer from the upload page she bookmarked at the studio's old address, kiln.studio: the bucket's CORS rule names only app.kiln.media, so her browser's preflight is refused",
+   "method": "OPTIONS",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/flyers/summer-open-studio.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260120%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260120T140000Z&X-Amz-Expires=600&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost&X-Amz-Signature=0000",
+   "headers": {
+    "origin": "https://kiln.studio",
+    "access-control-request-method": "PUT",
+    "access-control-request-headers": "content-type"
+   },
+   "status": 403,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "AccessForbidden"
+    },
+    {
+     "header": "access-control-allow-origin",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Postiz's simple upload puts a post's image with its sniffed type, the AWS SDK adding its default CRC32 checksum, which R2 checks and answers",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/aZ81kQ3vXp.png",
+   "headers": {
+    "content-type": "image/png",
+    "x-amz-checksum-crc32": "9INwYA==",
+    "x-amz-sdk-checksum-algorithm": "CRC32"
+   },
+   "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggnBvc3Rpei1sYXVuY2gtcG9zdA==",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"6732c43c81a53214bd0d24c54e256c75\""
+    },
+    {
+     "header": "x-amz-checksum-crc32",
+     "equals": "9INwYA=="
+    }
+   ]
+  },
+  {
+   "name": "Monday 2 February, 09:00: Mina exports January's links",
+   "wait": "18420m"
+  },
+  {
+   "name": "The export is written to the private bucket",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-private/exports/links-2026-01.csv",
+   "headers": {
+    "content-type": "text/csv"
+   },
+   "body": "link,clicks\nhttps://kiln.media/spring,412\nhttps://kiln.media/open-studio,95\n",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"0269aa377accb3865eb287be34452ca0\""
+    }
+   ]
+  },
+  {
+   "name": "Her browser downloads it through the ten-minute link the app signed",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-private/exports/links-2026-01.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260202%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260202T090000Z&X-Amz-Expires=600&X-Amz-SignedHeaders=host&X-Amz-Signature=0000",
+   "presign": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "text/csv"
+    },
+    {
+     "path": "",
+     "contains": "open-studio,95"
+    }
+   ]
+  },
+  {
+   "name": "Monday 2 February, 09:30: she opens the same link from her email half an hour later",
+   "wait": "30m"
+  },
+  {
+   "name": "The link has expired, and R2 refuses it",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-private/exports/links-2026-01.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260202%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260202T090000Z&X-Amz-Expires=600&X-Amz-SignedHeaders=host&X-Amz-Signature=0000",
+   "presign": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}"
+   },
+   "status": 403,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "ExpiredRequest"
+    }
+   ]
+  },
+  {
+   "name": "The flyer is retired: deleted",
+   "method": "DELETE",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/flyers/spring-open-studio.png",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 204
+  },
+  {
+   "name": "\u2026and gone",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/flyers/spring-open-studio.png",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "NoSuchKey"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 10 February, 15:00: Kiln posts its studio tour video through Postiz",
+   "wait": "11850m"
+  },
+  {
+   "name": "Postiz starts a multipart upload with the video's type and its hash",
+   "method": "POST",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Tq9vB2mXa7LkP0sWdE4r.mp4?uploads",
+   "headers": {
+    "content-type": "video/mp4",
+    "x-amz-meta-x-amz-meta-file-hash": "a3f9c1"
+   },
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "capture": {
+    "upload1": "UploadId"
+   },
+   "expect": [
+    {
+     "path": "Key",
+     "equals": "Tq9vB2mXa7LkP0sWdE4r.mp4"
+    },
+    {
+     "path": "Bucket",
+     "equals": "kiln-public"
+    }
+   ]
+  },
+  {
+   "name": "The browser PUTs part 1 to the URL Postiz presigned for it",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Tq9vB2mXa7LkP0sWdE4r.mp4?partNumber=1&uploadId={upload1}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260210%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260210T150000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=0000",
+   "headers": {
+    "origin": "https://app.kiln.media"
+   },
+   "bodyBase64": "AAAAGGZ0eXBtcDQyZmlyc3QtcGFydC1vZi10aGUtc3R1ZGlvLXRvdXI=",
+   "presign": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}"
+   },
+   "capture": {
+    "etag1": "header:etag"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"dfae3354a700f4b72cb4a718bab32d3c\""
+    }
+   ]
+  },
+  {
+   "name": "The browser PUTs part 2 to the URL Postiz presigned for it",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Tq9vB2mXa7LkP0sWdE4r.mp4?partNumber=2&uploadId={upload1}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260210%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260210T150000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=0000",
+   "headers": {
+    "origin": "https://app.kiln.media"
+   },
+   "bodyBase64": "c2Vjb25kLXBhcnQtb2YtdGhlLXN0dWRpby10b3Vy",
+   "presign": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}"
+   },
+   "capture": {
+    "etag2": "header:etag"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"5388c9bd77c52d26793b4cc3028c050b\""
+    }
+   ]
+  },
+  {
+   "name": "Completing two parts the first of which is under 5 MiB is refused",
+   "method": "POST",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Tq9vB2mXa7LkP0sWdE4r.mp4?uploadId={upload1}",
+   "headers": {
+    "content-type": "application/xml"
+   },
+   "body": "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{etag1}</ETag></Part><Part><PartNumber>2</PartNumber><ETag>{etag2}</ETag></Part></CompleteMultipartUpload>",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "EntityTooSmall"
+    }
+   ]
+  },
+  {
+   "name": "Postiz aborts that upload",
+   "method": "DELETE",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Tq9vB2mXa7LkP0sWdE4r.mp4?uploadId={upload1}",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 204
+  },
+  {
+   "name": "\u2026and its parts can no longer be listed",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Tq9vB2mXa7LkP0sWdE4r.mp4?uploadId={upload1}",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "NoSuchUpload"
+    }
+   ]
+  },
+  {
+   "name": "It starts again, for the video in one part",
+   "method": "POST",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Hc7wQn2LsY0pRtV5eK8z.mp4?uploads",
+   "headers": {
+    "content-type": "video/mp4",
+    "x-amz-meta-x-amz-meta-file-hash": "b71d02"
+   },
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "capture": {
+    "upload2": "UploadId"
+   },
+   "expect": [
+    {
+     "path": "Key",
+     "equals": "Hc7wQn2LsY0pRtV5eK8z.mp4"
+    }
+   ]
+  },
+  {
+   "name": "The browser PUTs the part",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Hc7wQn2LsY0pRtV5eK8z.mp4?partNumber=1&uploadId={upload2}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260210%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260210T150000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=0000",
+   "headers": {
+    "origin": "https://app.kiln.media"
+   },
+   "bodyBase64": "AAAAGGZ0eXBtcDQydGhlLXdob2xlLXN0dWRpby10b3VyLWluLW9uZS1wYXJ0",
+   "presign": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}"
+   },
+   "capture": {
+    "etag_v": "header:etag"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"42835f0efc87cce22f92cc389e73336b\""
+    }
+   ]
+  },
+  {
+   "name": "Postiz lists the parts uploaded so far: the one",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Hc7wQn2LsY0pRtV5eK8z.mp4?uploadId={upload2}",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "Part.PartNumber",
+     "equals": "1"
+    },
+    {
+     "path": "Part.Size",
+     "equals": "45"
+    },
+    {
+     "path": "Part.ETag",
+     "equals": "{etag_v}"
+    }
+   ]
+  },
+  {
+   "name": "A vendor-backed refresh would read the bucket's in-progress uploads now: this one alone, the aborted one gone",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?uploads",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "Upload.UploadId",
+     "equals": "{upload2}"
+    },
+    {
+     "path": "Upload.Key",
+     "equals": "Hc7wQn2LsY0pRtV5eK8z.mp4"
+    },
+    {
+     "path": "",
+     "notContains": "{upload1}"
+    }
+   ]
+  },
+  {
+   "name": "It completes the upload from the part's number and ETag",
+   "method": "POST",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Hc7wQn2LsY0pRtV5eK8z.mp4?uploadId={upload2}",
+   "headers": {
+    "content-type": "application/xml"
+   },
+   "body": "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>{etag_v}</ETag></Part></CompleteMultipartUpload>",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "Key",
+     "equals": "Hc7wQn2LsY0pRtV5eK8z.mp4"
+    },
+    {
+     "path": "ETag",
+     "equals": "\"2fd23502efaeb5c6e4502f5a3fcaf074-1\""
+    }
+   ]
+  },
+  {
+   "name": "It reads the video's first bytes back to sniff its type",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Hc7wQn2LsY0pRtV5eK8z.mp4",
+   "headers": {
+    "range": "bytes=0-4100"
+   },
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 206,
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "video/mp4"
+    },
+    {
+     "header": "content-length",
+     "equals": "45"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 10 February, 15:30: Ana posts a long clip of the open studio from her browser",
+   "wait": "30m"
+  },
+  {
+   "name": "Postiz starts the clip's multipart upload with its type and hash",
+   "method": "POST",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Ln4kR8sWq2ZpX6tYv0Bc.mp4?uploads",
+   "headers": {
+    "content-type": "video/mp4",
+    "x-amz-meta-x-amz-meta-file-hash": "c09e17"
+   },
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "capture": {
+    "upload3": "UploadId"
+   },
+   "expect": [
+    {
+     "path": "Key",
+     "equals": "Ln4kR8sWq2ZpX6tYv0Bc.mp4"
+    }
+   ]
+  },
+  {
+   "name": "Her browser PUTs the clip's first part to its presigned URL; then she closes the tab, and nobody finishes or aborts the upload",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Ln4kR8sWq2ZpX6tYv0Bc.mp4?partNumber=1&uploadId={upload3}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={app_akid}%2F20260210%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260210T153000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=0000",
+   "headers": {
+    "origin": "https://app.kiln.media"
+   },
+   "bodyBase64": "AAAAGGZ0eXBtcDQyb3Blbi1zdHVkaW8tY2xpcC1maXJzdC1wYXJ0",
+   "presign": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"9f1238e6e84479b58a61baea655b02b5\""
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 4 March, 17:00: a client review in Kiln's RH2 room is recorded",
+   "wait": "31770m"
+  },
+  {
+   "name": "The media server, configured with the R2 secret pasted with a character missing, cannot write the room's recording: its signature does not match",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-recordings/rooms/rm_k1/op_7f2c.mp4",
+   "headers": {
+    "content-type": "video/mp4"
+   },
+   "bodyBase64": "AAAAHGZ0eXBpczbQAAAAACaXM20AbXA0MW1wNDJraWxuLXJvb20tcmVjb3JkaW5n",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "6f1c0d2e9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "SignatureDoesNotMatch"
+    }
+   ],
+   "status": 403
+  },
+  {
+   "name": "With the secret fixed, the media server writes the room's recording into kiln-recordings",
+   "method": "PUT",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-recordings/rooms/rm_k1/op_7f2c.mp4",
+   "headers": {
+    "content-type": "video/mp4"
+   },
+   "bodyBase64": "AAAAHGZ0eXBpczbQAAAAACaXM20AbXA0MW1wNDJraWxuLXJvb20tcmVjb3JkaW5n",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"3c404b0cd20bfb651e9c6117f6278a3c\""
+    }
+   ]
+  },
+  {
+   "name": "RH2 imports it with the recordings token (aws4fetch, path style): the exact bytes",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-recordings/rooms/rm_k1/op_7f2c.mp4",
+   "sigv4": {
+    "accessKeyId": "{rh2_akid}",
+    "secretAccessKey": "{rh2_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "video/mp4"
+    },
+    {
+     "header": "etag",
+     "equals": "\"3c404b0cd20bfb651e9c6117f6278a3c\""
+    },
+    {
+     "header": "content-length",
+     "equals": "48"
+    }
+   ]
+  },
+  {
+   "name": "The same token cannot read the public bucket",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/logos/kiln.png",
+   "sigv4": {
+    "accessKeyId": "{rh2_akid}",
+    "secretAccessKey": "{rh2_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 403,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "AccessDenied"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 8 April, 11:00: Acme Studio wants Kiln's CRM at its own domain",
+   "wait": "50040m"
+  },
+  {
+   "name": "Kiln's operator gives its CRM's server a Notifications webhook destination, with the secret Twenty checks",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/alerting/v3/destinations/webhooks",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Twenty custom hostnames",
+    "url": "https://crm.kiln.media/webhooks/cloudflare",
+    "secret": "twenty-cf-hooks-2026"
+   },
+   "status": 201,
+   "capture": {
+    "cf_dest": "result.id"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "\u2026and a policy sending it the SSL for SaaS Custom Hostnames alert",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/alerting/v3/policies",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Custom hostnames to Twenty",
+    "alert_type": "custom_ssl_certificate_event_type",
+    "enabled": true,
+    "mechanisms": {
+     "webhooks": [
+      {
+       "id": "{cf_dest}"
+      }
+     ]
+    }
+   },
+   "capture": {
+    "cf_policy": "result.id"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "A second policy, its destination id copied from another account's docs, names no destination of the account: refused",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/alerting/v3/policies",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Nowhere",
+    "alert_type": "custom_ssl_certificate_event_type",
+    "enabled": true,
+    "mechanisms": {
+     "webhooks": [
+      {
+       "id": "00000000000000000000000000000000"
+      }
+     ]
+    }
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "The app looks for crm.acme-studio.com among the zone's custom hostnames: none",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames?hostname=crm.acme-studio.com",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "It registers the hostname with a TXT-validated certificate: pending, with the ownership and validation records Acme must publish",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "hostname": "crm.acme-studio.com",
+    "ssl": {
+     "method": "txt",
+     "type": "dv",
+     "settings": {
+      "http2": "on",
+      "min_tls_version": "1.2",
+      "tls_1_3": "on",
+      "ciphers": [
+       "ECDHE-RSA-AES128-GCM-SHA256",
+       "AES128-SHA"
+      ],
+      "early_hints": "on"
+     },
+     "bundle_method": "ubiquitous",
+     "wildcard": false
+    }
+   },
+   "capture": {
+    "acme_id": "result.id",
+    "acme_txt_name": "result.ssl.validation_records.0.txt_name",
+    "acme_txt_value": "result.ssl.validation_records.0.txt_value"
+   },
+   "expect": [
+    {
+     "path": "result.status",
+     "equals": "pending"
+    },
+    {
+     "path": "result.ssl.status",
+     "equals": "pending_validation"
+    },
+    {
+     "path": "result.ssl.method",
+     "equals": "txt"
+    }
+   ]
+  },
+  {
+   "name": "The settings page finds it by hostname: pending, not yet CNAMEd to the zone",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames?hostname=crm.acme-studio.com",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.id",
+     "equals": "{acme_id}"
+    },
+    {
+     "path": "result.0.verification_errors.0",
+     "equals": "custom hostname does not CNAME to this zone."
+    }
+   ]
+  },
+  {
+   "name": "Acme's admin asks whether it is ready before publishing anything: the app re-checks by sending its ssl again, and the certificate stays pending validation, the same TXT to publish",
+   "method": "PATCH",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames/{acme_id}",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "ssl": {
+     "method": "txt",
+     "type": "dv",
+     "settings": {
+      "http2": "on",
+      "min_tls_version": "1.2",
+      "tls_1_3": "on",
+      "ciphers": [
+       "ECDHE-RSA-AES128-GCM-SHA256",
+       "AES128-SHA"
+      ],
+      "early_hints": "on"
+     },
+     "bundle_method": "ubiquitous",
+     "wildcard": false
+    }
+   },
+   "expect": [
+    {
+     "path": "result.ssl.status",
+     "equals": "pending_validation"
+    },
+    {
+     "path": "result.status",
+     "equals": "pending"
+    },
+    {
+     "path": "result.ssl.validation_records.0.txt_value",
+     "equals": "{acme_txt_value}"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 9 April, 10:00: Acme's admin publishes the records at their DNS host",
+   "wait": "1380m"
+  },
+  {
+   "name": "The CNAME to Kiln's zone",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/_twin/dns",
+   "body": {
+    "name": "crm.acme-studio.com",
+    "type": "CNAME",
+    "value": "kiln.media"
+   },
+   "status": 201
+  },
+  {
+   "name": "\u2026and the certificate's TXT",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/_twin/dns",
+   "body": {
+    "name": "{acme_txt_name}",
+    "type": "TXT",
+    "value": "{acme_txt_value}"
+   },
+   "status": 201
+  },
+  {
+   "name": "The app's check finds the hostname and its certificate active",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames?hostname=crm.acme-studio.com",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.status",
+     "equals": "active"
+    },
+    {
+     "path": "result.0.ssl.status",
+     "equals": "active"
+    }
+   ]
+  },
+  {
+   "name": "Cloudflare's Notifications told Twenty's server the certificate was validated, issued and deployed, the destination's secret in cf-webhook-auth",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/_twin/deliveries?to=https://crm.kiln.media/webhooks/cloudflare",
+   "expect": [
+    {
+     "path": "data.0.type",
+     "equals": "ssl.custom_hostname_certificate.validation.succeeded"
+    },
+    {
+     "path": "data.1.type",
+     "equals": "ssl.custom_hostname_certificate.issuance.succeeded"
+    },
+    {
+     "path": "data.2.type",
+     "equals": "ssl.custom_hostname_certificate.deployment.succeeded"
+    },
+    {
+     "path": "data.2.headers.cf-webhook-auth",
+     "equals": "twenty-cf-hooks-2026"
+    },
+    {
+     "path": "data.2.body.data.data.hostname",
+     "equals": "crm.acme-studio.com"
+    },
+    {
+     "path": "data.2.body.data.metadata.zone.id",
+     "equals": "{zone_id}"
+    },
+    {
+     "path": "data.2.body.data.data.ssl.status",
+     "equals": "active"
+    },
+    {
+     "path": "data.2.body.alert_type",
+     "equals": "custom_ssl_certificate_event_type"
+    },
+    {
+     "path": "data.2.body.policy_id",
+     "equals": "{cf_policy}"
+    },
+    {
+     "path": "data.3",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Refreshing its validation by sending the same ssl changes nothing while it is active",
+   "method": "PATCH",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames/{acme_id}",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "ssl": {
+     "method": "txt",
+     "type": "dv",
+     "settings": {
+      "http2": "on",
+      "min_tls_version": "1.2",
+      "tls_1_3": "on",
+      "ciphers": [
+       "ECDHE-RSA-AES128-GCM-SHA256",
+       "AES128-SHA"
+      ],
+      "early_hints": "on"
+     },
+     "bundle_method": "ubiquitous",
+     "wildcard": false
+    }
+   },
+   "expect": [
+    {
+     "path": "result.ssl.status",
+     "equals": "active"
+    }
+   ]
+  },
+  {
+   "name": "Monday 4 May, 09:00: sign-ups and bookings open, behind Turnstile",
+   "wait": "35940m"
+  },
+  {
+   "name": "The May brochure export switches to directory URLs: open a session for the unchanged export",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/assets-upload-session",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "74747fc4b2f9131a7175d932d3fd80df",
+      "size": 54
+     },
+     "/about.html": {
+      "hash": "a047e5cf409b5071d69c4f3eb2ba7482",
+      "size": 19
+     },
+     "/journal/index.html": {
+      "hash": "85780fdc6a2a9399af9a624caa2ae673",
+      "size": 21
+     },
+     "/404.html": {
+      "hash": "3622f59cd55adf5c184d31caf163ea1c",
+      "size": 28
+     },
+     "/journal/404.html": {
+      "hash": "c40ccba58b4851be3f94b9abdfb1948a",
+      "size": 31
+     },
+     "/downloads/readme.txt": {
+      "hash": "c7a11b5642353c6f7b32cc59128759ad",
+      "size": 26
+     },
+     "/guide.html": {
+      "hash": "7feebc313fdc74ef05a599ffc5c06e3e",
+      "size": 19
+     },
+     "/guide/index.html": {
+      "hash": "95536c58826d88b1259df1cd7ff2c079",
+      "size": 29
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "result.buckets",
+     "equals": []
+    }
+   ],
+   "capture": {
+    "may_jwt": "result.jwt"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ],
+   "name": "The May booking build adapter loses its metadata part; Cloudflare refuses the upload",
+   "form": {
+    "parts": [
+     {
+      "name": "index.js",
+      "filename": "index.js",
+      "type": "application/javascript+module",
+      "value": "export default { async fetch(request, env) { return env.ASSETS.fetch(request); } };"
+     }
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ],
+   "name": "Its retry serializes the metadata as a list; Cloudflare requires a metadata object",
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "[]"
+     },
+     {
+      "name": "index.js",
+      "filename": "index.js",
+      "type": "application/javascript+module",
+      "value": "export default { async fetch(request, env) { return env.ASSETS.fetch(request); } };"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Mina checks that the failed adapter serialization has left the deployed versions alone",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.items.0.number",
+     "equals": 2
+    },
+    {
+     "path": "result.items.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ],
+   "name": "The corrected object still omits its entry-point name; a code version cannot be uploaded",
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "{\"keep_assets\":true,\"compatibility_date\":\"2026-05-04\"}"
+     },
+     {
+      "name": "index.js",
+      "filename": "index.js",
+      "type": "application/javascript+module",
+      "value": "export default { async fetch(request, env) { return env.ASSETS.fetch(request); } };"
+     }
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ],
+   "name": "The named entry-point file is missing from the build artifact; the upload is refused",
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "{\"main_module\":\"index.js\",\"keep_assets\":true,\"compatibility_date\":\"2026-05-04\"}"
+     }
+    ]
+   }
+  },
+  {
+   "name": "The refused booking build attempts have created no version",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.items.0.number",
+     "equals": 2
+    },
+    {
+     "path": "result.items.2",
+     "exists": false
+    }
+   ],
+   "capture": {
+    "prior_booking_version": "result.items.0.id"
+   }
+  },
+  {
+   "name": "The booking build names its R2 binding but loses bucket_name; the version upload is refused",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 400,
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "type": "application/json",
+      "value": "{\"main_module\": \"index.js\", \"compatibility_date\": \"2026-05-04\", \"bindings\": [{\"name\": \"CACHE\", \"type\": \"r2_bucket\"}, {\"name\": \"ASSETS\", \"type\": \"assets\"}, {\"name\": \"SLOTS\", \"type\": \"durable_object_namespace\", \"class_name\": \"SlotHold\"}, {\"name\": \"VISITS\", \"type\": \"durable_object_namespace\", \"class_name\": \"VisitorCounter\"}], \"observability\": {\"enabled\": true}, \"keep_assets\": true}"
+     },
+     {
+      "name": "index.js",
+      "filename": "index.js",
+      "type": "application/javascript+module",
+      "value": "import { DurableObject } from \"cloudflare:workers\";\nexport class SlotHold extends DurableObject { async hold(slot, until) { await this.ctx.storage.put(slot, until); return true; } }\nexport class VisitorCounter extends DurableObject { async hit() { const n = ((await this.ctx.storage.get(\"n\")) ?? 0) + 1; await this.ctx.storage.put(\"n\", n); return n; } }\nexport default { async fetch(request, env) { const url = new URL(request.url);\n  if (url.pathname === \"/api/hold\") return Response.json({ held: await env.SLOTS.get(env.SLOTS.idFromName(url.searchParams.get(\"slot\"))).hold(url.searchParams.get(\"slot\"), Date.now() + 600000) });\n  await env.VISITS.get(env.VISITS.idFromName(\"site\")).hit(); return env.ASSETS.fetch(request); } };"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ]
+  },
+  {
+   "name": "The repaired May booking build sends the entry point and matching module, staging a valid version for review without changing production",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "status": 200,
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "type": "application/json",
+      "value": "{\"main_module\":\"index.js\",\"compatibility_date\":\"2026-05-04\",\"bindings\":[{\"name\":\"CACHE\",\"type\":\"r2_bucket\",\"bucket_name\":\"kiln-site-cache\"},{\"name\":\"ASSETS\",\"type\":\"assets\"},{\"name\":\"SLOTS\",\"type\":\"durable_object_namespace\",\"class_name\":\"SlotHold\"},{\"name\":\"VISITS\",\"type\":\"durable_object_namespace\",\"class_name\":\"VisitorCounter\"}],\"observability\":{\"enabled\":true},\"keep_assets\":true}"
+     },
+     {
+      "name": "index.js",
+      "filename": "index.js",
+      "type": "application/javascript+module",
+      "value": "import { DurableObject } from \"cloudflare:workers\";\nexport class SlotHold extends DurableObject { async hold(slot, until) { await this.ctx.storage.put(slot, until); return true; } }\nexport class VisitorCounter extends DurableObject { async hit() { const n = ((await this.ctx.storage.get(\"n\")) ?? 0) + 1; await this.ctx.storage.put(\"n\", n); return n; } }\nexport default { async fetch(request, env) { const url = new URL(request.url);\n  if (url.pathname === \"/api/hold\") return Response.json({ held: await env.SLOTS.get(env.SLOTS.idFromName(url.searchParams.get(\"slot\"))).hold(url.searchParams.get(\"slot\"), Date.now() + 600000) });\n  await env.VISITS.get(env.VISITS.idFromName(\"site\")).hit(); return env.ASSETS.fetch(request); } };"
+     }
+    ]
+   },
+   "capture": {
+    "may_booking_version": "result.id"
+   },
+   "expect": [
+    {
+     "path": "result.number",
+     "equals": 3
+    }
+   ]
+  },
+  {
+   "name": "Mina inspects the staged code version before the June migration rebuild",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions/{may_booking_version}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.id",
+     "equals": "{may_booking_version}"
+    },
+    {
+     "path": "result.resources.script_runtime.compatibility_date",
+     "equals": "2026-05-04"
+    }
+   ]
+  },
+  {
+   "name": "The booking rollout adapter calculates negative old traffic and 101 percent new traffic; Cloudflare refuses the deployment",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/deployments",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "strategy": "percentage",
+    "versions": [
+     {
+      "version_id": "{prior_booking_version}",
+      "percentage": -1
+     },
+     {
+      "version_id": "{may_booking_version}",
+      "percentage": 101
+     }
+    ]
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ]
+  },
+  {
+   "name": "Mina verifies that the refused rollout left the production deployment and traffic untouched",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/deployments",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "expect": [
+    {
+     "path": "result.deployments.0.versions.0.version_id",
+     "equals": "{prior_booking_version}"
+    },
+    {
+     "path": "result.deployments.0.versions.0.percentage",
+     "equals": 100
+    },
+    {
+     "path": "result.deployments.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The adapter then proposes a 0.001 percent canary below the API minimum; that deployment is refused too",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/deployments",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "strategy": "percentage",
+    "versions": [
+     {
+      "version_id": "{prior_booking_version}",
+      "percentage": 99.999
+     },
+     {
+      "version_id": "{may_booking_version}",
+      "percentage": 0.001
+     }
+    ]
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10021
+    }
+   ]
+  },
+  {
+   "name": "The May brochure export switches to directory URLs: upload the new routing configuration without deploying it",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/versions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ],
+   "capture": {
+    "may_version": "result.id"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "{\"assets\": {\"jwt\": \"{may_jwt}\", \"config\": {\"html_handling\": \"force-trailing-slash\", \"not_found_handling\": \"404-page\", \"_redirects\": \"# Addresses printed in old flyers\\n/old-about /about 301\\nhttps://www.kiln.media/offer https://www.kiln.media/about 302\\n/signup https://book.kiln.media/start?from=site#booking 302\\n/journal/old/* /journal/:splat 301\\n/team/:person /about#person-:person 302\\n/preview /about 200\\n\", \"_headers\": \"# Kiln site policy\\n/*\\n  X-Kiln-Site: brochure\\n  X-Robots-Tag: index\\n  X-Robots-Tag: follow\\n  ! Cache-Control\\n/journal/*\\n  X-Kiln-Section: journal/:splat\\n  X-Kiln-Site: journal\\nhttps://www.kiln.media/about\\n  X-Kiln-Page: about\\n\"}}, \"compatibility_date\": \"2026-01-15\"}"
+     }
+    ]
+   }
+  },
+  {
+   "name": "The May release adapter omits the deployment strategy; traffic cannot be changed",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/deployments",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "versions": [
+     {
+      "version_id": "{may_version}",
+      "percentage": 100
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10221
+    }
+   ]
+  },
+  {
+   "name": "The release adapter then loses the version percentage; that incomplete deployment is refused",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/deployments",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "strategy": "percentage",
+    "versions": [
+     {
+      "version_id": "{may_version}"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "errors.0.code",
+     "equals": 10221
+    }
+   ]
+  },
+  {
+   "name": "The May brochure export switches to directory URLs: send the approved version the traffic",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/deployments",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "strategy": "percentage",
+    "versions": [
+     {
+      "version_id": "{may_version}",
+      "percentage": 100
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "result.versions.0.version_id",
+     "equals": "{may_version}"
+    }
+   ]
+  },
+  {
+   "name": "The new about link is the folder URL",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "About Kiln"
+    }
+   ]
+  },
+  {
+   "name": "The former flat about URL reaches the new directory URL",
+   "method": "GET",
+   "path": "https://www.kiln.media/about",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about/"
+    }
+   ]
+  },
+  {
+   "name": "An exported about filename redirects to its directory",
+   "method": "GET",
+   "path": "https://www.kiln.media/about.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about/"
+    }
+   ]
+  },
+  {
+   "name": "An old about index link redirects to its directory",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/index",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about/"
+    }
+   ]
+  },
+  {
+   "name": "The former about index.html URL redirects to its directory",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/index.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about/"
+    }
+   ]
+  },
+  {
+   "name": "The old journal.html bookmark reaches the directory export",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/"
+    }
+   ]
+  },
+  {
+   "name": "The printed journal URL reaches the directory",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/"
+    }
+   ]
+  },
+  {
+   "name": "The downloaded journal index.html link redirects",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/index.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/"
+    }
+   ]
+  },
+  {
+   "name": "A journal index link from the old generator redirects",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/index",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal/"
+    }
+   ]
+  },
+  {
+   "name": "The export keeps a distinct guide file beside its directory; its download remains the distinct file",
+   "method": "GET",
+   "path": "https://www.kiln.media/guide.html",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln guide"
+    }
+   ]
+  },
+  {
+   "name": "An unrecognized May brochure URL uses the branded 404 page",
+   "method": "GET",
+   "path": "https://www.kiln.media/missing-may",
+   "status": 404,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln page not found"
+    }
+   ]
+  },
+  {
+   "name": "Mina makes a widget for kiln.media: its sitekey and secret",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/challenges/widgets",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Kiln sign-up",
+    "domains": [
+     "kiln.media"
+    ],
+    "mode": "managed"
+   },
+   "capture": {
+    "sitekey": "result.sitekey",
+    "ts_secret": "result.secret"
+   },
+   "expect": [
+    {
+     "path": "result.mode",
+     "equals": "managed"
+    },
+    {
+     "path": "result.domains",
+     "equals": [
+      "kiln.media"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "The sign-up page loads Turnstile's script for explicit rendering",
+   "method": "GET",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit",
+   "expect": [
+    {
+     "path": "",
+     "contains": "turnstile"
+    },
+    {
+     "header": "content-type",
+     "matches": "javascript"
+    }
+   ]
+  },
+  {
+   "name": "The widget's frame on app.kiln.media asks Ana to verify she is human",
+   "method": "GET",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/challenge?sitekey={sitekey}&hostname=app.kiln.media&id=cf-chl-widget-1&action=signup",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Verify you are human"
+    }
+   ]
+  },
+  {
+   "name": "She does; the frame hands the page her token",
+   "method": "POST",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/challenge",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "sitekey={sitekey}&hostname=app.kiln.media&id=cf-chl-widget-1&action=signup&cdata=",
+   "capture": {
+    "ana_token": "text:Token: (0\\.[A-Za-z0-9_-]+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "Success!"
+    }
+   ]
+  },
+  {
+   "name": "The server checks her token at siteverify with the widget's secret: success, solved on app.kiln.media",
+   "method": "POST",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "secret={ts_secret}&response={ana_token}&remoteip=203.0.113.7",
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    },
+    {
+     "path": "hostname",
+     "equals": "app.kiln.media"
+    },
+    {
+     "path": "action",
+     "equals": "signup"
+    }
+   ]
+  },
+  {
+   "name": "A script replays the token: a token is checked once",
+   "method": "POST",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "secret={ts_secret}&response={ana_token}",
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "error-codes",
+     "equals": [
+      "timeout-or-duplicate"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "A copy of the page on a domain the widget does not list cannot render it",
+   "method": "GET",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/challenge?sitekey={sitekey}&hostname=kiln-media.example.net&id=cf-chl-widget-1",
+   "expect": [
+    {
+     "path": "",
+     "contains": "110200"
+    }
+   ]
+  },
+  {
+   "name": "Ben passes the widget on the booking page",
+   "method": "POST",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/challenge",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "sitekey={sitekey}&hostname=book.kiln.media&id=cf-chl-widget-1&action=booking&cdata=",
+   "capture": {
+    "ben_token": "text:Token: (0\\.[A-Za-z0-9_-]+)"
+   }
+  },
+  {
+   "name": "A server configured with a wrong secret is refused",
+   "method": "POST",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "secret=0x4AAAAAAAnotTheWidgetsSecret&response={ben_token}",
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "error-codes",
+     "equals": [
+      "invalid-input-secret"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Monday 4 May, 09:06: Ben leaves the booking form open for six minutes before he sends it",
+   "wait": "6m"
+  },
+  {
+   "name": "His token, checked now, has expired",
+   "method": "POST",
+   "path": "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "secret={ts_secret}&response={ben_token}",
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    },
+    {
+     "path": "error-codes",
+     "equals": [
+      "timeout-or-duplicate"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Monday 1 June, 10:00: Ravi, the contractor who held the repository's deploy token while setting up its workflow, leaves",
+   "wait": "40374m"
+  },
+  {
+   "name": "Mina logs in to the dashboard, bound for My Profile's API Tokens",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/login",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "next=%2Fprofile%2Fapi-tokens&email=mina%40kiln.media&password=kiln-kilns-2026",
+   "status": 302,
+   "capture": {
+    "mina_june": "header:set-cookie:cf_session=([^;]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/profile/api-tokens"
+    }
+   ]
+  },
+  {
+   "name": "She rolls kiln-site-deploy: the page shows its new value once",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/profile/api-tokens",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "cf_session={mina_june}"
+   },
+   "body": "action=roll&token_id={deploy_id}",
+   "capture": {
+    "deploy_token2": "text:New token value \\(shown once\\): (cfut_[A-Za-z0-9_-]+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "New token value (shown once)"
+    }
+   ]
+  },
+  {
+   "name": "The value Ravi held is refused",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+   "headers": {
+    "authorization": "Bearer {deploy_token}"
+   },
+   "status": 401,
+   "expect": [
+    {
+     "path": "success",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "The new value verifies, the same token, before she puts it in the repository's production environment",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+   "headers": {
+    "authorization": "Bearer {deploy_token2}"
+   },
+   "expect": [
+    {
+     "path": "result.status",
+     "equals": "active"
+    },
+    {
+     "path": "result.id",
+     "equals": "{deploy_id}"
+    }
+   ]
+  },
+  {
+   "name": "Monday 15 June, 11:00: a release renames the booking hold and retires the visitor counter, moved to analytics",
+   "wait": "20220m"
+  },
+  {
+   "name": "wrangler reads the latest deployment with the rolled token: the January release, at 100%",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/deployments",
+   "headers": {
+    "authorization": "Bearer {deploy_token2}"
+   },
+   "expect": [
+    {
+     "path": "result.deployments.0.versions.0.percentage",
+     "equals": 100
+    }
+   ]
+  },
+  {
+   "name": "\u2026and the service's migration tag: v1, so the release applies v2 alone",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/services/kiln-site",
+   "headers": {
+    "authorization": "Bearer {deploy_token2}"
+   },
+   "expect": [
+    {
+     "path": "result.default_environment.script.migration_tag",
+     "equals": "v1"
+    }
+   ]
+  },
+  {
+   "name": "The assets have not changed: the session's token is already the completion token",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/assets-upload-session",
+   "headers": {
+    "authorization": "Bearer {deploy_token2}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "b1946ac92492d2347c6235b4d2611184",
+      "size": 47
+     }
+    }
+   },
+   "capture": {
+    "assets_done3": "result.jwt"
+   },
+   "expect": [
+    {
+     "path": "result.buckets",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "It uploads the Worker with the migration from v1 to v2: SlotHold renamed BookingHold, VisitorCounter deleted",
+   "method": "PUT",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site?excludeScript=true&bindings_inherit=strict",
+   "headers": {
+    "authorization": "Bearer {deploy_token2}",
+    "content-type": "multipart/form-data; boundary=----wranglerkiln"
+   },
+   "body": "------wranglerkiln\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{\"main_module\":\"index.js\",\"compatibility_date\":\"2026-06-15\",\"migrations\":{\"old_tag\":\"v1\",\"new_tag\":\"v2\",\"steps\":[{\"renamed_classes\":[{\"from\":\"SlotHold\",\"to\":\"BookingHold\"}],\"deleted_classes\":[\"VisitorCounter\"]}]},\"bindings\":[{\"name\":\"CACHE\",\"type\":\"r2_bucket\",\"bucket_name\":\"kiln-site-cache\"},{\"name\":\"ASSETS\",\"type\":\"assets\"},{\"name\":\"SLOTS\",\"type\":\"durable_object_namespace\",\"class_name\":\"BookingHold\"},{\"name\":\"VISITS_AE\",\"type\":\"analytics_engine\",\"dataset\":\"kiln_visits\"}],\"assets\":{\"jwt\":\"{assets_done3}\",\"config\":{\"html_handling\":\"auto-trailing-slash\"}},\"observability\":{\"enabled\":true}}\r\n------wranglerkiln\r\nContent-Disposition: form-data; name=\"index.js\"; filename=\"index.js\"\r\nContent-Type: application/javascript+module\r\n\r\nimport { DurableObject } from \"cloudflare:workers\";\nexport class BookingHold extends DurableObject { async hold(slot, until) { await this.ctx.storage.put(slot, until); return true; } }\nexport default { async fetch(request, env) { const url = new URL(request.url);\n  if (url.pathname === \"/api/hold\") return Response.json({ held: await env.SLOTS.get(env.SLOTS.idFromName(url.searchParams.get(\"slot\"))).hold(url.searchParams.get(\"slot\"), Date.now() + 600000) });\n  env.VISITS_AE.writeDataPoint({ blobs: [url.pathname] }); return env.ASSETS.fetch(request); } };\r\n------wranglerkiln--\r\n",
+   "expect": [
+    {
+     "path": "result.id",
+     "equals": "kiln-site"
+    },
+    {
+     "path": "result.migration_tag",
+     "equals": "v2"
+    }
+   ]
+  },
+  {
+   "name": "The June redesign adopts extensionless URLs: open a session for the unchanged export",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/assets-upload-session",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "74747fc4b2f9131a7175d932d3fd80df",
+      "size": 54
+     },
+     "/about.html": {
+      "hash": "a047e5cf409b5071d69c4f3eb2ba7482",
+      "size": 19
+     },
+     "/journal/index.html": {
+      "hash": "85780fdc6a2a9399af9a624caa2ae673",
+      "size": 21
+     },
+     "/404.html": {
+      "hash": "3622f59cd55adf5c184d31caf163ea1c",
+      "size": 28
+     },
+     "/journal/404.html": {
+      "hash": "c40ccba58b4851be3f94b9abdfb1948a",
+      "size": 31
+     },
+     "/downloads/readme.txt": {
+      "hash": "c7a11b5642353c6f7b32cc59128759ad",
+      "size": 26
+     },
+     "/guide.html": {
+      "hash": "7feebc313fdc74ef05a599ffc5c06e3e",
+      "size": 19
+     },
+     "/guide/index.html": {
+      "hash": "95536c58826d88b1259df1cd7ff2c079",
+      "size": 29
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "result.buckets",
+     "equals": []
+    }
+   ],
+   "capture": {
+    "june_jwt": "result.jwt"
+   }
+  },
+  {
+   "name": "The June redesign adopts extensionless URLs: upload the new routing configuration without deploying it",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/versions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ],
+   "capture": {
+    "june_version": "result.id"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "{\"assets\": {\"jwt\": \"{june_jwt}\", \"config\": {\"html_handling\": \"drop-trailing-slash\", \"not_found_handling\": \"404-page\", \"_redirects\": \"# Addresses printed in old flyers\\n/old-about /about 301\\nhttps://www.kiln.media/offer https://www.kiln.media/about 302\\n/signup https://book.kiln.media/start?from=site#booking 302\\n/journal/old/* /journal/:splat 301\\n/team/:person /about#person-:person 302\\n/preview /about 200\\n\", \"_headers\": \"# Kiln site policy\\n/*\\n  X-Kiln-Site: brochure\\n  X-Robots-Tag: index\\n  X-Robots-Tag: follow\\n  ! Cache-Control\\n/journal/*\\n  X-Kiln-Section: journal/:splat\\n  X-Kiln-Site: journal\\nhttps://www.kiln.media/about\\n  X-Kiln-Page: about\\n\"}}, \"compatibility_date\": \"2026-01-15\"}"
+     }
+    ]
+   }
+  },
+  {
+   "name": "The June redesign adopts extensionless URLs: send the approved version the traffic",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/deployments",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "strategy": "percentage",
+    "versions": [
+     {
+      "version_id": "{june_version}",
+      "percentage": 100
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "result.versions.0.version_id",
+     "equals": "{june_version}"
+    }
+   ]
+  },
+  {
+   "name": "The redesign serves its home page",
+   "method": "GET",
+   "path": "https://www.kiln.media/",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln studio"
+    }
+   ]
+  },
+  {
+   "name": "The old home index link returns to the home page",
+   "method": "GET",
+   "path": "https://www.kiln.media/index",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/"
+    }
+   ]
+  },
+  {
+   "name": "The exported home filename returns to the home page",
+   "method": "GET",
+   "path": "https://www.kiln.media/index.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/"
+    }
+   ]
+  },
+  {
+   "name": "The redesigned about page is extensionless",
+   "method": "GET",
+   "path": "https://www.kiln.media/about",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "About Kiln"
+    }
+   ]
+  },
+  {
+   "name": "An old about folder bookmark drops its slash",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about"
+    }
+   ]
+  },
+  {
+   "name": "The downloaded about filename loses its extension",
+   "method": "GET",
+   "path": "https://www.kiln.media/about.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about"
+    }
+   ]
+  },
+  {
+   "name": "The old about index link drops its index component",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/index",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about"
+    }
+   ]
+  },
+  {
+   "name": "The old about index.html link drops its index component",
+   "method": "GET",
+   "path": "https://www.kiln.media/about/index.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/about"
+    }
+   ]
+  },
+  {
+   "name": "The redesigned journal serves its directory content at an extensionless URL",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln journal"
+    }
+   ]
+  },
+  {
+   "name": "An old journal folder bookmark drops its slash",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal"
+    }
+   ]
+  },
+  {
+   "name": "The old journal index bookmark drops its index",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/index",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal"
+    }
+   ]
+  },
+  {
+   "name": "The downloaded journal filename drops its index",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/index.html",
+   "status": 307,
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/journal"
+    }
+   ]
+  },
+  {
+   "name": "A retired journal link keeps its section-specific 404",
+   "method": "GET",
+   "path": "https://www.kiln.media/journal/retired-june",
+   "status": 404,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Journal page not found"
+    }
+   ]
+  },
+  {
+   "name": "Monday 10 August, 09:30: RH2's recordings token was pasted into a support chat by mistake",
+   "wait": "80550m"
+  },
+  {
+   "name": "Mina logs in, bound for R2's API Tokens page",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/login",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "next=%2F{account_id}%2Fr2%2Fapi-tokens&email=mina%40kiln.media&password=kiln-kilns-2026",
+   "status": 302,
+   "capture": {
+    "mina_august": "header:set-cookie:cf_session=([^;]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "equals": "/{account_id}/r2/api-tokens"
+    }
+   ]
+  },
+  {
+   "name": "She revokes the leaked rh2-recordings token",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/{account_id}/r2/api-tokens",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "cf_session={mina_august}"
+   },
+   "body": "action=delete&token_id={rh2_akid}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Token deleted."
+    }
+   ]
+  },
+  {
+   "name": "She makes RH2 a new Object Read only token for the recordings bucket: its keys, shown once",
+   "method": "POST",
+   "path": "https://dash.cloudflare.com/{account_id}/r2/api-tokens",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "cf_session={mina_august}"
+   },
+   "body": "name=rh2-recordings&token_kind=account&permission=object-ro&bucket=kiln-recordings&jurisdiction=default",
+   "capture": {
+    "rh2_akid2": "text:S3 Access Key ID: ([0-9a-f]{32})",
+    "rh2_secret2": "text:Secret Access Key: ([0-9a-f]{64})"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "shown once"
+    }
+   ]
+  },
+  {
+   "name": "RH2's next import, still holding the leaked key, is refused: the key is no one's",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-recordings/rooms/rm_k1/op_7f2c.mp4",
+   "sigv4": {
+    "accessKeyId": "{rh2_akid}",
+    "secretAccessKey": "{rh2_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 401,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "Unauthorized"
+    }
+   ]
+  },
+  {
+   "name": "With the new keys in its storage settings, RH2 imports the recording: the exact bytes",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-recordings/rooms/rm_k1/op_7f2c.mp4",
+   "sigv4": {
+    "accessKeyId": "{rh2_akid2}",
+    "secretAccessKey": "{rh2_secret2}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"3c404b0cd20bfb651e9c6117f6278a3c\""
+    },
+    {
+     "header": "content-length",
+     "equals": "48"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 30 September, 12:00: Acme Studio leaves",
+   "wait": "73590m"
+  },
+  {
+   "name": "The app deletes its hostname",
+   "method": "DELETE",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames/{acme_id}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{acme_id}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026which is no longer found",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones/{zone_id}/custom_hostnames?hostname=crm.acme-studio.com",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "\u2026and its certificate's deletion is the alert Twenty's server is sent",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/_twin/deliveries?to=https://crm.kiln.media/webhooks/cloudflare&type=ssl.custom_hostname_certificate.deletion.succeeded",
+   "expect": [
+    {
+     "path": "data.0.body.data.data.ssl.status",
+     "equals": "deleted"
+    },
+    {
+     "path": "data.0.body.data.data.id",
+     "equals": "{acme_id}"
+    }
+   ]
+  },
+  {
+   "name": "A vendor-backed World rooted at Kiln's account reads it back with the account's token: the account",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.id",
+     "equals": "{account_id}"
+    },
+    {
+     "path": "result.0.name",
+     "equals": "kiln"
+    },
+    {
+     "path": "result_info.total_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "its zone, active",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/zones",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.id",
+     "equals": "{zone_id}"
+    },
+    {
+     "path": "result.0.status",
+     "equals": "active"
+    },
+    {
+     "path": "result.0.account.id",
+     "equals": "{account_id}"
+    },
+    {
+     "path": "result_info.total_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "The account inventory tool starts with the repository deploy token: it holds no Account API Tokens group, so the read is refused",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
+   "headers": {
+    "authorization": "Bearer {deploy_token2}"
+   },
+   "status": 403,
+   "expect": [
+    {
+     "path": "errors.0.code",
+     "equals": 10000
+    }
+   ]
+  },
+  {
+   "name": "Mina gives the inventory tool the account token instead: its own tokens, never their values, the World application and RH2 new one",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.name",
+     "equals": "world"
+    },
+    {
+     "path": "result.1.name",
+     "equals": "rh2-recordings"
+    },
+    {
+     "path": "result.0.value",
+     "exists": false
+    },
+    {
+     "path": "result_info.total_count",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "its Workers: the booking site at migration v2 and the public brochure",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.id",
+     "equals": "kiln-site"
+    },
+    {
+     "path": "result.0.migration_tag",
+     "equals": "v2"
+    },
+    {
+     "path": "result.1.id",
+     "equals": "kiln-brochure"
+    },
+    {
+     "path": "result.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "the site's versions, four including May's staged build, newest first",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "capture": {
+    "version3": "result.items.0.id"
+   },
+   "expect": [
+    {
+     "path": "result.items.0.number",
+     "equals": 4
+    },
+    {
+     "path": "result.items.3.number",
+     "equals": 1
+    },
+    {
+     "path": "result.items.4",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and the newest one whole: its bindings, the renamed class among them, the mail key by name",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/versions/{version3}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.number",
+     "equals": 4
+    },
+    {
+     "path": "result.resources.bindings.2.class_name",
+     "equals": "BookingHold"
+    },
+    {
+     "path": "result.resources.bindings.4.name",
+     "equals": "MAIL_KEY"
+    },
+    {
+     "path": "",
+     "notContains": "mk_live_kiln_7Q2p"
+    }
+   ]
+  },
+  {
+   "name": "the Worker's secrets, by name alone",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-site/secrets",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.name",
+     "equals": "MAIL_KEY"
+    },
+    {
+     "path": "result.0.type",
+     "equals": "secret_text"
+    },
+    {
+     "path": "result.0.text",
+     "exists": false
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and its Durable Object namespace: the booking hold, renamed; the counter gone",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/durable_objects/namespaces",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.class",
+     "equals": "BookingHold"
+    },
+    {
+     "path": "result.0.name",
+     "equals": "kiln-site_BookingHold"
+    },
+    {
+     "path": "result.0.use_sqlite",
+     "equals": true
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "its workers.dev subdomain",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/subdomain",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.subdomain",
+     "equals": "kiln"
+    }
+   ]
+  },
+  {
+   "name": "its Notifications destinations, the secret never shown",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/alerting/v3/destinations/webhooks",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.id",
+     "equals": "{cf_dest}"
+    },
+    {
+     "path": "result.0.type",
+     "equals": "generic"
+    },
+    {
+     "path": "result.0.secret",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and its policies",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/alerting/v3/policies",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.id",
+     "equals": "{cf_policy}"
+    },
+    {
+     "path": "result.0.alert_type",
+     "equals": "custom_ssl_certificate_event_type"
+    },
+    {
+     "path": "result.0.mechanisms.webhooks.0.id",
+     "equals": "{cf_dest}"
+    }
+   ]
+  },
+  {
+   "name": "its Turnstile widget as listings show it, without its secret",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/challenges/widgets",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.0.sitekey",
+     "equals": "{sitekey}"
+    },
+    {
+     "path": "result.0.secret",
+     "exists": false
+    },
+    {
+     "path": "result_info.total_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Mina also reads the synthetic widget detail to compare its setup secret; a live refresh uses only the secret-free listing",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/challenges/widgets/{sitekey}",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.secret",
+     "equals": "{ts_secret}"
+    },
+    {
+     "path": "result.domains",
+     "equals": [
+      "kiln.media"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "and its R2 buckets, under the account",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/buckets",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.buckets.0.name",
+     "equals": "kiln-private"
+    },
+    {
+     "path": "result.buckets.3.name",
+     "equals": "kiln-site-cache"
+    },
+    {
+     "path": "result.buckets.4",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "the public bucket's custom domain, active",
+   "method": "GET",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/buckets/kiln-public/domains/custom",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "result.domains.0.domain",
+     "equals": "assets.kiln.media"
+    },
+    {
+     "path": "result.domains.0.status.ownership",
+     "equals": "active"
+    },
+    {
+     "path": "result.domains.0.status.ssl",
+     "equals": "active"
+    },
+    {
+     "path": "result.domains.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and the public bucket's in-progress uploads: none, R2 having aborted Ana's abandoned clip seven days after it started",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?uploads",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "Upload",
+     "exists": false
+    },
+    {
+     "path": "IsTruncated",
+     "equals": "false"
+    }
+   ]
+  },
+  {
+   "name": "The autumn brochure catalog uses browser-side navigation: open a session for the unchanged export",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/assets-upload-session",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "74747fc4b2f9131a7175d932d3fd80df",
+      "size": 54
+     },
+     "/about.html": {
+      "hash": "a047e5cf409b5071d69c4f3eb2ba7482",
+      "size": 19
+     },
+     "/journal/index.html": {
+      "hash": "85780fdc6a2a9399af9a624caa2ae673",
+      "size": 21
+     },
+     "/404.html": {
+      "hash": "3622f59cd55adf5c184d31caf163ea1c",
+      "size": 28
+     },
+     "/journal/404.html": {
+      "hash": "c40ccba58b4851be3f94b9abdfb1948a",
+      "size": 31
+     },
+     "/downloads/readme.txt": {
+      "hash": "c7a11b5642353c6f7b32cc59128759ad",
+      "size": 26
+     },
+     "/guide.html": {
+      "hash": "7feebc313fdc74ef05a599ffc5c06e3e",
+      "size": 19
+     },
+     "/guide/index.html": {
+      "hash": "95536c58826d88b1259df1cd7ff2c079",
+      "size": 29
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "result.buckets",
+     "equals": []
+    }
+   ],
+   "capture": {
+    "autumn_jwt": "result.jwt"
+   }
+  },
+  {
+   "name": "The autumn brochure catalog uses browser-side navigation: upload the new routing configuration without deploying it",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/versions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ],
+   "capture": {
+    "autumn_version": "result.id"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "{\"assets\": {\"jwt\": \"{autumn_jwt}\", \"config\": {\"html_handling\": \"none\", \"not_found_handling\": \"single-page-application\", \"_redirects\": \"# Addresses printed in old flyers\\n/old-about /about 301\\nhttps://www.kiln.media/offer https://www.kiln.media/about 302\\n/signup https://book.kiln.media/start?from=site#booking 302\\n/journal/old/* /journal/:splat 301\\n/team/:person /about#person-:person 302\\n/preview /about 200\\n\", \"_headers\": \"# Kiln site policy\\n/*\\n  X-Kiln-Site: brochure\\n  X-Robots-Tag: index\\n  X-Robots-Tag: follow\\n  ! Cache-Control\\n/journal/*\\n  X-Kiln-Section: journal/:splat\\n  X-Kiln-Site: journal\\nhttps://www.kiln.media/about\\n  X-Kiln-Page: about\\n\"}}, \"compatibility_date\": \"2026-01-15\"}"
+     }
+    ]
+   }
+  },
+  {
+   "name": "The autumn brochure catalog uses browser-side navigation: send the approved version the traffic",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/deployments",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "strategy": "percentage",
+    "versions": [
+     {
+      "version_id": "{autumn_version}",
+      "percentage": 100
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "result.versions.0.version_id",
+     "equals": "{autumn_version}"
+    }
+   ]
+  },
+  {
+   "name": "The interactive catalog\u2019s product URL loads its application shell",
+   "method": "GET",
+   "path": "https://www.kiln.media/catalog/clay",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Kiln studio"
+    }
+   ]
+  },
+  {
+   "name": "The archive\u2019s literal HTML download remains available beside the catalog",
+   "method": "GET",
+   "path": "https://www.kiln.media/about.html",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "About Kiln"
+    }
+   ]
+  },
+  {
+   "name": "At the end of November, Mina closes the autumn catalog and publishes its winter archive",
+   "wait": "60d"
+  },
+  {
+   "name": "The winter archive withdraws the interactive catalog and exports literal HTML files",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/assets-upload-session",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "manifest": {
+     "/index.html": {
+      "hash": "74747fc4b2f9131a7175d932d3fd80df",
+      "size": 54
+     },
+     "/about.html": {
+      "hash": "a047e5cf409b5071d69c4f3eb2ba7482",
+      "size": 19
+     }
+    }
+   },
+   "capture": {
+    "archive_jwt": "result.jwt"
+   },
+   "expect": [
+    {
+     "path": "result.buckets",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "The archive version keeps the exported files, without a client-route or branded-error fallback",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/versions",
+   "headers": {
+    "authorization": "Bearer {app_token}"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "metadata",
+      "value": "{\"assets\": {\"jwt\": \"{archive_jwt}\", \"config\": {\"html_handling\": \"none\", \"not_found_handling\": \"404-page\"}}}"
+     }
+    ]
+   },
+   "capture": {
+    "archive_version": "result.id"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The archive replaces the closed autumn catalog at the same public domain",
+   "method": "POST",
+   "path": "https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/kiln-brochure/deployments",
+   "headers": {
+    "authorization": "Bearer {app_token}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "strategy": "percentage",
+    "versions": [
+     {
+      "version_id": "{archive_version}",
+      "percentage": 100
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "result.versions.0.version_id",
+     "equals": "{archive_version}"
+    }
+   ]
+  },
+  {
+   "name": "The old catalog bookmark has no file in the archive and no 404 template to serve",
+   "method": "GET",
+   "path": "https://www.kiln.media/catalog/clay",
+   "status": 404
+  },
+  {
+   "name": "Mina checks that the brochure\u2019s literal about download survives archival",
+   "method": "GET",
+   "path": "https://www.kiln.media/about.html",
+   "expect": [
+    {
+     "path": "",
+     "contains": "About Kiln"
+    }
+   ]
+  },
+  {
+   "name": "Monday 7 December, 10:00: Kiln moves its media and closes the old public bucket",
+   "wait": "11400m"
+  },
+  {
+   "name": "The move tool lists the top level by \"/\": the logos folder, and the files beside it",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?list-type=2&delimiter=%2F",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "CommonPrefixes.Prefix",
+     "equals": "logos/"
+    },
+    {
+     "path": "Contents.0.Key",
+     "equals": "Hc7wQn2LsY0pRtV5eK8z.mp4"
+    },
+    {
+     "path": "Contents.1.Key",
+     "equals": "aZ81kQ3vXp.png"
+    },
+    {
+     "path": "IsTruncated",
+     "equals": "false"
+    }
+   ]
+  },
+  {
+   "name": "It copies in batches of two keys: the first batch, and a continuation token",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?list-type=2&max-keys=2",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "capture": {
+    "next_batch": "NextContinuationToken"
+   },
+   "expect": [
+    {
+     "path": "KeyCount",
+     "equals": "2"
+    },
+    {
+     "path": "IsTruncated",
+     "equals": "true"
+    },
+    {
+     "path": "Contents.0.Key",
+     "equals": "Hc7wQn2LsY0pRtV5eK8z.mp4"
+    }
+   ]
+  },
+  {
+   "name": "It reads the video out",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Hc7wQn2LsY0pRtV5eK8z.mp4",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "content-length",
+     "equals": "45"
+    },
+    {
+     "header": "content-type",
+     "equals": "video/mp4"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and the post's image",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/aZ81kQ3vXp.png",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"6732c43c81a53214bd0d24c54e256c75\""
+    },
+    {
+     "header": "content-type",
+     "equals": "image/png"
+    }
+   ]
+  },
+  {
+   "name": "Mina, taking the move for done after its first batch, deletes the bucket: refused while it still holds objects",
+   "method": "DELETE",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 409,
+   "expect": [
+    {
+     "path": "Code",
+     "equals": "BucketNotEmpty"
+    }
+   ]
+  },
+  {
+   "name": "The tool goes on from the continuation token: the last key",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public?list-type=2&max-keys=2&continuation-token={next_batch}",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "path": "Contents.Key",
+     "equals": "logos/kiln.png"
+    },
+    {
+     "path": "IsTruncated",
+     "equals": "false"
+    },
+    {
+     "path": "ContinuationToken",
+     "equals": "{next_batch}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and reads the logo out",
+   "method": "GET",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/logos/kiln.png",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "expect": [
+    {
+     "header": "etag",
+     "equals": "\"5036821dc3d7e3a739cf0bfd0b4ef079\""
+    }
+   ]
+  },
+  {
+   "name": "With every object copied, the tool deletes logos/kiln.png",
+   "method": "DELETE",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/logos/kiln.png",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 204
+  },
+  {
+   "name": "\u2026aZ81kQ3vXp.png",
+   "method": "DELETE",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/aZ81kQ3vXp.png",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 204
+  },
+  {
+   "name": "\u2026and Hc7wQn2LsY0pRtV5eK8z.mp4",
+   "method": "DELETE",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public/Hc7wQn2LsY0pRtV5eK8z.mp4",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 204
+  },
+  {
+   "name": "The empty bucket is removed, its public domain with it",
+   "method": "DELETE",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 204
+  },
+  {
+   "name": "\u2026and no longer there",
+   "method": "HEAD",
+   "path": "https://{account_id}.r2.cloudflarestorage.com/kiln-public",
+   "sigv4": {
+    "accessKeyId": "{app_akid}",
+    "secretAccessKey": "{app_secret}",
+    "region": "auto",
+    "service": "s3"
+   },
+   "status": 404
+  }
+ ]
+}

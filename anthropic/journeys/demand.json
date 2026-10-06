@@ -1,0 +1,180 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "LibreChat",
+      "commit": "f10b1d91f1ee",
+      "client": "@anthropic-ai/sdk 0.115.0 through @langchain/anthropic 1.5.2 and @librechat/agents 4.0.1 (messages.create, streamed for a turn), with anthropic-beta default headers it appends per model; the model list by axios with x-api-key",
+      "backend": [
+        {
+          "call": "a conversation turn: POST /v1/messages streamed, system and messages with images and documents, tools, thinking (enabled with budget_tokens, or adaptive with display), prompt caching (cache_control ephemeral, with its TTL)",
+          "operation": "messages_post",
+          "evidence": "packages/api/src/endpoints/anthropic/llm.ts:193; packages/api/src/endpoints/anthropic/llm.ts:285; packages/api/src/endpoints/anthropic/helpers.ts:97-185"
+        },
+        {
+          "call": "anthropic-beta values appended to the same request (max-tokens-3-5-sonnet-2024-07-15; token-efficient-tools-2025-02-19,output-128k-2025-02-19; fine-grained-tool-streaming-2025-05-14; web-search-2025-03-05)",
+          "operation": "messages_post",
+          "evidence": "packages/api/src/endpoints/anthropic/helpers.ts:18-64; packages/api/src/endpoints/anthropic/llm.ts:420-438"
+        },
+        {
+          "call": "a conversation's title: the same client, POST /v1/messages",
+          "operation": "messages_post",
+          "evidence": "api/server/controllers/agents/client.js:5954"
+        },
+        {
+          "call": "the Anthropic endpoint's models at startup, when ANTHROPIC_API_KEY is set and ANTHROPIC_MODELS is not: GET https://api.anthropic.com/v1/models with x-api-key and anthropic-version, reading data[].id",
+          "operation": "models_list",
+          "evidence": "packages/api/src/endpoints/models.ts:435-470; packages/api/src/endpoints/models.ts:256-263; api/server/services/Config/loadDefaultModels.js:44"
+        }
+      ]
+    },
+    {
+      "name": "Volter Harness",
+      "commit": "62620578c014",
+      "client": "Claude Code as a harness runtime: its key is ANTHROPIC_API_KEY (x-api-key), or a worker route with `provider: anthropic` gives it ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN (Authorization: Bearer); Claude Code sends through its SDK's beta namespace (?beta=true), measured with claude 2.1.286",
+      "backend": [
+        {
+          "call": "Claude Code's turns: POST /v1/messages?beta=true streamed, with tools, thinking, cache_control and its anthropic-beta list",
+          "operation": "beta_messages_post",
+          "evidence": "crates/harness/src/harness_service.rs:6267; sdk/orchestrator/worker-route.mjs:109-119; crates/harness/src/harness_auth.rs:164,248; sdk/orchestrator/worker-route.mjs:105,111-113"
+        },
+        {
+          "call": "Claude Code's token counts: POST /v1/messages/count_tokens?beta=true (the relay endpoint answers the same calls when Claude Code is pointed at it)",
+          "operation": "beta_messages_count_tokens_post",
+          "evidence": "crates/harness/src/relay_endpoint.rs:133; sdk/orchestrator/worker-route.mjs:109-119"
+        }
+      ]
+    },
+    {
+      "name": "RH2",
+      "commit": "34fdc9377306",
+      "backend": [],
+      "note": "no Claude API call: its Model keys page points Claude Code at RH2 itself, and its valve forwards to Open Autonomy"
+    },
+    {
+      "name": "Open Autonomy",
+      "commit": "0841076bed91",
+      "backend": [],
+      "note": "no Claude API call: /v1/messages is forwarded to Merge's gateway (packages/backend/src/proxy.ts:8)"
+    },
+    {
+      "name": "Substrate",
+      "commit": "3116b2e3f713",
+      "backend": [],
+      "note": "no Claude API call (its valve forwards to Open Autonomy)"
+    },
+    {
+      "name": "Workbench",
+      "commit": "c24c5253922f",
+      "backend": [],
+      "note": "no call in the clone: its Flowise program lists the anthropic twin, but Flowise's calls are in Flowise's npm package, not in Workbench"
+    },
+    {
+      "name": "Volter Browsers",
+      "commit": "9127ad9000df",
+      "backend": [],
+      "note": "no Claude API call in the running product (scripts/agent.ts is a dev script against the substrate's endpoint)"
+    },
+    {
+      "name": "tabnode",
+      "commit": "ebf9db73be00",
+      "backend": [],
+      "note": "no Claude API call found"
+    },
+    {
+      "name": "almostcdp",
+      "commit": "3e54c3d5e44e",
+      "backend": [],
+      "note": "no Claude API call found"
+    },
+    {
+      "name": "localrouter",
+      "commit": "107fb5d757a4",
+      "backend": [],
+      "note": "no Claude API call: it answers the Messages API itself; @anthropic-ai/sdk is its probes' client of itself"
+    },
+    {
+      "name": "Twin",
+      "commit": "96ca4478bb39",
+      "backend": [],
+      "note": "no Claude API call (it names the vendor it twins)"
+    },
+    {
+      "name": "Volter Editor",
+      "commit": "b86dde8c5618",
+      "backend": [],
+      "note": "no Claude API call: Claude Code is pointed at OpenRouter"
+    },
+    {
+      "name": "videogame.ai site",
+      "commit": "63e3e96daef5",
+      "backend": [],
+      "note": "no Claude API call found"
+    },
+    {
+      "name": "Rallly",
+      "commit": "3e63239dbdec",
+      "backend": [],
+      "note": "no Claude API call found"
+    },
+    {
+      "name": "Postiz",
+      "commit": "e0a08a7d9592",
+      "backend": [],
+      "note": "no Claude API call found (a CI workflow names Anthropic)"
+    },
+    {
+      "name": "Cal.com",
+      "commit": "54343aa685ae",
+      "backend": [],
+      "note": "no Claude API call found"
+    },
+    {
+      "commit": "7e0101363b2a",
+      "client": "@ai-sdk/anthropic ^4.0.63 (POST {baseURL}/messages with x-api-key and anthropic-version 2023-06-01; stream: true for streamText; Output.object as output_config.format json_schema)",
+      "backend": [
+        {
+          "call": "generateText with Output.object: POST /v1/messages, not streamed, a structured answer (program admin with claude-sonnet-4-6; partner invite email and lander with claude-opus-4-8)",
+          "operation": "messages_post",
+          "evidence": "apps/web/app/(ee)/api/admin/programs/route.ts:57; apps/web/lib/ai/generate-partner-network-invite-email.ts:91; apps/web/lib/ai/generate-lander.ts:104"
+        },
+        {
+          "call": "streamText with Output.object: POST /v1/messages streamed, a structured answer (AI filters, CSV mapping, rewards with claude-sonnet-4-6)",
+          "operation": "messages_post",
+          "evidence": "apps/web/lib/ai/generate-filters.ts:44; apps/web/lib/ai/generate-csv-mapping.ts:15; apps/web/lib/ai/generate-reward.ts:192"
+        },
+        {
+          "call": "streamText: POST /v1/messages streamed (support chat with claude-sonnet-4-6 and its tools; AI completion with the caller's model)",
+          "operation": "messages_post",
+          "evidence": "apps/web/app/api/ai/support-chat/route.ts:192; apps/web/app/api/ai/completion/route.ts:30"
+        }
+      ],
+      "name": "dubinc/dub",
+      "gate": "AI completion and CSV mapping call Anthropic directly; no feature switch (apps/web/app/api/ai/completion/route.ts:30-31; apps/web/lib/ai/generate-csv-mapping.ts:16)."
+    },
+    {
+      "commit": "1d561b8c73c9",
+      "client": "@ai-sdk/anthropic ^4.0.49 through createAnthropic (POST {baseURL}/messages with x-api-key and anthropic-version 2023-06-01)",
+      "backend": [
+        {
+          "call": "the workspace's AI agents and chat: streamText with tools (tool_use and tool_result turns), POST /v1/messages streamed",
+          "operation": "messages_post",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/sdk-provider-factory.service.ts:129"
+        },
+        {
+          "call": "reasoning effort per model (output_config.effort, thinking)",
+          "operation": "messages_post",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-models/constants/ai-sdk-package-efforts.const.ts:18"
+        },
+        {
+          "call": "usage read for billing, cache-creation and cache-read tokens included",
+          "operation": "messages_post",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-billing/utils/compute-cost-breakdown.util.ts:34"
+        }
+      ],
+      "name": "twentyhq/twenty",
+      "gate": "The built-in catalog contains OpenAI, Google, Anthropic, xAI and Mistral; default tiers try them in that order according to available credentials, with no disabled models. This is automatic credential resolution, not an operator provider switch (packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/default-ai-catalog.service.ts:19-37; services/provider-config.service.ts:28-41; utils/load-default-model-preferences.util.ts:14-19,58)."
+    }
+  ],
+  "optional": []
+}

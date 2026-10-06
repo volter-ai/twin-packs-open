@@ -1,0 +1,419 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/paths/~1accounts~1{account_id}~1workers~1services~1{service_name}",
+      "value": {
+        "get": {
+          "operationId": "worker-service-get",
+          "tags": [
+            "Worker Script"
+          ],
+          "summary": "A Worker's service: its default environment and that environment's script",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "account_id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "path",
+              "name": "service_name",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "The service.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "result": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "default_environment": {
+                            "type": "object",
+                            "properties": {
+                              "environment": {
+                                "type": "string"
+                              },
+                              "script": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "No such Worker."
+            }
+          }
+        }
+      },
+      "why": "wrangler deploy reads a Worker's service to find its script's migration tag before it uploads, and a Worker it has not deployed is the not-found it suppresses; the spec does not document the route",
+      "source": {
+        "url": "https://unpkg.com/wrangler@4.143.0/wrangler-dist/cli.js",
+        "quote": "script = serviceMetadata.default_environment.script;"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1accounts~1{account_id}~1workers~1scripts~1{script_name}~1domains~1changeset",
+      "value": {
+        "post": {
+          "operationId": "worker-domains-changeset",
+          "tags": [
+            "Domains"
+          ],
+          "summary": "What putting a Worker's Custom Domains would change",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "account_id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "path",
+              "name": "script_name",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "query",
+              "name": "replace_state",
+              "schema": {
+                "type": "boolean"
+              }
+            }
+          ],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hostname": {
+                        "type": "string"
+                      },
+                      "zone_id": {
+                        "type": "string"
+                      },
+                      "zone_name": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "OK",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "result": {
+                        "type": "object",
+                        "properties": {
+                          "added": {
+                            "type": "array"
+                          },
+                          "removed": {
+                            "type": "array"
+                          },
+                          "updated": {
+                            "type": "array"
+                          },
+                          "conflicting": {
+                            "type": "array"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "wrangler deploy asks it for each route with custom_domain: true before it puts the script's domain records; the spec does not document the route",
+      "source": {
+        "url": "https://unpkg.com/wrangler@4.143.0/wrangler-dist/cli.js",
+        "quote": "/domains/changeset?replace_state=true"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1accounts~1{account_id}~1workers~1scripts~1{script_name}~1domains~1records",
+      "value": {
+        "put": {
+          "operationId": "worker-domains-put-records",
+          "tags": [
+            "Domains"
+          ],
+          "summary": "A Worker's Custom Domains, put",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "account_id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "path",
+              "name": "script_name",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "override_scope": {
+                      "type": "boolean"
+                    },
+                    "override_existing_origin": {
+                      "type": "boolean"
+                    },
+                    "override_existing_dns_record": {
+                      "type": "boolean"
+                    },
+                    "origins": {
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "OK",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "result": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/workers_Domain"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "wrangler deploy attaches a Worker's Custom Domains with it; the spec does not document the route",
+      "source": {
+        "url": "https://unpkg.com/wrangler@4.143.0/wrangler-dist/cli.js",
+        "quote": "override_existing_dns_record: false"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1accounts~1{account_id}~1workers~1domains~1records~1{domain_id}",
+      "value": {
+        "get": {
+          "operationId": "worker-domains-get-record",
+          "tags": [
+            "Domains"
+          ],
+          "summary": "A Custom Domain wrangler would move to another Worker",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "account_id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "path",
+              "name": "domain_id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "OK",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "result": {
+                        "$ref": "#/components/schemas/workers_Domain"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "wrangler deploy reads a Custom Domain another Worker holds before asking to move it; the spec does not document the route",
+      "source": {
+        "url": "https://unpkg.com/wrangler@4.143.0/wrangler-dist/cli.js",
+        "quote": "/workers/domains/records/"
+      }
+    },
+    {
+      "op": "remove",
+      "path": "/components/schemas/dns-records_dns-record-response/required/3",
+      "why": "The generic record response marks data required even for A/AAAA/CNAME records. The vendor\u2019s create response example for an A record omits data, and its CNAMERecord body and response type carry content instead of structured data. Remove this union-wide requirement; the vendored bytes are unchanged.",
+      "source": {
+        "url": "https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/create/",
+        "quote": "CNAMERecord"
+      }
+    },
+    {
+      "op": "remove",
+      "path": "/components/requestBodies/workers_version-post/content/multipart~1form-data/schema/properties/metadata/required/0",
+      "why": "The pinned demanded Wrangler sends metadata alone and returns before adding modules for assets-only Workers; Workers with code still require main_module and its matching file. The unconditional metadata.main_module requirement contradicts that vendor-published request builder.",
+      "source": {
+        "url": "archive:https://registry.npmjs.org/wrangler/-/wrangler-4.137.0.tgz#sha256=f39ad65a122b15acf74c38f9575dce6147810e308995909050e9e29668685ca1!/package/wrangler-dist/cli.js",
+        "quote": "if (assets && !assets.routerConfig.has_user_worker)"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/requestBodies/workers_version-post/content/multipart~1form-data/schema/properties/metadata/properties/assets",
+      "value": {
+        "$ref": "#/components/schemas/workers_assets-2"
+      },
+      "why": "The pinned demanded Wrangler sends metadata alone and returns before adding modules for assets-only Workers; Workers with code still require main_module and its matching file. The unconditional metadata.main_module requirement contradicts that vendor-published request builder.",
+      "source": {
+        "url": "archive:https://registry.npmjs.org/wrangler/-/wrangler-4.137.0.tgz#sha256=f39ad65a122b15acf74c38f9575dce6147810e308995909050e9e29668685ca1!/package/wrangler-dist/cli.js",
+        "quote": "if (assets && !assets.routerConfig.has_user_worker)"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/requestBodies/workers_version-post/content/multipart~1form-data/schema/properties/metadata/anyOf",
+      "value": [
+        {
+          "required": [
+            "main_module"
+          ]
+        },
+        {
+          "required": [
+            "assets"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "main_module"
+                ]
+              },
+              {
+                "required": [
+                  "body_part"
+                ]
+              }
+            ]
+          },
+          "properties": {
+            "assets": {
+              "required": [
+                "jwt"
+              ]
+            }
+          }
+        }
+      ],
+      "why": "The pinned demanded Wrangler sends metadata alone and returns before adding modules for assets-only Workers; Workers with code still require main_module and its matching file. The unconditional metadata.main_module requirement contradicts that vendor-published request builder.",
+      "source": {
+        "url": "archive:https://registry.npmjs.org/wrangler/-/wrangler-4.137.0.tgz#sha256=f39ad65a122b15acf74c38f9575dce6147810e308995909050e9e29668685ca1!/package/wrangler-dist/cli.js",
+        "quote": "if (assets && !assets.routerConfig.has_user_worker)"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1accounts~1{account_id}~1workers~1domains/put/requestBody/content/application~1json/schema",
+      "value": {
+        "type": "object",
+        "properties": {
+          "hostname": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "zone_id": {
+            "type": "string"
+          },
+          "zone_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hostname",
+          "service"
+        ]
+      },
+      "why": "The request reuses the Domain response and incorrectly requires its server-assigned fields plus both zone selectors. The vendor SDK requires hostname and service and makes zone_id and zone_name optional. Preserve the response schema and correct only the request.",
+      "source": {
+        "url": "https://unpkg.com/cloudflare@7.2.0/resources/workers/domains.d.ts",
+        "quote": "zone_id?: string;"
+      }
+    }
+  ]
+}

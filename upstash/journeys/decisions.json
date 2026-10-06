@@ -1,0 +1,483 @@
+{
+  "about": "upstash's decision table (the P3 procedure), for the vendor and its lanes. The Redis unit (the vendor's root) serves the commands of Upstash's table that Dub sends and the life sends, through the REST front; every other command is the gap (src/semantics/shared.ts, SERVED). The qstash lane serves publish, batch, enqueue and the end of a workflow run, which Dub's SDKs call, and a message's read, cancel by filter and a queue's upsert, which only the life calls; every other QStash and Workflow operation is the gap, the declared resources' named in its manifest's unmodeled. The api lane serves no Developer API operation (no demand or life calls it; its declared resources' operations are unmodeled): the console's pages (screens sign-in, redis and qstash) make a database and open QStash. The doors are the console's sign-up, the runtime's credentials, and QStash's destinations and deliveries.",
+  "decisions": [
+    {
+      "operation": "SET",
+      "demand": "Dub's caches, locks (NX EX) and one-time tokens; the life's cursor, view counters and the nightly lock",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: strings with EX/PX/NX/XX and GET, a lock answered null when held",
+      "precisionVerification": "journeys/vendor-examples.json: adjacent wide expiry GT/LT comparisons and retained SET PX/PXAT deadlines (Redis), exact raw JSON numeric tokens for wide HINCRBY and INCR (Upstash). integerPrecision above records the whole core audit and measurement limits.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_string.c",
+          "quote": "increment or decrement would overflow",
+          "means": "The shared signed-int64 counter stores exact decimal bytes."
+        }
+      ]
+    },
+    {
+      "operation": "GET",
+      "demand": "Dub's caches and its lock script; @upstash/ratelimit's sliding window script; the life's reads of views and the cursor",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a string or null, WRONGTYPE on another kind",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_string.c",
+          "quote": "increment or decrement would overflow",
+          "means": "The shared signed-int64 counter stores exact decimal bytes."
+        }
+      ]
+    },
+    {
+      "operation": "GETDEL",
+      "demand": "Dub's OAuth state (lib/integrations/oauth-provider.ts:55)",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: read and delete in one move"
+    },
+    {
+      "operation": "DEL",
+      "demand": "Dub's cache invalidations and lock release script; the life's housekeeping",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the count of keys removed"
+    },
+    {
+      "operation": "EXISTS",
+      "demand": "Dub's merge-partner-accounts check",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the count of keys present"
+    },
+    {
+      "operation": "EXPIRE",
+      "demand": "Dub's token and checkout caches; the life's catalogue expiry",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a deadline the reads compare with the World clock",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "precisionVerification": "journeys/vendor-examples.json: adjacent wide expiry GT/LT comparisons and retained SET PX/PXAT deadlines (Redis), exact raw JSON numeric tokens for wide HINCRBY and INCR (Upstash). integerPrecision above records the whole core audit and measurement limits.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is not an integer or out of range",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "PEXPIRE",
+      "demand": "@upstash/ratelimit's sliding window script (and the life's limiter)",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a millisecond deadline, set from inside a script",
+      "precisionVerification": "journeys/vendor-examples.json: adjacent wide expiry GT/LT comparisons and retained SET PX/PXAT deadlines (Redis), exact raw JSON numeric tokens for wide HINCRBY and INCR (Upstash). integerPrecision above records the whole core audit and measurement limits."
+    },
+    {
+      "operation": "INCR",
+      "demand": "Dub's reward version; the life's page views",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: an integer counter, ERR on a non-integer",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "precisionVerification": "journeys/vendor-examples.json: adjacent wide expiry GT/LT comparisons and retained SET PX/PXAT deadlines (Redis), exact raw JSON numeric tokens for wide HINCRBY and INCR (Upstash). integerPrecision above records the whole core audit and measurement limits.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_string.c",
+          "quote": "increment or decrement would overflow",
+          "means": "The shared signed-int64 counter stores exact decimal bytes."
+        }
+      ]
+    },
+    {
+      "operation": "INCRBY",
+      "demand": "Dub's CSV import counts; @upstash/ratelimit's window counter",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: an integer counter by a step",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged."
+    },
+    {
+      "operation": "RENAME",
+      "demand": "Dub's swap of the rebuilt disposable-email and webhook sets; the life's catalogue swap",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the key moved whole with its deadline, ERR no such key"
+    },
+    {
+      "operation": "HSET",
+      "demand": "Dub's FX rates and importers' maps; the life's sessions and catalogue",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: fields set, the count of new ones"
+    },
+    {
+      "operation": "HSETNX",
+      "demand": "Dub's Shopify checkout cache",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a field set only when absent"
+    },
+    {
+      "operation": "HGET",
+      "demand": "Dub's FX conversion; the life's session reads and booking script",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: one field or null",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_hash.c",
+          "quote": "increment or decrement would overflow",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "HGETALL",
+      "demand": "Dub's importers' maps and checkout cache; the life's catalogue and export",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: every field and value, flat"
+    },
+    {
+      "operation": "HMGET",
+      "demand": "Dub's PartnerStack customer import",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: several fields, null for each absent"
+    },
+    {
+      "operation": "HDEL",
+      "demand": "Dub's checkout cache",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: fields removed, the count"
+    },
+    {
+      "operation": "HINCRBY",
+      "demand": "the life: the booking script's seat count, Tomás's refund correction",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: an integer field moved",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "precisionVerification": "journeys/vendor-examples.json: adjacent wide expiry GT/LT comparisons and retained SET PX/PXAT deadlines (Redis), exact raw JSON numeric tokens for wide HINCRBY and INCR (Upstash). integerPrecision above records the whole core audit and measurement limits.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is not an integer or out of range",
+          "means": "The shared Redis argument rule and its observable effect."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_hash.c",
+          "quote": "increment or decrement would overflow",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "LPUSH",
+      "demand": "Dub's CSV import queue",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: elements pushed at the head"
+    },
+    {
+      "operation": "RPUSH",
+      "demand": "Dub's CSV import error log; the life's waitlists",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: elements appended",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_list.c",
+          "quote": "pushGenericCommand",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "LPOP",
+      "demand": "Dub's CSV import rows; the life's waitlist offer",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the head, or a count of them",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is out of range, must be positive",
+          "means": "The shared Redis argument rule and its observable effect."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_list.c",
+          "quote": "getPositiveLongFromObjectOrReply",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "LRANGE",
+      "demand": "Dub's CSV import error log and importers",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a range by index",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is not an integer or out of range",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "SADD",
+      "demand": "Dub's disposable domains and workspace sets; the life's blocked domains",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: members added, the count of new ones"
+    },
+    {
+      "operation": "SREM",
+      "demand": "Dub's workspace sets; the life's unblocked domain",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: members removed"
+    },
+    {
+      "operation": "SMEMBERS",
+      "demand": "Dub's CSV import; the life's export",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: every member"
+    },
+    {
+      "operation": "SISMEMBER",
+      "demand": "Dub's email domain block check; the life's signups",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: 1 or 0"
+    },
+    {
+      "operation": "SMISMEMBER",
+      "demand": "Dub's Framer backfill; the life's bulk import",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: 1 or 0 per member"
+    },
+    {
+      "operation": "ZINCRBY",
+      "demand": "Dub's metatag popularity and @upstash/ratelimit's analytics; the life's studio scores",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a member's score moved, answered as its text"
+    },
+    {
+      "operation": "ZRANGE",
+      "demand": "the life: the home page's top studios (REV WITHSCORES) and the export",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a range by rank, REV and WITHSCORES; BYLEX refused as unmodelled",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is not an integer or out of range",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "XADD",
+      "demand": "Dub's click and usage event streams; the life's bookings stream",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: an entry with an auto id from the World clock; MAXLEN/MINID refused as unmodelled",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "The LIMIT argument must be >= 0.",
+          "means": "Redis's pinned server refuses this numeric option with the stated error."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "syntax error, LIMIT cannot be used without the special ~ option",
+          "means": "Redis's pinned server refuses this numeric option with the stated error."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is not an integer or out of range",
+          "means": "Redis's pinned server refuses this numeric option with the stated error."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "The MAXLEN argument must be >= 0.",
+          "means": "Redis's pinned server refuses this numeric option with the stated error."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/util.c",
+          "quote": "Convert a string into a long long.",
+          "means": "Redis's pinned server refuses this numeric option with the stated error."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "Invalid stream ID specified as stream",
+          "means": "Redis's pinned server refuses this numeric option with the stated error."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "The ID specified in XADD must be greater than 0-0",
+          "means": "Redis's pinned server refuses this numeric option with the stated error."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "unsigned long long ms, seq;",
+          "means": "Stream ID components are unsigned 64-bit integers; neighbouring sequences remain distinct."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "Handle the <ms>-* form.",
+          "means": "A wildcard preserves the supplied unsigned millisecond component and increments the sequence."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/util.c",
+          "quote": "strtoull() is used instead.",
+          "means": "The uint64 parser accepts these numeric spellings and returns the canonical stream ID."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "unsigned long long ms, seq;",
+          "means": "The pinned server states the numeric boundary and refusal."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "The stream has exhausted the last possible ID,",
+          "means": "The pinned server states the numeric boundary and refusal."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/t_stream.c",
+          "quote": "syntax error, MAXLEN and MINID options at the same time are not compatible",
+          "means": "The pinned server states the numeric boundary and refusal."
+        },
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis-doc/3541d0e20cc4bb7873bdbf51a7717757b806577f/commands/xadd.md",
+          "quote": "XADD incorporates the same semantics as the XTRIM command",
+          "means": "Redis’s documented XADD option of the demanded stream write; the option’s stored effect is read back through EVAL. Upstash’s REST response envelopes the command result."
+        },
+        {
+          "source": "https://redis.io/docs/latest/commands/xadd/",
+          "quote": "MINID",
+          "means": "MINID removes only IDs strictly less than the threshold."
+        },
+        {
+          "source": "https://redis.io/docs/latest/commands/xtrim/",
+          "quote": "Specifying the value 0 as count disables the limiting mechanism entirely.",
+          "means": "A zero limit permits all eligible entries to be evicted."
+        }
+      ]
+    },
+    {
+      "operation": "XRANGE",
+      "demand": "Dub's stream crons; the life's nightly job and export",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: entries by id range, exclusive starts, COUNT"
+    },
+    {
+      "operation": "XREVRANGE",
+      "demand": "Dub's stream reads; the life's admin Today panel",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: entries newest first, COUNT"
+    },
+    {
+      "operation": "XDEL",
+      "demand": "Dub's stream crons; the life's nightly job",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: entries removed by id"
+    },
+    {
+      "operation": "SCAN",
+      "demand": "Dub's deep-link cache (track/open); the life's housekeeping and export",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a cursor walk with MATCH and COUNT; the Read Only token refused it",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is not an integer or out of range",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "EVAL",
+      "demand": "Dub's lock release script; @upstash/ratelimit on NOSCRIPT; the life's booking script",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the script's Lua run with the commands above; a failing script leaves nothing it wrote",
+      "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
+          "quote": "value is not an integer or out of range",
+          "means": "The shared Redis argument rule and its observable effect."
+        }
+      ]
+    },
+    {
+      "operation": "EVALSHA",
+      "demand": "@upstash/ratelimit's first try of its script",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a cached script by its SHA-1, NOSCRIPT when not cached"
+    },
+    {
+      "operation": "post_v2_publish_destination",
+      "demand": "Dub's publishJSON jobs (journeys/demand.json); the life's partner.enrolled webhooks and the refused stale publish",
+      "mechanism": "handler",
+      "why": "A message made from Upstash-* headers (delay, not-before, retries and millisecond retry expressions, deduplication within ten minutes, keyed rate/period/parallelism, labels, callbacks) and delivered by the World clock, signed; flow-control counts are shared across destination URLs (https://upstash.com/docs/qstash/features/flowcontrol), and retried starts at zero (https://upstash.com/docs/qstash/features/retry)."
+    },
+    {
+      "operation": "post_v2_batch",
+      "demand": "Dub's batchJSON and @upstash/workflow's trigger and steps; the life's jobs and every workflow call",
+      "mechanism": "handler",
+      "why": "each item published (or enqueued) as its own request; a workflow run started by its first invocation and its steps carried to the next call"
+    },
+    {
+      "operation": "post_v2_enqueue_queuename_destination",
+      "demand": "Dub's queue(...).enqueueJSON payouts; the life's payout and summary queues",
+      "mechanism": "handler",
+      "why": "a message into a queue the clock delivers in order, as many at a time as its parallelism"
+    },
+    {
+      "operation": "delete_v2_workflows_runs_workflowrunid",
+      "demand": "@upstash/workflow's serve() ending each run (Dub's workflow routes); the life's runs",
+      "mechanism": "handler",
+      "why": "the run's state moved (success, or a cancel with its pending steps cancelled), ruled by semantics/states.ts"
+    },
+    {
+      "operation": "get_v2_messages_messageid",
+      "demand": "the life: Maya's script reads Fernwood's tips message and Kettle & Pine's cancelled one (no application calls it; Dub's only call is in its tests)",
+      "mechanism": "handler",
+      "why": "a message read within the caller's account, its own fields without the twin's bookkeeping; also the refresh of a known message"
+    },
+    {
+      "operation": "delete_v2_messages",
+      "demand": "the life: Kettle & Pine's deleted account cancels its waiting messages by label (no application calls it)",
+      "mechanism": "handler",
+      "why": "every pending message the filters or ids name cancelled; without filters all pending account messages are cancelled, the count answered 202"
+    },
+    {
+      "operation": "post_v2_queues",
+      "demand": "the life: the payout route upserts its queue with parallelism 1 (no application calls it)",
+      "mechanism": "handler",
+      "why": "a queue made or its parallelism changed by name"
+    },
+    {
+      "operation": "door:users",
+      "demand": "the console sign-in every console page asks for, where the life's databases and QStash credentials are made",
+      "mechanism": "door",
+      "why": "a person and their password come from Upstash's sign-up, which no API reaches; the World stands in for it"
+    },
+    {
+      "operation": "door:appCredentials",
+      "demand": "twin-world's runtime issuing an application's Upstash credentials at boot (the descriptor's credentialDoor; journeys/demand.json, Twin)",
+      "mechanism": "door",
+      "why": "a database's REST URL and token and QStash's token and keys are made on the console's pages, not through any API an application calls; the World issues the application's"
+    },
+    {
+      "operation": "door:destinations",
+      "demand": "the life: Looplinks' routes and Fernwood's shop, applications the World does not run, answering QStash's deliveries",
+      "mechanism": "door",
+      "why": "what an application answers at its URL is the application's, not Upstash's; the World stands in for it so deliveries, retries and the DLQ move"
+    },
+    {
+      "operation": "door:deliveries",
+      "demand": "the life: every delivery QStash made to Looplinks' routes is read back as the routes received it",
+      "mechanism": "door",
+      "why": "QStash offers no read of what a destination received beyond its logs; the World shows what was sent"
+    }
+  ],
+  "integerPrecision": {
+    "exact": "engine.ts integerArgument parses signed 64-bit arguments as BigInt; INCR/DECR/INCRBY/DECRBY and HINCRBY retain decimal stored bytes and integerReply returns Number only inside the exact safe range. Expiry arithmetic (ttlFromToken, EXPIRE/PEXPIRE/EXPIREAT/PEXPIREAT, SET/GETEX/SETEX/PSETEX) and comparisons use BigInt; absolute deadlines persist as decimal strings in either layout and survive backup/restore. PTTL/TTL replies use integerReply. EXPIRETIME/PEXPIRETIME remain unmodeled in both dialects; no new operations are served.",
+    "bounded": "engine.ts commandInteger/toInt/positiveInteger validate int64 first, then use Number for LPOS rank/count/maxlen, LPOP/RPOP counts, LINDEX/LSET/LRANGE/LTRIM/LREM positions, ZPOPMIN/ZPOPMAX counts, ZRANGE/ZREVRANGE/ZREMRANGEBYRANK ranks, score-range LIMIT offsets/counts, EVAL/EVALSHA numkeys, XADD/XTRIM MAXLEN/LIMIT and XREAD COUNT. Actual collections and argument lists are JavaScript arrays (length <= 2^32-1); huge accepted values remain outside these bounds or consume the whole array. Returned collection/cardinality/count/length/rank values derive from those arrays or bounded string/buffer lengths, hence below 2^53. SCAN cursor is unsigned int64 validated before Number conversion; generated hash cursors are <= 2^31 so huge supplied cursors are outside the generated range. SELECT is int64 validated then checked against int32 and configured database count; CLIENT LIST ID compares validated supplied numbers against actual allocated connection IDs. List member indices are generated from actual array offsets. nowMs is Date epoch milliseconds (valid Date magnitude <= 8.64e15, below 2^53) and becomes BigInt before expiry arithmetic; internal write ordinals are metadata, not Redis protocol integers.",
+    "doubles": "Sorted-set scores, float increments and BZPOPMIN timeout are vendor doubles, not signed-int64 inputs. lua.ts numeric literals, arithmetic, tonumber and lua-libs.ts cmsgpack/bit numeric conversions follow Redis Lua 5.1 double semantics; engine.ts redisToLua converts integer replies to the Lua number domain deliberately. Sources: Redis scripting API RESP2-to-Lua conversion; Redis Lua 5.1 runtime; pinned src/timeout.c, src/t_zset.c, src/t_string.c and src/t_hash.c.",
+    "measurement": "frames.ts readResp decodes integer replies with Number for client-side journey projection; behavior-journey.ts request JSON.parse and vendor-examples.ts published JSON.parse likewise round unsafe numeric tokens. They are not command arithmetic or wire serialization. No matcher is changed here. Upstash unsafe integer replays omit decoded view and assert the raw JSON numeric body text, so the wire digits are checked despite those projections; Redis expiry GT/LT replays distinguish adjacent deadlines across persisted requests. The wide PTTL numeric projection alone does not measure the final decimal digit.",
+    "sources": [
+      "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/expire.c",
+      "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/util.c",
+      "https://redis.io/docs/latest/develop/programmability/lua-api/#resp2-to-lua-type-conversion"
+    ],
+    "wire": "json.ts jsonReply emits RedisInteger digits as an unquoted JSON numeric token, recursively in scalar, pipeline and transaction envelopes; RESP writers already emit those digits. The private RESP bridge carries integer tags. Upstash around.ts selects jsonReply after its documented envelope/base64 transformation."
+  }
+}

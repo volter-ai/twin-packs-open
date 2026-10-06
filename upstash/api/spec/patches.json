@@ -1,0 +1,70 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/components/schemas/Database/properties/password",
+      "value": {
+        "type": "string",
+        "description": "The database's password (its credentials; left out with credentials=hide)"
+      },
+      "why": "getDatabase answers the database's credentials (its query parameter credentials: \"Set to 'hide' to remove credentials from the response\"), but the Database schema names none. Upstash's own Terraform provider reads the password from this answer.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/upstash/terraform-provider-upstash/edb4f6f535ef5d7f029f1048cadb94bdcb9e1970/upstash/redis/database/types.go",
+        "quote": "json:\"password,omitempty\""
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/Database/properties/rest_token",
+      "value": {
+        "type": "string",
+        "description": "The Standard REST token: full access to the database's REST API (left out with credentials=hide)"
+      },
+      "why": "The database's Standard REST token is one of the credentials getDatabase answers; Upstash's own Terraform provider reads it from this answer.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/upstash/terraform-provider-upstash/edb4f6f535ef5d7f029f1048cadb94bdcb9e1970/upstash/redis/database/types.go",
+        "quote": "json:\"rest_token,omitempty\""
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/Database/properties/read_only_rest_token",
+      "value": {
+        "type": "string",
+        "description": "The Read Only REST token: read commands only (left out with credentials=hide)"
+      },
+      "why": "The database's Read Only REST token is one of the credentials getDatabase answers; Upstash's own Terraform provider reads it from this answer.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/upstash/terraform-provider-upstash/edb4f6f535ef5d7f029f1048cadb94bdcb9e1970/upstash/redis/database/types.go",
+        "quote": "json:\"read_only_rest_token,omitempty\""
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/components/schemas/CreateDatabaseRequest/required",
+      "value": [
+        "database_name",
+        "primary_region"
+      ],
+      "why": "The document lists `platform` as required, but Upstash's own CLI (`upstash redis create --name --region`) sends no platform and its create succeeds; the requirement is dropped. A database made without one is on aws (the twin's decision, semantics/index.ts).",
+      "source": {
+        "url": "https://raw.githubusercontent.com/upstash/cli/1a67be4e830bd74b622826d5b6bcf5efc81dad5d/src/commands/redis/create.ts",
+        "quote": "database_name: flags.name,"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/CreateDatabaseRequest/properties/region",
+      "value": {
+        "type": "string",
+        "description": "The database's region; `global` for a global database (the Database schema's `region`)",
+        "example": "global"
+      },
+      "why": "Upstash's own CLI sends `region: \"global\"` in the create body, a field the document's request schema omits; it is added so the CLI's request is the operation's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/upstash/cli/1a67be4e830bd74b622826d5b6bcf5efc81dad5d/src/commands/redis/create.ts",
+        "quote": "region: \"global\","
+      }
+    }
+  ]
+}

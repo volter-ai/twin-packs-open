@@ -1,0 +1,265 @@
+{
+  "patches": [
+    {
+      "op": "replace",
+      "path": "/documents/workflow/components/schemas/FlowControlKey",
+      "value": {
+        "type": "object",
+        "properties": {
+          "flowControlKey": {
+            "type": "string",
+            "description": "The flow control key name"
+          },
+          "waitListSize": {
+            "type": "integer",
+            "description": "The number of messages waiting due to flow control configuration."
+          },
+          "parallelismMax": {
+            "type": "integer",
+            "description": "The configured maximum number of messages allowed to run concurrently, if parallelism is set."
+          },
+          "parallelismCount": {
+            "type": "integer",
+            "description": "The current number of messages running in parallel."
+          },
+          "rateMax": {
+            "type": "integer",
+            "description": "The configured maximum number of messages allowed per rate period, if rate limiting is set."
+          },
+          "rateCount": {
+            "type": "integer",
+            "description": "The number of messages dispatched in the current rate period."
+          },
+          "ratePeriod": {
+            "type": "integer",
+            "description": "The length of the rate period in seconds."
+          },
+          "ratePeriodStart": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds) when the current rate period started."
+          },
+          "isPinnedParallelism": {
+            "type": "boolean",
+            "description": "True if the flow-control key has a pinned parallelism configuration."
+          },
+          "isPinnedRate": {
+            "type": "boolean",
+            "description": "True if the flow-control key has a pinned rate configuration."
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "True if the delivery of messages associated with the flow-control key is paused."
+          }
+        }
+      },
+      "why": "The two documents give GET /v2/flowControl and GET /v2/flowControl/{flowControlKey} one FlowControlKey schema each, and they differ: qstash's has eleven fields with `waitListSize`, workflow's two with `waitlistSize`. One server answers both documents' clients, so one of them is wrong. The vendor's own client decodes qstash's: @upstash/qstash 2.11.3 (the version Dub's @upstash/workflow resolves) types the answer as FlowControlInfo with `flowControlKey`, `waitListSize` (capital L), `parallelismMax`, `parallelismCount`, `rateMax`, `rateCount`, `ratePeriod`, `ratePeriodStart`, `isPaused`, `isPinnedParallelism` and `isPinnedRate`. So workflow's schema is replaced with qstash's, byte for byte.",
+      "source": {
+        "url": "https://unpkg.com/@upstash/qstash@2.11.3/client-CsnfJpnA.d.ts",
+        "quote": "type FlowControlInfo = { /** * The flow control key. */ flowControlKey: string; /** * The number of messages waiting in the wait list. */ waitListSize: number;"
+      }
+    },
+    {
+      "op": "remove",
+      "path": "/documents/workflow/paths/~1v2~1messages~1{messageId}~1retry/post/responses/500",
+      "why": "Both documents give POST /v2/messages/{messageId}/retry (one endpoint on one server: a step waiting for its retry is a QStash message), and they differ only in workflow's listing a 500 Internal Server Error. A server fault is not a behaviour of the operation a twin decides, and the qstash document's answer set for the same endpoint is 200, 400 and 404; the 500 is removed from workflow's so the union holds qstash's answers.",
+      "source": {
+        "spec": "/documents/qstash/paths/~1v2~1messages~1{messageId}~1retry/post/responses",
+        "quote": "200 description The message is rescheduled for immediate delivery. 400 description The message id is invalid, or the message belongs to a queue."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/documents/workflow/paths/~1v2~1workflows~1runs~1{workflowRunId}/delete/parameters/-",
+      "value": {
+        "in": "query",
+        "name": "cancel",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        },
+        "description": "true cancels the run; false reports it finished, its route function having returned (the body is the run's result)."
+      },
+      "why": "The vendor's own client ends every run through this operation with a `cancel` query parameter the document does not list: @upstash/workflow 1.3.0 (the version Dub installs) reports a run whose route function returned with `DELETE /v2/workflows/runs/<id>?cancel=false` and the run's result as the body (`triggerWorkflowDelete`), and a cancel from inside the run with `?cancel=true` (`makeCancelRequest`).",
+      "source": {
+        "url": "https://unpkg.com/@upstash/workflow@1.3.0/chunk-G24J5PCC.mjs",
+        "quote": "path: [\"v2\", \"workflows\", \"runs\", `${workflowContext.workflowRunId}?cancel=${cancel}`]"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/documents/qstash/paths/~1v2~1dlq/get/parameters/-",
+      "value": {
+        "in": "query",
+        "name": "source",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "workflow"
+          ]
+        },
+        "description": "workflow lists the failed workflow runs (Upstash Workflow's DLQ) instead of QStash's failed messages."
+      },
+      "why": "@upstash/workflow 1.3.0's `client.dlq.list` reads the Workflow DLQ at QStash's own `GET /v2/dlq` with `source=workflow` in the query, not at the `GET /v2/workflows/dlq` the workflow document names.",
+      "source": {
+        "url": "https://unpkg.com/@upstash/workflow@1.3.0/index.mjs",
+        "quote": "path: [\"v2\", \"dlq\"], method: \"GET\", query: { cursor, count, ...filter, source: \"workflow\" }"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/documents/qstash/paths/~1v2~1dlq/get/responses/200/content/application~1json/schema",
+      "value": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "cursor": {
+                "type": "string"
+              },
+              "messages": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DLQMessage"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "cursor": {
+                "type": "string"
+              },
+              "messages": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowDLQMessage"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "why": "With `source=workflow` the list is the Workflow DLQ, whose entries the client types as the workflow document's DLQ message (a failed run: `dlqId`, `workflowRunId`, `workflowUrl`, ...), so the answer is either envelope: QStash's failed messages, or the failed workflow runs.",
+      "source": {
+        "url": "https://unpkg.com/@upstash/workflow@1.3.0/index.mjs",
+        "quote": "path: [\"v2\", \"dlq\"], method: \"GET\", query: { cursor, count, ...filter, source: \"workflow\" }"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/documents/qstash/components/schemas/DLQMessage/properties/dlqId",
+      "value": {
+        "type": "string",
+        "description": "The unique id within the DLQ"
+      },
+      "why": "The DLQ's retry and delete name a message by its `dlqId` (their `dlqIds` parameter), and the vendor's client types every DLQ message as carrying one; the document's DLQMessage leaves it out.",
+      "source": {
+        "url": "https://unpkg.com/@upstash/qstash@2.11.0/client-CUioGZfg.d.ts",
+        "quote": "type DlqMessage = Message & { /** * The unique id within the DLQ */ dlqId: string;"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/documents/workflow/paths/~1v2~1wait~1{eventId}",
+      "value": {
+        "post": {
+          "summary": "Wait for an Event",
+          "tags": [
+            "Notify"
+          ],
+          "description": "A workflow run waits at a `context.waitForEvent` step for the event id: the waiter holds the run's URL, the step and its timeout, until a notify for the event resumes the run or the timeout does.",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "eventId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The event id the run waits for."
+            },
+            {
+              "in": "header",
+              "name": "Upstash-Workflow-RunId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The waiting run."
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    },
+                    "timeout": {
+                      "type": "string",
+                      "description": "a duration: a number and s, m, h or d"
+                    },
+                    "timeoutBody": {
+                      "type": "string"
+                    },
+                    "timeoutUrl": {
+                      "type": "string"
+                    },
+                    "timeoutHeaders": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "step": {
+                      "type": "object",
+                      "description": "the wait step: stepId, stepType, stepName, concurrent, targetStep"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "The run waits for the event."
+            }
+          }
+        }
+      },
+      "why": "@upstash/workflow 1.3.0's `context.waitForEvent` step is submitted to `POST /v2/wait/<eventId>` (`LazyWaitEventStep.submitStep`), with the run's URL, the timeout, the URL and headers to call when it times out, and the step (`getBody`), and the run id in its headers; neither document has the path. The client does not read the answer (`parseResponseAsJson: false`); where the evidence stops, the answer is a 200 with no body.",
+      "source": {
+        "url": "https://unpkg.com/@upstash/workflow@1.3.0/chunk-G24J5PCC.mjs",
+        "quote": "path: [\"v2\", \"wait\", this.eventId]"
+      }
+    },
+    {
+      "op": "copy",
+      "from": "/documents/qstash/paths/~1v2~1schedules~1{scheduleId}~1pause/post",
+      "path": "/documents/qstash/paths/~1v2~1schedules~1{scheduleId}~1pause/patch",
+      "why": "The vendor's own clients pause a schedule with PATCH, not the POST the document names: @upstash/qstash 2.11.3's `schedules.pause` sends `method: \"PATCH\"` to /v2/schedules/<id>/pause, as qstash-py 3.4.0's `schedule.pause` does. So the server answers PATCH there as it answers POST; the operation is the document's POST, copied.",
+      "source": {
+        "url": "https://unpkg.com/@upstash/qstash@2.11.3/chunk-JYPXGFWX.mjs",
+        "quote": "method: \"PATCH\", path: [\"v2\", \"schedules\", schedule, \"pause\"]"
+      }
+    },
+    {
+      "op": "copy",
+      "from": "/documents/qstash/paths/~1v2~1schedules~1{scheduleId}~1resume/post",
+      "path": "/documents/qstash/paths/~1v2~1schedules~1{scheduleId}~1resume/patch",
+      "why": "The vendor's own clients resume a schedule with PATCH, not the POST the document names: @upstash/qstash 2.11.3's `schedules.resume` sends `method: \"PATCH\"` to /v2/schedules/<id>/resume, as qstash-py 3.4.0's `schedule.resume` does. So the server answers PATCH there as it answers POST; the operation is the document's POST, copied.",
+      "source": {
+        "url": "https://unpkg.com/@upstash/qstash@2.11.3/chunk-JYPXGFWX.mjs",
+        "quote": "method: \"PATCH\", path: [\"v2\", \"schedules\", schedule, \"resume\"]"
+      }
+    }
+  ]
+}

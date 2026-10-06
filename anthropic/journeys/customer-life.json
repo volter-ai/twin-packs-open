@@ -1,0 +1,1652 @@
+{
+  "vendor": "anthropic",
+  "author": "Contributor 67",
+  "about": "Northdesk adopts the Claude API in October 2026, runs its chat, sales agents, link filters and coding workflow, rotates a leaked key in November and retires its chat key in December. Scripted turns are synthetic scenario data; protocol, credentials and cache lifetimes follow the vendor.",
+  "steps": [
+    {
+      "name": "Monday 5 October, 09:00: Maarten makes the applications' keys",
+      "wait": "399420m"
+    },
+    {
+      "name": "The World: Maarten Declercq's Console sign-up, admin of Northdesk (its Default workspace)",
+      "method": "POST",
+      "path": "/_twin/users/maarten@northdesk.be",
+      "status": 201,
+      "body": {
+        "organization": "Northdesk"
+      }
+    },
+    {
+      "name": "He opens the API keys page; the Console asks him to log in",
+      "method": "GET",
+      "path": "https://platform.claude.com/settings/keys",
+      "status": 302,
+      "capture": {
+        "loginPage": "header:location"
+      }
+    },
+    {
+      "name": "The login page",
+      "method": "GET",
+      "path": "https://platform.claude.com{loginPage}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to the Claude Console"
+        }
+      ]
+    },
+    {
+      "name": "He continues with his email",
+      "method": "POST",
+      "path": "https://platform.claude.com/login",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=maarten%40northdesk.be&next=%2Fsettings%2Fkeys",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Check your email"
+        }
+      ]
+    },
+    {
+      "name": "The Console emails him a login code",
+      "method": "GET",
+      "path": "/_twin/mailbox/maarten@northdesk.be",
+      "status": 200,
+      "capture": {
+        "code": "text:login code is ([0-9]{6})"
+      },
+      "expect": [
+        {
+          "path": "mail.0.subject",
+          "equals": "Your Claude Console login code"
+        }
+      ]
+    },
+    {
+      "name": "He enters it and is signed in",
+      "method": "POST",
+      "path": "https://platform.claude.com/login/verify",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=maarten%40northdesk.be&code={code}&next=%2Fsettings%2Fkeys",
+      "capture": {
+        "session": "header:set-cookie:anthropic_twin_session=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "location",
+          "equals": "/settings/keys"
+        }
+      ]
+    },
+    {
+      "name": "The API keys page: none yet",
+      "method": "GET",
+      "path": "https://platform.claude.com/settings/keys",
+      "status": 200,
+      "headers": {
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "No API keys yet."
+        }
+      ]
+    },
+    {
+      "name": "He creates the key twenty-prod (never expires) and copies it once into its application",
+      "method": "POST",
+      "path": "https://platform.claude.com/settings/keys?do=create",
+      "status": 201,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "body": "name=twenty-prod&expiration=Never",
+      "capture": {
+        "k_twenty": "text:created: (sk-ant-api03-[A-Za-z0-9_-]+AA) "
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Key twenty-prod created"
+        }
+      ]
+    },
+    {
+      "name": "He creates the key librechat (never expires) and copies it once into its application",
+      "method": "POST",
+      "path": "https://platform.claude.com/settings/keys?do=create",
+      "status": 201,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "body": "name=librechat&expiration=Never",
+      "capture": {
+        "k_librechat": "text:created: (sk-ant-api03-[A-Za-z0-9_-]+AA) "
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Key librechat created"
+        }
+      ]
+    },
+    {
+      "name": "He creates the key dub (never expires) and copies it once into its application",
+      "method": "POST",
+      "path": "https://platform.claude.com/settings/keys?do=create",
+      "status": 201,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "body": "name=dub&expiration=Never",
+      "capture": {
+        "k_dub": "text:created: (sk-ant-api03-[A-Za-z0-9_-]+AA) "
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Key dub created"
+        }
+      ]
+    },
+    {
+      "name": "He creates the key claude-code (never expires) and copies it once into its application",
+      "method": "POST",
+      "path": "https://platform.claude.com/settings/keys?do=create",
+      "status": 201,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "body": "name=claude-code&expiration=Never",
+      "capture": {
+        "k_code": "text:created: (sk-ant-api03-[A-Za-z0-9_-]+AA) "
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Key claude-code created"
+        }
+      ]
+    },
+    {
+      "name": "A mistyped key is refused",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 401,
+      "headers": {
+        "x-api-key": "sk-ant-api03-mistyped",
+        "anthropic-version": "2023-06-01"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 64,
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.message",
+          "equals": "invalid x-api-key"
+        }
+      ]
+    },
+    {
+      "name": "LibreChat starts and lists the models its key can use, newest first",
+      "method": "GET",
+      "path": "https://api.anthropic.com/v1/models",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01"
+      },
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "claude-opus-5-5"
+        },
+        {
+          "path": "data.0.type",
+          "equals": "model"
+        },
+        {
+          "path": "data.0.display_name",
+          "equals": "Claude Opus 5.5"
+        },
+        {
+          "path": "data.0.created_at",
+          "equals": "2026-09-22T00:00:00Z"
+        },
+        {
+          "path": "data.0.max_input_tokens",
+          "equals": 1000000
+        },
+        {
+          "path": "data.0.max_tokens",
+          "equals": 128000
+        },
+        {
+          "path": "data.0.capabilities.thinking.types.enabled.supported",
+          "equals": false
+        },
+        {
+          "path": "data.0.capabilities.effort.xhigh.supported",
+          "equals": true
+        },
+        {
+          "path": "data.7.id",
+          "equals": "claude-sonnet-4-6"
+        },
+        {
+          "path": "data.7.capabilities.thinking.types.enabled.supported",
+          "equals": true
+        },
+        {
+          "path": "data.7.capabilities.effort.xhigh.supported",
+          "equals": false
+        },
+        {
+          "path": "data.10.id",
+          "equals": "claude-haiku-4-5-20251001"
+        },
+        {
+          "path": "data.10.max_input_tokens",
+          "equals": 200000
+        },
+        {
+          "path": "data.10.max_tokens",
+          "equals": 64000
+        },
+        {
+          "path": "data.10.capabilities.effort.supported",
+          "equals": false
+        },
+        {
+          "path": "data.10.capabilities.thinking.types.adaptive.supported",
+          "equals": false
+        },
+        {
+          "path": "first_id",
+          "equals": "claude-opus-5-5"
+        },
+        {
+          "path": "last_id",
+          "equals": "claude-sonnet-4-5-20250929"
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "header": "request-id",
+          "matches": "^req_011C"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 6 October, 10:00: a LibreChat conversation with extended thinking",
+      "wait": "1500m"
+    },
+    {
+      "name": "A turn streams: its thinking, its text, the long system prompt written to the cache",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 8000,
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 2000
+        },
+        "stream": true,
+        "system": [
+          {
+            "type": "text",
+            "text": "You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarize our refund policy for retailers in two sentences."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"thinking_delta\""
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"signature_delta\""
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"text_delta\""
+        },
+        {
+          "path": "",
+          "matches": "\"cache_creation_input_tokens\":[1-9][0-9]*"
+        },
+        {
+          "path": "",
+          "contains": "\"stop_reason\":\"end_turn\""
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        }
+      ],
+      "capture": {
+        "refund1Text": "sse:content_block_delta:delta.text",
+        "refund1Thinking": "sse:content_block_delta:delta.thinking",
+        "refund1Signature": "sse:content_block_delta:delta.signature"
+      }
+    },
+    {
+      "name": "three minutes later",
+      "wait": "3m"
+    },
+    {
+      "name": "The next turn, within five minutes, reads the system prompt from the cache",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 8000,
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 2000
+        },
+        "stream": true,
+        "system": [
+          {
+            "type": "text",
+            "text": "You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarize our refund policy for retailers in two sentences."
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "{refund1Thinking}",
+                "signature": "{refund1Signature}"
+              },
+              {
+                "type": "text",
+                "text": "{refund1Text}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Do annual plans use the same refund window?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "matches": "\"cache_read_input_tokens\":[1-9][0-9]*"
+        }
+      ],
+      "capture": {
+        "refund2Text": "sse:content_block_delta:delta.text",
+        "refund2Thinking": "sse:content_block_delta:delta.thinking",
+        "refund2Signature": "sse:content_block_delta:delta.signature"
+      }
+    },
+    {
+      "name": "twenty minutes pass",
+      "wait": "20m"
+    },
+    {
+      "name": "After the lifetime, the prompt is written again",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 8000,
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 2000
+        },
+        "stream": true,
+        "system": [
+          {
+            "type": "text",
+            "text": "You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands. You are Northdesk's internal assistant. Northdesk sells help-desk software to small retailers in Belgium and the Netherlands.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarize our refund policy for retailers in two sentences."
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "{refund1Thinking}",
+                "signature": "{refund1Signature}"
+              },
+              {
+                "type": "text",
+                "text": "{refund1Text}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Do annual plans use the same refund window?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "{refund2Thinking}",
+                "signature": "{refund2Signature}"
+              },
+              {
+                "type": "text",
+                "text": "{refund2Text}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "A retailer has just asked for a refund after renewing an annual plan. Who approves it?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "matches": "\"cache_creation_input_tokens\":[1-9][0-9]*"
+        }
+      ]
+    },
+    {
+      "name": "A pasted screenshot (280×140: 10×5 visual tokens) goes as an image block",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "image",
+                "source": {
+                  "type": "base64",
+                  "media_type": "image/png",
+                  "data": "iVBORw0KGgoAAAANSUhEUgAAARgAAACMCAIAAAAobCE6AAABnklEQVR4nO3TQQkAMAzAwPo3vYloYDDuFOSTOcDavA6AHxgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoLABbfsr2jEiR4xAAAAAElFTkSuQmCC"
+                }
+              },
+              {
+                "type": "text",
+                "text": "What does this screenshot show?"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "usage.input_tokens",
+          "exists": true
+        },
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "content.0.text",
+          "contains": "[twin-stub:claude-sonnet-4-5]"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        },
+        {
+          "path": "id",
+          "contains": "msg_01"
+        }
+      ]
+    },
+    {
+      "name": "The conversation gets its title from a short unstreamed call",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-haiku-4-5",
+        "max_tokens": 120,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Write a 5-word title for: refund policy for retailers"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "message"
+        },
+        {
+          "path": "role",
+          "equals": "assistant"
+        },
+        {
+          "path": "model",
+          "equals": "claude-haiku-4-5"
+        },
+        {
+          "path": "usage.service_tier",
+          "equals": "standard"
+        }
+      ]
+    },
+    {
+      "name": "While editing the LibreChat preset, its administrator accidentally omits max_tokens",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 400,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarize our refund policy for retailers in two sentences."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        },
+        {
+          "path": "error.message",
+          "equals": "max_tokens: Field required"
+        }
+      ]
+    },
+    {
+      "name": "Restoring max_tokens fixes the preset and the conversation resumes",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_librechat}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarize our refund policy for retailers in two sentences."
+          }
+        ],
+        "max_tokens": 8000
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        }
+      ]
+    },
+    {
+      "name": "Monday 12 October, 14:00: a Twenty agent answers a sales question with a tool",
+      "wait": "8857m"
+    },
+    {
+      "name": "The agent's turn streams a tool call",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_twenty}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 4096,
+        "stream": true,
+        "tools": [
+          {
+            "name": "lookup_account",
+            "description": "Find a Twenty company by name.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          {
+            "name": "draft_email",
+            "description": "Draft a follow-up email.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "to": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "to",
+                "subject"
+              ]
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "How many seats does Veldhoven Retail have?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"type\":\"tool_use\""
+        },
+        {
+          "path": "",
+          "contains": "\"name\":\"lookup_account\""
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"input_json_delta\""
+        },
+        {
+          "path": "",
+          "contains": "\"stop_reason\":\"tool_use\""
+        }
+      ],
+      "capture": {
+        "toolId": "sse:content_block_start:content_block.id",
+        "toolInput": "sse-json:content_block_delta:delta.partial_json"
+      }
+    },
+    {
+      "name": "The agent sends the tool's result; the next turn answers in text",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_twenty}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 4096,
+        "tools": [
+          {
+            "name": "lookup_account",
+            "description": "Find a Twenty company by name.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          {
+            "name": "draft_email",
+            "description": "Draft a follow-up email.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "to": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "to",
+                "subject"
+              ]
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "How many seats does Veldhoven Retail have?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{toolId}",
+                "name": "lookup_account",
+                "input": "{toolInput}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{toolId}",
+                "content": "Veldhoven Retail: 42 seats, renewal 1 March."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        }
+      ],
+      "capture": {
+        "accountReply": "content.0.text"
+      }
+    },
+    {
+      "name": "The sales rep asks the agent to draft a renewal follow-up for that account",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_twenty}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 4096,
+        "tools": [
+          {
+            "name": "lookup_account",
+            "description": "Find a Twenty company by name.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          {
+            "name": "draft_email",
+            "description": "Draft a follow-up email.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "to": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "to",
+                "subject"
+              ]
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "tool",
+          "name": "draft_email"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "How many seats does Veldhoven Retail have?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{toolId}",
+                "name": "lookup_account",
+                "input": "{toolInput}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{toolId}",
+                "content": "Veldhoven Retail: 42 seats, renewal 1 March."
+              }
+            ]
+          },
+          {
+            "role": "assistant",
+            "content": "{accountReply}"
+          },
+          {
+            "role": "user",
+            "content": "Draft a follow-up to sales@veldhovenshop.nl about their March renewal."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.name",
+          "equals": "draft_email"
+        },
+        {
+          "path": "content.0.input.to",
+          "equals": "sales@veldhovenshop.nl"
+        }
+      ],
+      "capture": {
+        "draftId": "content.0.id",
+        "draftInput": "content.0.input",
+        "draftRecipient": "content.0.input.to",
+        "draftSubject": "content.0.input.subject"
+      }
+    },
+    {
+      "name": "The agent prepares the requested draft, returns its result and gives a final summary without more tools",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_twenty}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 4096,
+        "tools": [
+          {
+            "name": "lookup_account",
+            "description": "Find a Twenty company by name.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          {
+            "name": "draft_email",
+            "description": "Draft a follow-up email.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "to": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "to",
+                "subject"
+              ]
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "none"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "How many seats does Veldhoven Retail have?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{toolId}",
+                "name": "lookup_account",
+                "input": "{toolInput}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{toolId}",
+                "content": "Veldhoven Retail: 42 seats, renewal 1 March."
+              }
+            ]
+          },
+          {
+            "role": "assistant",
+            "content": "{accountReply}"
+          },
+          {
+            "role": "user",
+            "content": "Draft a follow-up to sales@veldhovenshop.nl about their March renewal."
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{draftId}",
+                "name": "draft_email",
+                "input": "{draftInput}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{draftId}",
+                "content": "Draft prepared for {draftRecipient}: {draftSubject}."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 4 November, 11:00: Dub makes link filters from a sentence",
+      "wait": "32940m"
+    },
+    {
+      "name": "generateText with Output.object: output_config.format with the filters' JSON schema",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_dub}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 4096,
+        "output_config": {
+          "format": {
+            "type": "json_schema",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "filters": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "enum": [
+                          "country",
+                          "device",
+                          "browser"
+                        ]
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "filters"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "Clicks from Belgian mobile users"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.text",
+          "equals": "{\"filters\":[{\"key\":\"country\",\"value\":\"BE\"},{\"key\":\"device\",\"value\":\"mobile\"}]}"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        }
+      ]
+    },
+    {
+      "name": "Its support chat streams",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_dub}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 2048,
+        "stream": true,
+        "system": "You answer questions about Dub.",
+        "messages": [
+          {
+            "role": "user",
+            "content": "How do I add a custom domain?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"type\":\"text_delta\""
+        },
+        {
+          "path": "",
+          "contains": "event: message_delta"
+        }
+      ]
+    },
+    {
+      "name": "Monday 9 November, 09:30: Claude Code through the harness",
+      "wait": "7110m"
+    },
+    {
+      "name": "Claude Code counts its prompt's tokens first",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_code}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "anthropic-beta": "claude-code-20250219"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 4000
+        },
+        "tools": [
+          {
+            "name": "Grep",
+            "description": "Search file contents.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "pattern": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ]
+            }
+          },
+          {
+            "name": "Read",
+            "description": "Read a file.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            },
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "system": [
+          {
+            "type": "text",
+            "text": "You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find where ticket priorities are computed."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "input_tokens",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Its turn (the beta namespace): thinking, then a Grep call, the tools and system prompt cached",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages?beta=true",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_code}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "anthropic-beta": "claude-code-20250219,interleaved-thinking-2025-05-14"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 32000,
+        "stream": true,
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 4000
+        },
+        "tools": [
+          {
+            "name": "Grep",
+            "description": "Search file contents.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "pattern": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ]
+            }
+          },
+          {
+            "name": "Read",
+            "description": "Read a file.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            },
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "system": [
+          {
+            "type": "text",
+            "text": "You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find where ticket priorities are computed."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"type\":\"thinking\""
+        },
+        {
+          "path": "",
+          "contains": "\"name\":\"Grep\""
+        },
+        {
+          "path": "",
+          "contains": "\"stop_reason\":\"tool_use\""
+        },
+        {
+          "path": "",
+          "matches": "\"cache_read_input_tokens\":0"
+        }
+      ],
+      "capture": {
+        "grepId": "sse:content_block_start:content_block.id",
+        "grepInput": "sse-json:content_block_delta:delta.partial_json",
+        "codeThinking": "sse:content_block_delta:delta.thinking",
+        "codeSignature": "sse:content_block_delta:delta.signature"
+      }
+    },
+    {
+      "name": "a minute later",
+      "wait": "1m"
+    },
+    {
+      "name": "Its next question about the search result reads the cached prefix",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages?beta=true",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_code}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "anthropic-beta": "claude-code-20250219,interleaved-thinking-2025-05-14"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 32000,
+        "stream": true,
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 4000
+        },
+        "tools": [
+          {
+            "name": "Grep",
+            "description": "Search file contents.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "pattern": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern"
+              ]
+            }
+          },
+          {
+            "name": "Read",
+            "description": "Read a file.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            },
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "system": [
+          {
+            "type": "text",
+            "text": "You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands. You are Claude Code, working in Northdesk's repository. Follow the repository's conventions and run no destructive commands.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find where ticket priorities are computed."
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "{codeThinking}",
+                "signature": "{codeSignature}"
+              },
+              {
+                "type": "tool_use",
+                "id": "{grepId}",
+                "name": "Grep",
+                "input": "{grepInput}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{grepId}",
+                "content": "src/tickets/priority.ts:42: export function computePriority(ticket) { return ticket.urgent ? 1 : 3; }"
+              },
+              {
+                "type": "text",
+                "text": "Which ticket-priority function should I read next?"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "matches": "\"cache_creation_input_tokens\":0"
+        },
+        {
+          "path": "",
+          "matches": "\"cache_read_input_tokens\":[1-9][0-9]*"
+        }
+      ]
+    },
+    {
+      "name": "Thursday 19 November, 08:45: the dub key is pasted into a public issue",
+      "wait": "14354m"
+    },
+    {
+      "name": "Maarten opens the API keys page",
+      "method": "GET",
+      "path": "https://platform.claude.com/settings/keys",
+      "status": 200,
+      "headers": {
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "capture": {
+        "dubKey": "text:>dub<[\\s\\S]*?name=\"key\" value=\"(apikey_01[a-z]+)\""
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "claude-code"
+        }
+      ]
+    },
+    {
+      "name": "He deletes the key dub",
+      "method": "POST",
+      "path": "https://platform.claude.com/settings/keys?do=delete",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "body": "key={dubKey}",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Key dub deleted."
+        }
+      ]
+    },
+    {
+      "name": "The leaked key is refused from that moment",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 401,
+      "headers": {
+        "x-api-key": "{k_dub}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 64,
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "authentication_error"
+        }
+      ]
+    },
+    {
+      "name": "He makes dub-2",
+      "method": "POST",
+      "path": "https://platform.claude.com/settings/keys?do=create",
+      "status": 201,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "body": "name=dub-2&expiration=Never",
+      "capture": {
+        "k_dub2": "text:created: (sk-ant-api03-[A-Za-z0-9_-]+AA) "
+      }
+    },
+    {
+      "name": "Dub's next call, with the new key, succeeds",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_dub2}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 512,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Suggest a slug for a spring sale link."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "message"
+        }
+      ]
+    },
+    {
+      "name": "Friday 18 December: Northdesk moves its chat elsewhere",
+      "wait": "41775m"
+    },
+    {
+      "name": "The librechat key's id",
+      "method": "GET",
+      "path": "https://platform.claude.com/settings/keys",
+      "status": 200,
+      "headers": {
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "capture": {
+        "lcKey": "text:>librechat<[\\s\\S]*?name=\"key\" value=\"(apikey_01[a-z]+)\""
+      }
+    },
+    {
+      "name": "and deletes it",
+      "method": "POST",
+      "path": "https://platform.claude.com/settings/keys?do=delete",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "anthropic_twin_session={session}"
+      },
+      "body": "key={lcKey}",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Key librechat deleted."
+        }
+      ]
+    },
+    {
+      "name": "Twenty's key still works",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{k_twenty}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "claude-haiku-4-5",
+        "max_tokens": 256,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft a reminder."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        }
+      ]
+    }
+  ],
+  "scenario": "scenario.json",
+  "host": "api.anthropic.com"
+}

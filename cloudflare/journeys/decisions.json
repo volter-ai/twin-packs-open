@@ -1,0 +1,524 @@
+{
+ "about": "The served set comes from default product demand (demand.json), the customer life, vendor-backed refresh and the platform callers. Third-party configured integrations are optional in demand.json; the life explicitly brings their selected Cloudflare operations into scope. Every other operation takes the lane gap.",
+ "decisions": [
+  {
+   "operation": "user-api-tokens-verify-token",
+   "demand": "Open Autonomy backend (journeys/demand.json): setup verifies the pasted token, packages/kit-hermes/src/setup.ts:282",
+   "mechanism": "handler",
+   "why": "The token the request carries, by its SHA-256, answered with its id and status; an account token is refused at the user's verify, and a disabled or expired one before it (around.ts)."
+  },
+  {
+   "operation": "worker-deployments-list-deployments",
+   "demand": "Open Autonomy ci (journeys/demand.json): the deploy workflow its setup writes runs wrangler deploy (packages/kit-hermes/src/setup.ts:425)",
+   "mechanism": "handler",
+   "why": "wrangler deploy reads the script's latest deployment first; the upload makes one at 100% (worker-script)."
+  },
+  {
+   "operation": "worker-service-get",
+   "demand": "Open Autonomy ci (journeys/demand.json): the deploy workflow its setup writes runs wrangler deploy (packages/kit-hermes/src/setup.ts:425); spec/patches.json adds the route wrangler reads",
+   "mechanism": "handler",
+   "why": "The Worker as a service with its production environment's script (its migration tag); a Worker never uploaded is the script-not-found wrangler suppresses."
+  },
+  {
+   "operation": "worker-subdomain-get-subdomain",
+   "demand": "Open Autonomy ci (journeys/demand.json): the deploy workflow its setup writes runs wrangler deploy (packages/kit-hermes/src/setup.ts:425)",
+   "mechanism": "handler",
+   "why": "The account's workers.dev subdomain; none registered is the not-found wrangler reads as such."
+  },
+  {
+   "operation": "worker-subdomain-create-subdomain",
+   "demand": "the platform's callers register the account's workers.dev subdomain before a first deploy (twin-world apps/cloud/scripts/deploy.ts:42, cookbook/catalog-release/walk.ts:110), as an account's owner does",
+   "mechanism": "handler",
+   "why": "An account's one subdomain, refused when another account holds the name."
+  },
+  {
+   "operation": "worker-script-upload-worker-module",
+   "demand": "Open Autonomy ci (journeys/demand.json): the deploy workflow its setup writes runs wrangler deploy (packages/kit-hermes/src/setup.ts:425); the platform's own wrangler deploy rehearsal on this twin (twin-world apps/cloud/scripts/deploy.ts:43)",
+   "mechanism": "handler",
+   "why": "A multipart module upload: modules kept as blobs, Durable Object migrations applied by their tags, assets taken from a completed session, secrets bound by the metadata; a version and a deployment at 100% made of it."
+  },
+  {
+   "operation": "worker-script-get-subdomain",
+   "demand": "Open Autonomy ci (journeys/demand.json): the deploy workflow its setup writes runs wrangler deploy (packages/kit-hermes/src/setup.ts:425)",
+   "mechanism": "handler",
+   "why": "Whether the script is on the account's workers.dev subdomain, and its previews."
+  },
+  {
+   "operation": "worker-script-post-subdomain",
+   "demand": "Open Autonomy ci (journeys/demand.json): the deploy workflow its setup writes runs wrangler deploy (packages/kit-hermes/src/setup.ts:425)",
+   "mechanism": "handler",
+   "why": "The script put on (or taken off) the workers.dev subdomain, as wrangler deploy's last step."
+  },
+  {
+   "operation": "worker-script-update-create-assets-upload-session",
+   "demand": "the platform's own wrangler deploy rehearsal on this twin (twin-world apps/cloud/scripts/deploy.ts:43) (its Worker has static assets)",
+   "mechanism": "handler",
+   "why": "An upload session over the assets manifest: the hashes not yet held, in buckets, and the upload JWT (the completion token when nothing is missing)."
+  },
+  {
+   "operation": "worker-assets-upload",
+   "demand": "the platform's own wrangler deploy rehearsal on this twin (twin-world apps/cloud/scripts/deploy.ts:43) (its Worker has static assets)",
+   "mechanism": "handler",
+   "why": "Assets by their hash, base64 parts, authenticated by the session's JWT (not the account's token); 201 and the completion token once every file is in."
+  },
+  {
+   "operation": "worker-script-get-settings",
+   "demand": "the platform's rehearsal reads the deployed Worker's bindings back (twin-world apps/cloud/scripts/deploy.ts:44)",
+   "mechanism": "handler",
+   "why": "The script's settings: its bindings (a secret's name only), compatibility, limits and observability."
+  },
+  {
+   "operation": "worker-put-script-secret",
+   "demand": "Open Autonomy ci (journeys/demand.json): its admin workflow runs wrangler secret put, .github/workflows/admin.yml:105",
+   "mechanism": "handler",
+   "why": "A secret bound to the script (one subject each, its text never answered)."
+  },
+  {
+   "operation": "worker-versions-list-versions",
+   "demand": "the platform's catalog-release walk (twin-world cookbook/catalog-release/walk.ts:179): the hosted catalog's Worker versions",
+   "mechanism": "handler",
+   "why": "The script's versions, latest first; each upload made one."
+  },
+  {
+   "operation": "worker-versions-get-version-detail",
+   "demand": "the vendor-backed refresh reads each listed version whole (workers_version-item-full's refresh detail: the list answers summaries)",
+   "mechanism": "handler",
+   "why": "A version of the script as the vendor answers its detail: its number, metadata and resources (script, runtime, bindings, a secret's text never); the core would answer the stored row, not the vendor's nested shape."
+  },
+  {
+   "operation": "worker-script-list-workers",
+   "demand": "the vendor-backed refresh reads worker_script back (the api lane's refresh of worker_script)",
+   "mechanism": "handler",
+   "why": "The account's Workers, each as its upload answered it (its name as id); the core would answer the stored row, keyed <account>/<name>, which is not the vendor's script."
+  },
+  {
+   "operation": "r2-list-buckets",
+   "demand": "the vendor-backed refresh reads Bucket back (the api lane's refresh of Bucket, per account), the parent the r2 lane's objects and uploads are read under",
+   "mechanism": "handler",
+   "why": "The account's buckets in the jurisdiction asked, by name, with R2's cursor."
+  },
+  {
+   "operation": "r2-create-bucket",
+   "demand": "the platform's deploy rehearsal makes its R2 bucket through the API (twin-world apps/cloud/scripts/deploy.ts:41)",
+   "mechanism": "handler",
+   "why": "A bucket of the account in its jurisdiction, location hint and storage class, shared with the S3 lane; a bad name or a duplicate refused."
+  },
+  {
+   "operation": "r2-create-temp-access-credentials",
+   "demand": "R2's published examples (journeys/vendor-examples.json): R2 temporary credentials",
+   "mechanism": "handler",
+   "why": "Credentials narrowed from a parent token to a bucket, its objects or prefixes, and a TTL, refused past the parent's own grant; the S3 lane checks them with their session token."
+  },
+  {
+   "operation": "r2-add-custom-domain",
+   "demand": "Dub and Postiz serve public objects at their bucket's custom domain (journeys/demand.json frontend: apps/web/lib/storage.ts:77, cloudflare.storage.ts:123); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "A domain of one of the account's zones attached to the bucket, pending until Cloudflare sees it (the S3 lane's clock); public reads at it are the S3 lane's."
+  },
+  {
+   "operation": "r2-list-custom-domains",
+   "demand": "the vendor-backed refresh reads CustomDomain back under each bucket (the api lane's refresh of CustomDomain)",
+   "mechanism": "handler",
+   "why": "The bucket's custom domains in its jurisdiction, each with its ownership and certificate status and its zone."
+  },
+  {
+   "operation": "zones-post",
+   "demand": "Twenty's custom hostnames, Dub's and Postiz's bucket domains live in a zone of the account, added through the API as the dashboard's Add a site does; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "A zone pending with its two assigned nameservers; it turns active when its registrar publishes them (the dns door)."
+  },
+  {
+   "operation": "custom-hostname-for-a-zone-list-custom-hostnames",
+   "demand": "Twenty backend (journeys/demand.json): dns-manager.service.ts:212; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "core",
+   "why": "The zone's hostnames, filtered by hostname: plain list."
+  },
+  {
+   "operation": "custom-hostname-for-a-zone-create-custom-hostname",
+   "demand": "Twenty backend (journeys/demand.json): dns-manager.service.ts:55; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "Pending, with the ownership TXT and HTTP proofs and the certificate's validation records for the method chosen; a duplicate hostname refused."
+  },
+  {
+   "operation": "custom-hostname-for-a-zone-edit-custom-hostname",
+   "demand": "Twenty backend (journeys/demand.json): dns-manager.service.ts:147; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The same ssl sent again asks for validation again; a new method issues new records, pending again."
+  },
+  {
+   "operation": "custom-hostname-for-a-zone-delete-custom-hostname-(-and-any-issued-ssl-certificates)",
+   "demand": "Twenty backend (journeys/demand.json): dns-manager.service.ts:273; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "core",
+   "why": "Plain delete."
+  },
+  {
+   "operation": "accounts-turnstile-widget-create",
+   "demand": "Cal.com, Rallly and LibreChat run on a widget an operator made (journeys/demand.json: their siteverify and widget rows); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "A widget of the account with its sitekey and secret, the domains it works on and its mode."
+  },
+  {
+   "operation": "accounts-turnstile-widgets-list",
+   "demand": "the vendor-backed refresh reads the stored widgets back by this secret-free listing alone (the api lane's refresh of turnstile_widget_list); the customer life reads the widget's listing after making it",
+   "mechanism": "handler",
+   "why": "The account's widgets as listings show them, without their secrets; the core would answer every widget of every account and its secret."
+  },
+  {
+   "operation": "accounts-turnstile-widget-get",
+   "demand": "the customer life reads the widget's detail, its secret with it, which siteverify checks a token with (a vendor-backed refresh never reads it: the secret stays in credential custody)",
+   "mechanism": "core",
+   "why": "A widget as the vendor answers its detail: the stored widget under its account, its sitekey its id."
+  },
+  {
+   "operation": "accounts-list-accounts",
+   "demand": "the vendor-backed refresh reads iam_account back (the api lane's refresh of iam_account)",
+   "mechanism": "handler",
+   "why": "The accounts the token reaches (an account token its own, a user's token its person's memberships), by name, with result_info."
+  },
+  {
+   "operation": "zones-get",
+   "demand": "the vendor-backed refresh reads zones_zone back (the api lane's refresh of zones_zone)",
+   "mechanism": "handler",
+   "why": "The zones the token may read (Zone Read on the zone or its account), filtered by name, status and account, each as its create answers it, with result_info."
+  },
+  {
+   "operation": "account-api-tokens-list-tokens",
+   "demand": "the vendor-backed refresh reads iam_token_base back (the api lane's refresh of iam_token_base)",
+   "mechanism": "handler",
+   "why": "The account's own tokens, never their values, to a token with Account API Tokens Read; a member who is no Super Administrator sees the tokens they made; expired ones only when asked."
+  },
+  {
+   "operation": "worker-list-script-secrets",
+   "demand": "the vendor-backed refresh reads worker_secret back (the api lane's refresh of worker_secret)",
+   "mechanism": "handler",
+   "why": "The names of the script's secrets, never their text."
+  },
+  {
+   "operation": "durable-objects-namespace-list-namespaces",
+   "demand": "the vendor-backed refresh reads durable_object_namespace back (the api lane's refresh of durable_object_namespace)",
+   "mechanism": "handler",
+   "why": "The account's namespaces its Workers' migrations made: id, name, script, class, SQLite."
+  },
+  {
+   "operation": "notification-webhooks-create-a-webhook",
+   "demand": "Twenty's custom hostnames webhook (journeys/demand.json, webhooks: dns-cloudflare.controller.ts:24-43) is sent the SSL for SaaS Custom Hostnames alert by a webhook destination and a policy its operator makes; the life makes them through the vendor's API (the seeding rule); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "A destination of the account: its URL, its type read off the URL, and the secret Cloudflare sends in cf-webhook-auth, never answered."
+  },
+  {
+   "operation": "notification-policies-create-a-notification-policy",
+   "demand": "Twenty's custom hostnames webhook (journeys/demand.json, webhooks: dns-cloudflare.controller.ts:24-43) is sent the SSL for SaaS Custom Hostnames alert by a webhook destination and a policy its operator makes; the life makes them through the vendor's API (the seeding rule); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "A policy of the account for an alert type, naming the destinations it is sent to (each one of the account's); each named webhook is a route the manifest's events deliver over."
+  },
+  {
+   "operation": "notification-webhooks-list-webhooks",
+   "demand": "the vendor-backed refresh reads aaa_webhooks back (the api lane's refresh of aaa_webhooks)",
+   "mechanism": "handler",
+   "why": "The account's destinations, without their secrets."
+  },
+  {
+   "operation": "notification-policies-list-notification-policies",
+   "demand": "the vendor-backed refresh reads aaa_policies back (the api lane's refresh of aaa_policies)",
+   "mechanism": "handler",
+   "why": "The account's policies as made."
+  },
+  {
+   "operation": "door:appCredentials",
+   "demand": "the World application's account and token (descriptor.credentialDoor)",
+   "mechanism": "door",
+   "why": "A sign-up, which no API makes: the account, its owner as Super Administrator, and its account token."
+  },
+  {
+   "operation": "door:dns",
+   "demand": "a registrar's nameservers for a zone, a SaaS customer's own records (Twenty's custom hostnames); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "door",
+   "why": "A record published outside Cloudflare, which Cloudflare's checks then see."
+  },
+  {
+   "operation": "door:deliveries",
+   "demand": "what Twenty's custom hostnames webhook was sent (journeys/demand.json, webhooks), read by the life; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "door",
+   "why": "A notification's arrival at the application's server, which no Cloudflare API reads back: the kernel's record of each delivery."
+  },
+  {
+   "operation": "CreateBucket",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "An R2 bucket at the account endpoint, its jurisdiction and location hint; a bad name, a duplicate, a jurisdiction mismatch refused."
+  },
+  {
+   "operation": "ListBuckets",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "The account's buckets in the endpoint's jurisdiction."
+  },
+  {
+   "operation": "HeadBucket",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "Whether the bucket exists and the token reaches it."
+  },
+  {
+   "operation": "DeleteBucket",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "An empty bucket removed; one holding objects refused."
+  },
+  {
+   "operation": "GetBucketLocation",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "R2's region is auto."
+  },
+  {
+   "operation": "PutBucketCors",
+   "demand": "Dub's and Postiz's browsers upload to presigned URLs from their origin (journeys/demand.json frontend), which the bucket's CORS admits; R2's published examples (journeys/vendor-examples.json); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The bucket's CORS rules, checked by every preflight and cross-origin answer (around.ts)."
+  },
+  {
+   "operation": "GetBucketCors",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "The bucket's CORS rules, or none."
+  },
+  {
+   "operation": "DeleteBucketCors",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "The bucket's CORS rules removed."
+  },
+  {
+   "operation": "PutBucketLifecycleConfiguration",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "Lifecycle rules: expiry, storage-class transitions and multipart aborts on the World clock (clock.ts)."
+  },
+  {
+   "operation": "GetBucketLifecycleConfiguration",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "The rules, with R2's default seven-day multipart abort."
+  },
+  {
+   "operation": "PutObject",
+   "demand": "Dub, Postiz (simple and presigned uploads) in journeys/demand.json; R2's published examples (journeys/vendor-examples.json); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The object's exact bytes as a blob, its metadata and checksums, conditional headers honoured."
+  },
+  {
+   "operation": "GetObject",
+   "demand": "RH2's recording import, Dub's and Postiz's ranged sniff and presigned downloads (journeys/demand.json); R2's published examples (journeys/vendor-examples.json); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The exact bytes, a range as 206, conditional headers, metadata and ETag."
+  },
+  {
+   "operation": "HeadObject",
+   "demand": "Dub backend (journeys/demand.json): apps/web/lib/storage.ts:111; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The object's metadata without its body; 404 when absent."
+  },
+  {
+   "operation": "CopyObject",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "A copy keeping or replacing metadata, to another key or storage class."
+  },
+  {
+   "operation": "DeleteObject",
+   "demand": "Dub and Postiz backends (journeys/demand.json); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The object removed (204 whether or not it was there)."
+  },
+  {
+   "operation": "ListObjects",
+   "demand": "R2's published examples (journeys/vendor-examples.json)",
+   "mechanism": "handler",
+   "why": "The bucket's keys by prefix, delimiter and marker."
+  },
+  {
+   "operation": "ListObjectsV2",
+   "demand": "R2's published examples (journeys/vendor-examples.json); the vendor-backed refresh reads Object back",
+   "mechanism": "handler",
+   "why": "The bucket's keys by prefix, delimiter, continuation token and max-keys."
+  },
+  {
+   "operation": "CreateMultipartUpload",
+   "demand": "Postiz backend (journeys/demand.json): r2.uploader.ts:137; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "An upload id for the key with its content type and metadata."
+  },
+  {
+   "operation": "UploadPart",
+   "demand": "Postiz's browser uploads each part to its presigned URL (journeys/demand.json); scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "A part's exact bytes and ETag under its upload."
+  },
+  {
+   "operation": "ListMultipartUploads",
+   "demand": "the vendor-backed refresh reads Multipart back (the r2 lane's refresh of Multipart, per bucket)",
+   "mechanism": "handler",
+   "why": "A bucket's in-progress uploads by prefix, delimiter and key and upload-id markers, as S3 lists them."
+  },
+  {
+   "operation": "ListParts",
+   "demand": "Postiz backend (journeys/demand.json): r2.uploader.ts:189; the vendor-backed refresh reads Part back; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The upload's parts so far."
+  },
+  {
+   "operation": "CompleteMultipartUpload",
+   "demand": "Postiz backend (journeys/demand.json): r2.uploader.ts:203; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The object assembled from the named parts and ETags; R2's part-size rules refused."
+  },
+  {
+   "operation": "AbortMultipartUpload",
+   "demand": "Postiz backend (journeys/demand.json): r2.uploader.ts:273; scoped by the customer life's corresponding API act and readback, even where the application integration is optional (demand.json optional)",
+   "mechanism": "handler",
+   "why": "The upload and its parts discarded."
+  },
+  {
+   "operation": "door:users",
+   "demand": "a person signing up at dash.cloudflare.com (the dashboard's sign-up, which no API makes)",
+   "mechanism": "door",
+   "why": "A person who can sign in to the dashboard; never a token, zone or bucket."
+  },
+  {
+   "operation": "door:hosts",
+   "demand": "the World's router (descriptor.hostsClaimed)",
+   "mechanism": "door",
+   "why": "The custom domains attached to R2 buckets, which the World routes here."
+  },
+  {
+   "operation": "worker-routes-list-routes",
+   "demand": "wrangler deploy lists a zone's Worker routes when its config names routes and workers.dev is off (wrangler-dist/cli.js, the routes-bound-to-other-Workers check); seen deploying a site with a Custom Domain into a hosted World",
+   "mechanism": "handler",
+   "why": "The zone's routes the World holds; a Worker's Custom Domains are not routes."
+  },
+  {
+   "operation": "worker-script-settings-get-settings",
+   "demand": "wrangler deploy patches a Worker's script-level settings when its service and environment tags differ (wrangler-dist/cli.js patchNonVersionedScriptSettings; seen deploying www.volter.ai over the Worker the sites World adopted from the real account)",
+   "mechanism": "handler",
+   "why": "The script-level settings a version does not carry: logpush, observability, tags and tail consumers."
+  },
+  {
+   "operation": "worker-script-settings-patch-settings",
+   "demand": "wrangler deploy patches a Worker's script-level settings when its service and environment tags differ (wrangler-dist/cli.js patchNonVersionedScriptSettings; seen deploying www.volter.ai over the Worker the sites World adopted from the real account)",
+   "mechanism": "handler",
+   "why": "Only the fields sent change; a tail consumers list sent replaces the one held."
+  },
+  {
+   "operation": "r2-get-bucket",
+   "demand": "wrangler deploy reads each R2 bucket a Worker binds before it deploys (the hosted World's own deploy rehearsal, twin-world apps/cloud/scripts/deploy.ts, binds BLOBS)",
+   "mechanism": "handler",
+   "why": "An existing bucket's properties; one not there is R2's not-found."
+  },
+  {
+   "operation": "workers.domains.update",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "Attach a hostname in one of the caller account's active zones to an existing Worker; a hostname the zone holds CNAME/A/AAAA records at is refused (409, 100117) until they are deleted. The World then answers it with the Worker's assets."
+  },
+  {
+   "operation": "workers.domains.list",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "List the account's Custom Domains, filtered by zone, Worker or hostname."
+  },
+  {
+   "operation": "workers.domains.get",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "Read one of the account's Custom Domains."
+  },
+  {
+   "operation": "workers.domains.delete",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "Detach a Custom Domain; the World stops answering its hostname."
+  },
+  {
+   "operation": "worker-domains-changeset",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "Answer what putting a Worker's origins would add, update (modified when another Worker holds it) and remove, with the zones affected, as the API answers it; a hostname's own DNS records are not listed as conflicting."
+  },
+  {
+   "operation": "worker-domains-put-records",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "Attach a Worker's origins, refusing to move another Worker's domain unless override_existing_origin says so, and refusing a hostname the zone holds DNS records at (409, 100117) whatever the flags; override_scope removes the Worker's others."
+  },
+  {
+   "operation": "worker-domains-get-record",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "Read a Custom Domain wrangler would move to another Worker."
+  },
+  {
+   "operation": "worker-versions-upload-version",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "wrangler deploy's path for a Worker it has deployed before: a version, not deployed, with its static assets from the completion token's session."
+  },
+  {
+   "operation": "worker-deployments-create-deployment",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "Send a version the traffic; the script serves the assets of the version with the largest share."
+  },
+  {
+   "operation": "dns-records-for-a-zone-list-dns-records",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "core",
+   "why": "The zone's records by name and type: plain list."
+  },
+  {
+   "operation": "dns-records-for-a-zone-create-dns-record",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "The record carries vendor timestamps and type-dependent proxy capability (only A, AAAA and CNAME); its zone parent is bookkeeping and never answered."
+  },
+  {
+   "operation": "dns-records-for-a-zone-delete-dns-record",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "core",
+   "why": "A hostname's records deleted before its first deploy as a Custom Domain: plain delete."
+  },
+  {
+   "operation": "getWorker",
+   "demand": "Open Autonomy deploys its dashboard assets (setup.ts:425; apps/platform/wrangler.toml:46-47, scanned 0841076bed91), and the demanded launch World life performs the website cutover (generated/demand.json:404-405).",
+   "mechanism": "handler",
+   "why": "The Worker by its name, with its workers.dev subdomain settings, as wrangler reads it; a Worker not yet deployed is the script-not-found it handles."
+  },
+  {
+   "lane": "api",
+   "operation": "worker-cron-trigger-update-cron-triggers",
+   "demand": "Open Autonomy production deploy: apps/platform/wrangler.toml:23, .github/workflows/deploy.yml:47; RH2 staging release and schedule inventory (journeys/demand.json)",
+   "mechanism": "handler",
+   "why": "The script owns its replacement schedule collection, with vendor timestamps; the configuration read returns that collection.",
+   "sourceRules": [
+    {
+     "source": "https://raw.githubusercontent.com/cloudflare/saffron/main/saffron/src/parse.rs",
+     "quote": "character::complete::{char, digit1, space1}",
+     "means": "The vendor parser separates fields with space1, so a line break inside a cron field is refused before updating schedules."
+    }
+   ]
+  },
+  {
+   "lane": "api",
+   "operation": "worker-cron-trigger-get-cron-triggers",
+   "demand": "Open Autonomy production deploy: apps/platform/wrangler.toml:23, .github/workflows/deploy.yml:47; RH2 staging release and schedule inventory (journeys/demand.json)",
+   "mechanism": "handler",
+   "why": "The script owns its replacement schedule collection, with vendor timestamps; the configuration read returns that collection."
+  },
+  {
+   "operation": "dns-records-for-a-zone-dns-record-details",
+   "demand": "The demanded launch World life reads the predecessor DNS record by id before its cutover deletion; generated/demand.json:404-405.",
+   "mechanism": "core",
+   "why": "The vendor record remains under its original stored zone_id; its response view omits that parent without a migration."
+  }
+ ]
+}

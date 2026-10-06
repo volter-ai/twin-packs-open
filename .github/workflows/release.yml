@@ -1,6 +1,12 @@
 name: Release independent pack
 on:
   workflow_dispatch:
+    inputs:
+      vendor:
+        description: Vendor directory to build and qualify
+        required: true
+        default: tavily
+        type: string
 permissions:
   contents: read
   id-token: write
@@ -11,6 +17,8 @@ jobs:
   release:
     if: vars.PACK_PUBLISH_ENABLED == 'true' && github.event.repository.visibility == 'public'
     runs-on: ubuntu-latest
+    env:
+      PACK_VENDOR: ${{ inputs.vendor }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,9 +43,7 @@ jobs:
         run: bun scripts/run-world.ts assess
       - name: Prepare immutable release bytes
         run: |
-          mkdir -p release
-          cd tavily
-          npm pack --ignore-scripts --pack-destination ../release
+          node scripts/pack.mjs
       - name: Publish with public-source provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

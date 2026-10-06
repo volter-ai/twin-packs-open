@@ -1,0 +1,102 @@
+{
+  "code": [
+    {
+      "file": "semantics/doors.ts",
+      "declarations": [
+        "drain"
+      ],
+      "world": "door",
+      "why": "The World runner calls POST /_twin/drain to write time settlement events. Customer requests read their settlement state through the API; the journey does not run a background drainer."
+    },
+    {
+      "file": "semantics/shared.ts",
+      "declarations": [
+        "payDuePayouts",
+        "settleDueEntries"
+      ],
+      "world": "door",
+      "why": "Called only by the drain door (semantics/doors.ts drain), to write the payout.paid and balance.available events time's moves owe when a runner drives them; a request reads the same moves through the API without them (asOf, commonAsOf)."
+    },
+    {
+      "file": "semantics/shared.ts",
+      "declarations": [
+        "payFromCashBalance"
+      ],
+      "world": "vendor-backed",
+      "why": "A customer's cash balance holds funds only when a bank transfer reaches it: funding it is the test helper the twin answers with the gap (src/manifest.ts unmodeled: no demand or life funds one), or a vendor-backed World reads a live account's cash balance transactions back (customer_cash_balance_transaction's refresh, GetCustomersCustomerCashBalanceTransactions). Only then is a customer_balance payment paid from it, or a refund of one returned to it; the published example of a bank transfer (journeys/vendor-examples.json, June's block) waits for funds that no World of this surface sends."
+    },
+    {
+      "file": "semantics/shared.ts",
+      "declarations": [
+        "finishInvoiceIntent"
+      ],
+      "world": "vendor-backed",
+      "why": "Only an invoice-linked, processing bank-debit intent from the payment_intent refresh can settle an invoice here. PostPaymentIntents does not accept invoice, and its confirm API is unmodeled. Live invoices and their incomplete subscriptions arrive through their refresh; no door makes them."
+    },
+    {
+      "file": "engine/connect.ts",
+      "declarations": [
+        "personHas"
+      ],
+      "world": "vendor-backed",
+      "why": "Custom-account representative and owner persons are read back by GetAccountsAccountPersons. No served API creates these Custom-account persons. Hosted onboarding creates Express-account persons, whose capabilities are reviewed by onboarding itself."
+    },
+    {
+      "file": "server.ts",
+      "declarations": [
+        "createStripeTwinServer"
+      ],
+      "world": "host-process",
+      "why": "This exported host listener wraps createStripeFetch using serveHttp. The journey runs the same fetch in process; no customer request binds or stops a host listener."
+    },
+    {
+      "file": "semantics/shared.ts",
+      "declarations": [
+        "writeLines",
+        "pullPendingItem",
+        "pendingPreviewItem"
+      ],
+      "world": "vendor-backed",
+      "why": "Pending invoice items are read through invoiceitem refresh (GetInvoiceitems). Their creation requires PostInvoiceitems, outside demand because Twenty server billing is shipped disabled. PostInvoices pending_invoice_items_behavior=include and previews operate on those refreshed items; the life walks include with an empty pending list, and no door seeds invoice items."
+    },
+    {
+      "file": "semantics/shared.ts",
+      "declarations": [
+        "releaseAuthorization",
+        "refundUncaptured"
+      ],
+      "world": "vendor-backed",
+      "why": "A captured=false Charge without a PaymentIntent can enter through charge refresh (GetCharges). Creating that legacy charge needs PostCharges, outside demand. The served PaymentIntent manual-capture flow is canceled through PostPaymentIntentsIntentCancel; its charge cannot be refunded directly (refundCharge). These functions handle only the imported legacy charge."
+    },
+    {
+      "file": "semantics/shared.ts",
+      "declarations": [
+        "backToCashBalance"
+      ],
+      "world": "vendor-backed",
+      "why": "A refund with origin=customer_balance requires a successfully funded cash-balance payment. Funding requires a real bank transfer or PostTestHelpersCustomersCustomerFundCashBalance (unmodeled); the customer_cash_balance_transaction and charge refreshes supply a vendor-backed subject. The existing payFromCashBalance record explains this state, and no door funds it."
+    }
+  ],
+  "state": [
+    {
+      "item": "move subscription.status: vendor incomplete \u2192 active",
+      "world": "vendor-backed",
+      "why": "An incomplete subscription whose processing bank debit settles enters only through refresh; Checkout creates active or trialing subscriptions, and PostSubscriptions is unmodeled (finishInvoiceIntent)."
+    },
+    {
+      "item": "move invoice.status: vendor draft|open|uncollectible \u2192 paid",
+      "world": "vendor-backed",
+      "why": "A live invoice linked to a processing bank debit can settle through refresh. PostPaymentIntents does not accept invoice and the confirm API is unmodeled (finishInvoiceIntent)."
+    },
+    {
+      "item": "move payout.status: time pending \u2192 paid",
+      "world": "door",
+      "why": "The drain door commits bank arrival in payDuePayouts; ordinary requests render the payout at its current clock without writing the delivery event."
+    },
+    {
+      "item": "move balance_transaction.status: time pending \u2192 available",
+      "world": "door",
+      "why": "The drain door commits availability in settleDueEntries; ordinary requests render the current balance through commonAsOf without writing the event."
+    }
+  ]
+}

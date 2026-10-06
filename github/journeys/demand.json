@@ -1,0 +1,782 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "Open Autonomy",
+      "commit": "0841076bed91",
+      "client": "fetch with the project's token (GITHUB_API_URL, the valve's GitHub port: a GitHub App's installation token), the gh command line in setup (measured: gh 2.83.2 against a logging server), and the platform's OAuth app",
+      "backend": [
+        {
+          "call": "community poll: GET /repos/{account}/issues?state=all&since=\u2026&per_page=100&page=N, every page",
+          "operation": "issues/list-for-repo",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:170"
+        },
+        {
+          "call": "the open issues and pull requests, paged (a kit pull request found by its branch; an issue already open for a task)",
+          "operation": "issues/list-for-repo",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:125; packages/kit-hermes/base/.open-autonomy/community.ts:142"
+        },
+        {
+          "call": "latest: the newest-changed issue, GET /repos/{account}/issues?state=all&sort=updated&direction=desc&per_page=1",
+          "operation": "issues/list-for-repo",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:157"
+        },
+        {
+          "call": "each issue's comments since the cursor, paged",
+          "operation": "issues/list-comments",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:173"
+        },
+        {
+          "call": "issue open <task>: POST /repos/{account}/issues with assignees, or the help wanted label",
+          "operation": "issues/create",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:146"
+        },
+        {
+          "call": "issue update/close: PATCH /repos/{account}/issues/{n} (body; state closed)",
+          "operation": "issues/update",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:133; packages/kit-hermes/base/.open-autonomy/community.ts:149"
+        },
+        {
+          "call": "comment and issue remind: POST /repos/{account}/issues/{n}/comments",
+          "operation": "issues/create-comment",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:151; packages/kit-hermes/base/.open-autonomy/community.ts:186"
+        },
+        {
+          "call": "review: POST /repos/{account}/pulls/{n}/reviews, APPROVE or REQUEST_CHANGES at the reviewed head (commit_id)",
+          "operation": "pulls/create-review",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:192"
+        },
+        {
+          "call": "GraphQL: the repository's discussions with their comments, paged by cursor, newest-updated first; one discussion's further comments; the newest discussion",
+          "operation": "query.repository",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:72; packages/kit-hermes/base/.open-autonomy/community.ts:83; packages/kit-hermes/base/.open-autonomy/community.ts:159"
+        },
+        {
+          "call": "GraphQL: addDiscussionComment",
+          "operation": "mutation.addDiscussionComment",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:198"
+        },
+        {
+          "call": "GraphQL: the repository's id and discussionCategories",
+          "operation": "query.repository",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:205"
+        },
+        {
+          "call": "GraphQL: createDiscussion in the category",
+          "operation": "mutation.createDiscussion",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/community.ts:208"
+        },
+        {
+          "call": "ship: the open Release pull request, GET /repos/{account}/pulls?state=open&base=prod&head={org}:main; the merged ones, state=closed",
+          "operation": "pulls/list",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/maintain.ts:84; packages/kit-hermes/base/.open-autonomy/maintain.ts:121"
+        },
+        {
+          "call": "ship: GET /repos/{account}/branches/prod (404 when setup has not made it)",
+          "operation": "repos/get-branch",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/maintain.ts:86"
+        },
+        {
+          "call": "ship: POST /repos/{account}/pulls head main base prod (422 when main has nothing new)",
+          "operation": "pulls/create",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/maintain.ts:90"
+        },
+        {
+          "call": "ship: PATCH the Release pull request's body",
+          "operation": "issues/update",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/maintain.ts:128"
+        },
+        {
+          "call": "ship: the Release's comments, paged, then the owners told in a comment",
+          "operation": "issues/list-comments",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/maintain.ts:78"
+        },
+        {
+          "call": "ship: POST the release-ready comment",
+          "operation": "issues/create-comment",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/maintain.ts:136"
+        },
+        {
+          "call": "the valve, with the App's JWT: GET /repos/{repository}/installation",
+          "operation": "apps/get-repo-installation",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/valve.ts:170"
+        },
+        {
+          "call": "the valve: POST /app/installations/{id}/access_tokens for the one repository",
+          "operation": "apps/create-installation-access-token",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/valve.ts:176"
+        },
+        {
+          "call": "credentials: POST /app-manifests/{code}/conversions (the App registered from its manifest)",
+          "operation": "apps/create-from-manifest",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/credentials.ts:65"
+        },
+        {
+          "call": "Team editor: GET /repos/{account} (public, its default branch)",
+          "operation": "repos/get",
+          "evidence": "packages/backend/src/team.ts:24"
+        },
+        {
+          "call": "Team editor: GET /repos/{account}/git/ref/heads/{branch}",
+          "operation": "git/get-ref",
+          "evidence": "packages/backend/src/team.ts:27"
+        },
+        {
+          "call": "Team editor: GET /repos/{account}/contents/.open-autonomy/config.yaml?ref={head}",
+          "operation": "repos/get-content",
+          "evidence": "packages/backend/src/team.ts:30"
+        },
+        {
+          "call": "Team editor: GET /users/{login}, a member's GitHub account (type User, its id)",
+          "operation": "users/get-by-username",
+          "evidence": "packages/backend/src/team.ts:83"
+        },
+        {
+          "call": "Team editor: POST /repos/{account}/git/refs, the team/<nonce> branch at the head",
+          "operation": "git/create-ref",
+          "evidence": "packages/backend/src/team.ts:96"
+        },
+        {
+          "call": "Team editor: PUT /repos/{account}/contents/.open-autonomy/config.yaml on the branch, with the file's sha",
+          "operation": "repos/create-or-update-file-contents",
+          "evidence": "packages/backend/src/team.ts:97"
+        },
+        {
+          "call": "Team editor: POST /repos/{account}/pulls, a draft",
+          "operation": "pulls/create",
+          "evidence": "packages/backend/src/team.ts:98"
+        },
+        {
+          "call": "sync: GET /repos/{account}/commits/{branch}, and a commit's first parent",
+          "operation": "repos/get-commit",
+          "evidence": "packages/backend/src/sync.ts:38; packages/backend/src/sync.ts:75"
+        },
+        {
+          "call": "sync: GET /repos/{account}/compare/{deployed}...{head} (status, ahead_by)",
+          "operation": "repos/compare-commits",
+          "evidence": "packages/backend/src/sync.ts:52"
+        },
+        {
+          "call": "sync: GET /repos/{account}",
+          "operation": "repos/get",
+          "evidence": "packages/backend/src/sync.ts:116"
+        },
+        {
+          "call": "milestones driver: GET /repos/{repo}/milestones?state=all&per_page=100",
+          "operation": "issues/list-milestones",
+          "evidence": "packages/backend/src/sync.ts:159"
+        },
+        {
+          "call": "sync: GET /users/{login}, whether an account is an Organization",
+          "operation": "users/get-by-username",
+          "evidence": "packages/backend/src/sync.ts:172"
+        },
+        {
+          "call": "sync: GET /repos/{account}/contents/{path} when the raw host misses",
+          "operation": "repos/get-content",
+          "evidence": "packages/backend/src/sync.ts:190"
+        },
+        {
+          "call": "sync: GET /repos/{account}/readme (base64 content), the cover image",
+          "operation": "repos/get-readme",
+          "evidence": "packages/backend/src/sync.ts:205"
+        },
+        {
+          "call": "give: GET /user with the person's token",
+          "operation": "users/get-authenticated",
+          "evidence": "apps/platform/src/give-auth.ts:151"
+        },
+        {
+          "call": "give: GET /user/{id}, the account behind a Volter sign-in",
+          "operation": "users/get-by-id",
+          "evidence": "apps/platform/src/give-auth.ts:104"
+        },
+        {
+          "call": "give: GET /orgs/{org}/memberships/{login} with the platform's token",
+          "operation": "orgs/get-membership-for-user",
+          "evidence": "apps/platform/src/give-auth.ts:173"
+        },
+        {
+          "call": "setup: gh api user (GET /user)",
+          "operation": "users/get-authenticated",
+          "evidence": "packages/kit-hermes/src/setup.ts:102; packages/kit-hermes/src/setup.ts:156"
+        },
+        {
+          "call": "setup: gh api orgs/{owner}, else users/{owner}: whether the owner is an organization",
+          "operation": "orgs/get",
+          "evidence": "packages/kit-hermes/src/setup.ts:103"
+        },
+        {
+          "call": "setup: gh api users/{owner}",
+          "operation": "users/get-by-username",
+          "evidence": "packages/kit-hermes/src/setup.ts:105"
+        },
+        {
+          "call": "setup: gh api repos/{account}",
+          "operation": "repos/get",
+          "evidence": "packages/kit-hermes/src/setup.ts:160"
+        },
+        {
+          "call": "setup: gh repo create {account} --public --source=. --push: GET /users/{owner} (measured), then the git push",
+          "operation": "users/get-by-username",
+          "evidence": "packages/kit-hermes/src/setup.ts:169"
+        },
+        {
+          "call": "setup: gh repo create: GraphQL RepositoryCreate (createRepository, the owner's node id, PUBLIC; measured)",
+          "operation": "mutation.createRepository",
+          "evidence": "packages/kit-hermes/src/setup.ts:169"
+        },
+        {
+          "call": "setup: PATCH repos/{account} allow_auto_merge=true",
+          "operation": "repos/update",
+          "evidence": "packages/kit-hermes/src/setup.ts:177"
+        },
+        {
+          "call": "setup: GET repos/{account}/keys, paged",
+          "operation": "repos/list-deploy-keys",
+          "evidence": "packages/kit-hermes/src/setup.ts:189"
+        },
+        {
+          "call": "setup: gh repo deploy-key add --allow-write: POST repos/{account}/keys {title, key, read_only: false} (measured)",
+          "operation": "repos/create-deploy-key",
+          "evidence": "packages/kit-hermes/src/setup.ts:197"
+        },
+        {
+          "call": "setup: GET repos/{account}/rulesets",
+          "operation": "repos/get-repo-rulesets",
+          "evidence": "packages/kit-hermes/src/setup.ts:219; packages/kit-hermes/src/setup.ts:269"
+        },
+        {
+          "call": "setup: POST repos/{account}/rulesets (main's rules)",
+          "operation": "repos/create-repo-ruleset",
+          "evidence": "packages/kit-hermes/src/setup.ts:223"
+        },
+        {
+          "call": "setup: PUT repos/{account}/rulesets/{id} (the tag rules)",
+          "operation": "repos/update-repo-ruleset",
+          "evidence": "packages/kit-hermes/src/setup.ts:272"
+        },
+        {
+          "call": "setup: GET orgs/{owner}/teams/owners",
+          "operation": "teams/get-by-name",
+          "evidence": "packages/kit-hermes/src/setup.ts:241"
+        },
+        {
+          "call": "setup: POST orgs/{owner}/teams (owners, closed)",
+          "operation": "teams/create",
+          "evidence": "packages/kit-hermes/src/setup.ts:242"
+        },
+        {
+          "call": "setup: PUT orgs/{owner}/teams/owners/memberships/{login} role maintainer",
+          "operation": "teams/add-or-update-membership-for-user-in-org",
+          "evidence": "packages/kit-hermes/src/setup.ts:244"
+        },
+        {
+          "call": "setup: PUT orgs/{owner}/teams/owners/repos/{account} permission push",
+          "operation": "teams/add-or-update-repo-permissions-in-org",
+          "evidence": "packages/kit-hermes/src/setup.ts:245"
+        },
+        {
+          "call": "setup: GET repos/{account}/branches/prod",
+          "operation": "repos/get-branch",
+          "evidence": "packages/kit-hermes/src/setup.ts:249"
+        },
+        {
+          "call": "setup: GET repos/{account}/git/matching-refs/tags/deploy-v",
+          "operation": "git/list-matching-refs",
+          "evidence": "packages/kit-hermes/src/setup.ts:250"
+        },
+        {
+          "call": "setup: GET repos/{account}/git/tags/{sha}, an annotated tag's commit",
+          "operation": "git/get-tag",
+          "evidence": "packages/kit-hermes/src/setup.ts:256"
+        },
+        {
+          "call": "setup: POST repos/{account}/git/refs refs/heads/prod",
+          "operation": "git/create-ref",
+          "evidence": "packages/kit-hermes/src/setup.ts:258"
+        },
+        {
+          "call": "setup: PUT repos/{account}/environments/production (custom branch policies)",
+          "operation": "repos/create-or-update-environment",
+          "evidence": "packages/kit-hermes/src/setup.ts:263"
+        },
+        {
+          "call": "setup: GET the environment's deployment branch policies",
+          "operation": "repos/list-deployment-branch-policies",
+          "evidence": "packages/kit-hermes/src/setup.ts:265"
+        },
+        {
+          "call": "setup: DELETE a policy other than prod",
+          "operation": "repos/delete-deployment-branch-policy",
+          "evidence": "packages/kit-hermes/src/setup.ts:266"
+        },
+        {
+          "call": "setup: POST the prod branch policy",
+          "operation": "repos/create-deployment-branch-policy",
+          "evidence": "packages/kit-hermes/src/setup.ts:267"
+        },
+        {
+          "call": "setup: gh variable set CLOUDFLARE_ACCOUNT_ID: POST repos/{account}/actions/variables (measured)",
+          "operation": "actions/create-repo-variable",
+          "evidence": "packages/kit-hermes/src/setup.ts:276"
+        },
+        {
+          "call": "setup: gh variable set again: the POST answered 409, then PATCH repos/{account}/actions/variables/{name} (measured)",
+          "operation": "actions/update-repo-variable",
+          "evidence": "packages/kit-hermes/src/setup.ts:276"
+        },
+        {
+          "call": "setup: GET repos/{account}/environments/production/secrets",
+          "operation": "actions/list-environment-secrets",
+          "evidence": "packages/kit-hermes/src/setup.ts:277"
+        },
+        {
+          "call": "setup: gh secret set --env production: GET the environment's public key (measured)",
+          "operation": "actions/get-environment-public-key",
+          "evidence": "packages/kit-hermes/src/setup.ts:284"
+        },
+        {
+          "call": "setup: gh secret set --env production: PUT the sealed secret with its key_id (measured)",
+          "operation": "actions/create-or-update-environment-secret",
+          "evidence": "packages/kit-hermes/src/setup.ts:284"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "setup: gh auth login --web (GitHub's device flow, scopes repo,workflow,admin:public_key,read:org)",
+          "evidence": "packages/kit-hermes/src/setup.ts:153"
+        },
+        {
+          "flow": "the project's GitHub App registered from a manifest on github.com, GitHub redirecting to the receiver's /callback with a code, then installed on the repository",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/credentials.ts:60"
+        },
+        {
+          "flow": "give: sign in with GitHub (OAuth web flow at github.com/login/oauth/authorize, scope public_repo for a Team edit; the code exchanged at login/oauth/access_token)",
+          "evidence": "apps/platform/src/give-auth.ts:119; apps/platform/src/give-auth.ts:143"
+        },
+        {
+          "flow": "git over HTTPS: the agent's clone, fetch and push through the valve with the installation token as x-access-token; setup's first push",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/valve.ts:202; packages/kit-hermes/src/setup.ts:169"
+        },
+        {
+          "flow": "raw.githubusercontent.com/{account}/HEAD/{path}, a file at the default branch",
+          "evidence": "packages/backend/src/sync.ts:185"
+        }
+      ]
+    },
+    {
+      "name": "Volter Harness",
+      "commit": "62620578c014",
+      "client": "fetch from the board's CI reader (GH_TOKEN or gh's stored token), the Windows install script's Invoke-RestMethod",
+      "backend": [
+        {
+          "call": "board: GET /repos/{repo}/pulls/{n}, a card's pull request",
+          "operation": "pulls/get",
+          "evidence": "sdk/orchestrator/board/ci.mjs:44"
+        },
+        {
+          "call": "board: GET /repos/{repo}/pulls?state=open&per_page=100, every page",
+          "operation": "pulls/list",
+          "evidence": "sdk/orchestrator/board/ci.mjs:148"
+        },
+        {
+          "call": "board: GET /repos/{repo}/commits/{head}, when a head was committed",
+          "operation": "repos/get-commit",
+          "evidence": "sdk/orchestrator/board/ci.mjs:196"
+        },
+        {
+          "call": "install.ps1 with a token: GET /repos/{repo}/releases/latest",
+          "operation": "repos/get-latest-release",
+          "evidence": "scripts/install.ps1:117"
+        },
+        {
+          "call": "install.ps1 with a token and a version: GET /repos/{repo}/releases/tags/{version}",
+          "operation": "repos/get-release-by-tag",
+          "evidence": "scripts/install.ps1:120"
+        },
+        {
+          "call": "install.ps1: the asset's url with Accept: application/octet-stream",
+          "operation": "repos/get-release-asset",
+          "evidence": "scripts/install.ps1:155"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "install.sh: github.com/{repo}/releases/latest/download/{asset} and its .sha256, a browser download (not an API operation)",
+          "evidence": "scripts/install.sh:43"
+        }
+      ],
+      "webhooks": [
+        {
+          "event": "any GitHub event a repository webhook sends (X-GitHub-Event, X-GitHub-Delivery)",
+          "evidence": "sdk/orchestrator/webhook.mjs:47"
+        }
+      ]
+    },
+    {
+      "name": "Substrate",
+      "commit": "3116b2e3f713",
+      "client": "the toolbelt's fetch, through the gateway's relay",
+      "backend": [],
+      "frontend": [
+        {
+          "flow": "GitHub's device flow: POST github.com/login/device/code, then login/oauth/access_token with the device grant until the person authorizes",
+          "evidence": "packages/toolbelt/src/github-device-auth.ts:87; packages/toolbelt/src/github-device-auth.ts:115"
+        },
+        {
+          "flow": "a device token refreshed: login/oauth/access_token with grant_type refresh_token",
+          "evidence": "packages/toolbelt/src/github-device-auth.ts:156"
+        },
+        {
+          "flow": "web sign-in: github.com/login/oauth/authorize with no scope, the gateway exchanging the code",
+          "evidence": "packages/toolbelt/src/github-web-sign-in.ts:28; services/gateway/cloudflare/github-sign-in.ts:71"
+        },
+        {
+          "flow": "git over HTTPS from the browser (info/refs, git-upload-pack asking protocol version 2, git-receive-pack) with the token as x-access-token",
+          "evidence": "packages/toolbelt/src/browser-git-remote-https.ts:182"
+        }
+      ]
+    },
+    {
+      "name": "Workbench",
+      "commit": "c24c5253922f",
+      "client": "fetch from the door (GITHUB_TOKEN when set), git clone",
+      "backend": [
+        {
+          "call": "a store page: GET /repos/{owner}/{repo} (default_branch, stars)",
+          "operation": "repos/get",
+          "evidence": "os/door/services.mjs:1051"
+        },
+        {
+          "call": "a store page: GET /repos/{owner}/{repo}/readme with Accept: application/vnd.github.html+json (the rendered README)",
+          "operation": "repos/get-readme",
+          "evidence": "os/door/services.mjs:1052"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "git clone --depth 1 of a store and of a program's repository over HTTPS",
+          "evidence": "os/door/services.mjs:949; os/door/services.mjs:1156"
+        }
+      ]
+    },
+    {
+      "name": "Volter Editor",
+      "commit": "b86dde8c5618",
+      "client": "fetch with a GitHub token (gh auth token), the gh command line (measured: gh 2.83.2), git",
+      "backend": [
+        {
+          "call": "the workbench: GET /repos/{RELEASE_REPO}/releases/tags/{tag} (404 to a private repository without a token)",
+          "operation": "repos/get-release-by-tag",
+          "evidence": "packages/editor-sdk/src/session/workbench-locator.ts:508"
+        },
+        {
+          "call": "the workbench's assets: GET /repos/{RELEASE_REPO}/releases/assets/{id} with Accept: application/octet-stream",
+          "operation": "repos/get-release-asset",
+          "evidence": "packages/editor-sdk/src/session/workbench-locator.ts:612; packages/editor-sdk/src/session/workbench-locator.ts:633"
+        },
+        {
+          "call": "gh pr create: GraphQL RepositoryInfo and PullRequestForBranch (states OPEN) (measured)",
+          "operation": "query.repository",
+          "evidence": "packages/editor-core/server/git-workflow.ts:450"
+        },
+        {
+          "call": "gh pr create: GraphQL createPullRequest (measured)",
+          "operation": "mutation.createPullRequest",
+          "evidence": "packages/editor-core/server/git-workflow.ts:450"
+        },
+        {
+          "call": "gh pr view --json url,state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup: GraphQL PullRequestForBranch with the last commit's statusCheckRollup contexts (measured)",
+          "operation": "query.repository",
+          "evidence": "packages/editor-core/server/git-workflow.ts:497"
+        },
+        {
+          "call": "gh pr merge --merge: GraphQL __type introspection of PullRequest, StatusCheckRollupContextConnection and WorkflowRun, and PullRequestForBranch (measured)",
+          "operation": "query.repository",
+          "evidence": "packages/editor-core/server/git-workflow.ts:475"
+        },
+        {
+          "call": "gh pr merge --merge: GraphQL mergePullRequest MERGE (measured)",
+          "operation": "mutation.mergePullRequest",
+          "evidence": "packages/editor-core/server/git-workflow.ts:475"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "git fetch --prune and git push --set-upstream over HTTPS",
+          "evidence": "packages/editor-core/server/git-workflow.ts:337; packages/editor-core/server/git-workflow.ts:431"
+        }
+      ]
+    },
+    {
+      "name": "Twin",
+      "commit": "96ca4478bb39",
+      "client": "the platform's fetch (GitHub as its identity provider), the Volter World action's fetch with the job's token",
+      "backend": [
+        {
+          "call": "platform sign-in: GET /user",
+          "operation": "users/get-authenticated",
+          "evidence": "apps/platform/src/identity.ts:266"
+        },
+        {
+          "call": "platform sign-in: GET /user/emails, the primary verified address",
+          "operation": "users/list-emails-for-authenticated-user",
+          "evidence": "apps/platform/src/identity.ts:269"
+        },
+        {
+          "call": "setup-world preview: the pull request's comments, paged",
+          "operation": "issues/list-comments",
+          "evidence": "actions/setup-world/setup-world.mjs:111"
+        },
+        {
+          "call": "setup-world preview: PATCH its own comment",
+          "operation": "issues/update-comment",
+          "evidence": "actions/setup-world/setup-world.mjs:118"
+        },
+        {
+          "call": "setup-world preview: POST the comment with the preview's link",
+          "operation": "issues/create-comment",
+          "evidence": "actions/setup-world/setup-world.mjs:119"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "platform sign-in with GitHub (OAuth web flow: login/oauth/authorize, login/oauth/access_token)",
+          "evidence": "apps/platform/src/identity.ts:189; apps/platform/src/identity.ts:255"
+        }
+      ]
+    },
+    {
+      "name": "Dub",
+      "commit": "7e0101363b2a",
+      "client": "fetch (public disposable-email-domain list without credentials)",
+      "backend": [],
+      "frontend": [
+        {
+          "flow": "cron: raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf",
+          "evidence": "apps/web/app/(ee)/api/cron/disposable-emails/route.ts:13"
+        }
+      ]
+    },
+    {
+      "name": "Rallly",
+      "commit": "3e63239dbdec",
+      "client": "fetch, unauthenticated",
+      "backend": [
+        {
+          "call": "updates: GET /repos/{githubRepo}/releases?per_page=100&page=N, up to three pages",
+          "operation": "repos/list-releases",
+          "evidence": "apps/web/src/app/api/updates/route.ts:50"
+        },
+        {
+          "call": "updates: GET /repos/{githubRepo}/security-advisories?state=published&per_page=100",
+          "operation": "security-advisories/list-repository-advisories",
+          "evidence": "apps/web/src/app/api/updates/route.ts:90"
+        }
+      ]
+    },
+    {
+      "commit": "1d561b8c73c984058a5121ec229f4805a2424a91",
+      "client": "fetch (the website; public endpoint, optional GITHUB_STATS_TOKEN)",
+      "backend": [
+        {
+          "call": "website: GET /repos/twentyhq/twenty (stargazers_count)",
+          "operation": "repos/get",
+          "evidence": "packages/twenty-website/src/platform/community/get-community-stats.ts:22"
+        }
+      ],
+      "name": "Twenty"
+    },
+    {
+      "name": "Twin's Actions runner, catalog release and on-call recipe (twin-world's own callers)",
+      "commit": "96ca4478bb39",
+      "client": "the World's Actions runner (world-runtime, the published volter-world-actions-runner bin) and the catalog's release walk, both fetch with the World's GitHub token; the on-call recipe's @octokit/rest (cookbook/on-call-agent, an executed page whose app is GitHub's official SDK unmodified)",
+      "backend": [
+        {
+          "call": "runner: GET /user/repos?per_page=100, the repositories it serves",
+          "operation": "repos/list-for-authenticated-user",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:46"
+        },
+        {
+          "call": "runner: GET /user/orgs?per_page=100",
+          "operation": "orgs/list-for-authenticated-user",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:48"
+        },
+        {
+          "call": "runner: GET /orgs/{org}/repos?per_page=100",
+          "operation": "repos/list-for-org",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:50"
+        },
+        {
+          "call": "runner: GET /repos/{repo}/actions/runs?status=queued&per_page=100",
+          "operation": "actions/list-workflow-runs-for-repo",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:239"
+        },
+        {
+          "call": "runner: GET /orgs/{org}/actions/variables, the organization's variables under the repository's",
+          "operation": "actions/list-org-variables",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:150"
+        },
+        {
+          "call": "runner: GET /repos/{repo}/actions/variables",
+          "operation": "actions/list-repo-variables",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:150"
+        },
+        {
+          "call": "runner: GET /repos/{repo}/contents/{workflow path}?ref={head_sha}",
+          "operation": "repos/get-content",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:153"
+        },
+        {
+          "call": "runner: GET /repos/{repo}",
+          "operation": "repos/get",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:155"
+        },
+        {
+          "call": "catalog release: POST /orgs/volter-ai/repos (private)",
+          "operation": "repos/create-in-org",
+          "evidence": "cookbook/catalog-release/walk.ts:113"
+        },
+        {
+          "call": "catalog release: POST /repos/volter-ai/{repo}/actions/variables",
+          "operation": "actions/create-repo-variable",
+          "evidence": "cookbook/catalog-release/walk.ts:118"
+        },
+        {
+          "call": "catalog release: GET /repos/volter-ai/{repo}/actions/secrets/public-key",
+          "operation": "actions/get-repo-public-key",
+          "evidence": "cookbook/catalog-release/walk.ts:119"
+        },
+        {
+          "call": "catalog release: PUT /repos/volter-ai/{repo}/actions/secrets/{name}, sealed to the key",
+          "operation": "actions/create-or-update-repo-secret",
+          "evidence": "cookbook/catalog-release/walk.ts:122"
+        },
+        {
+          "call": "catalog release: GET /repos/volter-ai/{repo}/actions/runs (and event=pull_request, event=push)",
+          "operation": "actions/list-workflow-runs-for-repo",
+          "evidence": "cookbook/catalog-release/walk.ts:177; cookbook/catalog-release/walk.ts:234; cookbook/catalog-release/walk.ts:301"
+        },
+        {
+          "call": "catalog release: POST /repos/volter-ai/twin-catalog/pulls",
+          "operation": "pulls/create",
+          "evidence": "cookbook/catalog-release/walk.ts:232"
+        },
+        {
+          "call": "catalog release: PUT /repos/volter-ai/twin-catalog/pulls/{n}/merge {merge_method: merge}",
+          "operation": "pulls/merge",
+          "evidence": "cookbook/catalog-release/walk.ts:284"
+        },
+        {
+          "call": "on-call recipe: github.issues.get, the new issue it triages",
+          "operation": "issues/get",
+          "evidence": "cookbook/on-call-agent/agent.mjs:16"
+        },
+        {
+          "call": "on-call recipe: github.issues.createComment, the ticket's key and the verdict on the issue",
+          "operation": "issues/create-comment",
+          "evidence": "cookbook/on-call-agent/agent.mjs:35"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "the runner door: POST /_twin/repos/{repo}/actions/runs/{id}/start (the job's token, secrets, the OIDC request) and \u2026/complete {conclusion} (architecture, \"The World's Actions runner\")",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:141; packages/world-runtime/src/actions-runner.ts:228; cookbook/catalog-release/walk.ts:157"
+        },
+        {
+          "flow": "Actions' OIDC provider: the job's ACTIONS_ID_TOKEN_REQUEST_URL on token.actions.githubusercontent.com",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:195"
+        },
+        {
+          "flow": "git over HTTPS: the runner's checkout (x-access-token) and the walk's clones and pushes",
+          "evidence": "packages/world-runtime/src/actions-runner.ts:164; cookbook/catalog-release/walk.ts:171; cookbook/catalog-release/walk.ts:209"
+        },
+        {
+          "flow": "the walk signs the World's GitHub user in at github.com/session",
+          "evidence": "cookbook/catalog-release/walk.ts:90"
+        }
+      ]
+    },
+    {
+      "name": "Sigstore's Fulcio twin (twin-packs-p3)",
+      "commit": "b04684da5aaf",
+      "client": "ctx.vendorFetch, the World's other twins",
+      "backend": [],
+      "frontend": [
+        {
+          "flow": "Actions' OIDC issuer: GET https://token.actions.githubusercontent.com/.well-known/openid-configuration and its jwks_uri, to verify a job's identity token",
+          "evidence": "sigstore/fulcio/src/semantics/api.ts:31; sigstore/fulcio/src/semantics/api.ts:32"
+        }
+      ]
+    },
+    {
+      "name": "Volter identity's twin (twin-packs-p3)",
+      "commit": "1ffc43bdaab253acde7d356989c1eaaac12a5503",
+      "client": "ctx.vendorFetch, the World's other twins: a person signing in with GitHub through Volter identity",
+      "backend": [
+        {
+          "call": "GET https://api.github.com/user with the exchanged token",
+          "operation": "users/get-authenticated",
+          "evidence": "volteridentity/src/semantics/default.ts:35"
+        },
+        {
+          "call": "GET https://api.github.com/user/emails, the primary verified address",
+          "operation": "users/list-emails-for-authenticated-user",
+          "evidence": "volteridentity/src/semantics/default.ts:36"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "the OAuth code exchanged at github.com/login/oauth/access_token as a form, answered as JSON",
+          "evidence": "volteridentity/src/semantics/default.ts:21"
+        }
+      ]
+    },
+    {
+      "name": "Twin cloud deploy",
+      "commit": "96ca4478bb39",
+      "client": "fetch in the shipped bun run deploy preflight",
+      "backend": []
+    },
+    {
+      "commit": "7e0101363b2a",
+      "client": "next-auth 4.24.11 GithubProvider (authorize with read:user user:email, the token, GET /user, GET /user/emails when the profile has no public email); fetch",
+      "backend": [
+        {
+          "call": "next-auth GitHub: GET /user",
+          "operation": "users/get-authenticated",
+          "evidence": "apps/web/lib/auth/options.ts:121"
+        },
+        {
+          "call": "next-auth GitHub: GET /user/emails, the primary address",
+          "operation": "users/list-emails-for-authenticated-user",
+          "evidence": "apps/web/lib/auth/options.ts:121"
+        }
+      ],
+      "frontend": [
+        {
+          "flow": "sign in with GitHub (OAuth web flow: login/oauth/authorize, login/oauth/access_token)",
+          "evidence": "apps/web/lib/auth/options.ts:121"
+        }
+      ],
+      "name": "dubinc/dub",
+      "gate": "NextAuth registers GitHub unconditionally in the shipped providers array (apps/web/lib/auth/options.ts:95,121-125)."
+    }
+  ],
+  "optional": [
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "skill sync from a GitHub repository (GET /repos/{owner}/{repo}/commits/{ref}, git/trees/{sha} and ?recursive=1, git/blobs/{sha})",
+      "setting": "Configuration (1): skillSync.github.enabled=true replaces the disabled sync default and adds repository sources (librechat.example.yaml:117-122; packages/api/src/skills/sync/scheduler.ts:57-59).",
+      "evidence": "packages/api/src/skills/sync/scheduler.ts:57"
+    },
+    {
+      "application": "gitroomhq/postiz-app",
+      "what": "sign in with GitHub (authorize with scope user:email, the code exchanged at login/oauth/access_token, GET /user, GET /user/emails)",
+      "setting": "Configuration (1): unset IS_GENERAL selects Gitroom mode over shipped IS_GENERAL=true; only that mode shows GitHub (apps/frontend/src/components/auth/login.tsx:82-89; .env.example:164).",
+      "evidence": "apps/frontend/src/components/auth/login.tsx:84",
+      "commit": "e0a08a7d9592fdc1ef1e82cb7cb781489fceade3"
+    }
+  ]
+}
