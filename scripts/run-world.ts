@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 const mode = process.argv[2];
-if (!['build'].includes(mode ?? '')) throw new Error('choose build');
+if (!['build', 'assess'].includes(mode ?? '')) throw new Error('choose build or assess');
 const work = mkdtempSync(join(tmpdir(), 'catalog-production-preparation-' + mode + '-'));
 const config = join(work, 'world.json');
 writeFileSync(config, JSON.stringify({ id: 'catalog-production-preparation-' + mode, services: [], network: { egress: [] } }));
