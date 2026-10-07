@@ -28,8 +28,16 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Locate installed PostgreSQL tools for World-owned infrastructure
+        run: |
+          pg_bin="$(pg_config --bindir)"
+          for tool in initdb postgres createdb psql; do test -x "$pg_bin/$tool"; done
+          printf 'VOLTER_WORLD_POSTGRES_BIN=%s\n' "$pg_bin" >> "$GITHUB_ENV"
+          "$pg_bin/postgres" --version
       - name: Build through an owned World
         run: bun scripts/run-world.ts build
+      - name: Prepare immutable candidate bytes
+        run: node scripts/pack.mjs
       - name: Qualify through an owned World
         run: bun scripts/run-world.ts assess
       - name: Retain publisher qualification

@@ -32,6 +32,12 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Locate installed PostgreSQL tools for World-owned infrastructure
+        run: |
+          pg_bin="$(pg_config --bindir)"
+          for tool in initdb postgres createdb psql; do test -x "$pg_bin/$tool"; done
+          printf 'VOLTER_WORLD_POSTGRES_BIN=%s\n' "$pg_bin" >> "$GITHUB_ENV"
+          "$pg_bin/postgres" --version
       - name: Install exact registered catalog CLI without candidate scripts
         env:
           CATALOG_PACKAGE_VERSION: ${{ vars.CATALOG_PACKAGE_VERSION }}
@@ -40,11 +46,11 @@ jobs:
           npm install --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/catalog-cli" "@volter/twin-catalog@$CATALOG_PACKAGE_VERSION"
       - name: Build through a fresh task-owned World
         run: bun scripts/run-world.ts build
-      - name: Qualify with the exact released standard before publication
-        run: bun scripts/run-world.ts assess
       - name: Prepare immutable release bytes
         run: |
           node scripts/pack.mjs
+      - name: Qualify those exact bytes in a fresh installation before publication
+        run: bun scripts/run-world.ts assess
       - name: Publish with public-source provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
