@@ -8,8 +8,8 @@ let runtimeRoot = process.cwd();
 let preparedPath: string | undefined;
 // Install the packed artifact and locked SDK fixtures before entering the assessment World.
 if (mode === 'assess') {
-  const prepared = spawnSync('node', ['scripts/prepare-assessment.mjs', process.execPath], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
-  if (prepared.status !== 0) throw new Error(prepared.stderr || prepared.stdout || 'Packed artifact preparation failed');
+  const prepared = spawnSync('node', ['scripts/prepare-assessment.mjs', process.execPath], { stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  if (prepared.status !== 0) throw new Error(prepared.stdout || 'Packed artifact preparation failed; see the preparation diagnostics above');
   const input = JSON.parse(prepared.stdout);
   runtimeRoot = input.work;
   preparedPath = join(input.release, 'prepared-assessment.json');

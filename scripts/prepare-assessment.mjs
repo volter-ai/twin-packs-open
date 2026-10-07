@@ -40,6 +40,7 @@ const run = (command, args, cwd) => {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   if (result.status !== 0) throw new Error(`${command} ${args[0]} failed: ${result.stderr || result.stdout}`);
 };
+process.stderr.write('Preparing locked evaluator dependencies and the exact candidate archive\n');
 run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], work);
 const lock = read(join(work, 'package-lock.json'));
 assert.equal(lock.packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Installed candidate bytes differ from packed release');
@@ -54,6 +55,7 @@ const installedStandard = join(work, 'node_modules/@volter/twin-standard');
 assert.equal(read(join(installedStandard, 'package.json')).version, standard.version);
 const clientSdkLocks = [];
 for (const directory of standard.assessmentClientSdks ?? []) {
+  process.stderr.write(`Preparing frozen standard SDK fixtures: ${directory}\n`);
   const sdkRoot = join(installedStandard, directory);
   assert.ok(!relative(installedStandard, sdkRoot).startsWith('..'));
   const before = readFileSync(join(sdkRoot, 'bun.lock'), 'utf8');
@@ -68,6 +70,7 @@ assert.ok(!realpathSync(packDir).startsWith(process.cwd() + '/'), 'Assessment us
 const { prepareConsumerApp } = await import(pathToFileURL(evaluatorRequire.resolve('@volter/twin-standard')).href);
 const appDir = join(work, 'customer-app');
 const consumerFixture = prepareConsumerApp(packDir, appDir);
+process.stderr.write('Preparing the declared customer SDK dependencies\n');
 run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], appDir);
 const consumer = { appDir, cli: join(work, 'node_modules/.bin/volter'), artifactIntegrity: integrity };
 const prepared = {
@@ -82,4 +85,5 @@ const prepared = {
 write(join(selected.release, 'prepared-assessment.json'), prepared);
 cpSync(join(work, 'package-lock.json'), join(selected.release, 'assessment-package-lock.json'));
 cpSync(join(appDir, 'package-lock.json'), join(selected.release, 'consumer-package-lock.json'));
+process.stderr.write('Packed candidate and customer dependency preparation complete\n');
 process.stdout.write(JSON.stringify(prepared) + '\n');
