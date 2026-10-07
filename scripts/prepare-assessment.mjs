@@ -72,7 +72,15 @@ const appDir = join(work, 'customer-app');
 const consumerFixture = prepareConsumerApp(packDir, appDir);
 process.stderr.write('Preparing the declared customer SDK dependencies\n');
 run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], appDir);
-const consumer = { appDir, cli: join(work, 'node_modules/.bin/volter'), artifactIntegrity: integrity };
+// A dependency may also claim the flattened volter bin. Select the pinned product's own declared entry.
+const productRoot = join(work, 'node_modules/@volter/world');
+const product = read(join(productRoot, 'package.json'));
+assert.equal(product.name, '@volter/world');
+assert.equal(product.version, tools['@volter/world']);
+assert.equal(typeof product.bin?.volter, 'string', 'Product package has no declared volter entry');
+const cli = realpathSync(join(productRoot, product.bin.volter));
+assert.ok(!relative(realpathSync(productRoot), cli).startsWith('..'), 'CLI entry is outside the installed product');
+const consumer = { appDir, cli, artifactIntegrity: integrity };
 const prepared = {
   schemaVersion: 1, vendor: selected.vendor, package: inventory.name, version: inventory.version,
   archive, integrity, work, packDir, release: selected.release,
