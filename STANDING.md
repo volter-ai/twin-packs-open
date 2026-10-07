@@ -1,6 +1,6 @@
 # Standing
 
-Written by twin-world's `bun scripts/pack-standing.ts`, grading this repository at 00c067f; do not edit. A pack is **in the form** when it and each of its lanes meet the form section of the grade (`@volter/twin-standard`: the spec and its provenance, the manifest, the generated surface reproduced, the layout, the handler, engine and kernel contracts, the states), and each holds the files conformance reads (its decision table, its vendor's life). This says what a pack holds, not that it works: that is `scripts/pack-done.ts`.
+Written by twin-world's `bun scripts/pack-standing.ts`, grading this repository at cbc665b; do not edit. A pack is **in the form** when it and each of its lanes meet the form section of the grade (`@volter/twin-standard`: the spec and its provenance, the manifest, the generated surface reproduced, the layout, the handler, engine and kernel contracts, the states), and each holds the files conformance reads (its decision table, its vendor's life). This says what a pack holds, not that it works: that is `scripts/pack-done.ts`.
 
 12 of 12 packs are in the form.
 
@@ -9,7 +9,7 @@ Written by twin-world's `bun scripts/pack-standing.ts`, grading this repository 
 | anthropic | yes | Volter Harness | 2026-10-06 | 2026-10-06 |
 | clerk | yes | — | 2026-10-06 | 2026-10-06 |
 | cloudflare | yes | RH2, Volter launch World | 2026-10-06 | 2026-10-06 |
-| github | yes | Open Autonomy, RH2, Substrate, Twin, Volter Editor, Volter Harness, Workbench | 2026-10-06 | 2026-10-06 |
+| github | yes | Open Autonomy, RH2, Substrate, Twin, Volter Editor, Volter Harness, Workbench | 2026-10-06 | 2026-10-07 |
 | linear | yes | Twin | 2026-10-06 | 2026-10-07 |
 | openai | yes | Open Autonomy, RH2, Substrate, Twin, Volter Harness, Workbench | 2026-10-06 | 2026-10-06 |
 | resend | yes | Twin | 2026-10-06 | 2026-10-06 |

@@ -116,7 +116,7 @@ export const manifest: DerivedManifest = {
     // a repository's secrets (an environment's are kept beside them as environment_secret, read with their environment)
     'actions-secret': { storedAs: 'repo_secret', idPrefix: '', refresh: { none: "a secret's value is write-only: the API lists names and dates, never what was sealed" } },
     // what a run's steps uploaded, reported by the runner door that completes the run
-    artifact: { idPrefix: '', refresh: { list: 'actions/list-artifacts-for-repo', items: 'artifacts' } },
+    artifact: { idPrefix: '', parent: underRepo, refresh: { list: 'actions/list-artifacts-for-repo', items: 'artifacts' } },
     // a push GitHub reports (the `push` event's payload), not a REST schema
     push: { idPrefix: '', refresh: { none: 'a push is an event GitHub sends, not state it lists' } },
     // discussions (GraphQL's; the `discussion` webhook's payload shape) and their comments
