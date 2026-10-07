@@ -1,0 +1,1079 @@
+{
+  "vendor": "linear",
+  "author": "Contributor 74",
+  "host": "api.linear.app",
+  "about": "Tidewater’s booking team connects its Fieldbook bug-filing integration to Linear. Maya administers the workspace with her personal API key, the read/write OAuth app acts as its app user, and Jonah reads the support report. The life spans setup, duplicate handling, release, recurrence and token recovery.",
+  "steps": [
+    {
+      "name": "Maya starts a local World with its synthetic starter credentials before making Tidewater",
+      "method": "POST",
+      "path": "/_twin/local-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "starterKey": "api_key",
+        "starterClient": "client_id"
+      }
+    },
+    {
+      "name": "Maya makes the Tidewater workspace in Linear's app",
+      "method": "POST",
+      "path": "/_twin/workspaces",
+      "status": 201,
+      "body": {
+        "name": "Tidewater",
+        "urlKey": "tidewater",
+        "owner": {
+          "name": "Maya Chen",
+          "email": "maya@tidewater.yoga",
+          "password": "savasana-2026"
+        }
+      },
+      "capture": {
+        "maya": "owner",
+        "org": "id"
+      }
+    },
+    {
+      "name": "Jonah joins",
+      "method": "POST",
+      "path": "/_twin/workspaces/tidewater/people",
+      "status": 201,
+      "body": {
+        "name": "Jonah",
+        "email": "jonah@tidewater.yoga",
+        "password": "warrior-two-22"
+      },
+      "capture": {
+        "jonah": "id"
+      }
+    },
+    {
+      "name": "Fieldbook's OAuth application",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "name": "Fieldbook",
+        "redirect_uris": [
+          "https://fieldbook.example/api/integrations/linear/callback"
+        ]
+      },
+      "capture": {
+        "cid": "client_id",
+        "csec": "client_secret"
+      }
+    },
+    {
+      "name": "Maya connects the workspace: the authorize page",
+      "method": "GET",
+      "path": "https://linear.app/oauth/authorize?client_id={cid}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&response_type=code&scope=read,write&state=lin1&prompt=consent&actor=app",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to Linear"
+        }
+      ]
+    },
+    {
+      "name": "She sees what Fieldbook asks",
+      "method": "POST",
+      "path": "https://linear.app/oauth/authorize",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={cid}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&response_type=code&scope=read,write&state=lin1&prompt=consent&actor=app&email=maya@tidewater.yoga&password=savasana-2026",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Fieldbook is requesting access to your Tidewater workspace"
+        }
+      ],
+      "capture": {
+        "session": "header:set-cookie:linear_session=([^;]+)"
+      }
+    },
+    {
+      "name": "She authorizes",
+      "method": "POST",
+      "path": "https://linear.app/oauth/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "linear_session={session}"
+      },
+      "body": "client_id={cid}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&response_type=code&scope=read,write&state=lin1&prompt=consent&actor=app&decision=authorize",
+      "capture": {
+        "code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "lin1"
+        }
+      ]
+    },
+    {
+      "name": "Fieldbook trades the code",
+      "method": "POST",
+      "path": "https://api.linear.app/oauth/token",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=authorization_code&code={code}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&client_id={cid}&client_secret={csec}",
+      "capture": {
+        "at": "access_token",
+        "rt": "refresh_token",
+        "oldAt": "access_token"
+      },
+      "expect": [
+        {
+          "path": "expires_in",
+          "equals": 86399
+        },
+        {
+          "path": "scope",
+          "equals": "read write"
+        },
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        }
+      ]
+    },
+    {
+      "name": "It names the connection: the viewer is the app's actor",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "{ viewer { id } organization { id name urlKey } }"
+      },
+      "capture": {
+        "bot": "data.viewer.id"
+      },
+      "expect": [
+        {
+          "path": "data.organization.id",
+          "equals": "{org}"
+        },
+        {
+          "path": "data.organization.urlKey",
+          "equals": "tidewater"
+        }
+      ]
+    },
+    {
+      "name": "Maya makes a personal API key in Linear's settings",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "body": {
+        "email": "maya@tidewater.yoga",
+        "label": "setup"
+      },
+      "capture": {
+        "mkey": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "matches": "^lin_api_"
+        }
+      ]
+    },
+    {
+      "name": "With it, the team Booking App (teamCreate)",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input: TeamCreateInput!) { teamCreate(input: $input) { success team { id key name } } }",
+        "variables": {
+          "input": {
+            "name": "Booking App",
+            "key": "BOOK"
+          }
+        }
+      },
+      "capture": {
+        "team": "data.teamCreate.team.id"
+      },
+      "expect": [
+        {
+          "path": "data.teamCreate.success",
+          "equals": true
+        },
+        {
+          "path": "data.teamCreate.team.key",
+          "equals": "BOOK"
+        }
+      ]
+    },
+    {
+      "name": "…and its project (projectCreate)",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input: ProjectCreateInput!) { projectCreate(input: $input) { success project { id name } } }",
+        "variables": {
+          "input": {
+            "name": "Spring release",
+            "teamIds": [
+              "{team}"
+            ]
+          }
+        }
+      },
+      "capture": {
+        "proj": "data.projectCreate.project.id"
+      }
+    },
+    {
+      "name": "Fieldbook lists the teams",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query FieldbookLinearTeams { teams(first: 250) { nodes { id key name } } }"
+      },
+      "expect": [
+        {
+          "path": "data.teams.nodes.0.id",
+          "equals": "{team}"
+        },
+        {
+          "path": "data.teams.nodes.0.key",
+          "equals": "BOOK"
+        }
+      ]
+    },
+    {
+      "name": "A team's projects",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query FieldbookLinearTeamProjects($teamId: String!) { team(id: $teamId) { id projects(first: 250) { nodes { id name } } } }",
+        "variables": {
+          "teamId": "{team}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.team.projects.nodes.0.name",
+          "equals": "Spring release"
+        }
+      ]
+    },
+    {
+      "name": "Its states (the filing taxonomy)",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query FilerTeamStates($teamId: String!) { team(id: $teamId) { states(first: 100) { nodes { id name } } } }",
+        "variables": {
+          "teamId": "{team}"
+        }
+      },
+      "capture": {
+        "backlog": "data.team.states.nodes.0.id",
+        "todo": "data.team.states.nodes.1.id",
+        "done": "data.team.states.nodes.4.id"
+      },
+      "expect": [
+        {
+          "path": "data.team.states.nodes.1.name",
+          "equals": "Todo"
+        },
+        {
+          "path": "data.team.states.nodes.4.name",
+          "equals": "Done"
+        },
+        {
+          "path": "data.team.states.nodes.6",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "a finding is filed",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation FilerIssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+        "variables": {
+          "input": {
+            "teamId": "{team}",
+            "title": "Checkout button does nothing on Safari",
+            "description": "Steps: open /book, pick a class, press Checkout.",
+            "projectId": "{proj}",
+            "stateId": "{todo}",
+            "priority": 2,
+            "createAsUser": "Fieldbook tester",
+            "displayIconUrl": "https://fieldbook.example/icon.png"
+          }
+        }
+      },
+      "capture": {
+        "i1": "data.issueCreate.issue.id",
+        "firstIdentifier": "data.issueCreate.issue.identifier"
+      },
+      "expect": [
+        {
+          "path": "data.issueCreate.success",
+          "equals": true
+        },
+        {
+          "path": "data.issueCreate.issue.identifier",
+          "equals": "BOOK-1"
+        },
+        {
+          "path": "data.issueCreate.issue.url",
+          "equals": "https://linear.app/tidewater/issue/BOOK-1"
+        }
+      ]
+    },
+    {
+      "name": "…and another",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation FilerIssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+        "variables": {
+          "input": {
+            "teamId": "{team}",
+            "title": "Checkout button broken in Safari",
+            "description": "Same as before?"
+          }
+        }
+      },
+      "capture": {
+        "i2": "data.issueCreate.issue.id",
+        "secondIdentifier": "data.issueCreate.issue.identifier"
+      },
+      "expect": [
+        {
+          "path": "data.issueCreate.issue.identifier",
+          "equals": "BOOK-2"
+        }
+      ]
+    },
+    {
+      "name": "The fieldbook label, looked up: none",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query LinearIssueLabels($filter: IssueLabelFilter!) { issueLabels(filter: $filter, first: 250) { nodes { id name } } }",
+        "variables": {
+          "filter": {
+            "team": {
+              "id": {
+                "eq": "{team}"
+              }
+            },
+            "name": {
+              "in": [
+                "fieldbook"
+              ]
+            }
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issueLabels.nodes",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "It is made",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation LinearIssueLabelCreate($input: IssueLabelCreateInput!) { issueLabelCreate(input: $input) { success issueLabel { id name } } }",
+        "variables": {
+          "input": {
+            "teamId": "{team}",
+            "name": "fieldbook"
+          }
+        }
+      },
+      "capture": {
+        "lab": "data.issueLabelCreate.issueLabel.id"
+      }
+    },
+    {
+      "name": "…and applied to both",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation FilerIssueUpdate($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+        "variables": {
+          "id": "{i1}",
+          "input": {
+            "labelIds": [
+              "{lab}"
+            ]
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issueUpdate.success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "…both",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation FilerIssueUpdate($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+        "variables": {
+          "id": "{secondIdentifier}",
+          "input": {
+            "labelIds": [
+              "{lab}"
+            ]
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issueUpdate.success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "A comment on the first",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation FilerCommentCreate($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+        "variables": {
+          "input": {
+            "issueId": "{i1}",
+            "body": "Reproduced on Safari 18: the tap registers, nothing happens."
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.commentCreate.success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "the team's open issues, searched for duplicates",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query DuplicateDetectionCandidates($filter: IssueFilter!, $first: Int!, $after: String, $orderBy: PaginationOrderBy) { issues(filter: $filter, first: $first, after: $after, orderBy: $orderBy) { nodes { id identifier title description url state { type } labels { nodes { name } } } pageInfo { hasNextPage endCursor } } }",
+        "variables": {
+          "filter": {
+            "team": {
+              "id": {
+                "eq": "{team}"
+              }
+            },
+            "state": {
+              "type": {
+                "nin": [
+                  "completed",
+                  "canceled"
+                ]
+              }
+            },
+            "project": {
+              "id": {
+                "eq": "{proj}"
+              }
+            }
+          },
+          "first": 50
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes.0.identifier",
+          "equals": "BOOK-1"
+        },
+        {
+          "path": "data.issues.nodes.1",
+          "exists": false
+        },
+        {
+          "path": "data.issues.nodes.0.labels.nodes.0.name",
+          "equals": "fieldbook"
+        },
+        {
+          "path": "data.issues.nodes.0.state.type",
+          "equals": "unstarted"
+        }
+      ]
+    },
+    {
+      "name": "BOOK-2, checked before archiving",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query DuplicateArchiveGuard($id: String!) { issue(id: $id) { id identifier labels { nodes { name } } } }",
+        "variables": {
+          "id": "{i2}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issue.identifier",
+          "equals": "BOOK-2"
+        },
+        {
+          "path": "data.issue.labels.nodes.0.name",
+          "equals": "fieldbook"
+        }
+      ]
+    },
+    {
+      "name": "It is archived",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation DuplicateIssueArchive($id: String!) { issueArchive(id: $id) { success } }",
+        "variables": {
+          "id": "{i2}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issueArchive.success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "An hour later the delayed archive job arrives",
+      "wait": "1h"
+    },
+    {
+      "name": "A separately queued duplicate-archive job sees that the issue is already archived",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation DuplicateIssueArchive($id: String!) { issueArchive(id: $id) { success } }",
+        "variables": {
+          "id": "{i2}"
+        }
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "equals": "Entity already archived"
+        }
+      ]
+    },
+    {
+      "name": "The dashboard refresh drops the archived duplicate",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query LinearIssuesList($filter: IssueFilter!, $first: Int!, $after: String, $orderBy: PaginationOrderBy) { issues(filter: $filter, first: $first, after: $after, orderBy: $orderBy) { nodes { id identifier title description priority priorityLabel url createdAt updatedAt state { id name type color } team { key issueCount totalIssueCount: issueCount(includeArchived: true) } assignee { id name displayName avatarUrl } creator { id name displayName avatarUrl } labels { nodes { id name } } } pageInfo { hasNextPage endCursor } } }",
+        "variables": {
+          "filter": {
+            "team": {
+              "id": {
+                "eq": "{team}"
+              }
+            }
+          },
+          "first": 50,
+          "orderBy": "updatedAt"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes.1",
+          "exists": false
+        },
+        {
+          "path": "data.issues.nodes.0.team.issueCount",
+          "equals": 1
+        },
+        {
+          "path": "data.issues.nodes.0.team.totalIssueCount",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "name": "The fix is released the next morning",
+      "wait": "8h"
+    },
+    {
+      "name": "Maya closes the fixed booking bug",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation FilerIssueUpdate($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+        "variables": {
+          "id": "{firstIdentifier}",
+          "input": {
+            "stateId": "{done}"
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issueUpdate.success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "A new tester reproduces the booking bug after lunch",
+      "wait": "3h"
+    },
+    {
+      "name": "The new filing worker resolves the existing filing label before handling the recurrence",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query($filter: IssueLabelFilter!) { issueLabels(first: 250, filter: $filter) { nodes { id name } } }",
+        "variables": {
+          "filter": {
+            "team": {
+              "id": {
+                "eq": "{team}"
+              }
+            },
+            "name": {
+              "eq": "fieldbook"
+            }
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issueLabels.nodes.0.id",
+          "equals": "{lab}"
+        }
+      ]
+    },
+    {
+      "name": "The bug recurs: Fieldbook reads its state",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query FilerIssueState($id: String!) { issue(id: $id) { id identifier url team { id } state { id type } } }",
+        "variables": {
+          "id": "{i1}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issue.state.type",
+          "equals": "completed"
+        },
+        {
+          "path": "data.issue.team.id",
+          "equals": "{team}"
+        }
+      ]
+    },
+    {
+      "name": "…finds the team's unstarted state",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query FilerTeamUnstartedStates($filter: WorkflowStateFilter!) { workflowStates(filter: $filter, first: 50) { nodes { id name type position } } }",
+        "variables": {
+          "filter": {
+            "team": {
+              "id": {
+                "eq": "{team}"
+              }
+            },
+            "type": {
+              "eq": "unstarted"
+            }
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.workflowStates.nodes.0.id",
+          "equals": "{todo}"
+        },
+        {
+          "path": "data.workflowStates.nodes.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Fieldbook reopens the recurrence as urgent, assigns Maya and removes the finished release project",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "mutation FilerIssueUpdate($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+        "variables": {
+          "id": "{i1}",
+          "input": {
+            "stateId": "{todo}",
+            "priority": 1,
+            "assigneeId": "{maya}",
+            "projectId": null
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issueUpdate.success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "the team's issues, one page at a time",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query LinearIssuesList($filter: IssueFilter!, $first: Int!, $after: String, $orderBy: PaginationOrderBy) { issues(filter: $filter, first: $first, after: $after, orderBy: $orderBy) { nodes { id identifier title description priority priorityLabel url createdAt updatedAt state { id name type color } team { key } assignee { id name displayName avatarUrl } creator { id name displayName avatarUrl } labels { nodes { id name } } } pageInfo { hasNextPage endCursor } } }",
+        "variables": {
+          "filter": {
+            "team": {
+              "id": {
+                "eq": "{team}"
+              }
+            }
+          },
+          "first": 1,
+          "orderBy": "updatedAt"
+        }
+      },
+      "capture": {
+        "cursor": "data.issues.pageInfo.endCursor"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes.0.identifier",
+          "equals": "BOOK-1"
+        },
+        {
+          "path": "data.issues.nodes.0.priorityLabel",
+          "equals": "Urgent"
+        },
+        {
+          "path": "data.issues.nodes.0.state.name",
+          "equals": "Todo"
+        },
+        {
+          "path": "data.issues.nodes.0.team.key",
+          "equals": "BOOK"
+        },
+        {
+          "path": "data.issues.nodes.0.creator.id",
+          "equals": "{bot}"
+        },
+        {
+          "path": "data.issues.nodes.0.assignee.id",
+          "equals": "{maya}"
+        },
+        {
+          "path": "data.issues.pageInfo.hasNextPage",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "One issue by its identifier",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query LinearIssueDetail($id: String!) { issue(id: $id) { id identifier title labels { nodes { id name } } state { name } project { id } } }",
+        "variables": {
+          "id": "{firstIdentifier}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issue.id",
+          "equals": "{i1}"
+        },
+        {
+          "path": "data.issue.labels.nodes.0.id",
+          "equals": "{lab}"
+        },
+        {
+          "path": "data.issue.project",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "Its comments",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query LinearIssueComments($id: String!) { issue(id: $id) { comments(first: 50, orderBy: createdAt) { nodes { id body createdAt updatedAt user { id name displayName avatarUrl } } } } }",
+        "variables": {
+          "id": "{i1}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issue.comments.nodes.0.body",
+          "contains": "Safari 18"
+        },
+        {
+          "path": "data.issue.comments.nodes.0.user.id",
+          "equals": "{bot}"
+        }
+      ]
+    },
+    {
+      "name": "Jonah’s reporter loads the workspace members",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "{ users { nodes { id name } } }"
+      },
+      "expect": [
+        {
+          "path": "data.users.nodes",
+          "contains": "Maya Chen"
+        },
+        {
+          "path": "data.users.nodes",
+          "contains": "Jonah"
+        },
+        {
+          "path": "data.users.nodes",
+          "contains": "Fieldbook"
+        }
+      ]
+    },
+    {
+      "name": "The reporter reads all release projects",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "{ projects { nodes { id name } } }"
+      },
+      "expect": [
+        {
+          "path": "data.projects.nodes.0.name",
+          "equals": "Spring release"
+        }
+      ]
+    },
+    {
+      "name": "The reporter collects comments for its support summary",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "{ comments { nodes { body } } }"
+      },
+      "expect": [
+        {
+          "path": "data.comments.nodes.0.body",
+          "contains": "Safari 18"
+        }
+      ]
+    },
+    {
+      "name": "The integration worker is offline until the following day",
+      "wait": "25h"
+    },
+    {
+      "name": "The resumed worker’s cached access token has expired",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {oldAt}"
+      },
+      "body": {
+        "query": "{ viewer { id } }"
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "equals": "Authentication required, not authenticated"
+        }
+      ]
+    },
+    {
+      "name": "The worker refreshes the expired token before resuming",
+      "method": "POST",
+      "path": "https://api.linear.app/oauth/token",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=refresh_token&refresh_token={rt}&client_id={cid}&client_secret={csec}",
+      "capture": {
+        "at": "access_token",
+        "rt2": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "refresh_token",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "The worker resumes its report with the replacement token",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query($id:String!){ viewer { id } issue(id:$id) { title state { id } comments { nodes { id body } } } }",
+        "variables": {
+          "id": "{i1}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.viewer.id",
+          "equals": "{bot}"
+        },
+        {
+          "path": "data.issue.title",
+          "equals": "Checkout button does nothing on Safari"
+        },
+        {
+          "path": "data.issue.state.id",
+          "equals": "{todo}"
+        },
+        {
+          "path": "data.issue.comments.nodes",
+          "contains": "Safari"
+        }
+      ]
+    }
+  ]
+}

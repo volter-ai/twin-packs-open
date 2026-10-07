@@ -1,0 +1,1332 @@
+{
+  "vendor": "linear",
+  "author": "Contributor 74",
+  "host": "api.linear.app",
+  "about": "Linear’s published examples from its GraphQL, pagination, filtering and OAuth pages. Setup makes each identity and destination needed by the examples. Literal documentation ids stand for captured World ids; out-of-scope selected fields are recorded instead of fabricated.",
+  "steps": [
+    {
+      "name": "Maya makes the Tidewater workspace in Linear's app",
+      "method": "POST",
+      "path": "/_twin/workspaces",
+      "status": 201,
+      "body": {
+        "name": "Tidewater",
+        "urlKey": "tidewater",
+        "owner": {
+          "name": "Maya Chen",
+          "email": "maya@tidewater.yoga",
+          "password": "savasana-2026"
+        }
+      },
+      "capture": {
+        "maya": "owner",
+        "org": "id"
+      }
+    },
+    {
+      "name": "Jonah joins",
+      "method": "POST",
+      "path": "/_twin/workspaces/tidewater/people",
+      "status": 201,
+      "body": {
+        "name": "Jonah",
+        "email": "jonah@tidewater.yoga",
+        "password": "warrior-two-22"
+      },
+      "capture": {
+        "jonah": "id"
+      }
+    },
+    {
+      "name": "Fieldbook's OAuth application",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "name": "Fieldbook",
+        "redirect_uris": [
+          "https://fieldbook.example/api/integrations/linear/callback"
+        ]
+      },
+      "capture": {
+        "cid": "client_id",
+        "csec": "client_secret"
+      }
+    },
+    {
+      "name": "Maya connects the workspace: the authorize page",
+      "method": "GET",
+      "path": "https://linear.app/oauth/authorize?client_id={cid}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&response_type=code&scope=read,write&state=lin1&prompt=consent&actor=app",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to Linear"
+        }
+      ]
+    },
+    {
+      "name": "She sees what Fieldbook asks",
+      "method": "POST",
+      "path": "https://linear.app/oauth/authorize",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={cid}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&response_type=code&scope=read,write&state=lin1&prompt=consent&actor=app&email=maya@tidewater.yoga&password=savasana-2026",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Fieldbook is requesting access to your Tidewater workspace"
+        }
+      ],
+      "capture": {
+        "session": "header:set-cookie:linear_session=([^;]+)"
+      }
+    },
+    {
+      "name": "She authorizes",
+      "method": "POST",
+      "path": "https://linear.app/oauth/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "linear_session={session}"
+      },
+      "body": "client_id={cid}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&response_type=code&scope=read,write&state=lin1&prompt=consent&actor=app&decision=authorize",
+      "capture": {
+        "code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "lin1"
+        }
+      ]
+    },
+    {
+      "name": "Fieldbook trades the code",
+      "method": "POST",
+      "path": "https://api.linear.app/oauth/token",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=authorization_code&code={code}&redirect_uri=https%3A%2F%2Ffieldbook.example%2Fapi%2Fintegrations%2Flinear%2Fcallback&client_id={cid}&client_secret={csec}",
+      "capture": {
+        "at": "access_token",
+        "rt": "refresh_token",
+        "oldAt": "access_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        },
+        {
+          "path": "scope",
+          "equals": "read write"
+        }
+      ],
+      "example": "oauthToken#doc authorization code response"
+    },
+    {
+      "name": "It names the connection: the viewer is the app's actor",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "{ viewer { id } organization { id name urlKey } }"
+      },
+      "capture": {
+        "bot": "data.viewer.id"
+      },
+      "expect": [
+        {
+          "path": "data.organization.id",
+          "equals": "{org}"
+        },
+        {
+          "path": "data.organization.urlKey",
+          "equals": "tidewater"
+        }
+      ]
+    },
+    {
+      "name": "Maya makes a personal API key in Linear's settings",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "body": {
+        "email": "maya@tidewater.yoga",
+        "label": "setup"
+      },
+      "capture": {
+        "mkey": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "matches": "^lin_api_"
+        }
+      ]
+    },
+    {
+      "name": "With it, the team Booking App (teamCreate)",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input: TeamCreateInput!) { teamCreate(input: $input) { success team { id key name } } }",
+        "variables": {
+          "input": {
+            "name": "Booking App",
+            "key": "BOOK"
+          }
+        }
+      },
+      "capture": {
+        "team": "data.teamCreate.team.id"
+      },
+      "expect": [
+        {
+          "path": "data.teamCreate.success",
+          "equals": true
+        },
+        {
+          "path": "data.teamCreate.team.key",
+          "equals": "BOOK"
+        }
+      ]
+    },
+    {
+      "name": "Its states (the filing taxonomy)",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "query FilerTeamStates($teamId: String!) { team(id: $teamId) { states(first: 100) { nodes { id name } } } }",
+        "variables": {
+          "teamId": "{team}"
+        }
+      },
+      "capture": {
+        "todo": "data.team.states.nodes.1.id",
+        "todoName": "data.team.states.nodes.1.name"
+      }
+    },
+    {
+      "name": "query.viewer#doc Me",
+      "example": "query.viewer#doc Me",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Me {\n  viewer {\n    id\n    name\n    email\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.viewer.name",
+          "equals": "Maya Chen"
+        },
+        {
+          "path": "data.viewer.id",
+          "equals": "{maya}"
+        },
+        {
+          "path": "data.viewer.email",
+          "equals": "maya@tidewater.yoga"
+        }
+      ]
+    },
+    {
+      "name": "query.teams#doc Teams",
+      "example": "query.teams#doc Teams",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Teams {\n  teams {\n    nodes {\n      id\n      name\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.teams.nodes.0.name",
+          "equals": "Booking App"
+        },
+        {
+          "path": "data.teams.nodes.0.id",
+          "equals": "{team}"
+        }
+      ]
+    },
+    {
+      "name": "query.users#doc users",
+      "example": "query.users#doc users",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query {\n  users {\n    nodes {\n      name\n      id\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.users.nodes",
+          "members": [
+            {
+              "id": "{maya}",
+              "name": "Maya Chen"
+            },
+            {
+              "id": "{jonah}",
+              "name": "Jonah"
+            },
+            {
+              "id": "{bot}",
+              "name": "Fieldbook"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mutation.issueCreate#doc IssueCreate",
+      "example": "mutation.issueCreate#doc IssueCreate",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation IssueCreate {\n  issueCreate(\n    input: {\n      title: \"New exception\"\n      description: \"More detailed error report in markdown\"\n      teamId: \"{team}\"\n    }\n  ) {\n    success\n    issue {\n      id\n      title\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issueCreate.success",
+          "equals": true
+        },
+        {
+          "path": "data.issueCreate.issue.title",
+          "equals": "New exception"
+        }
+      ],
+      "capture": {
+        "exIssue": "data.issueCreate.issue.id"
+      }
+    },
+    {
+      "name": "query.issue#doc Issue",
+      "example": "query.issue#doc Issue",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issue {\n  issue(id: \"{exIssue}\") {\n    id\n    title\n    description\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issue.id",
+          "equals": "{exIssue}"
+        },
+        {
+          "path": "data.issue.title",
+          "equals": "New exception"
+        },
+        {
+          "path": "data.issue.description",
+          "equals": "More detailed error report in markdown"
+        }
+      ]
+    },
+    {
+      "name": "query.team#doc Team",
+      "example": "query.team#doc Team",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Team {\n  team(id: \"{team}\") {\n    id\n    name\n\n    issues {\n      nodes {\n        id\n        title\n        description\n        assignee {\n          id\n          name\n        }\n        createdAt\n        archivedAt\n      }\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.team.id",
+          "equals": "{team}"
+        },
+        {
+          "path": "data.team.issues.nodes.0.title",
+          "equals": "New exception"
+        },
+        {
+          "path": "data.team.name",
+          "equals": "Booking App"
+        },
+        {
+          "path": "data.team.issues.nodes.0.id",
+          "equals": "{exIssue}"
+        },
+        {
+          "path": "data.team.issues.nodes.0.description",
+          "equals": "More detailed error report in markdown"
+        },
+        {
+          "path": "data.team.issues.nodes.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "mutation.issueUpdate#doc IssueUpdate",
+      "example": "mutation.issueUpdate#doc IssueUpdate",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation IssueUpdate {\n  issueUpdate(\n    id: \"{exIssue}\",\n    input: {\n      title: \"New Issue Title\"\n      stateId: \"{todo}\",\n    }\n  ) {\n    success\n    issue {\n      id\n      title\n      state {\n        id\n        name\n      }\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issueUpdate.success",
+          "equals": true
+        },
+        {
+          "path": "data.issueUpdate.issue.id",
+          "equals": "{exIssue}"
+        },
+        {
+          "path": "data.issueUpdate.issue.title",
+          "equals": "New Issue Title"
+        },
+        {
+          "path": "data.issueUpdate.issue.state.id",
+          "equals": "{todo}"
+        },
+        {
+          "path": "data.issueUpdate.issue.state.name",
+          "equals": "{todoName}"
+        }
+      ]
+    },
+    {
+      "name": "query.workflowStates#doc workflowStates",
+      "example": "query.workflowStates#doc workflowStates",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query {\n  workflowStates {\n    nodes {\n      id\n      name\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.workflowStates.nodes",
+          "contains": "{todo}"
+        }
+      ],
+      "undecided": {
+        "data.workflowStates.nodes.*.name": "Default workflow state names were not supplied by setup; the chosen name/id were learned in state discovery."
+      }
+    },
+    {
+      "name": "query.issues#doc first ten issues",
+      "example": "query.issues#doc first ten issues",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(first: 10) {\n    edges {\n      node {\n        id\n        title\n      }\n      cursor\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.edges.0.node.id",
+          "equals": "{exIssue}"
+        },
+        {
+          "path": "data.issues.edges.0.node.title",
+          "equals": "New Issue Title"
+        },
+        {
+          "path": "data.issues.pageInfo.hasNextPage",
+          "equals": false
+        },
+        {
+          "path": "data.issues.edges.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "query.teams#doc Teams nodes",
+      "example": "query.teams#doc Teams nodes",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Teams {\n  teams {\n    nodes {\n      id\n      name\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.teams.nodes.0.id",
+          "equals": "{team}"
+        },
+        {
+          "path": "data.teams.nodes.0.name",
+          "equals": "Booking App"
+        }
+      ]
+    },
+    {
+      "name": "query.issues#doc recently updated issues",
+      "example": "query.issues#doc recently updated issues",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(orderBy: updatedAt) {\n    nodes {\n      id\n      identifier\n      title\n      createdAt\n      updatedAt\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes.0.id",
+          "equals": "{exIssue}"
+        },
+        {
+          "path": "data.issues.nodes.0.title",
+          "equals": "New Issue Title"
+        },
+        {
+          "path": "data.issues.nodes.0.createdAt",
+          "equals": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "path": "data.issues.nodes.0.updatedAt",
+          "equals": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "path": "data.issues.nodes.1",
+          "exists": false
+        }
+      ],
+      "undecided": {
+        "data.issues.nodes.0.identifier": "The vendor generates its sequence; setup did not supply an identifier."
+      }
+    },
+    {
+      "name": "query.issues#doc OAuth issue list",
+      "example": "query.issues#doc OAuth issue list",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "{ issues { nodes { id title } } }"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes.0.title",
+          "equals": "New Issue Title"
+        },
+        {
+          "path": "data.issues.nodes.0.id",
+          "equals": "{exIssue}"
+        }
+      ]
+    },
+    {
+      "name": "query.issues#doc API key issue list",
+      "example": "query.issues#doc API key issue list",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "{ issues { nodes { id title } } }"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes.0.title",
+          "equals": "New Issue Title"
+        },
+        {
+          "path": "data.issues.nodes.0.id",
+          "equals": "{exIssue}"
+        }
+      ]
+    },
+    {
+      "name": "query.issues#doc high priority",
+      "example": "query.issues#doc high priority",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query HighPriorityIssues {\n  issues(filter: { \n    priority: { lte: 2 }\n  }) {\n    nodes {\n      id, title, priority\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes.0.id",
+          "equals": "{exIssue}"
+        },
+        {
+          "path": "data.issues.nodes.0.title",
+          "equals": "New Issue Title"
+        },
+        {
+          "path": "data.issues.nodes.1",
+          "exists": false
+        }
+      ],
+      "undecided": {
+        "data.issues.nodes.0.priority": "No priority was supplied; Linear applies its documented no-priority default."
+      }
+    },
+    {
+      "name": "query.issues#doc high priority excluding none",
+      "example": "query.issues#doc high priority excluding none",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query HighPriorityIssues {\n  issues(filter: { \n    priority: { lte: 2, neq: 0 }\n  }) {\n    nodes {\n      id, title, priority\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "query.issues#doc null description",
+      "example": "query.issues#doc null description",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(filter: { \n    description: { null: true }\n  }) {\n    nodes {\n      id, title, description\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "query.viewer#doc OAuth viewer",
+      "example": "query.viewer#doc OAuth viewer",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "query": "{ viewer { id name } }"
+      },
+      "expect": [
+        {
+          "path": "data.viewer.id",
+          "equals": "{bot}"
+        },
+        {
+          "path": "data.viewer.name",
+          "equals": "Fieldbook"
+        }
+      ]
+    },
+    {
+      "name": "oauthToken#doc refresh response",
+      "example": "oauthToken#doc refresh response",
+      "method": "POST",
+      "path": "/oauth/token",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=refresh_token&refresh_token={rt}&client_id={cid}&client_secret={csec}",
+      "capture": {
+        "newAccess": "access_token",
+        "newRefresh": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "scope",
+          "equals": "read write"
+        },
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        }
+      ]
+    },
+    {
+      "name": "Replaying the prior refresh request within the grace period returns the same token pair",
+      "method": "POST",
+      "path": "/oauth/token",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=refresh_token&refresh_token={rt}&client_id={cid}&client_secret={csec}",
+      "expect": [
+        {
+          "path": "access_token",
+          "equals": "{newAccess}"
+        },
+        {
+          "path": "refresh_token",
+          "equals": "{newRefresh}"
+        }
+      ]
+    },
+    {
+      "name": "oauthToken#doc client credentials disabled",
+      "example": "oauthToken#doc client credentials disabled",
+      "method": "POST",
+      "path": "/oauth/token",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=client_credentials&scope=read,write&client_id={cid}&client_secret={csec}",
+      "expect": [
+        {
+          "path": "error",
+          "equals": "Error"
+        },
+        {
+          "path": "error_description",
+          "equals": "Client does not support the client_credentials grant type"
+        }
+      ]
+    },
+    {
+      "name": "The published assignee and project-lead filters need John",
+      "method": "POST",
+      "path": "/_twin/workspaces/tidewater/people",
+      "status": 201,
+      "body": {
+        "name": "John Example",
+        "email": "john@linear.app",
+        "password": "example-qa-2026"
+      },
+      "capture": {
+        "john": "id"
+      }
+    },
+    {
+      "name": "Resolve the started and completed states for the published predicates",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query($team:String!){team(id:$team){states{nodes{id type}}}}",
+        "variables": {
+          "team": "{team}"
+        }
+      },
+      "expect": [],
+      "capture": {
+        "started": "data.team.states.nodes.2.id",
+        "completed": "data.team.states.nodes.4.id"
+      }
+    },
+    {
+      "name": "A lead-linked project for the nested label query",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input:ProjectCreateInput!){projectCreate(input:$input){project{ id }}}",
+        "variables": {
+          "input": {
+            "name": "Published filters",
+            "teamIds": [
+              "{team}"
+            ],
+            "leadId": "{john}"
+          }
+        }
+      },
+      "expect": [],
+      "capture": {
+        "filterProject": "data.projectCreate.project.id"
+      }
+    },
+    {
+      "name": "The published Bug label",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input:IssueLabelCreateInput!){issueLabelCreate(input:$input){issueLabel{ id }}}",
+        "variables": {
+          "input": {
+            "name": "Bug",
+            "teamId": "{team}"
+          }
+        }
+      },
+      "expect": [],
+      "capture": {
+        "bugLabel": "data.issueLabelCreate.issueLabel.id"
+      }
+    },
+    {
+      "name": "Urgent overdue issue assigned to John",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input:IssueCreateInput!){issueCreate(input:$input){issue{ id }}}",
+        "variables": {
+          "input": {
+            "teamId": "{team}",
+            "title": "Urgent example",
+            "priority": 1,
+            "dueDate": "2020-12-15",
+            "assigneeId": "{john}",
+            "projectId": "{filterProject}",
+            "stateId": "{started}",
+            "estimate": 0,
+            "labelIds": [
+              "{bugLabel}"
+            ]
+          }
+        }
+      },
+      "expect": [],
+      "capture": {
+        "urgent": "data.issueCreate.issue.id"
+      }
+    },
+    {
+      "name": "Low-priority overdue issue assigned to the viewer",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input:IssueCreateInput!){issueCreate(input:$input){issue{ id }}}",
+        "variables": {
+          "input": {
+            "teamId": "{team}",
+            "title": "Low example",
+            "priority": 4,
+            "dueDate": "2020-12-16",
+            "assigneeId": "{maya}",
+            "labelIds": [
+              "{bugLabel}"
+            ]
+          }
+        }
+      },
+      "expect": [],
+      "capture": {
+        "low": "data.issueCreate.issue.id"
+      }
+    },
+    {
+      "name": "Its comment is the assigned-comment predicate",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input:CommentCreateInput!){commentCreate(input:$input){comment{ id }}}",
+        "variables": {
+          "input": {
+            "issueId": "{low}",
+            "body": "Looks right 👍"
+          }
+        }
+      },
+      "expect": []
+    },
+    {
+      "name": "A newly completed issue for the relative completion filter",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "mutation($input:IssueCreateInput!){issueCreate(input:$input){issue{ id }}}",
+        "variables": {
+          "input": {
+            "teamId": "{team}",
+            "title": "Closed example",
+            "stateId": "{completed}"
+          }
+        }
+      },
+      "expect": [],
+      "capture": {
+        "closed": "data.issueCreate.issue.id"
+      }
+    },
+    {
+      "name": "query.issues#doc urgent issues due in 2021",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(filter: { \n    priority: { eq: 1 }\n    dueDate: { lte: \"2021\" }\n  }) {\n    nodes {\n      id, title, priority, dueDate\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "equals": [
+            {
+              "id": "{urgent}",
+              "title": "Urgent example",
+              "priority": 1,
+              "dueDate": "2020-12-15"
+            }
+          ]
+        }
+      ],
+      "example": "query.issues#doc urgent issues due in 2021"
+    },
+    {
+      "name": "query.issues#doc logical or",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(filter: { \n    or: [\n      { priority: { eq: 4 } },\n      { priority: { eq: 0 } }\n    ]\n    dueDate: { lte: \"2021\" }\n  }) {\n    nodes {\n      id, title, priority, dueDate\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "equals": [
+            {
+              "id": "{low}",
+              "title": "Low example",
+              "priority": 4,
+              "dueDate": "2020-12-16"
+            }
+          ]
+        }
+      ],
+      "example": "query.issues#doc logical or"
+    },
+    {
+      "name": "query.issues#doc assignee email",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query AssignedIssues {\n  issues(filter: { \n    assignee: { email: { eq: \"john@linear.app\" } }\n  }) {\n    nodes {\n      id\n      title\n      assignee {\n        name\n      }\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "equals": [
+            {
+              "id": "{urgent}",
+              "title": "Urgent example",
+              "assignee": {
+                "name": "John Example"
+              }
+            }
+          ]
+        }
+      ],
+      "example": "query.issues#doc assignee email"
+    },
+    {
+      "name": "query.issues#doc label name",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(filter: { \n    labels: { name: { eq: \"Bug\" } }\n  }) {\n    nodes {\n      id, title\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "members": [
+            {
+              "id": "{urgent}",
+              "title": "Urgent example"
+            },
+            {
+              "id": "{low}",
+              "title": "Low example"
+            }
+          ]
+        }
+      ],
+      "example": "query.issues#doc label name"
+    },
+    {
+      "name": "query.issues#doc every label",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(filter: { \n    labels: { every: { name: { eq: \"Bug\" } } }\n  }) {\n    nodes {\n      id, title\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "members": [
+            {
+              "id": "{urgent}",
+              "title": "Urgent example"
+            },
+            {
+              "id": "{low}",
+              "title": "Low example"
+            },
+            {
+              "id": "{exIssue}",
+              "title": "New Issue Title"
+            },
+            {
+              "id": "{closed}",
+              "title": "Closed example"
+            }
+          ]
+        }
+      ],
+      "example": "query.issues#doc every label"
+    },
+    {
+      "name": "query.issues#doc relative due date",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query IssuesDue {\n  issues(filter: { \n    dueDate: { lt: \"P2W\" }\n  }) {\n    nodes {\n      id, title\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "members": [
+            {
+              "id": "{urgent}",
+              "title": "Urgent example"
+            },
+            {
+              "id": "{low}",
+              "title": "Low example"
+            }
+          ]
+        }
+      ],
+      "example": "query.issues#doc relative due date"
+    },
+    {
+      "name": "query.projects#doc project lead and nested issue labels",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Projects {\n  projects(filter: { \n    lead: { name: { startsWith: \"John\" } } \n  }) {\n    nodes {\n      issues(filter: { \n        labels: { name: { in: [\"Bug\", \"Defect\"] } } \n      }) {\n        nodes {\n          id\n          title\n        }\n      }\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.projects.nodes",
+          "equals": [
+            {
+              "issues": {
+                "nodes": [
+                  {
+                    "id": "{urgent}",
+                    "title": "Urgent example"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "example": "query.projects#doc project lead and nested issue labels"
+    },
+    {
+      "name": "query.viewer#doc assigned issue comments",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  viewer {\n    assignedIssues(filter: { \n      comments: { body: { contains: \"👍\" } } \n    }) {\n      nodes {\n        id\n        title\n      }\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.viewer.assignedIssues.nodes",
+          "equals": [
+            {
+              "id": "{low}",
+              "title": "Low example"
+            }
+          ]
+        }
+      ],
+      "example": "query.viewer#doc assigned issue comments"
+    },
+    {
+      "name": "query.viewer#doc recently created closed issues",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query ClosedIssues {\n  viewer {\n    createdIssues(filter: { completedAt: { gt: \"-P2W\" } }) {\n      nodes {\n        id, title\n      }\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.viewer.createdIssues.nodes",
+          "equals": [
+            {
+              "id": "{closed}",
+              "title": "Closed example"
+            }
+          ]
+        }
+      ],
+      "example": "query.viewer#doc recently created closed issues"
+    },
+    {
+      "name": "query.issues#doc estimate and project state",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query Issues {\n  issues(\n    filter: {\n      estimate: { eq: 0 }\n      state: { type: { eq: \"started\" } }\n      project: { state: { eq: \"started\" } }\n    }\n  ) {\n    nodes {\n      title\n      estimate\n      project {\n        name\n      }\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issues.nodes",
+          "equals": []
+        }
+      ],
+      "example": "query.issues#doc estimate and project state"
+    },
+    {
+      "name": "Enable client credentials with team access in a separate app’s settings",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "name": "Published service account",
+        "client_credentials": {
+          "workspace": "tidewater",
+          "teamIds": [
+            "{team}"
+          ]
+        }
+      },
+      "capture": {
+        "serviceClient": "client_id",
+        "serviceSecret": "client_secret"
+      }
+    },
+    {
+      "name": "oauthToken#doc client credentials response",
+      "example": "oauthToken#doc client credentials response",
+      "method": "POST",
+      "path": "/oauth/token",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=client_credentials&scope=read,write&client_id={serviceClient}&client_secret={serviceSecret}",
+      "capture": {
+        "serviceAccess": "access_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        },
+        {
+          "path": "expires_in",
+          "equals": 2591999
+        },
+        {
+          "path": "scope",
+          "equals": "read write"
+        }
+      ]
+    },
+    {
+      "name": "The issued service credential reads its configured team",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {serviceAccess}"
+      },
+      "body": {
+        "query": "query($id:String!){team(id:$id){ id }}",
+        "variables": {
+          "id": "{team}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.team.id",
+          "equals": "{team}"
+        }
+      ]
+    },
+    {
+      "name": "mutation.issueCreate#doc actor IssueCreate",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {newAccess}"
+      },
+      "body": {
+        "query": "mutation IssueCreate {\n  issueCreate(\n    input: {\n      title: \"New exception\"\n      description: \"More detailed error report in markdown\"\n      teamId: \"{team}\"\n      createAsUser: \"Mark\"\n      displayIconUrl: \"http://path.to/image.png\"\n    }\n  ) {\n    success\n    issue {\n      id\n      title\n    }\n  }\n}"
+      },
+      "expect": [
+        {
+          "path": "data.issueCreate.success",
+          "equals": true
+        },
+        {
+          "path": "data.issueCreate.issue.title",
+          "equals": "New exception"
+        }
+      ],
+      "capture": {
+        "actorIssue": "data.issueCreate.issue.id"
+      },
+      "example": "mutation.issueCreate#doc actor IssueCreate"
+    },
+    {
+      "name": "Read the actor-created exception through its published issue API",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query($id:String!){issue(id:$id){id title description creator{ id }}}",
+        "variables": {
+          "id": "{actorIssue}"
+        }
+      },
+      "expect": [
+        {
+          "path": "data.issue.id",
+          "equals": "{actorIssue}"
+        },
+        {
+          "path": "data.issue.title",
+          "equals": "New exception"
+        },
+        {
+          "path": "data.issue.description",
+          "equals": "More detailed error report in markdown"
+        },
+        {
+          "path": "data.issue.creator.id",
+          "equals": "{bot}"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {}
+}
