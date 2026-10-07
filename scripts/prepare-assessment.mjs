@@ -68,10 +68,6 @@ mkdirSync(dirname(packDir), { recursive: true });
 cpSync(installed, packDir, { recursive: true });
 assert.ok(!realpathSync(packDir).startsWith(process.cwd() + '/'), 'Assessment uses a publisher checkout');
 const { prepareConsumerApp } = await import(pathToFileURL(evaluatorRequire.resolve('@volter/twin-standard')).href);
-const appDir = join(work, 'customer-app');
-const consumerFixture = prepareConsumerApp(packDir, appDir);
-process.stderr.write('Preparing the declared customer SDK dependencies\n');
-run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], appDir);
 // A dependency may also claim the flattened volter bin. Select the pinned product's own declared entry.
 const productRoot = join(work, 'node_modules/@volter/world');
 const product = read(join(productRoot, 'package.json'));
@@ -80,6 +76,14 @@ assert.equal(product.version, tools['@volter/world']);
 assert.equal(typeof product.bin?.volter, 'string', 'Product package has no declared volter entry');
 const cli = realpathSync(join(productRoot, product.bin.volter));
 assert.ok(!relative(realpathSync(productRoot), cli).startsWith('..'), 'CLI entry is outside the installed product');
+// A sibling app cannot borrow the evaluator's SDKs or kernel through an ancestor node_modules.
+const appDir = join(mkdtempSync(join(workRoot, `catalog-customer-${selected.vendor}-`)), 'app');
+const consumerFixture = prepareConsumerApp(packDir, appDir, { cli, artifact: archive });
+process.stderr.write('Preparing the declared customer SDK, exact candidate and kernel dependencies\n');
+run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], appDir);
+const appLock = read(join(appDir, 'package-lock.json'));
+assert.equal(appLock.packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Customer candidate bytes differ from the packed release');
+assert.equal(appLock.packages['node_modules/@volter/world-core']?.version, tools['@volter/world-core'], 'Customer kernel differs from the CLI pin');
 const consumer = { appDir, cli, artifactIntegrity: integrity };
 const prepared = {
   schemaVersion: 1, vendor: selected.vendor, package: inventory.name, version: inventory.version,
