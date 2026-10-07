@@ -6,6 +6,10 @@ import { appName } from '../engine/app-manifest.ts';
 
 type Row = Record<string, unknown>;
 
+/** The workspace carried by Slack's conversation wire object; retained local rows may use team_id. */
+// source: https://docs.slack.dev/reference/methods/conversations.info "\"context_team_id\": \"T123ABC456\""
+export const channelTeam = (channel: Row | undefined): string => String(channel?.context_team_id ?? channel?.team_id ?? '');
+
 // ── answers ──────────────────────────────────────────────────────────────────────────────────────
 
 /** Slack's refusal: HTTP 200, `{ok: false, error}` (https://docs.slack.dev/apis/web-api/#responses). */
@@ -174,7 +178,7 @@ export async function systemMessage(ctx: HandlerContext, channel: Row, user: str
     : subtype === 'channel_topic' ? `<@${user}> set the channel topic: ${String(fields.topic)}`
     : `<@${user}> set the channel description: ${String(fields.purpose)}`;
   const ts = nextTs(ctx, String(channel.id));
-  await ctx.write('message', messageId(String(channel.id), ts), { type: 'message', subtype, channel: channel.id, user, ts, team: channel.team_id, text, ...fields }, 'message.system');
+  await ctx.write('message', messageId(String(channel.id), ts), { type: 'message', subtype, channel: channel.id, user, ts, team: channelTeam(channel), text, ...fields }, 'message.system');
 }
 
 /** A person leaves a conversation (left, kicked, or removed with their account): their membership gone. */
@@ -187,8 +191,8 @@ export async function removeMember(ctx: HandlerContext, channel: string, user: s
 export function channelNamed(ctx: HandlerContext, named: string | undefined, team: string): Row | undefined {
   if (!named) return undefined;
   const raw = (id: string): Row | undefined => ctx.row('channel', id, { withDeleted: false });
-  if (named.startsWith('#')) return ctx.rowsRaw('channel').find((c) => c.name === named.slice(1) && c.team_id === team);
-  return raw(named) ?? ctx.rowsRaw('channel').find((c) => c.name === named && c.team_id === team);
+  if (named.startsWith('#')) return ctx.rowsRaw('channel').find((c) => c.name === named.slice(1) && channelTeam(c) === team);
+  return raw(named) ?? ctx.rowsRaw('channel').find((c) => c.name === named && channelTeam(c) === team);
 }
 
 /** Whether a caller may see a conversation: a public channel in its workspace (or the org's, for an org install), or
@@ -196,7 +200,7 @@ export function channelNamed(ctx: HandlerContext, named: string | undefined, tea
 export function sees(ctx: HandlerContext, c: Row, by: Caller): boolean {
   const member = channelMembers(ctx, String(c.id)).includes(by.user);
   if (c.is_private === true || c.is_im === true || c.is_mpim === true) return member;
-  return by.enterprise === true || c.team_id === by.team || member;
+  return by.enterprise === true || channelTeam(c) === by.team || member;
 }
 
 /** A channel's earlier names, the latest first: read from its own history (each write that named it), never kept. */
@@ -215,15 +219,15 @@ export function channelView(ctx: HandlerContext, c: Row, by?: Caller): Row {
     const lastRead = String(ctx.row('channel_member', `${String(c.id)}::${String(by?.user)}`)?.last_read ?? '0000000000.000000');
     const messages = messagesIn(ctx, String(c.id)).sort((a, b) => Number(a.ts) - Number(b.ts));
     const unread = messages.filter((m) => Number(m.ts) > Number(lastRead) && m.user !== by?.user).length;
-    return { id: c.id, created: c.created, is_archived: false, is_im: true, is_org_shared: false, context_team_id: c.team_id, updated: c.updated ?? c.created, user: members.find((m) => m !== by?.user) ?? members[0], is_user_deleted: false, last_read: lastRead, latest: messages.length ? messageView(ctx, messages.at(-1)!) : null, unread_count: unread, unread_count_display: unread, is_open: true, priority: 0 };
+    return { id: c.id, created: c.created, is_archived: false, is_im: true, is_org_shared: false, context_team_id: channelTeam(c), updated: c.updated ?? c.created, user: members.find((m) => m !== by?.user) ?? members[0], is_user_deleted: false, last_read: lastRead, latest: messages.length ? messageView(ctx, messages.at(-1)!) : null, unread_count: unread, unread_count_display: unread, is_open: true, priority: 0 };
   }
   return {
     id: c.id, name: c.name, is_channel: c.is_private !== true, is_group: c.is_private === true, is_im: false, is_mpim: false,
     is_private: c.is_private === true, created: c.created, is_archived: c.is_archived === true, is_general: c.is_general === true,
     unlinked: 0, name_normalized: c.name, is_shared: c.is_ext_shared === true, is_org_shared: false, pending_shared: [],
     is_pending_ext_shared: false,
-    context_team_id: c.team_id, updated: c.updated ?? c.created, parent_conversation: null, creator: c.creator,
-    is_ext_shared: c.is_ext_shared === true, shared_team_ids: [c.team_id], pending_connected_team_ids: [],
+    context_team_id: channelTeam(c), updated: c.updated ?? c.created, parent_conversation: null, creator: c.creator,
+    is_ext_shared: c.is_ext_shared === true, shared_team_ids: [channelTeam(c)], pending_connected_team_ids: [],
     ...(by ? { is_member: members.includes(by.user), last_read: String(ctx.row('channel_member', `${String(c.id)}::${by.user}`)?.last_read ?? '0000000000.000000') } : {}),
     topic: c.topic ?? { value: '', creator: '', last_set: 0 }, purpose: c.purpose ?? { value: '', creator: '', last_set: 0 },
     previous_names: previousNames(ctx, String(c.id)), priority: 0, is_read_only: false,
@@ -280,7 +284,7 @@ export const shown = (r: Row | undefined): Row | undefined => (r ? Object.fromEn
 
 /** A message's link, `https://<domain>.slack.com/archives/<channel>/p<ts without the dot>`. */
 export function permalinkOf(ctx: HandlerContext, channel: Row, ts: string): string {
-  const domain = String(ctx.get('team', String(channel.team_id))?.domain ?? 'twin');
+  const domain = String(ctx.get('team', channelTeam(channel))?.domain ?? 'twin');
   return `https://${domain}.slack.com/archives/${String(channel.id)}/p${ts.replace('.', '')}`;
 }
 
@@ -290,7 +294,7 @@ export async function post(ctx: HandlerContext, channel: Row, by: Caller, fields
   const ts = nextTs(ctx, String(channel.id));
   const thread = typeof fields.thread_ts === 'string' && fields.thread_ts ? fields.thread_ts : undefined;
   const message: Row = {
-    type: 'message', channel: channel.id, user: by.user, ts, team: channel.team_id, ...fields,
+    type: 'message', channel: channel.id, user: by.user, ts, team: channelTeam(channel), ...fields,
     ...(by.bot ? { bot_id: by.bot, app_id: by.app } : {}),
     ...(thread ? { thread_ts: thread, parent_user_id: ctx.row('message', messageId(String(channel.id), thread))?.user } : {}),
   };
@@ -577,7 +581,7 @@ export function fileView(ctx: HandlerContext, f: Row, domain: string): Row {
     const c = ctx.row('channel', s.channel);
     if (!c) continue;
     const kind = c.is_private === true || c.is_im === true ? 'private' : 'public';
-    ((shares[kind] ??= {})[s.channel] ??= []).push({ reply_users: [], reply_users_count: 0, reply_count: 0, ts: s.ts, channel_name: c.name ?? '', team_id: c.team_id, share_user_id: f.user });
+    ((shares[kind] ??= {})[s.channel] ??= []).push({ reply_users: [], reply_users_count: 0, reply_count: 0, ts: s.ts, channel_name: c.name ?? '', team_id: channelTeam(c), share_user_id: f.user });
   }
   const at = `https://files.slack.com/files-tmb/${String(f.team_id)}-${id}-${String(f._sha256 ?? '').slice(0, 10)}/${encodeURIComponent(name.replace(/\.[^.]+$/, ''))}`;
   const image = typeof f.original_w === 'number' ? {
@@ -662,7 +666,7 @@ export function data(ctx: WriteHookContext, write: EventWrite, type: string): Re
     case 'channel.rename': return { type: 'channel_rename', channel: { id: r.id, name: r.name, created: r.created }, event_ts: at };
     case 'channel.join': {
       const c = channelOf(r._channel);
-      return { type: 'member_joined_channel', user: r._user, channel: r._channel, channel_type: c?.is_private === true ? 'G' : 'C', team: c?.team_id, event_ts: at };
+      return { type: 'member_joined_channel', user: r._user, channel: r._channel, channel_type: c?.is_private === true ? 'G' : 'C', team: (channelTeam(c) || undefined), event_ts: at };
     }
     case 'reaction.add': case 'reaction.remove':
       return { type: write.operation === 'reaction.add' ? 'reaction_added' : 'reaction_removed', user: r.user, reaction: r.reaction, item_user: r.item_user, item: r.item, event_ts: at };
@@ -680,7 +684,7 @@ export function data(ctx: WriteHookContext, write: EventWrite, type: string): Re
  *  app sends no app_mention. */
 export function values(ctx: WriteHookContext, write: EventWrite, type: string): Record<string, unknown> {
   const r = storedSubject(ctx, write);
-  const team = (r.team as string | undefined) ?? (r.team_id as string | undefined) ?? (ctx.row('channel', String(r.channel ?? r._channel ?? ''))?.team_id as string | undefined) ?? HOME_TEAM;
+  const team = (r.team as string | undefined) ?? (r.team_id as string | undefined) ?? (r.context_team_id as string | undefined) ?? (channelTeam(ctx.row('channel', String(r.channel ?? r._channel ?? ''))) || undefined) ?? HOME_TEAM;
   const channel = String(r.channel ?? r._channel ?? '');
   if (type === 'message') {
     // source: https://docs.slack.dev/reference/events/message.channels/ "A message was posted to a channel"

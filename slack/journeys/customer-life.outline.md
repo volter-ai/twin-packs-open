@@ -79,3 +79,8 @@ are built and distributed outside Kiln, by their own vendor.
    still connected: she disconnects Slack in Runhuman, whose server revokes its grant. She archives the private client
    project too. A month later the acquiring team wants the handover posted in the studio channel, so she unarchives it,
    and Lena posts the handover note there with her retained account.
+
+The conversation workspace is Slack’s `context_team_id`, as its captured conversations.info example answers it.
+Channel creation, listing, events and OAuth channel selection read that same field when a channel is observed
+through the vendor API and then cloned. The on-call cookbook exercises that continuation with the real Slack SDK,
+including its single notification and vendor-assigned timestamp after refresh/pull and repeated refresh.

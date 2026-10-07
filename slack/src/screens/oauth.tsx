@@ -10,7 +10,7 @@
 import type { HandlerContext } from '@volter/world-core';
 import { appName, redirectsOf } from '../engine/app-manifest.ts';
 import { listArg } from '../engine/wire.ts';
-import { appOfClient, channelMembers, CODES, serial } from '../semantics/shared.ts';
+import { channelTeam, appOfClient, channelMembers, CODES, serial } from '../semantics/shared.ts';
 import { field, page, refused, seeOther, visitor } from './shared.tsx';
 
 type Row = Record<string, unknown>;
@@ -42,7 +42,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const workspace = String(ctx.get('team', team)?.name ?? '');
   const webhook = scopes.includes('incoming-webhook');
   if (method === 'GET') {
-    const channels = ctx.rowsRaw('channel').filter((c) => c.team_id === team && c.is_im !== true && c.is_archived !== true && (c.is_private !== true || channelMembers(ctx, String(c.id)).includes(who.id)));
+    const channels = ctx.rowsRaw('channel').filter((c) => channelTeam(c) === team && c.is_im !== true && c.is_archived !== true && (c.is_private !== true || channelMembers(ctx, String(c.id)).includes(who.id)));
     return page(`Install ${appName(manifest)}`, (
       <>
         <h1>{appName(manifest)} is requesting permission to access the {`${workspace} Slack workspace`}</h1>

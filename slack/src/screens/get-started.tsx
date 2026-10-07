@@ -50,7 +50,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   // source: spec:/paths/~1conversations.list/get/responses/200/examples/application~1json/channels/0/purpose "creator"
   const general = ctx.mint('channel');
   await ctx.write('channel', general, {
-    name: 'general', team_id: HOME_TEAM, is_private: false, is_general: true, created: at, updated: at * 1000, creator: who.id, is_archived: false,
+    name: 'general', context_team_id: HOME_TEAM, is_private: false, is_general: true, created: at, updated: at * 1000, creator: who.id, is_archived: false,
     topic: { value: '', creator: '', last_set: 0 }, purpose: { value: 'This is the one channel that will always include everyone.', creator: '', last_set: 0 },
   }, 'channel.create');
   await addMember(ctx, general, who.id);

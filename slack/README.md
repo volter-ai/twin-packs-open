@@ -9,7 +9,7 @@ The current product callers, operation decisions and customer story are in journ
 In an app that already uses Slack, install the product CLI and this exact twin release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.87 @volter/twin-slack@3.0.3
+npm install --save-dev --save-exact @volter/world@3.0.127 @volter/world-core@3.0.127 @volter/twin-slack@3.0.5
 npx volter world init --name my-app --twins slack --source slack=@volter/twin-slack
 ```
 
@@ -30,13 +30,15 @@ The pack models an ordinary workspace with people, channels, timestamped message
 user groups, apps and their scoped grants. Its APIs keep Slack's ok/error envelope, cursor paging and caller visibility.
 OAuth codes and grants have their own secrets, expiry and revocation. File bytes use the kernel blob seam. Scheduled
 messages use the World clock.
+Conversation workspace identity uses Slack's `context_team_id`, including channel visibility after vendor refresh
+and shared-World cloning. Existing local rows that carry `team_id` remain readable.
 
 A person creates the workspace at slack.com/get-started and joins through invitation mail and the Join page. Workspace
 admins manage members and invitation requests at slack.com/admin. Developers configure their app at api.slack.com/apps;
 installation uses slack.com/oauth/v2/authorize and oauth.v2.access. Program calls use their own issued tokens; a person's
 synthetic client session is xoxp-<user-id>. Real credentials are never needed.
 Fresh local Worlds seed a synthetic workspace named World with its owner and #general through that signup flow.
-The default seed is copied into the application's `.volter/seeds/` by init and remains editable there. Use `@volter/world` 3.0.88 or later, which emits the working seed runner.
+The default seed is copied into the application's `.volter/seeds/` by init and remains editable there. Use the CLI and core versions pinned above for this release.
 
 World doors represent acts the API does not perform: an externally developed distributed app (/_twin/apps), a client
 slash command, Home opening, link share or action (/_twin/client/*), and observation of app deliveries or invitation mail

@@ -1,7 +1,7 @@
 // Slack's own moves as time passes (docs/contributing/architecture.md, "What an author writes": clock): a scheduled
 // message is sent at its `post_at`, as its poster, into its channel (chat.scheduleMessage).
 import type { HandlerContext } from '@volter/world-core';
-import { now, post } from './shared.ts';
+import { channelTeam, now, post } from './shared.ts';
 
 type Row = Record<string, unknown>;
 
@@ -13,7 +13,7 @@ export async function clock(ctx: HandlerContext): Promise<void> {
     const by = s._by as Row;
     // a channel archived or a poster gone since: Slack does not send it (the twin's decision: it is dropped, sent never)
     if (c && c.is_archived !== true) {
-      await post(at, c, { kind: 'bot', token: '', user: String(by.user), team: String(c.team_id), scopes: [], ...(by.bot ? { bot: String(by.bot), app: String(by.app) } : {}) }, {
+      await post(at, c, { kind: 'bot', token: '', user: String(by.user), team: String(channelTeam(c)), scopes: [], ...(by.bot ? { bot: String(by.bot), app: String(by.app) } : {}) }, {
         ...(s._content as Row), ...(s.thread_ts ? { thread_ts: s.thread_ts } : {}),
       });
     }

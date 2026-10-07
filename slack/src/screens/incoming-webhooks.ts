@@ -5,7 +5,7 @@
 // (https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks#handling_errors). A content host
 // (docs/contributing/architecture.md, "Screens").
 import type { HandlerContext } from '@volter/world-core';
-import { post } from '../semantics/shared.ts';
+import { channelTeam, post } from '../semantics/shared.ts';
 
 const text = (status: number, body: string): Response => new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 
@@ -19,7 +19,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (typeof payload.text !== 'string' && !Array.isArray(payload.blocks) && !Array.isArray(payload.attachments)) return text(400, 'no_text');
   const channel = ctx.row('channel', String(hook.channel));
   if (!channel || channel.is_archived === true) return text(410, 'channel_is_archived');
-  await post(ctx, channel, { kind: 'bot', token: '', user: String(hook.user), team: String(channel.team_id), scopes: [], bot: String(hook.bot), app: String(hook.app) }, {
+  await post(ctx, channel, { kind: 'bot', token: '', user: String(hook.user), team: channelTeam(channel), scopes: [], bot: String(hook.bot), app: String(hook.app) }, {
     text: typeof payload.text === 'string' ? payload.text : '', ...(Array.isArray(payload.blocks) ? { blocks: payload.blocks } : {}), ...(Array.isArray(payload.attachments) ? { attachments: payload.attachments } : {}),
   });
   return text(200, 'ok');

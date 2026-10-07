@@ -6,7 +6,7 @@
 // Where the documentation stops and the twin decides: the person's id is the one their client token names; their
 // handle is their email's name.
 import type { HandlerContext } from '@volter/world-core';
-import { addMember, addToTeam } from '../semantics/shared.ts';
+import { channelTeam, addMember, addToTeam } from '../semantics/shared.ts';
 import { field, page, refused, visitor } from './shared.tsx';
 
 type Row = Record<string, unknown>;
@@ -48,7 +48,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   await ctx.write('invitation', String(id), { accepted: true, user: who.id }, 'invitation.accept');
   const channels: Row[] = guest
     ? ((invitation.channels as string[]) ?? []).map((c) => ctx.row('channel', c)).filter(Boolean) as Row[]
-    : ctx.rowsRaw('channel').filter((c) => c.is_general === true && c.team_id === invitation.team_id);
+    : ctx.rowsRaw('channel').filter((c) => c.is_general === true && channelTeam(c) === invitation.team_id);
   for (const c of channels) await addMember(ctx, String(c.id), who.id);
   return page('Welcome', <><h1>Welcome to {String(team?.name ?? 'Slack')}, {name}</h1></>, 201);
 }

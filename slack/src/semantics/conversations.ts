@@ -3,7 +3,7 @@
 // Connect invitations to people outside the workspace.
 import type { HandlerContext } from '@volter/world-core';
 import { listArg, nameRefusal, page } from '../engine/wire.ts';
-import { addMember, arg, channelMembers, channelNamed, channelView, fail, messageId, messagesIn, messageView, now, ok, removeMember, sees, sendMail, systemMessage, teamView, userView, who, type Caller } from './shared.ts';
+import { channelTeam, addMember, arg, channelMembers, channelNamed, channelView, fail, messageId, messagesIn, messageView, now, ok, removeMember, sees, sendMail, systemMessage, teamView, userView, who, type Caller } from './shared.ts';
 
 type Row = Record<string, unknown>;
 
@@ -30,11 +30,11 @@ export async function conversations_create(ctx: HandlerContext): Promise<Respons
   const refused = nameRefusal(name);
   if (refused) return fail(ctx, refused);
   const team = by.enterprise ? arg(ctx, 'team_id') ?? by.team : by.team;
-  if (ctx.rowsRaw('channel').some((c) => c.name === name && c.team_id === team)) return fail(ctx, 'name_taken');
+  if (ctx.rowsRaw('channel').some((c) => c.name === name && channelTeam(c) === team)) return fail(ctx, 'name_taken');
   const at = now(ctx);
   const id = ctx.mint('channel');
   const c = await ctx.write('channel', id, {
-    name, team_id: team, is_private: flag(ctx.params.is_private), created: at, updated: at * 1000, creator: by.user, is_archived: false, is_general: false,
+    name, context_team_id: team, is_private: flag(ctx.params.is_private), created: at, updated: at * 1000, creator: by.user, is_archived: false, is_general: false,
     topic: { value: '', creator: '', last_set: 0 }, purpose: { value: '', creator: '', last_set: 0 },
   }, 'channel.create');
   await addMember(ctx, id, by.user);
@@ -123,7 +123,7 @@ export async function conversations_list(ctx: HandlerContext): Promise<Response>
   const want = new Set(types.length ? types : ['public_channel']);
   const team = arg(ctx, 'team_id') ?? by.team;
   const typeOf = (c: Row): string => (c.is_im === true ? 'im' : c.is_mpim === true ? 'mpim' : c.is_private === true ? 'private_channel' : 'public_channel');
-  const all = ctx.rowsRaw('channel').filter((c) => want.has(typeOf(c)) && (c.is_im === true || c.team_id === team) && sees(ctx, c, by) && !(flag(ctx.params.exclude_archived) && c.is_archived === true));
+  const all = ctx.rowsRaw('channel').filter((c) => want.has(typeOf(c)) && (c.is_im === true || channelTeam(c) === team) && sees(ctx, c, by) && !(flag(ctx.params.exclude_archived) && c.is_archived === true));
   const p = page(all, ctx.params, 100);
   if (!p) return fail(ctx, 'invalid_cursor');
   // a listed channel carries its member count (the spec's conversations.list example)
@@ -196,7 +196,7 @@ export async function conversations_open(ctx: HandlerContext): Promise<Response>
   const id = ctx.mint(mpim ? 'channel' : 'im');
   const c = await ctx.write(mpim ? 'channel' : 'im', id, {
     ...(mpim ? { name: `mpdm-${people.join('--')}-1`, is_mpim: true, is_private: true } : { is_im: true }),
-    team_id: by.team, created: at, updated: at * 1000, creator: by.user, is_archived: false,
+    context_team_id: by.team, created: at, updated: at * 1000, creator: by.user, is_archived: false,
   }, mpim ? 'channel.create' : 'im.open');
   for (const p of people) await addMember(ctx, id, p, mpim ? 'channel.join' : 'im.member');
   return ok(ctx, { channel: returnIm ? channelView(ctx, ctx.row('channel', id) ?? c, by) : { id } });
@@ -237,7 +237,7 @@ export async function conversations_rename(ctx: HandlerContext): Promise<Respons
   const name = (arg(ctx, 'name') ?? '').trim();
   const refused = nameRefusal(name);
   if (refused) return fail(ctx, refused);
-  if (ctx.rowsRaw('channel').some((x) => x.name === name && x.team_id === c.team_id && x.id !== c.id)) return fail(ctx, 'name_taken');
+  if (ctx.rowsRaw('channel').some((x) => x.name === name && channelTeam(x) === channelTeam(c) && x.id !== c.id)) return fail(ctx, 'name_taken');
   const old = String(c.name);
   await ctx.write('channel', String(c.id), { name }, 'channel.rename');
   await systemMessage(ctx, c, by.user, 'channel_name', { old_name: old, name });

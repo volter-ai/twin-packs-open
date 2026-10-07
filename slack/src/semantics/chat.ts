@@ -2,7 +2,7 @@
 // deleting messages.
 import type { HandlerContext } from '@volter/world-core';
 import { page } from '../engine/wire.ts';
-import { arg, channelMembers, channelNamed, fail, jsonArg, messageId, messageView, now, ok, permalinkOf, post, sees, shown, who, type Caller } from './shared.ts';
+import { channelTeam, arg, channelMembers, channelNamed, fail, jsonArg, messageId, messageView, now, ok, permalinkOf, post, sees, shown, who, type Caller } from './shared.ts';
 
 type Row = Record<string, unknown>;
 
@@ -152,7 +152,7 @@ export async function chat_scheduleMessage(ctx: HandlerContext): Promise<Respons
   // source: spec:/paths/~1chat.scheduleMessage/post/responses/200/examples/application~1json "post_at"
   return ok(ctx, {
     channel: c.id, scheduled_message_id: id, post_at: String(postAt),
-    message: { ...shown(body), type: 'delayed_message', user: by.user, ...(by.bot ? { bot_id: by.bot, app_id: by.app } : {}), team: c.team_id },
+    message: { ...shown(body), type: 'delayed_message', user: by.user, ...(by.bot ? { bot_id: by.bot, app_id: by.app } : {}), team: channelTeam(c) },
   });
 }
 
