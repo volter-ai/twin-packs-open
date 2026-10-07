@@ -8,7 +8,7 @@ beside it, git over smart HTTP, and the github.com pages an application sends a 
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.125 @volter/twin-github@3.0.6
+npm install --save-dev --save-exact @volter/world@3.0.127 @volter/twin-github@3.0.6
 npx volter world init --name my-app --twins github --source github=@volter/twin-github
 ```
 
