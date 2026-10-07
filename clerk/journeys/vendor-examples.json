@@ -1,0 +1,4454 @@
+{
+  "vendor": "clerk",
+  "author": "Contributor 29",
+  "host": "api.clerk.com",
+  "about": "Clerk's published examples: its spec publishes none per operation (only field values), and its documentation pages publish no Backend API answer, so the examples are the rules its Backend API errors page states (spec/doc-examples.json), each sent as the refusal it causes, with only the setup its precondition needs, by the application's secret key, which the World issues (the credential door).",
+  "steps": [
+    {
+      "name": "Friday 2 January 2026",
+      "wait": "24h"
+    },
+    {
+      "name": "The organization examples select a production instance, whose quota precondition is absent per the quoted vendor error",
+      "method": "POST",
+      "path": "/_twin/instance",
+      "body": {
+        "environment_type": "production"
+      },
+      "status": 200
+    },
+    {
+      "name": "The World issues the application its secret key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "capture": {
+        "sk": "secret_key"
+      }
+    },
+    {
+      "name": "CreateOrganization refuses: \"The organizations feature is not enabled for this instance. You can enable it at https://dashboard.clerk.com.\" (OrganizationNotEnabledInInstance, the errors page)",
+      "example": "CreateOrganization#doc rule: organizations not enabled",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Acme"
+      },
+      "status": 403,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_not_enabled_in_instance"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "The organizations feature is not enabled for this instance. You can enable it at https://dashboard.clerk.com."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "access denied"
+        }
+      ]
+    },
+    {
+      "name": "Organizations turned on, which the rest of the examples need",
+      "method": "PATCH",
+      "path": "/v1/instance/organization_settings",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "enabled": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "enabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganization refuses: \"This instance does not have slugs enabled for organizations.\" (OrganizationSlugsDisabled, the errors page)",
+      "example": "CreateOrganization#doc rule: slugs not enabled",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Acme",
+        "slug": "acme"
+      },
+      "status": 403,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_slugs_disabled"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "This instance does not have slugs enabled for organizations."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "organization slugs not enabled"
+        }
+      ]
+    },
+    {
+      "name": "CreateUser rejects the 72-character boundary enforced by pinned clerk-js password validation",
+      "example": "CreateUser#doc rule: password too long",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "email_address": [
+          "long@example.com"
+        ],
+        "password": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_password_length_too_long"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Passwords must be less than 72 characters."
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Passwords must be less than 72 characters."
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "password"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganization rejects the documented name constraint: https://example.com",
+      "example": "CreateOrganization#doc rule: organization name",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "https://example.com"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_value_invalid"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "invalid organization name"
+        },
+        {
+          "path": "errors.0.long_message",
+          "contains": "https://example.com"
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "name"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganization rejects the documented name constraint: <b>Acme</b>",
+      "example": "CreateOrganization#doc rule: organization name",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "<b>Acme</b>"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_value_invalid"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "invalid organization name"
+        },
+        {
+          "path": "errors.0.long_message",
+          "contains": "<b>Acme</b>"
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "name"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganization rejects the documented name constraint: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "example": "CreateOrganization#doc rule: organization name",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_value_invalid"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "invalid organization name"
+        },
+        {
+          "path": "errors.0.long_message",
+          "contains": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "name"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganization refuses: \"No users found with id <userID>.\" (OrganizationCreatorNotFound, the errors page)",
+      "example": "CreateOrganization#doc rule: creator not found",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Acme",
+        "created_by": "user_abc"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_creator_not_found"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "No users found with id user_abc."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "creator not found"
+        }
+      ]
+    },
+    {
+      "name": "A user to run the examples' organization",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "ada@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200,
+      "capture": {
+        "ada": "id"
+      },
+      "expect": [
+        {
+          "path": "email_addresses.0.email_address",
+          "equals": "ada@example.com"
+        }
+      ]
+    },
+    {
+      "name": "Her organization, limited to three memberships",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Acme",
+        "created_by": "{ada}",
+        "max_allowed_memberships": 3
+      },
+      "status": 200,
+      "capture": {
+        "acme": "id"
+      },
+      "expect": [
+        {
+          "path": "max_allowed_memberships",
+          "equals": 3
+        },
+        {
+          "path": "created_by",
+          "equals": "{ada}"
+        },
+        {
+          "path": "name",
+          "equals": "Acme"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganizationMembership refuses: \"<user> is already a member of the organization.\" (AlreadyAMemberOfOrganization, the errors page)",
+      "example": "CreateOrganizationMembership#doc rule: already a member",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/memberships",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "user_id": "{ada}",
+        "role": "org:member"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "already_a_member_in_organization"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "{ada} is already a member of the organization."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "already a member"
+        }
+      ]
+    },
+    {
+      "name": "An invitation for Bob",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": "bob@example.com",
+        "role": "org:member"
+      },
+      "status": 200,
+      "capture": {
+        "bob_inv": "id"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "email_address",
+          "equals": "bob@example.com"
+        },
+        {
+          "path": "role",
+          "equals": "org:member"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganizationInvitation refuses: \"Organizations cannot have duplicate pending invitations for an email address.\" (OrganizationInvitationNotUnique, the errors page)",
+      "example": "CreateOrganizationInvitation#doc rule: invitation not unique",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": "bob@example.com",
+        "role": "org:member"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_invitation_not_unique"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Organizations cannot have duplicate pending invitations for an email address."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "organization invitation not unique"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganizationInvitationBulk refuses: \"There are already pending invitations for the following email addresses: <emails>\" (DuplicateInvitations, the errors page)",
+      "example": "CreateOrganizationInvitationBulk#doc rule: duplicate pending invitations",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations/bulk",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": [
+        {
+          "email_address": "bob@example.com",
+          "role": "org:member"
+        }
+      ],
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "duplicate_record"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "There are already pending invitations for the following email addresses: bob@example.com"
+        },
+        {
+          "path": "errors.0.meta.email_addresses.0",
+          "equals": "bob@example.com"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganizationInvitation refuses: \"The value of <param> can't be greater than %d\" (FormParameterValueTooLarge, the errors page)",
+      "example": "CreateOrganizationInvitation#doc rule: value too large",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": "carol@example.com",
+        "role": "org:member",
+        "expires_in_days": 400
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_value_too_large"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "The value of expires_in_days can't be greater than 365"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Value too large"
+        }
+      ]
+    },
+    {
+      "name": "An invitation for Carol, which fills the three places with Ada and Bob",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": "carol@example.com",
+        "role": "org:member"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "email_address",
+          "equals": "carol@example.com"
+        },
+        {
+          "path": "role",
+          "equals": "org:member"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganizationInvitation refuses: \"You have reached your limit of %d organization memberships, including outstanding invitations.\" (OrganizationMembershipQuotaExceeded, the errors page)",
+      "example": "CreateOrganizationInvitation#doc rule: membership quota",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": "dave@example.com",
+        "role": "org:member"
+      },
+      "status": 403,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_membership_quota_exceeded"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "You have reached your limit of 3 organization memberships, including outstanding invitations."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "organization membership quota exceeded"
+        }
+      ]
+    },
+    {
+      "name": "Bob's invitation revoked",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations/{bob_inv}/revoke",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "revoked"
+        },
+        {
+          "path": "id",
+          "equals": "{bob_inv}"
+        }
+      ]
+    },
+    {
+      "name": "RevokeOrganizationInvitation refuses: \"The organization invitation is not in the 'pending' status.\" (OrganizationInvitationNotPending, the errors page)",
+      "example": "RevokeOrganizationInvitation#doc rule: invitation not pending",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations/{bob_inv}/revoke",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_invitation_not_pending"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "The organization invitation is not in the 'pending' status."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "not pending"
+        }
+      ]
+    },
+    {
+      "name": "UpdateOrganizationMembership refuses: \"There has to be at least one organization member with the minimum required permissions\" (OrganizationMinimumPermissionsNeeded, the errors page)",
+      "example": "UpdateOrganizationMembership#doc rule: minimum permissions",
+      "method": "PATCH",
+      "path": "/v1/organizations/{acme}/memberships/{ada}",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "role": "org:member"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_minimum_permissions_needed"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "There has to be at least one organization member with the minimum required permissions"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "minimum organization permissions needed"
+        }
+      ]
+    },
+    {
+      "name": "CreateJWTTemplate refuses: \"You can't use the reserved claim: '<claim>'\" (JWTTemplateReservedClaim, the errors page)",
+      "example": "CreateJWTTemplate#doc rule: reserved claim",
+      "method": "POST",
+      "path": "/v1/jwt_templates",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "backend",
+        "claims": {
+          "sub": "someone"
+        }
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "jwt_template_reserved_claim"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "You can't use the reserved claim: 'sub'"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "reserved claim used"
+        }
+      ]
+    },
+    {
+      "name": "GetJWTTemplate refuses: \"No JWT template exists with <attribute>: <val>\" (JWTTemplateNotFound, the errors page)",
+      "example": "GetJWTTemplate#doc JWTTemplateNotFound",
+      "method": "GET",
+      "path": "/v1/jwt_templates/jtmpl_abc",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "resource_not_found"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "No JWT template exists with id: jtmpl_abc"
+        }
+      ]
+    },
+    {
+      "name": "GetUser refuses: \"No user was found with id <userID>\" (UserNotFound, the errors page)",
+      "example": "GetUser#doc UserNotFound",
+      "method": "GET",
+      "path": "/v1/users/user_abc",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "resource_not_found"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "No user was found with id user_abc"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "not found"
+        }
+      ]
+    },
+    {
+      "name": "GetSession refuses: \"No session was found with id <sessionID>\" (SessionNotFound, the errors page)",
+      "example": "GetSession#doc SessionNotFound",
+      "method": "GET",
+      "path": "/v1/sessions/sess_abc",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "resource_not_found"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "No session was found with id sess_abc"
+        }
+      ]
+    },
+    {
+      "name": "GetOrganization refuses: \"Given organization not found.\" (OrganizationNotFound, the errors page)",
+      "example": "GetOrganization#doc OrganizationNotFound",
+      "method": "GET",
+      "path": "/v1/organizations/org_abc",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "resource_not_found"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Given organization not found."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "not found"
+        }
+      ]
+    },
+    {
+      "name": "Clerk's admin role, found by its key",
+      "method": "GET",
+      "path": "/v1/organization_roles?query=org:admin",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "capture": {
+        "admin_role": "data.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.0.key",
+          "equals": "org:admin"
+        }
+      ]
+    },
+    {
+      "name": "…and the system permission to read members",
+      "method": "GET",
+      "path": "/v1/organization_permissions?query=org:sys_memberships:read",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "capture": {
+        "sys_read": "data.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.0.key",
+          "equals": "org:sys_memberships:read"
+        },
+        {
+          "path": "data.0.type",
+          "equals": "system"
+        }
+      ]
+    },
+    {
+      "name": "GetOrganizationRole refuses: \"Organization role not found\" (OrganizationRoleNotFound, the errors page)",
+      "example": "GetOrganizationRole#doc OrganizationRoleNotFound",
+      "method": "GET",
+      "path": "/v1/organization_roles/role_abc",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "resource_not_found"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Organization role not found"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "not found"
+        }
+      ]
+    },
+    {
+      "name": "GetOrganizationPermission refuses: \"Organization permission not found\" (OrganizationPermissionNotFound, the errors page)",
+      "example": "GetOrganizationPermission#doc OrganizationPermissionNotFound",
+      "method": "GET",
+      "path": "/v1/organization_permissions/perm_abc",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "resource_not_found"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Organization permission not found"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "not found"
+        }
+      ]
+    },
+    {
+      "name": "AssignPermissionToOrganizationRole refuses: \"This organization permission is already associated to this organization role.\" (OrganizationRolePermissionAssociationExists, the errors page)",
+      "example": "AssignPermissionToOrganizationRole#doc rule: permission already assigned",
+      "method": "POST",
+      "path": "/v1/organization_roles/{admin_role}/permissions/{sys_read}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 409,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_role_permission_association_exists"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "This organization permission is already associated to this organization role."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "permission already assigned to role"
+        }
+      ]
+    },
+    {
+      "name": "UpdateOrganizationRole refuses: \"The creator role must contain the following permissions: <permissionKeys>\" (OrganizationMissingCreatorRolePermissions, the errors page)",
+      "example": "UpdateOrganizationRole#doc rule: creator role permissions",
+      "method": "PATCH",
+      "path": "/v1/organization_roles/{admin_role}",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "permissions": []
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_missing_creator_role_permissions"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "The creator role must contain the following permissions: org:sys_memberships:manage, org:sys_profile:manage"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "missing permissions for creator role"
+        }
+      ]
+    },
+    {
+      "name": "A reviewer role",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Reviewer",
+        "key": "org:reviewer"
+      },
+      "status": 200,
+      "capture": {
+        "reviewer": "id"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:reviewer"
+        },
+        {
+          "path": "name",
+          "equals": "Reviewer"
+        }
+      ]
+    },
+    {
+      "name": "A second user",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "bea@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200,
+      "capture": {
+        "bea": "id"
+      },
+      "expect": [
+        {
+          "path": "email_addresses.0.email_address",
+          "equals": "bea@example.com"
+        }
+      ]
+    },
+    {
+      "name": "…who joins the organization as a reviewer",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/memberships",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "user_id": "{bea}",
+        "role": "org:reviewer"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "role",
+          "equals": "org:reviewer"
+        },
+        {
+          "path": "public_user_data.user_id",
+          "equals": "{bea}"
+        },
+        {
+          "path": "organization.id",
+          "equals": "{acme}"
+        }
+      ]
+    },
+    {
+      "name": "A sign-in token for Ada",
+      "method": "POST",
+      "path": "/v1/sign_in_tokens",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "user_id": "{ada}"
+      },
+      "status": 200,
+      "capture": {
+        "sit": "id"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "user_id",
+          "equals": "{ada}"
+        }
+      ]
+    },
+    {
+      "name": "…revoked",
+      "method": "POST",
+      "path": "/v1/sign_in_tokens/{sit}/revoke",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "revoked"
+        },
+        {
+          "path": "id",
+          "equals": "{sit}"
+        },
+        {
+          "path": "user_id",
+          "equals": "{ada}"
+        }
+      ]
+    },
+    {
+      "name": "RevokeSignInToken refuses: \"Sign in token cannot be revoked because its status is <status>. Only pending tokens can be revoked.\" (SignInTokenCannotBeRevoked, the errors page)",
+      "example": "RevokeSignInToken#doc rule: only pending tokens",
+      "method": "POST",
+      "path": "/v1/sign_in_tokens/{sit}/revoke",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "sign_in_token_cannot_be_revoked_code"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Sign in token cannot be revoked because its status is revoked. Only pending tokens can be revoked."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "cannot revoke"
+        }
+      ]
+    },
+    {
+      "name": "A session for Ada, as a test makes one",
+      "method": "POST",
+      "path": "/v1/sessions",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "user_id": "{ada}",
+        "active_organization_id": "{acme}"
+      },
+      "status": 200,
+      "capture": {
+        "sess": "id"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "active"
+        },
+        {
+          "path": "user_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "last_active_organization_id",
+          "equals": "{acme}"
+        }
+      ]
+    },
+    {
+      "name": "The active example session issues a token for Ada’s organization before the lifetime refusal",
+      "method": "POST",
+      "path": "/v1/sessions/{sess}/tokens",
+      "status": 200,
+      "body": {
+        "expires_in_seconds": 60
+      },
+      "expect": [
+        {
+          "path": "sub",
+          "equals": "{ada}"
+        },
+        {
+          "path": "o.id",
+          "equals": "{acme}"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "view": "jwt:jwt"
+    },
+    {
+      "name": "CreateSessionToken refuses: \"The value of <param> can't be greater than %d\" (FormParameterValueTooLarge, the errors page)",
+      "example": "CreateSessionToken#doc rule: session token lifetime",
+      "method": "POST",
+      "path": "/v1/sessions/{sess}/tokens",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "expires_in_seconds": 400000000
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_value_too_large"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "The value of expires_in_seconds can't be greater than 315360000"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Value too large"
+        }
+      ]
+    },
+    {
+      "name": "…revoked",
+      "method": "POST",
+      "path": "/v1/sessions/{sess}/revoke",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "revoked"
+        },
+        {
+          "path": "id",
+          "equals": "{sess}"
+        },
+        {
+          "path": "user_id",
+          "equals": "{ada}"
+        }
+      ]
+    },
+    {
+      "name": "CreateSessionToken refuses: \"Unable to authenticate the request, you need to supply an active session\" (InvalidAuthentication, the errors page)",
+      "example": "CreateSessionToken#doc rule: active session",
+      "method": "POST",
+      "path": "/v1/sessions/{sess}/tokens",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 401,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "authentication_invalid"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Unable to authenticate the request, you need to supply an active session"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Invalid authentication"
+        }
+      ]
+    },
+    {
+      "name": "GetUserList refuses: \"Invalid Clerk API version: <reason>\" (InvalidAPIVersion, the errors page)",
+      "example": "GetUserList#doc rule: API version",
+      "method": "GET",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "clerk-api-version": "latest"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "api_version_invalid"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Invalid Clerk API version: latest"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "invalid API version"
+        }
+      ]
+    },
+    {
+      "name": "GetUserList refuses: \"Invalid Authorization header format. Must be 'Bearer <YOUR_API_KEY>'.\" (InvalidAuthorizationHeaderFormat, the errors page)",
+      "example": "GetUserList#doc rule: Authorization header",
+      "method": "GET",
+      "path": "/v1/users",
+      "headers": {},
+      "status": 401,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "authorization_header_format_invalid"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Invalid Authorization header format. Must be 'Bearer <YOUR_API_KEY>'"
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Invalid Authorization header format"
+        }
+      ]
+    },
+    {
+      "name": "GetUserList refuses: \"The provided Clerk Secret Key is invalid. Make sure that your Clerk Secret Key is correct.\" (InvalidClerkSecretKey, the errors page)",
+      "example": "GetUserList#doc rule: secret key",
+      "method": "GET",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer sk_test_notakey"
+      },
+      "status": 401,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "clerk_key_invalid"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "The provided Clerk Secret Key is invalid. Make sure that your Clerk Secret Key is correct."
+        }
+      ]
+    },
+    {
+      "name": "Saturday 3 January 2026: the reference pages' requests",
+      "wait": "24h"
+    },
+    {
+      "name": "Create a user with an email address and a password (as reference/backend/user/create-user sends it)",
+      "example": "CreateUser#doc create user",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "test@example.com"
+        ],
+        "password": "my-secure-password"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "email_addresses.0.email_address",
+          "equals": "test@example.com"
+        },
+        {
+          "path": "password_enabled",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "test_user": "id"
+      }
+    },
+    {
+      "name": "Merge a birthday into the user's public metadata (as reference/backend/user/update-user-metadata sends it)",
+      "example": "UpdateUserMetadata#doc update user metadata",
+      "method": "PATCH",
+      "path": "/v1/users/{test_user}/metadata",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "public_metadata": {
+          "birthday": "1990-01-01"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_metadata.birthday",
+          "equals": "1990-01-01"
+        },
+        {
+          "path": "id",
+          "equals": "{test_user}"
+        },
+        {
+          "path": "email_addresses.0.email_address",
+          "equals": "test@example.com"
+        }
+      ]
+    },
+    {
+      "name": "Register the public OAuth client required by the single-use-code rule",
+      "method": "POST",
+      "path": "/v1/oauth_applications",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "name": "PKCE example",
+        "redirect_uris": [
+          "https://client.example.test/callback"
+        ],
+        "scopes": "openid profile email",
+        "public": true,
+        "pkce_required": true,
+        "consent_screen_enabled": false
+      },
+      "status": 200,
+      "capture": {
+        "oauthClient": "client_id",
+        "oauthApp": "id"
+      }
+    },
+    {
+      "name": "Read the registered example client",
+      "method": "GET",
+      "path": "/v1/oauth_applications/{oauthApp}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "client_id",
+          "equals": "{oauthClient}"
+        }
+      ]
+    },
+    {
+      "name": "The precondition user signs in through Clerk with the password its published create-user example supplied",
+      "method": "POST",
+      "path": "https://twin.clerk.accounts.dev/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "strategy=password&identifier=test%40example.com&password=my-secure-password",
+      "status": 200,
+      "capture": {
+        "oauthBrowser": "header:set-cookie:__client=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "response.created_session_id",
+          "exists": true
+        },
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ]
+    },
+    {
+      "name": "The public client obtains the authorization code the stated rule refers to",
+      "method": "GET",
+      "path": "https://twin.clerk.accounts.dev/oauth/authorize?response_type=code&client_id={oauthClient}&redirect_uri=https%3A%2F%2Fclient.example.test%2Fcallback&state=published-pkce-state&scope=openid%20profile%20email&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256",
+      "headers": {
+        "cookie": "__client={oauthBrowser}"
+      },
+      "status": 303,
+      "capture": {
+        "oauthCode": "header:location:[?&]code=([^&]+)"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "state=published-pkce-state"
+        }
+      ]
+    },
+    {
+      "name": "Clerk refuses a verifier that does not match the authorization challenge without consuming the code",
+      "method": "POST",
+      "path": "https://twin.clerk.accounts.dev/oauth/token",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=authorization_code&client_id={oauthClient}&code={oauthCode}&redirect_uri=https%3A%2F%2Fclient.example.test%2Fcallback&code_verifier=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": 401,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_grant"
+        }
+      ],
+      "example": "getOAuthToken#doc invalid PKCE verifier"
+    },
+    {
+      "name": "Clerk refuses exchanging a code at a different redirect URI",
+      "method": "POST",
+      "path": "https://twin.clerk.accounts.dev/oauth/token",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=authorization_code&client_id={oauthClient}&code={oauthCode}&redirect_uri=https%3A%2F%2Fclient.example.test%2Fother&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_grant"
+        }
+      ],
+      "example": "getOAuthToken#doc mismatched redirect URI"
+    },
+    {
+      "name": "The original client exchanges its code once with the bound verifier",
+      "method": "POST",
+      "path": "https://twin.clerk.accounts.dev/oauth/token",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=authorization_code&client_id={oauthClient}&code={oauthCode}&redirect_uri=https%3A%2F%2Fclient.example.test%2Fcallback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      "status": 200,
+      "view": "oauthToken",
+      "expect": [
+        {
+          "path": "sub",
+          "equals": "{test_user}"
+        },
+        {
+          "path": "access_type",
+          "equals": "at+jwt"
+        },
+        {
+          "path": "id_type",
+          "equals": "JWT"
+        }
+      ]
+    },
+    {
+      "name": "The consumed authorization code cannot issue credentials a second time",
+      "example": "getOAuthToken#doc single-use authorization code",
+      "method": "POST",
+      "path": "https://twin.clerk.accounts.dev/oauth/token",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=authorization_code&client_id={oauthClient}&code={oauthCode}&redirect_uri=https%3A%2F%2Fclient.example.test%2Fcallback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      "status": 401,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_grant"
+        }
+      ]
+    },
+    {
+      "name": "Replace the user's public metadata with a role (as reference/backend/user/replace-user-metadata sends it)",
+      "example": "ReplaceUserMetadata#doc replace user metadata",
+      "method": "PUT",
+      "path": "/v1/users/{test_user}/metadata",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "public_metadata": {
+          "role": "admin"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_metadata",
+          "equals": {
+            "role": "admin"
+          }
+        },
+        {
+          "path": "id",
+          "equals": "{test_user}"
+        },
+        {
+          "path": "email_addresses.0.email_address",
+          "equals": "test@example.com"
+        },
+        {
+          "path": "email_addresses.0.verification.strategy",
+          "equals": "admin"
+        }
+      ]
+    },
+    {
+      "name": "Create a sign-in token for a user, to embed in an email link (as expressjs/guides/development/custom-flows/authentication/embedded-email-links sends it)",
+      "example": "CreateSignInToken#doc sign-in token",
+      "method": "POST",
+      "path": "/v1/sign_in_tokens",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "user_id": "{test_user}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "user_id",
+          "equals": "{test_user}"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "object",
+          "equals": "sign_in_token"
+        }
+      ]
+    },
+    {
+      "name": "Create a sign-in token for a user, to embed in an email link (as expressjs/guides/development/custom-flows/authentication/legacy/embedded-email-links sends it)",
+      "example": "CreateSignInToken#doc sign-in token (legacy page)",
+      "method": "POST",
+      "path": "/v1/sign_in_tokens",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "user_id": "{test_user}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "user_id",
+          "equals": "{test_user}"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "object",
+          "equals": "sign_in_token"
+        }
+      ]
+    },
+    {
+      "name": "Delete a user (as reference/backend/user/delete-user sends it)",
+      "example": "DeleteUser#doc delete user",
+      "method": "DELETE",
+      "path": "/v1/users/{test_user}",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{test_user}"
+        },
+        {
+          "path": "deleted",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "…and the deleted user is gone",
+      "method": "GET",
+      "path": "/v1/users/{test_user}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "resource_not_found"
+        }
+      ]
+    },
+    {
+      "name": "An organization for the metadata example",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Metadata Co"
+      },
+      "status": 200,
+      "capture": {
+        "meta_org": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Metadata Co"
+        }
+      ]
+    },
+    {
+      "name": "Replace the organization's public metadata with its tier (as reference/backend/organization/replace-organization-metadata sends it)",
+      "example": "ReplaceOrganizationMetadata#doc replace organization metadata",
+      "method": "PUT",
+      "path": "/v1/organizations/{meta_org}/metadata",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "public_metadata": {
+          "tier": "enterprise"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_metadata",
+          "equals": {
+            "tier": "enterprise"
+          }
+        },
+        {
+          "path": "id",
+          "equals": "{meta_org}"
+        },
+        {
+          "path": "name",
+          "equals": "Metadata Co"
+        }
+      ]
+    },
+    {
+      "name": "An organization for the \"invite a member\" example, made by Ada",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Invites 1",
+        "created_by": "{ada}"
+      },
+      "status": 200,
+      "capture": {
+        "inv_org0": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Invites 1"
+        },
+        {
+          "path": "created_by",
+          "equals": "{ada}"
+        }
+      ]
+    },
+    {
+      "name": "Invite a person to an organization as a member (as guides/organizations/add-members/invitations sends it)",
+      "example": "CreateOrganizationInvitation#doc invite a member",
+      "method": "POST",
+      "path": "/v1/organizations/{inv_org0}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "inviter_user_id": "{ada}",
+        "email_address": "email@example.com",
+        "role": "org:member"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "email_address",
+          "equals": "email@example.com"
+        },
+        {
+          "path": "role",
+          "equals": "org:member"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "organization_id",
+          "equals": "{inv_org0}"
+        },
+        {
+          "path": "public_inviter_data.user_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "inviter_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "public_inviter_data.identifier",
+          "equals": "ada@example.com"
+        }
+      ],
+      "capture": {
+        "inv_123": "id",
+        "invite_url": "url"
+      }
+    },
+    {
+      "name": "The published no-redirect invitation opens the documented HTML reply",
+      "method": "GET",
+      "path": "{invite_url}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "header:content-type",
+          "contains": "text/html"
+        },
+        {
+          "path": "",
+          "contains": "Your invitation is ready."
+        }
+      ]
+    },
+    {
+      "name": "An organization for the \"invite with a redirect URL\" example, made by Ada",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Invites 2",
+        "created_by": "{ada}"
+      },
+      "status": 200,
+      "capture": {
+        "inv_org1": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Invites 2"
+        },
+        {
+          "path": "created_by",
+          "equals": "{ada}"
+        }
+      ]
+    },
+    {
+      "name": "Invite a person, sending them to the application's own accept page (as guides/organizations/add-members/invitations sends it)",
+      "example": "CreateOrganizationInvitation#doc invite with a redirect URL",
+      "method": "POST",
+      "path": "/v1/organizations/{inv_org1}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "inviter_user_id": "{ada}",
+        "email_address": "email@example.com",
+        "role": "org:member",
+        "redirect_url": "https://www.example.com/accept-invitation"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "email_address",
+          "equals": "email@example.com"
+        },
+        {
+          "path": "role",
+          "equals": "org:member"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "organization_id",
+          "equals": "{inv_org1}"
+        },
+        {
+          "path": "public_inviter_data.user_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "inviter_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "public_inviter_data.identifier",
+          "equals": "ada@example.com"
+        }
+      ]
+    },
+    {
+      "name": "An organization for the \"invite with public metadata\" example, made by Ada",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Invites 3",
+        "created_by": "{ada}"
+      },
+      "status": 200,
+      "capture": {
+        "inv_org2": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Invites 3"
+        },
+        {
+          "path": "created_by",
+          "equals": "{ada}"
+        }
+      ]
+    },
+    {
+      "name": "Invite a person with metadata their membership will carry (as guides/organizations/add-members/invitations sends it)",
+      "example": "CreateOrganizationInvitation#doc invite with public metadata",
+      "method": "POST",
+      "path": "/v1/organizations/{inv_org2}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "inviter_user_id": "{ada}",
+        "email_address": "email@example.com",
+        "role": "org:member",
+        "public_metadata": {
+          "department": "marketing"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "email_address",
+          "equals": "email@example.com"
+        },
+        {
+          "path": "role",
+          "equals": "org:member"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "organization_id",
+          "equals": "{inv_org2}"
+        },
+        {
+          "path": "public_inviter_data.user_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "inviter_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "public_inviter_data.identifier",
+          "equals": "ada@example.com"
+        },
+        {
+          "path": "public_metadata.department",
+          "equals": "marketing"
+        }
+      ]
+    },
+    {
+      "name": "A second inviter for the bulk example, Bea",
+      "method": "GET",
+      "path": "/v1/users?email_address=bea@example.com",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{bea}"
+        }
+      ]
+    },
+    {
+      "name": "An organization for the bulk example, made by Ada",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Invites Bulk",
+        "created_by": "{ada}"
+      },
+      "status": 200,
+      "capture": {
+        "bulk_org": "id"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Invites Bulk"
+        },
+        {
+          "path": "created_by",
+          "equals": "{ada}"
+        }
+      ]
+    },
+    {
+      "name": "Invite two people at once (as guides/organizations/add-members/invitations sends it)",
+      "example": "CreateOrganizationInvitationBulk#doc bulk invite",
+      "method": "POST",
+      "path": "/v1/organizations/{bulk_org}/invitations/bulk",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": [
+        {
+          "inviter_user_id": "{ada}",
+          "email_address": "email123@example.com",
+          "role": "org:member"
+        },
+        {
+          "inviter_user_id": "{bea}",
+          "email_address": "email456@example.com",
+          "role": "org:member"
+        }
+      ],
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 2
+        },
+        {
+          "path": "data.0.email_address",
+          "equals": "email123@example.com"
+        },
+        {
+          "path": "data.1.email_address",
+          "equals": "email456@example.com"
+        },
+        {
+          "path": "data.0.role",
+          "equals": "org:member"
+        },
+        {
+          "path": "data.1.role",
+          "equals": "org:member"
+        },
+        {
+          "path": "data.0.public_inviter_data.user_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "data.1.public_inviter_data.user_id",
+          "equals": "{bea}"
+        },
+        {
+          "path": "data.0.organization_id",
+          "equals": "{bulk_org}"
+        },
+        {
+          "path": "data.1.organization_id",
+          "equals": "{bulk_org}"
+        },
+        {
+          "path": "data.0.inviter_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "data.1.inviter_id",
+          "equals": "{bea}"
+        },
+        {
+          "path": "data.0.public_inviter_data.identifier",
+          "equals": "ada@example.com"
+        },
+        {
+          "path": "data.1.public_inviter_data.identifier",
+          "equals": "bea@example.com"
+        }
+      ]
+    },
+    {
+      "name": "…both pending in the organization",
+      "method": "GET",
+      "path": "/v1/organizations/{bulk_org}/invitations?status=pending",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "name": "Revoke an invitation (as guides/organizations/add-members/invitations sends it)",
+      "example": "RevokeOrganizationInvitation#doc revoke an invitation",
+      "method": "POST",
+      "path": "/v1/organizations/{inv_org0}/invitations/{inv_123}/revoke",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "requesting_user_id": "{ada}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "revoked"
+        },
+        {
+          "path": "id",
+          "equals": "{inv_123}"
+        },
+        {
+          "path": "email_address",
+          "equals": "email@example.com"
+        },
+        {
+          "path": "organization_id",
+          "equals": "{inv_org0}"
+        },
+        {
+          "path": "public_inviter_data.user_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "role",
+          "equals": "org:member"
+        },
+        {
+          "path": "inviter_id",
+          "equals": "{ada}"
+        },
+        {
+          "path": "public_inviter_data.identifier",
+          "equals": "ada@example.com"
+        },
+        {
+          "path": "url",
+          "equals": "{invite_url}"
+        }
+      ]
+    },
+    {
+      "name": "Sunday 4 January 2026: more of the errors page's rules",
+      "wait": "24h"
+    },
+    {
+      "name": "CreateUser refuses: \"<param> must be included.\" (FormMissingParameter, the errors page)",
+      "example": "CreateUser#doc rule: email required",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "first_name": "Nobody"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_missing"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "email_address must be included."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "is missing"
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"<parameter> must be a valid email address.\" (FormInvalidEmailAddress, the errors page)",
+      "example": "CreateUser#doc rule: email format",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "not-an-email"
+        ],
+        "password": "my-secure-password"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_format_invalid"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "email_address must be a valid email address."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "is invalid"
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"Passwords must be 8 characters or more.\" (FormInvalidPasswordLengthTooShort, the errors page)",
+      "example": "CreateUser#doc rule: password too short",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "short@example.com"
+        ],
+        "password": "short"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_password_length_too_short"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Passwords must be 8 characters or more."
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "password"
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"That email address is taken. Please try another.\" (FormIdentifierExists, the errors page)",
+      "example": "CreateUser#doc rule: identifier taken",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "ada@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_identifier_exists"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "That email address is taken. Please try another."
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"<parameter> must contain exactly one item for each item in <otherParam>.\" (FormParameterArrayLengthMismatch, the errors page)",
+      "example": "CreateUser#doc rule: parallel arrays",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "a1@example.com",
+          "a2@example.com"
+        ],
+        "email_address_identification_status": [
+          "verified"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_array_length_mismatch"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "email_address_identification_status must contain exactly one item for each item in email_address."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "length mismatch"
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"Password cannot match your email address, phone number or username. For account safety, please use a different password.\" (FormPasswordMatchesIdentifier, the errors page)",
+      "example": "CreateUser#doc rule: password matches identifier",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "same@example.com"
+        ],
+        "password": "same@example.com"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_password_matches_identifier"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "Password cannot match your email address, phone number or username. For account safety, please use a different password."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Password cannot match your email address, phone number or username. For account safety, please use a different password."
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "password"
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"<parameter> cannot be a phone number. Please choose a different username.\" (FormUsernameCannotBePhoneNumber, the errors page: a username in E.164 form, whatever the username settings)",
+      "example": "CreateUser#doc rule: username is a phone number",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "phone@example.com"
+        ],
+        "username": "+14155550123",
+        "skip_password_requirement": true
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_username_cannot_be_phone_number"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "username cannot be a phone number. Please choose a different username."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "username cannot be a phone number."
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "username"
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"The provided <param> is not a valid <hasher> password hash.\" (FormPasswordDigestInvalid, the errors page: a bcrypt digest is $<algorithm version>$<cost>$<salt & hash>, as reference/backend/user/create-user gives it)",
+      "example": "CreateUser#doc rule: password digest",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "digest@example.com"
+        ],
+        "password_digest": "not-a-bcrypt-hash",
+        "password_hasher": "bcrypt"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_password_digest_invalid_code"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "The provided password_digest is not a valid bcrypt password hash."
+        },
+        {
+          "path": "errors.0.meta.param_name",
+          "equals": "password_digest"
+        }
+      ]
+    },
+    {
+      "name": "UpdateUser refuses: \"<param> is not a valid parameter for this request.\" (FormUnknownParameter, the errors page)",
+      "example": "UpdateUser#doc rule: unknown parameter",
+      "method": "PATCH",
+      "path": "/v1/users/{ada}",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json",
+        "clerk-api-version": "2026-05-12"
+      },
+      "body": {
+        "public_metadata": {
+          "plan": "pro"
+        }
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_param_unknown"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "public_metadata is not a valid parameter for this request."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "is unknown"
+        }
+      ]
+    },
+    {
+      "name": "The reviewer leaves the organization",
+      "method": "DELETE",
+      "path": "/v1/organizations/{acme}/memberships/{bea}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_user_data.user_id",
+          "equals": "{bea}"
+        },
+        {
+          "path": "role",
+          "equals": "org:reviewer"
+        }
+      ]
+    },
+    {
+      "name": "…and a pending invitation names the reviewer role, so only it holds the role",
+      "method": "POST",
+      "path": "/v1/organizations/{acme}/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": "rev@example.com",
+        "role": "org:reviewer"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "role",
+          "equals": "org:reviewer"
+        },
+        {
+          "path": "email_address",
+          "equals": "rev@example.com"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 2 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 2",
+        "key": "org:custom_2"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_2"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 2"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 3 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 3",
+        "key": "org:custom_3"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_3"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 3"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 4 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 4",
+        "key": "org:custom_4"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_4"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 4"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 5 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 5",
+        "key": "org:custom_5"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_5"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 5"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 6 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 6",
+        "key": "org:custom_6"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_6"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 6"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 7 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 7",
+        "key": "org:custom_7"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_7"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 7"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 8 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 8",
+        "key": "org:custom_8"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_8"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 8"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 9 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 9",
+        "key": "org:custom_9"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_9"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 9"
+        }
+      ]
+    },
+    {
+      "name": "Custom role 10 of the instance's ten",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Custom 10",
+        "key": "org:custom_10"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:custom_10"
+        },
+        {
+          "path": "name",
+          "equals": "Custom 10"
+        }
+      ]
+    },
+    {
+      "name": "CreateOrganizationRole refuses: \"You have reached your limit of %d organization roles per instance.\" (OrganizationInstanceRolesQuotaExceeded, the errors page)",
+      "example": "CreateOrganizationRole#doc rule: role quota",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Eleventh",
+        "key": "org:eleventh"
+      },
+      "status": 403,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_instance_roles_quota_exceeded"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "You have reached your limit of 10 organization roles per instance."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "organization roles for instance quota exceeded"
+        }
+      ]
+    },
+    {
+      "name": "Acme's SSO connection",
+      "method": "POST",
+      "path": "/v1/enterprise_connections",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Acme Okta",
+        "provider": "saml_okta",
+        "domains": [
+          "acme.example"
+        ],
+        "organization_id": "{acme}"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "organization_id",
+          "equals": "{acme}"
+        },
+        {
+          "path": "name",
+          "equals": "Acme Okta"
+        },
+        {
+          "path": "provider",
+          "equals": "saml_okta"
+        },
+        {
+          "path": "domains.0",
+          "equals": "acme.example"
+        }
+      ],
+      "capture": {
+        "acme_sso": "id"
+      }
+    },
+    {
+      "name": "CreateEnterpriseConnection refuses: \"This organization already has an SSO connection.\" (OrganizationAlreadyHasSSOConnection, the errors page)",
+      "example": "CreateEnterpriseConnection#doc rule: one SSO connection",
+      "method": "POST",
+      "path": "/v1/enterprise_connections",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "Acme Google",
+        "provider": "saml_google",
+        "domains": [
+          "acme.example"
+        ],
+        "organization_id": "{acme}"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_already_has_sso_connection"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "This organization already has an SSO connection."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "this organization already has an SSO connection"
+        }
+      ]
+    },
+    {
+      "name": "UpdateEnterpriseConnection refuses: \"We failed to parse the IdP metadata. If the error persists, please provide the IdP configuration data explicitly.\" (SAMLFailedToParseIDPMetadata, the errors page: metadata given as the document, which takes priority over the fields it carries)",
+      "example": "UpdateEnterpriseConnection#doc rule: IdP metadata parse",
+      "method": "PATCH",
+      "path": "/v1/enterprise_connections/{acme_sso}",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "saml": {
+          "idp_metadata": "not IdP metadata"
+        }
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "saml_failed_to_parse_idp_metadata"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "We failed to parse the IdP metadata. If the error persists, please provide the IdP configuration data explicitly."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Failed to parse IdP metadata"
+        }
+      ]
+    },
+    {
+      "name": "UpdateEnterpriseConnection refuses: \"We failed to fetch the IdP metadata. If the error persists, please provide the IdP configuration data explicitly.\" (SAMLFailedToFetchIDPMetadata, the errors page: Clerk fetches the metadata URL, and this World runs no twin of Acme's IdP to answer it)",
+      "example": "UpdateEnterpriseConnection#doc rule: IdP metadata fetch",
+      "method": "PATCH",
+      "path": "/v1/enterprise_connections/{acme_sso}",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "saml": {
+          "idp_metadata_url": "https://idp.acme.example/metadata.xml"
+        }
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "saml_failed_to_fetch_idp_metadata"
+        },
+        {
+          "path": "errors.0.long_message",
+          "equals": "We failed to fetch the IdP metadata. If the error persists, please provide the IdP configuration data explicitly."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "Failed to fetch IdP metadata"
+        }
+      ]
+    },
+    {
+      "name": "The refused URL was not kept: the connection still names no metadata URL",
+      "method": "GET",
+      "path": "/v1/enterprise_connections/{acme_sso}",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "saml_connection.idp_metadata_url",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "The user-quota example selects the separate development configuration with the vendor’s 100-user cap",
+      "method": "POST",
+      "path": "/_twin/instance",
+      "body": {
+        "environment_type": "development"
+      },
+      "status": 200
+    },
+    {
+      "name": "The development configuration issues its application key for the user-quota replay",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "capture": {
+        "sk": "secret_key"
+      }
+    },
+    {
+      "name": "A development instance is capped at 100 users (managing-environments: \"Development instances are capped at 100 users\"); the instance holds two, so person 1 of the 98 who reach the cap is made",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import1@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 2 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import2@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 3 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import3@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 4 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import4@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 5 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import5@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 6 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import6@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 7 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import7@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 8 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import8@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 9 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import9@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 10 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import10@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 11 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import11@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 12 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import12@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 13 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import13@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 14 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import14@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 15 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import15@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 16 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import16@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 17 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import17@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 18 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import18@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 19 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import19@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 20 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import20@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 21 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import21@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 22 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import22@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 23 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import23@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 24 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import24@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 25 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import25@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 26 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import26@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 27 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import27@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 28 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import28@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 29 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import29@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 30 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import30@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 31 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import31@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 32 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import32@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 33 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import33@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 34 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import34@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 35 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import35@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 36 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import36@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 37 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import37@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 38 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import38@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 39 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import39@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 40 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import40@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 41 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import41@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 42 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import42@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 43 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import43@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 44 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import44@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 45 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import45@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 46 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import46@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 47 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import47@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 48 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import48@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 49 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import49@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 50 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import50@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 51 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import51@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 52 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import52@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 53 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import53@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 54 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import54@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 55 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import55@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 56 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import56@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 57 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import57@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 58 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import58@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 59 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import59@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 60 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import60@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 61 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import61@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 62 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import62@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 63 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import63@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 64 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import64@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 65 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import65@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 66 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import66@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 67 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import67@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 68 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import68@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 69 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import69@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 70 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import70@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 71 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import71@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 72 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import72@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 73 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import73@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 74 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import74@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 75 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import75@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 76 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import76@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 77 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import77@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 78 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import78@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 79 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import79@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 80 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import80@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 81 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import81@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 82 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import82@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 83 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import83@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 84 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import84@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 85 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import85@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 86 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import86@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 87 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import87@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 88 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import88@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 89 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import89@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 90 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import90@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 91 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import91@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 92 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import92@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 93 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import93@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 94 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import94@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 95 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import95@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 96 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import96@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 97 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import97@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "Person 98 of 98 made to reach the cap",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "import98@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 200
+    },
+    {
+      "name": "The instance now holds 100 users",
+      "method": "GET",
+      "path": "/v1/users/count",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 100
+        }
+      ]
+    },
+    {
+      "name": "CreateUser refuses: \"You have reached your limit of <maxAllowed> users. <resolution>\" (UserQuotaExceeded, the errors page: the 101st user of a development instance)",
+      "example": "CreateUser#doc rule: user quota",
+      "method": "POST",
+      "path": "/v1/users",
+      "headers": {
+        "authorization": "Bearer {sk}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "email_address": [
+          "one-too-many@example.com"
+        ],
+        "skip_password_requirement": true
+      },
+      "status": 403,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "user_quota_exceeded"
+        },
+        {
+          "path": "errors.0.long_message",
+          "contains": "You have reached your limit of 100 users."
+        },
+        {
+          "path": "errors.0.message",
+          "equals": "user quota exceeded"
+        }
+      ]
+    },
+    {
+      "name": "The application invites a new person with the Backend API",
+      "method": "POST",
+      "path": "/v1/invitations",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "body": {
+        "email_address": "email@example.com"
+      },
+      "status": 200,
+      "capture": {
+        "applicationInvitation": "id"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "email_address",
+          "equals": "email@example.com"
+        }
+      ],
+      "example": "CreateInvitation#doc create invitation"
+    },
+    {
+      "name": "The application reads the invitation back from Clerk",
+      "method": "GET",
+      "path": "/v1/invitations?query=email@example.com",
+      "headers": {
+        "authorization": "Bearer {sk}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{applicationInvitation}"
+        },
+        {
+          "path": "0.public_metadata",
+          "equals": {}
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "CreateUser#doc rule: pwned password": "The comparison is explicitly disabled for this instance (environment password_settings.disable_hibp=true). Clerk’s password-protection-and-rules, Reject compromised passwords, documents the Dashboard switch and allows protection to be off. This is a configured comparison, not a missing implementation or an absent corpus excuse.",
+    "CreateOrganization#doc rule: organization quota": "The organization examples run against an explicitly selected production instance, switched back to development only for UserQuotaExceeded. The quoted OrganizationQuotaExceeded error itself says using a production instance removes this organization limit (spec/doc-examples.json:750-754, errors/backend-api); the example’s cap precondition is therefore false. No undocumented development cap is assumed.",
+    "CreateOrganizationMembership#doc rule: exclusive membership": "Vendor default: organizations/configure, Membership limits, states there is no limit to the number of Organizations a user can be a member of. Pinned clerk-js 5.127.2 Organization.fromJSON sets exclusiveMembership=e.exclusive_membership||false. This example requires the nondefault exclusive_membership=true; neither CreateOrganization nor UpdateOrganization accepts that field in the vendored schema.",
+    "UpdateOrganization#doc rule: member limit managed by billing": "OrganizationMemberLimitManagedByBilling on errors/backend-api explicitly requires a subscription-managed member limit. The vendored /billing/subscriptions and /billing/plans flows are unmodeled; Trellis bills outside Clerk and the environment commerce_settings.billing.organization.enabled is false. A standalone max_allowed_memberships mutation does not establish the documented subscription precondition.",
+    "UpdateOrganizationMembership#doc rule: membership managed by SCIM": "OrganizationMembershipSCIMManaged on errors/backend-api explicitly requires directory-managed membership. The vendored SCIM directory creation/provisioning flow (/scim_directories) is unmodeled. Members here are created by organization invitations or CreateOrganizationMembership, whose schemas do not enroll them in a directory.",
+    "DeleteUser#doc rule: user managed by SCIM": "UserSCIMManaged on errors/backend-api explicitly requires a directory-managed user. The vendored SCIM directory creation/provisioning flow (/scim_directories) is unmodeled. CreateUser and signup create these users without directory enrollment; their request schemas contain no directory ownership field.",
+    "UpdateInstanceOrganizationSettings#doc rule: forced selection": "Vendor schema contradiction: UpdateInstanceOrganizationSettings requestBody sets additionalProperties=false and lists no force_organization_selection property; the errors/backend-api rule requires precisely that property. Sending it cannot be this rule’s accepted settings mutation under the pinned spec. organizations/configure instead offers required/optional membership on the Dashboard; that setting is not the Backend API request in this published rule."
+  }
+}

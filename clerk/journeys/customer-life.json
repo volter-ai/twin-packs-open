@@ -1,0 +1,3825 @@
+{
+  "vendor": "clerk",
+  "author": "Contributor 29",
+  "host": "api.clerk.com",
+  "about": "Trellis, a four-person product in Lisbon where design agencies collect their clients' feedback, signs its people in with Clerk for 2026: the instance's permissions and roles, a JWT template for Convex, a webhook endpoint, two agencies made on sign-up, invitations sent, revoked and accepted through their tickets, a role changed, a monthly metrics script, a plan in an agency's metadata read by its tokens, a member removed and deleted, an agency renamed and grown, and an agency and its owner leaving. Marta also signs in to Volter Editor through the account worker public-client PKCE request, sees Clerk sign-in and consent, exchanges the code and refreshes the grant.",
+  "steps": [
+    {
+      "name": "Monday 5 January, 09:00: Inês sets up Trellis's Clerk application",
+      "wait": "105h"
+    },
+    {
+      "name": "Inês previews the empty development instance; Clerk establishes its development browser",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/dev_browser",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "capture": {
+        "devBrowser": "token"
+      }
+    },
+    {
+      "name": "The preview reports its localhost origin to the development environment",
+      "method": "PATCH",
+      "path": "https://clerk.trellis.app/v1/environment",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "body": "origin=http%3A%2F%2Flocalhost%3A3000",
+      "expect": [
+        {
+          "path": "display_config.instance_environment_type",
+          "equals": "development"
+        }
+      ]
+    },
+    {
+      "name": "The preview fetches the frontend public keys for token verification",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/.well-known/jwks.json",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "keys.0.kid",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "On the production instance's dashboard's User & authentication page Inês offers passwords and emailed codes, has sign-up ask people to accept Trellis's terms, and on the Domains page the instance's Frontend API is clerk.trellis.app",
+      "method": "POST",
+      "path": "/_twin/instance",
+      "body": {
+        "password": "on",
+        "legal_consent": true,
+        "frontend_api": "clerk.trellis.app",
+        "environment_type": "production"
+      },
+      "status": 200
+    },
+    {
+      "name": "On the API Keys page she makes her own secret key, shown once",
+      "method": "POST",
+      "path": "/_twin/secret-keys",
+      "body": {
+        "name": "Inês"
+      },
+      "status": 201,
+      "capture": {
+        "ines": "secret"
+      },
+      "expect": [
+        {
+          "path": "secret",
+          "contains": "sk_live_"
+        }
+      ]
+    },
+    {
+      "name": "…and the API server's key, which goes into the server's configuration",
+      "method": "POST",
+      "path": "/_twin/secret-keys",
+      "body": {
+        "name": "API server"
+      },
+      "status": 201,
+      "capture": {
+        "server": "secret"
+      }
+    },
+    {
+      "name": "The server's setup script, kept under version control, turns Organizations on",
+      "method": "PATCH",
+      "path": "/v1/instance/organization_settings",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "enabled": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "enabled",
+          "equals": true
+        },
+        {
+          "path": "creator_role",
+          "equals": "org:admin"
+        }
+      ]
+    },
+    {
+      "name": "On the dashboard's Organizations Settings page Inês chooses membership optional, since Trellis makes each agency itself when its owner onboards",
+      "method": "POST",
+      "path": "/_twin/instance",
+      "body": {
+        "organization_membership": "optional"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "organization_membership",
+          "equals": "optional"
+        }
+      ]
+    },
+    {
+      "name": "The server's setup script declares the permission \"Manage projects\"",
+      "method": "POST",
+      "path": "/v1/organization_permissions",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Manage projects",
+        "key": "org:projects:manage",
+        "description": ""
+      },
+      "status": 200,
+      "capture": {
+        "p_manage": "id"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:projects:manage"
+        },
+        {
+          "path": "type",
+          "equals": "user"
+        }
+      ]
+    },
+    {
+      "name": "The server's setup script declares the permission \"Edit projects\"",
+      "method": "POST",
+      "path": "/v1/organization_permissions",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Edit projects",
+        "key": "org:projects:edit",
+        "description": ""
+      },
+      "status": 200,
+      "capture": {
+        "p_edit": "id"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:projects:edit"
+        },
+        {
+          "path": "type",
+          "equals": "user"
+        }
+      ]
+    },
+    {
+      "name": "The server's setup script declares the permission \"Request reviews\"",
+      "method": "POST",
+      "path": "/v1/organization_permissions",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Request reviews",
+        "key": "org:reviews:request",
+        "description": ""
+      },
+      "status": 200,
+      "capture": {
+        "p_request": "id"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:reviews:request"
+        },
+        {
+          "path": "type",
+          "equals": "user"
+        }
+      ]
+    },
+    {
+      "name": "The server's setup script declares the permission \"Manage billing\"",
+      "method": "POST",
+      "path": "/v1/organization_permissions",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Manage billing",
+        "key": "org:billing:manage",
+        "description": ""
+      },
+      "status": 200,
+      "capture": {
+        "p_billing": "id"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:billing:manage"
+        },
+        {
+          "path": "type",
+          "equals": "user"
+        }
+      ]
+    },
+    {
+      "name": "It makes the contributor role (edit projects, request reviews), in the initial role set so agencies can assign it",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Contributor",
+        "key": "org:contributor",
+        "permissions": [
+          "{p_edit}",
+          "{p_request}"
+        ],
+        "include_in_initial_role_set": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:contributor"
+        },
+        {
+          "path": "permissions.0.key",
+          "equals": "org:projects:edit"
+        },
+        {
+          "path": "permissions.1.key",
+          "equals": "org:reviews:request"
+        }
+      ],
+      "capture": {
+        "contributor_role": "id"
+      }
+    },
+    {
+      "name": "…and the viewer role, with no permissions of Trellis's",
+      "method": "POST",
+      "path": "/v1/organization_roles",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Viewer",
+        "key": "org:viewer",
+        "permissions": [],
+        "include_in_initial_role_set": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:viewer"
+        }
+      ],
+      "capture": {
+        "viewer_role": "id"
+      }
+    },
+    {
+      "name": "It looks up Clerk's admin role by its key",
+      "method": "GET",
+      "path": "/v1/organization_roles?query=org:admin",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "capture": {
+        "admin_role": "data.0.id"
+      },
+      "expect": [
+        {
+          "path": "data.0.key",
+          "equals": "org:admin"
+        },
+        {
+          "path": "total_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "…and gives the admin role \"manage projects\"",
+      "method": "POST",
+      "path": "/v1/organization_roles/{admin_role}/permissions/{p_manage}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200
+    },
+    {
+      "name": "…and gives the admin role \"edit projects\"",
+      "method": "POST",
+      "path": "/v1/organization_roles/{admin_role}/permissions/{p_edit}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200
+    },
+    {
+      "name": "…and gives the admin role \"request reviews\"",
+      "method": "POST",
+      "path": "/v1/organization_roles/{admin_role}/permissions/{p_request}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200
+    },
+    {
+      "name": "…and gives the admin role \"manage billing\"",
+      "method": "POST",
+      "path": "/v1/organization_roles/{admin_role}/permissions/{p_billing}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200
+    },
+    {
+      "name": "With her own key Inês's part of the script makes the convex JWT template: audience convex, and the active agency's plan (the session-tokens page documents org.public_metadata)",
+      "method": "POST",
+      "path": "/v1/jwt_templates",
+      "headers": {
+        "authorization": "Bearer {ines}"
+      },
+      "body": {
+        "name": "convex",
+        "claims": {
+          "aud": "convex",
+          "plan": "{{org.public_metadata.plan}}"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "convex"
+        },
+        {
+          "path": "lifetime",
+          "equals": 60
+        }
+      ],
+      "capture": {
+        "convex_tmpl": "id"
+      }
+    },
+    {
+      "name": "Inês registers the private reporting service’s shared-key JWT template",
+      "method": "POST",
+      "path": "/v1/jwt_templates",
+      "status": 200,
+      "body": {
+        "name": "reports",
+        "claims": {
+          "aud": "trellis-reports"
+        },
+        "custom_signing_key": true,
+        "signing_algorithm": "HS256",
+        "signing_key": "throwaway-reporting-secret-with-32-bytes"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "reports"
+        },
+        {
+          "path": "custom_signing_key",
+          "equals": true
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "On the Webhooks page she points an endpoint for user.deleted at Trellis's receiver and copies its signing secret into the server's configuration",
+      "method": "POST",
+      "path": "/_twin/webhook-endpoints",
+      "body": {
+        "url": "https://api.trellis.app/webhooks/clerk",
+        "events": [
+          "user.deleted"
+        ]
+      },
+      "status": 201
+    },
+    {
+      "name": "The API server boots and fetches the instance's public keys, to verify session tokens itself",
+      "method": "GET",
+      "path": "/v1/jwks",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "keys.0.kty",
+          "equals": "RSA"
+        },
+        {
+          "path": "keys.0.alg",
+          "equals": "RS256"
+        },
+        {
+          "path": "keys.0.d",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Inês registers the account worker public OAuth client through Clerk before enabling Editor sign-in",
+      "method": "POST",
+      "path": "/v1/oauth_applications",
+      "headers": {
+        "authorization": "Bearer {ines}"
+      },
+      "body": {
+        "name": "Volter Editor account worker",
+        "redirect_uris": [
+          "https://auth.videogame.ai/account/callback"
+        ],
+        "scopes": "openid profile email user:org:read",
+        "public": true,
+        "pkce_required": true
+      },
+      "status": 200,
+      "capture": {
+        "workerClient": "client_id",
+        "workerApp": "id"
+      },
+      "expect": [
+        {
+          "path": "client_secret",
+          "equals": ""
+        },
+        {
+          "path": "consent_screen_enabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Her setup reads back the registered public OAuth application",
+      "method": "GET",
+      "path": "/v1/oauth_applications/{workerApp}",
+      "headers": {
+        "authorization": "Bearer {ines}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "client_id",
+          "equals": "{workerClient}"
+        },
+        {
+          "path": "public",
+          "equals": true
+        },
+        {
+          "path": "redirect_uris",
+          "members": [
+            "https://auth.videogame.ai/account/callback"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "The anonymous preview reaches the API; the SDK requests cookies clearing any prior login",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/handshake?redirect_url=https%3A%2F%2Ftrellis.app%2Fboard&format=nonce",
+      "status": 307,
+      "capture": {
+        "anonymousNonce": "header:location:__clerk_handshake_nonce=([^&]+)"
+      }
+    },
+    {
+      "name": "The API applies the anonymous handshake directives",
+      "method": "GET",
+      "path": "/v1/clients/handshake_payload?nonce={anonymousNonce}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "directives.0",
+          "equals": "__session=; Path=/; Max-Age=0; SameSite=Lax"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "Wednesday 7 January, 10:00",
+      "wait": "49h"
+    },
+    {
+      "name": "Marta opens trellis.app/sign-up; Clerk's sign-up form loads the instance's settings",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/environment",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "user_settings.attributes.password.enabled",
+          "equals": true
+        },
+        {
+          "path": "user_settings.sign_up.legal_consent_enabled",
+          "equals": true
+        },
+        {
+          "path": "display_config.instance_environment_type",
+          "equals": "production"
+        }
+      ]
+    },
+    {
+      "name": "Marta's new browser has only Trellis's theme cookie; Clerk reads an anonymous client",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "trellis_theme=dark"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.sessions",
+          "equals": []
+        },
+        {
+          "path": "client",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "Clerk's browser SDK establishes Marta's client before signup",
+      "method": "PUT",
+      "path": "https://clerk.trellis.app/v1/client",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.sessions",
+          "equals": []
+        }
+      ],
+      "capture": {
+        "marta_client": "header:set-cookie:__client=([^;]+)"
+      }
+    },
+    {
+      "name": "She signs up with her work email, her name, and Trellis's terms accepted",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "body": "email_address=marta%40oakandash.pt&first_name=Marta&last_name=Silva&legal_accepted=true&password=Marta-long-password&unsafe_metadata=%7B%22welcome%22%3Atrue%7D",
+      "status": 200,
+      "capture": {
+        "marta_su": "response.id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "missing_requirements"
+        },
+        {
+          "path": "response.unverified_fields",
+          "members": [
+            "email_address"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Clerk emails her a code",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{marta_su}/prepare_verification",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "body": "strategy=email_code",
+      "status": 200
+    },
+    {
+      "name": "She reads the code in her inbox",
+      "method": "GET",
+      "path": "/_twin/emails?to=marta%40oakandash.pt",
+      "status": 200,
+      "capture": {
+        "marta_code": "data.0.code"
+      }
+    },
+    {
+      "name": "Marta is called away before entering the email code",
+      "wait": "11m"
+    },
+    {
+      "name": "The code she found is now expired; Clerk keeps signup incomplete",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{marta_su}/attempt_verification",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 400,
+      "body": "strategy=email_code&code={marta_code}",
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "verification_expired"
+        }
+      ]
+    },
+    {
+      "name": "She requests a fresh code",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{marta_su}/prepare_verification",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 200,
+      "body": "strategy=email_code"
+    },
+    {
+      "name": "She reads the fresh delivery",
+      "method": "GET",
+      "path": "/_twin/emails?to=marta%40oakandash.pt",
+      "status": 200,
+      "capture": {
+        "marta_code": "data.1.code"
+      }
+    },
+    {
+      "name": "She mistypes the fresh code once",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{marta_su}/attempt_verification",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 422,
+      "body": "strategy=email_code&code=000001",
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_code_incorrect"
+        }
+      ]
+    },
+    {
+      "name": "She types the code; her account is made and she is signed in",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{marta_su}/attempt_verification",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "body": "strategy=email_code&code={marta_code}",
+      "status": 200,
+      "capture": {
+        "marta": "response.created_user_id",
+        "marta_sess": "response.created_session_id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ]
+    },
+    {
+      "name": "Marta reloads the browser; Clerk reads the client and its completed signup session",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.last_active_session_id",
+          "equals": "{marta_sess}"
+        }
+      ]
+    },
+    {
+      "name": "Trellis's onboarding asks for her agency's name; the API server creates Oak & Ash with Marta as its creator and the trial plan",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Oak & Ash",
+        "created_by": "{marta}",
+        "public_metadata": {
+          "plan": "trial"
+        }
+      },
+      "status": 200,
+      "capture": {
+        "oak": "id"
+      },
+      "expect": [
+        {
+          "path": "public_metadata.plan",
+          "equals": "trial"
+        },
+        {
+          "path": "created_by",
+          "equals": "{marta}"
+        }
+      ]
+    },
+    {
+      "name": "Onboarding done, the API server marks it in Marta's public metadata, which Trellis's app reads to skip the tour",
+      "method": "PATCH",
+      "path": "/v1/users/{marta}/metadata",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "public_metadata": {
+          "onboarded": true
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_metadata.onboarded",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The API reads Marta for the account header",
+      "method": "GET",
+      "path": "/v1/users/{marta}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "first_name",
+          "equals": "Marta"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "capture": {
+        "marta_avatar": "image_url"
+      }
+    },
+    {
+      "name": "Marta’s browser loads the avatar URL Clerk returned",
+      "method": "GET",
+      "path": "{marta_avatar}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "header:content-type",
+          "contains": "image/svg+xml"
+        },
+        {
+          "path": "",
+          "contains": ">MS</text>"
+        }
+      ]
+    },
+    {
+      "name": "Marta's browser switches to Oak & Ash",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{marta_sess}/touch",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "body": "active_organization_id={oak}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.last_active_organization_id",
+          "equals": "{oak}"
+        }
+      ]
+    },
+    {
+      "name": "Her board connects to Convex with a convex token",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{marta_sess}/tokens/convex",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 200,
+      "view": "jwt:jwt",
+      "expect": [
+        {
+          "path": "aud",
+          "equals": "convex"
+        },
+        {
+          "path": "plan",
+          "equals": "trial"
+        },
+        {
+          "path": "sub",
+          "equals": "{marta}"
+        }
+      ]
+    },
+    {
+      "name": "Marta opens Trellis’s private report; Clerk issues its shared-key audience token",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{marta_sess}/tokens/reports",
+      "status": 200,
+      "expect": [
+        {
+          "path": "aud",
+          "equals": "trellis-reports"
+        },
+        {
+          "path": "sub",
+          "equals": "{marta}"
+        }
+      ],
+      "headers": {
+        "cookie": "__client={marta_client}"
+      },
+      "view": "jwt:jwt"
+    },
+    {
+      "name": "Trellis's API receives Marta's browser without a usable app-domain session cookie; the SDK starts its nonce handshake",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/handshake?redirect_url=https%3A%2F%2Ftrellis.app%2Fboard&format=nonce&__clerk_db_jwt={devBrowser}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 307,
+      "expect": [
+        {
+          "header": "location",
+          "contains": "https://trellis.app/board?"
+        }
+      ],
+      "capture": {
+        "handshakeNonce": "header:location:__clerk_handshake_nonce=([^&]+)"
+      }
+    },
+    {
+      "name": "The API server exchanges the nonce for the cookies Clerk asks it to set",
+      "method": "GET",
+      "path": "/v1/clients/handshake_payload?nonce={handshakeNonce}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "directives.0",
+          "contains": "__session="
+        },
+        {
+          "path": "directives.1",
+          "contains": "__client_uat="
+        }
+      ]
+    },
+    {
+      "name": "The account worker's newer SDK asks the default signed handshake when Marta opens Editor",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/handshake?redirect_url=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 307,
+      "expect": [
+        {
+          "header": "location",
+          "contains": "__clerk_handshake="
+        }
+      ]
+    },
+    {
+      "name": "Marta opens Editor sign-in; the worker forwards its authorize URL through the documented Clerk Frontend API proxy",
+      "method": "GET",
+      "path": "https://frontend-api.clerk.dev/oauth/authorize?response_type=code&client_id={workerClient}&redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback&state=worker-oauth-state&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&scope=openid%20profile%20email%20user%3Aorg%3Aread",
+      "headers": {
+        "Clerk-Proxy-Url": "https://auth.videogame.ai/__clerk",
+        "Clerk-Secret-Key": "{server}",
+        "X-Forwarded-For": "203.0.113.10"
+      },
+      "status": 302,
+      "capture": {
+        "oauthSignIn": "header:location",
+        "oauthSignInReturn": "header:location:redirect_url=(.+)"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "https://auth.videogame.ai/__clerk/sign-in?redirect_url="
+        }
+      ]
+    },
+    {
+      "name": "Clerk presents its sign-in page over the same frontend proxy",
+      "method": "GET",
+      "path": "https://frontend-api.clerk.dev/sign-in?redirect_url={oauthSignInReturn}",
+      "headers": {
+        "Clerk-Proxy-Url": "https://auth.videogame.ai/__clerk",
+        "Clerk-Secret-Key": "{server}",
+        "X-Forwarded-For": "203.0.113.10"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "data-clerk-proxy-url=\"https://auth.videogame.ai/__clerk\""
+        },
+        {
+          "path": "",
+          "contains": "mountSignIn"
+        },
+        {
+          "path": "",
+          "contains": "data-clerk-publishable-key=\"pk_live_"
+        }
+      ]
+    },
+    {
+      "name": "The sign-in page loads the pinned unmodified clerk-js browser bundle through the worker frontend proxy",
+      "method": "GET",
+      "path": "https://frontend-api.clerk.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js",
+      "headers": {
+        "Clerk-Proxy-Url": "https://auth.videogame.ai/__clerk",
+        "Clerk-Secret-Key": "{server}",
+        "X-Forwarded-For": "203.0.113.10"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "application/javascript"
+        },
+        {
+          "path": "",
+          "contains": "mountSignIn"
+        }
+      ]
+    },
+    {
+      "name": "Marta uses her signed-in Clerk browser; the worker authorize request now requires consent",
+      "method": "GET",
+      "path": "https://frontend-api.clerk.dev/oauth/authorize?response_type=code&client_id={workerClient}&redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback&state=worker-oauth-state&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&scope=openid%20profile%20email%20user%3Aorg%3Aread",
+      "headers": {
+        "Clerk-Proxy-Url": "https://auth.videogame.ai/__clerk",
+        "Clerk-Secret-Key": "{server}",
+        "X-Forwarded-For": "203.0.113.10",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 302,
+      "expect": [
+        {
+          "header": "location",
+          "contains": "https://auth.videogame.ai/__clerk/oauth/consent?"
+        }
+      ]
+    },
+    {
+      "name": "The consent page names the account worker and its requested scopes",
+      "method": "GET",
+      "path": "https://frontend-api.clerk.dev/oauth/consent?response_type=code&client_id={workerClient}&redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback&state=worker-oauth-state&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&scope=openid%20profile%20email%20user%3Aorg%3Aread",
+      "headers": {
+        "Clerk-Proxy-Url": "https://auth.videogame.ai/__clerk",
+        "Clerk-Secret-Key": "{server}",
+        "X-Forwarded-For": "203.0.113.10",
+        "cookie": "__client={marta_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Volter Editor account worker"
+        },
+        {
+          "path": "",
+          "contains": "Allow"
+        },
+        {
+          "path": "",
+          "contains": "Deny"
+        },
+        {
+          "path": "",
+          "contains": "{oak}"
+        }
+      ]
+    },
+    {
+      "name": "Marta grants the requested access for Oak & Ash; Clerk redirects to the worker callback with code and preserved state",
+      "method": "POST",
+      "path": "https://frontend-api.clerk.dev/v1/me/oauth/consent/{workerClient}",
+      "headers": {
+        "Clerk-Proxy-Url": "https://auth.videogame.ai/__clerk",
+        "Clerk-Secret-Key": "{server}",
+        "X-Forwarded-For": "203.0.113.10",
+        "cookie": "__client={marta_client}",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "response_type=code&client_id={workerClient}&redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback&state=worker-oauth-state&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&scope=openid%20profile%20email%20user%3Aorg%3Aread&consented=true&organization_id={oak}",
+      "status": 303,
+      "capture": {
+        "workerCode": "header:location:[?&]code=([^&]+)"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "https://auth.videogame.ai/account/callback?"
+        },
+        {
+          "header": "location",
+          "contains": "state=worker-oauth-state"
+        },
+        {
+          "header": "location",
+          "contains": "iss=https%3A%2F%2Fclerk.trellis.app"
+        }
+      ]
+    },
+    {
+      "name": "The worker exchanges its provider code and S256 verifier at the instance custom Frontend API domain",
+      "method": "POST",
+      "path": "https://clerk.auth.videogame.ai/oauth/token",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=authorization_code&client_id={workerClient}&code={workerCode}&redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      "status": 200,
+      "capture": {
+        "workerRefresh": "refresh_token",
+        "workerAccess": "access_token",
+        "workerIdToken": "id_token"
+      },
+      "view": "oauthToken",
+      "expect": [
+        {
+          "path": "sub",
+          "equals": "{marta}"
+        },
+        {
+          "path": "org_id",
+          "equals": "{oak}"
+        },
+        {
+          "path": "iss",
+          "equals": "https://clerk.trellis.app"
+        },
+        {
+          "path": "scope",
+          "equals": "openid profile email user:org:read"
+        },
+        {
+          "header": "cache-control",
+          "equals": "no-store"
+        },
+        {
+          "path": "access_type",
+          "equals": "at+jwt"
+        },
+        {
+          "path": "id_type",
+          "equals": "JWT"
+        },
+        {
+          "path": "id_claims.sub",
+          "equals": "{marta}"
+        },
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        },
+        {
+          "path": "expires_in",
+          "equals": 86400
+        }
+      ]
+    },
+    {
+      "name": "Marta shares a board with an outside reviewer through the account worker",
+      "method": "POST",
+      "path": "/v1/invitations",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "body": {
+        "email_address": "reviewer@outside.example",
+        "redirect_url": "https://trellis.app/shared/preview",
+        "notify": true,
+        "ignore_existing": true,
+        "expires_in_days": 1
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "email_address",
+          "equals": "reviewer@outside.example"
+        }
+      ],
+      "capture": {
+        "reviewer_invitation": "id"
+      }
+    },
+    {
+      "name": "She shares the board with a second outside reviewer through the same worker",
+      "method": "POST",
+      "path": "/v1/invitations",
+      "status": 200,
+      "body": {
+        "email_address": "second-reviewer@outside.example",
+        "redirect_url": "https://trellis.app/shared/preview",
+        "notify": true,
+        "ignore_existing": true,
+        "expires_in_days": 1
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "capture": {
+        "second_invitation": "id"
+      }
+    },
+    {
+      "name": "The pending-reviewer list orders its newest invitation first",
+      "method": "GET",
+      "path": "/v1/invitations?status=pending&order_by=-created_at",
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{second_invitation}"
+        },
+        {
+          "path": "1.id",
+          "equals": "{reviewer_invitation}"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "The application reads its pending reviewer invitation",
+      "method": "GET",
+      "path": "/v1/invitations?status=pending&order_by=%2Bemail_address",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{reviewer_invitation}"
+        }
+      ]
+    },
+    {
+      "name": "The administrator’s invitation script omits the force flag and refuses a duplicate pending reviewer",
+      "method": "POST",
+      "path": "/v1/invitations",
+      "status": 400,
+      "body": {
+        "email_address": "reviewer@outside.example"
+      },
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "duplicate_record"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "Monday 2 February, 08:00: the first metrics run",
+      "wait": "622h"
+    },
+    {
+      "name": "The reviewer never used the one-day collaboration link; Clerk now returns it expired",
+      "method": "GET",
+      "path": "/v1/invitations?status=expired",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "members": [
+            "{reviewer_invitation}",
+            "{second_invitation}"
+          ]
+        }
+      ],
+      "view": "userIds"
+    },
+    {
+      "name": "Marta reopens Editor; the worker renews her expired access token with the stored refresh token",
+      "method": "POST",
+      "path": "https://clerk.auth.videogame.ai/oauth/token",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "grant_type=refresh_token&client_id={workerClient}&refresh_token={workerRefresh}",
+      "status": 200,
+      "view": "oauthToken",
+      "expect": [
+        {
+          "path": "sub",
+          "equals": "{marta}"
+        },
+        {
+          "path": "org_id",
+          "equals": "{oak}"
+        },
+        {
+          "path": "iss",
+          "equals": "https://clerk.trellis.app"
+        },
+        {
+          "path": "access_type",
+          "equals": "at+jwt"
+        },
+        {
+          "path": "id_type",
+          "equals": "JWT"
+        },
+        {
+          "path": "id_claims.sub",
+          "equals": "{marta}"
+        },
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        },
+        {
+          "path": "expires_in",
+          "equals": 86400
+        }
+      ]
+    },
+    {
+      "name": "Inês makes the metrics script's key on the API Keys page, kept on her laptop only",
+      "method": "POST",
+      "path": "/_twin/secret-keys",
+      "body": {
+        "name": "metrics"
+      },
+      "status": 201,
+      "capture": {
+        "metrics": "secret"
+      }
+    },
+    {
+      "name": "The metrics export sorts January's users by name for its CSV",
+      "method": "GET",
+      "path": "/v1/users?order_by=%2Bfirst_name",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{marta}"
+        }
+      ]
+    },
+    {
+      "name": "Its first creation-ordered page closes at Marta",
+      "method": "GET",
+      "path": "/v1/users?order_by=%2Bcreated_at&limit=1",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{marta}"
+        }
+      ]
+    },
+    {
+      "name": "The next export page starts after Marta and is empty",
+      "method": "GET",
+      "path": "/v1/users?order_by=%2Bcreated_at&starting_after={marta}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "The script looks up January's one new agency admin by the email in Trellis's database",
+      "method": "GET",
+      "path": "/v1/users?email_address=marta%40oakandash.pt",
+      "headers": {
+        "authorization": "Bearer {metrics}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{marta}"
+        }
+      ]
+    },
+    {
+      "name": "…and reads her sessions to count the devices she came back on",
+      "method": "GET",
+      "path": "/v1/sessions?user_id={marta}",
+      "headers": {
+        "authorization": "Bearer {metrics}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.user_id",
+          "equals": "{marta}"
+        }
+      ]
+    },
+    {
+      "name": "…counts everyone who signed up in January, for the month's report",
+      "method": "GET",
+      "path": "/v1/users/count?created_at_after=1767225600000&created_at_before=1769904000000",
+      "headers": {
+        "authorization": "Bearer {metrics}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "object",
+          "equals": "total_count"
+        },
+        {
+          "path": "total_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "…and lists the agencies with their sizes",
+      "method": "GET",
+      "path": "/v1/organizations?include_members_count=true",
+      "headers": {
+        "authorization": "Bearer {metrics}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{oak}"
+        },
+        {
+          "path": "data.0.members_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 4 February, 11:00",
+      "wait": "51h"
+    },
+    {
+      "name": "In Trellis's settings Marta invites Rui as a contributor; the API server creates the invitation with Trellis's accept page as its redirect",
+      "method": "POST",
+      "path": "/v1/organizations/{oak}/invitations",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "email_address": "rui@oakandash.pt",
+        "role": "org:contributor",
+        "inviter_user_id": "{marta}",
+        "redirect_url": "https://trellis.app/accept"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "role",
+          "equals": "org:contributor"
+        }
+      ],
+      "capture": {
+        "rui_inv": "id"
+      }
+    },
+    {
+      "name": "…and Beatriz, typing her address wrong",
+      "method": "POST",
+      "path": "/v1/organizations/{oak}/invitations",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "email_address": "beatriz@oakash.pt",
+        "role": "org:contributor",
+        "inviter_user_id": "{marta}",
+        "redirect_url": "https://trellis.app/accept"
+      },
+      "status": 200,
+      "capture": {
+        "wrong": "id"
+      }
+    },
+    {
+      "name": "The settings page lists the agency's pending invitations, and Marta sees the typo",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/invitations?status=pending",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 2
+        },
+        {
+          "path": "data.0.email_address",
+          "equals": "beatriz@oakash.pt"
+        }
+      ]
+    },
+    {
+      "name": "Marta opens the typoed invitation's details before revoking it",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/invitations/{wrong}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "email_address",
+          "equals": "beatriz@oakash.pt"
+        }
+      ]
+    },
+    {
+      "name": "The setup script names Clerk admin as creator and contributors as the domain enrollment default",
+      "method": "PATCH",
+      "path": "/v1/instance/organization_settings",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "body": {
+        "creator_role_id": "{admin_role}",
+        "domains_default_role_id": "{contributor_role}"
+      },
+      "expect": [
+        {
+          "path": "creator_role",
+          "equals": "org:admin"
+        },
+        {
+          "path": "domains_default_role",
+          "equals": "org:contributor"
+        }
+      ]
+    },
+    {
+      "name": "Trellis calls contributors designers; the setup updates the role key while the designers' invitations are pending",
+      "method": "PATCH",
+      "path": "/v1/organization_roles/{contributor_role}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "body": {
+        "key": "org:designer",
+        "name": "Designer"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:designer"
+        },
+        {
+          "path": "name",
+          "equals": "Designer"
+        }
+      ]
+    },
+    {
+      "name": "The enrollment default follows the renamed role",
+      "method": "GET",
+      "path": "/v1/instance/organization_settings",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "domains_default_role",
+          "equals": "org:designer"
+        },
+        {
+          "path": "creator_role",
+          "equals": "org:admin"
+        }
+      ]
+    },
+    {
+      "name": "Rui's pending invitation follows the renamed designer role",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/invitations/{rui_inv}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "role",
+          "equals": "org:designer"
+        }
+      ]
+    },
+    {
+      "name": "She revokes it",
+      "method": "POST",
+      "path": "/v1/organizations/{oak}/invitations/{wrong}/revoke",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "requesting_user_id": "{marta}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "revoked"
+        }
+      ]
+    },
+    {
+      "name": "The mistyped recipient opens the old invitation after Marta revoked it",
+      "method": "GET",
+      "path": "/_twin/emails?to=beatriz%40oakash.pt",
+      "status": 200,
+      "capture": {
+        "wrong_link": "data.0.link"
+      }
+    },
+    {
+      "name": "The delivered link refuses the now-revoked invitation",
+      "method": "GET",
+      "path": "{wrong_link}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_invitation_revoked_code"
+        }
+      ]
+    },
+    {
+      "name": "…and invites the right address",
+      "method": "POST",
+      "path": "/v1/organizations/{oak}/invitations",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "email_address": "beatriz@oakandash.pt",
+        "role": "org:designer",
+        "inviter_user_id": "{marta}",
+        "redirect_url": "https://trellis.app/accept"
+      },
+      "status": 200
+    },
+    {
+      "name": "That afternoon",
+      "wait": "4h"
+    },
+    {
+      "name": "Rui, who messaged Marta earlier that he could not find his invitation, finds it in his promotions folder and opens it",
+      "method": "GET",
+      "path": "/_twin/emails?to=rui%40oakandash.pt",
+      "status": 200,
+      "capture": {
+        "rui_link": "data.0.link"
+      },
+      "expect": [
+        {
+          "path": "data.0.template",
+          "equals": "organization_invitation"
+        }
+      ]
+    },
+    {
+      "name": "He clicks its link; Clerk takes the invitation and sends him on to Trellis's accept page",
+      "method": "GET",
+      "path": "{rui_link}",
+      "status": 303,
+      "capture": {
+        "rui_ticket": "header:location:__clerk_ticket=([^&]+)"
+      }
+    },
+    {
+      "name": "The link lands on Trellis's accept page, which signs him up through the invitation with his name and the terms accepted",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "strategy=ticket&ticket={rui_ticket}&first_name=Rui&last_name=Costa&legal_accepted=true&password=Agency-long-password",
+      "status": 200,
+      "capture": {
+        "rui_client": "header:set-cookie:__client=([^;]+)",
+        "rui": "response.created_user_id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ]
+    },
+    {
+      "name": "Beatriz opens hers",
+      "method": "GET",
+      "path": "/_twin/emails?to=beatriz%40oakandash.pt",
+      "status": 200,
+      "capture": {
+        "bea_link": "data.0.link"
+      }
+    },
+    {
+      "name": "…and clicks its link",
+      "method": "GET",
+      "path": "{bea_link}",
+      "status": 303,
+      "capture": {
+        "bea_ticket": "header:location:__clerk_ticket=([^&]+)"
+      }
+    },
+    {
+      "name": "…and signs up the same way",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "strategy=ticket&ticket={bea_ticket}&first_name=Beatriz&last_name=Lopes&legal_accepted=true&password=Agency-long-password",
+      "status": 200,
+      "capture": {
+        "bea": "response.created_user_id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ]
+    },
+    {
+      "name": "Marta, who read Rui's message that he could not find his invitation, clicks Resend on it in Trellis's settings; Trellis resends by revoking the invitation and inviting again, and Clerk refuses the revoke: Rui found the mail and joined in the meantime",
+      "method": "POST",
+      "path": "/v1/organizations/{oak}/invitations/{rui_inv}/revoke",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "requesting_user_id": "{marta}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "organization_invitation_not_pending"
+        }
+      ]
+    },
+    {
+      "name": "Before she leaves that afternoon Marta opens Oak & Ash's members page, which the API server renders, to see both designers landed",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/memberships",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Marta sorts the agency members by first_name",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/memberships?order_by=%2Bfirst_name",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "exists": true
+        },
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Marta sorts the agency members by last_name",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/memberships?order_by=%2Blast_name",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "exists": true
+        },
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Marta sorts the agency members by username",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/memberships?order_by=%2Busername",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "exists": true
+        },
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Marta sorts the agency members by email_address",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/memberships?order_by=%2Bemail_address",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "exists": true
+        },
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Marta sorts the agency members by phone_number",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/memberships?order_by=%2Bphone_number",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "exists": true
+        },
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Marta sorts the agency members by created_at",
+      "method": "GET",
+      "path": "/v1/organizations/{oak}/memberships?order_by=%2Bcreated_at",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "exists": true
+        },
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 10 March, 15:00",
+      "wait": "816h"
+    },
+    {
+      "name": "Daniel, who runs Northlight in Madrid, signs up",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email_address=daniel%40northlight.es&first_name=Daniel&last_name=Ortega",
+      "status": 200,
+      "capture": {
+        "dan_client": "header:set-cookie:__client=([^;]+)",
+        "dan_su": "response.id"
+      }
+    },
+    {
+      "name": "Daniel resumes the signup form after closing the tab",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{dan_su}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={dan_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.email_address",
+          "equals": "daniel@northlight.es"
+        }
+      ]
+    },
+    {
+      "name": "He corrects his displayed name; password and consent are still missing",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{dan_su}?_method=PATCH",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={dan_client}"
+      },
+      "status": 200,
+      "body": "first_name=Daniel&last_name=Garc%C3%ADa",
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "missing_requirements"
+        },
+        {
+          "path": "response.first_name",
+          "equals": "Daniel"
+        }
+      ]
+    },
+    {
+      "name": "Clerk emails him a code",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{dan_su}/prepare_verification",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={dan_client}"
+      },
+      "body": "strategy=email_code",
+      "status": 200
+    },
+    {
+      "name": "He reads it",
+      "method": "GET",
+      "path": "/_twin/emails?to=daniel%40northlight.es",
+      "status": 200,
+      "capture": {
+        "dan_code": "data.0.code"
+      }
+    },
+    {
+      "name": "Daniel verifies his email; Clerk still needs his password and terms accepted",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{dan_su}/attempt_verification",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={dan_client}"
+      },
+      "body": "strategy=email_code&code={dan_code}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "missing_requirements"
+        },
+        {
+          "path": "response.missing_fields",
+          "members": [
+            "password",
+            "legal_accepted"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "He adds his password and accepts Trellis's terms; Clerk makes his account and session",
+      "method": "PATCH",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{dan_su}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={dan_client}"
+      },
+      "status": 200,
+      "body": "password=Daniel-long-password&legal_accepted=true",
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ],
+      "capture": {
+        "dan": "response.created_user_id"
+      }
+    },
+    {
+      "name": "The API server creates Northlight with Daniel as its creator, on the trial plan",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Northlight",
+        "created_by": "{dan}",
+        "public_metadata": {
+          "plan": "trial"
+        }
+      },
+      "status": 200,
+      "capture": {
+        "north": "id"
+      }
+    },
+    {
+      "name": "Thursday 12 March, 10:00",
+      "wait": "43h"
+    },
+    {
+      "name": "Rui opens the signup tab on his new device although his account already exists",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups",
+      "status": 422,
+      "body": "email_address=rui%40oakandash.pt&password=Agency-long-password",
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_identifier_exists"
+        }
+      ],
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      }
+    },
+    {
+      "name": "Rui opens Trellis on a new device and identifies his account",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "body": "identifier=rui%40oakandash.pt",
+      "capture": {
+        "rui_login_client": "header:set-cookie:__client=([^;]+)",
+        "rui_login": "response.id"
+      }
+    },
+    {
+      "name": "The form reloads Rui's pending sign-in",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{rui_login}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={rui_login_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.identifier",
+          "equals": "rui@oakandash.pt"
+        }
+      ]
+    },
+    {
+      "name": "Rui mistypes his password",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{rui_login}/attempt_first_factor",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={rui_login_client}"
+      },
+      "status": 422,
+      "body": "strategy=password&password=Wrong-long-password",
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_password_incorrect"
+        }
+      ]
+    },
+    {
+      "name": "He enters the correct password",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{rui_login}/attempt_first_factor",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={rui_login_client}"
+      },
+      "status": 200,
+      "body": "strategy=password&password=Agency-long-password",
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ],
+      "capture": {
+        "rui_device_session": "response.created_session_id"
+      }
+    },
+    {
+      "name": "Rui's earlier email-code form reaches Clerk after his password sign-in completed; the factor is already verified",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{rui_login}/attempt_first_factor",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={rui_login_client}"
+      },
+      "status": 400,
+      "body": "strategy=email_code&code=000001",
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "verification_already_verified"
+        }
+      ]
+    },
+    {
+      "name": "Rui asks to change Oak & Ash's billing; the API server reads his memberships and finds his role holds no billing permission, so Trellis refuses him",
+      "method": "GET",
+      "path": "/v1/users/{rui}/organization_memberships",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.role",
+          "equals": "org:designer"
+        },
+        {
+          "path": "data.0.permissions",
+          "members": [
+            "org:projects:edit",
+            "org:reviews:request"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Monday 16 March, 09:30",
+      "wait": "5730m"
+    },
+    {
+      "name": "Marta makes Beatriz an admin from Trellis's settings, through the API server, so she can manage billing while Marta is away",
+      "method": "PATCH",
+      "path": "/v1/organizations/{oak}/memberships/{bea}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "role": "org:admin"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "role",
+          "equals": "org:admin"
+        },
+        {
+          "path": "permissions",
+          "members": [
+            "org:sys_profile:manage",
+            "org:sys_profile:delete",
+            "org:sys_memberships:read",
+            "org:sys_memberships:manage",
+            "org:sys_domains:read",
+            "org:sys_domains:manage",
+            "org:sys_billing:read",
+            "org:sys_billing:manage",
+            "org:sys_entconns:manage",
+            "org:projects:manage",
+            "org:projects:edit",
+            "org:reviews:request",
+            "org:billing:manage"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Monday 6 April, 08:00: the April metrics run",
+      "wait": "30150m"
+    },
+    {
+      "name": "The April CSV orders its four people by first name",
+      "method": "GET",
+      "path": "/v1/users?order_by=%2Bfirst_name",
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{bea}"
+        },
+        {
+          "path": "1.id",
+          "equals": "{dan}"
+        },
+        {
+          "path": "2.id",
+          "equals": "{marta}"
+        },
+        {
+          "path": "3.id",
+          "equals": "{rui}"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "The creation-ordered export puts the newest person first",
+      "method": "GET",
+      "path": "/v1/users?order_by=-created_at&limit=1",
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{dan}"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "The metrics export takes March's agency administrator and excludes January's",
+      "method": "GET",
+      "path": "/v1/users?user_id=%2B{dan}&user_id=-{marta}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "members": [
+            "{dan}"
+          ]
+        }
+      ],
+      "view": "userIds"
+    },
+    {
+      "name": "The metrics export filters by the same agencies and orders by email",
+      "method": "GET",
+      "path": "/v1/users?organization_id=%2B{north}&organization_id=-{oak}&order_by=%2Bemail_address",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{dan}"
+        }
+      ]
+    },
+    {
+      "name": "The script looks up March's one new agency admin, Daniel",
+      "method": "GET",
+      "path": "/v1/users?email_address=daniel%40northlight.es",
+      "headers": {
+        "authorization": "Bearer {metrics}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{dan}"
+        }
+      ]
+    },
+    {
+      "name": "…and reads his sessions",
+      "method": "GET",
+      "path": "/v1/sessions?user_id={dan}",
+      "headers": {
+        "authorization": "Bearer {metrics}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.user_id",
+          "equals": "{dan}"
+        }
+      ]
+    },
+    {
+      "name": "…and counts March's sign-ups",
+      "method": "GET",
+      "path": "/v1/users/count?created_at_after=1772323200000&created_at_before=1775001600000",
+      "headers": {
+        "authorization": "Bearer {metrics}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 14 April, 11:00",
+      "wait": "195h"
+    },
+    {
+      "name": "Oak & Ash pays for the team plan through Trellis's payment provider; the API server merges it into the agency's public metadata",
+      "method": "PATCH",
+      "path": "/v1/organizations/{oak}/metadata",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "public_metadata": {
+          "plan": "team"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_metadata.plan",
+          "equals": "team"
+        }
+      ]
+    },
+    {
+      "name": "That afternoon",
+      "wait": "4h"
+    },
+    {
+      "name": "Beatriz signs in to Trellis with her email",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "identifier=beatriz%40oakandash.pt",
+      "status": 200,
+      "capture": {
+        "bea_client": "header:set-cookie:__client=([^;]+)",
+        "bea_si": "response.id",
+        "bea_email": "response.supported_first_factors.1.email_address_id"
+      }
+    },
+    {
+      "name": "Clerk emails her a code",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{bea_si}/prepare_first_factor",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_client}"
+      },
+      "body": "strategy=email_code&email_address_id={bea_email}",
+      "status": 200
+    },
+    {
+      "name": "She reads it (below her invitation)",
+      "method": "GET",
+      "path": "/_twin/emails?to=beatriz%40oakandash.pt",
+      "status": 200,
+      "capture": {
+        "bea_code": "data.1.code"
+      }
+    },
+    {
+      "name": "…and types it",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{bea_si}/attempt_first_factor",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_client}"
+      },
+      "body": "strategy=email_code&code={bea_code}",
+      "status": 200,
+      "capture": {
+        "bea_sess": "response.created_session_id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ]
+    },
+    {
+      "name": "Her browser opens Oak & Ash",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{bea_sess}/touch",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_client}"
+      },
+      "body": "active_organization_id={oak}",
+      "status": 200
+    },
+    {
+      "name": "Her board reconnects to Convex, and its token reads the team plan",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{bea_sess}/tokens/convex",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_client}"
+      },
+      "status": 200,
+      "view": "jwt:jwt",
+      "expect": [
+        {
+          "path": "plan",
+          "equals": "team"
+        },
+        {
+          "path": "sub",
+          "equals": "{bea}"
+        }
+      ]
+    },
+    {
+      "name": "That evening",
+      "wait": "4h"
+    },
+    {
+      "name": "Beatriz left her laptop on the train; on her phone's browser she signs in to Trellis with her email",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "identifier=beatriz%40oakandash.pt&strategy=email_code",
+      "status": 200,
+      "capture": {
+        "bea_mobile": "header:set-cookie:__client=([^;]+)",
+        "bea_si2": "response.id",
+        "bea_email2": "response.supported_first_factors.1.email_address_id"
+      }
+    },
+    {
+      "name": "She reads it on her phone",
+      "method": "GET",
+      "path": "/_twin/emails?to=beatriz%40oakandash.pt",
+      "status": 200,
+      "capture": {
+        "bea_code2": "data.2.code"
+      },
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "name": "Beatriz reaches the train’s lost-property desk before submitting the phone code",
+      "wait": "11m"
+    },
+    {
+      "name": "Her delayed phone code has expired",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{bea_si2}/attempt_first_factor",
+      "status": 400,
+      "body": "strategy=email_code&code={bea_code2}",
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "verification_expired"
+        }
+      ],
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_mobile}"
+      }
+    },
+    {
+      "name": "She requests a fresh code on the same phone sign-in",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{bea_si2}/prepare_first_factor",
+      "status": 200,
+      "body": "strategy=email_code&email_address_id={bea_email2}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_mobile}"
+      }
+    },
+    {
+      "name": "She reads the fresh phone delivery",
+      "method": "GET",
+      "path": "/_twin/emails?to=beatriz%40oakandash.pt",
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 4
+        }
+      ],
+      "capture": {
+        "bea_code2": "data.3.code"
+      }
+    },
+    {
+      "name": "She corrects a mistyped phone code",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{bea_si2}/attempt_first_factor",
+      "status": 422,
+      "body": "strategy=email_code&code=000001",
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_code_incorrect"
+        }
+      ],
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_mobile}"
+      }
+    },
+    {
+      "name": "…and types it",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{bea_si2}/attempt_first_factor",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_mobile}"
+      },
+      "body": "strategy=email_code&code={bea_code2}",
+      "status": 200,
+      "capture": {
+        "bea_mobile_sess": "response.created_session_id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ]
+    },
+    {
+      "name": "The phone's Clerk SDK reads the session after sign-in",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{bea_mobile_sess}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_mobile}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.user.id",
+          "equals": "{bea}"
+        }
+      ]
+    },
+    {
+      "name": "Trellis's phone API requests use the standard session bearer token",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{bea_mobile_sess}/tokens",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={bea_mobile}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "jwt",
+          "exists": true
+        }
+      ],
+      "capture": {
+        "bea_api_token": "jwt"
+      }
+    },
+    {
+      "name": "Trellis's security page on her phone, through the API server, lists her active sessions: the phone's and the laptop's",
+      "method": "GET",
+      "path": "/v1/sessions?user_id={bea}&status=active",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{bea_mobile_sess}"
+        },
+        {
+          "path": "1.id",
+          "equals": "{bea_sess}"
+        }
+      ]
+    },
+    {
+      "name": "…and she signs the laptop's session out",
+      "method": "POST",
+      "path": "/v1/sessions/{bea_sess}/revoke",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "revoked"
+        },
+        {
+          "path": "id",
+          "equals": "{bea_sess}"
+        }
+      ]
+    },
+    {
+      "name": "The following morning Beatriz reopens her old security tab, whose device list predates the revocation",
+      "wait": "12h"
+    },
+    {
+      "name": "The stale security tab still offers the lost laptop; its second revocation is refused",
+      "method": "POST",
+      "path": "/v1/sessions/{bea_sess}/revoke",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "invalid_action_for_session"
+        }
+      ]
+    },
+    {
+      "name": "Her security page reloads the remaining active phone before she resets the password",
+      "method": "GET",
+      "path": "/v1/sessions?user_id={bea}&status=active",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{bea_mobile_sess}"
+        }
+      ]
+    },
+    {
+      "name": "Beatriz changes her password after the lost laptop; a short entry is refused",
+      "method": "PATCH",
+      "path": "/v1/users/{bea}",
+      "status": 422,
+      "body": {
+        "password": "short",
+        "sign_out_of_other_sessions": true
+      },
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_password_length_too_short"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "Using her email address as the replacement password is refused",
+      "method": "PATCH",
+      "path": "/v1/users/{bea}",
+      "status": 422,
+      "body": {
+        "password": "beatriz@oakandash.pt",
+        "sign_out_of_other_sessions": true
+      },
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "form_password_matches_identifier"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "She saves a new password and ends every remaining active session",
+      "method": "PATCH",
+      "path": "/v1/users/{bea}",
+      "status": 200,
+      "body": {
+        "password": "A-new-private-passphrase",
+        "sign_out_of_other_sessions": true
+      },
+      "expect": [
+        {
+          "path": "password_enabled",
+          "equals": true
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "The security page now finds no active Beatriz device",
+      "method": "GET",
+      "path": "/v1/sessions?user_id={bea}&status=active",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "Monday 4 May, 10:00",
+      "wait": "459h"
+    },
+    {
+      "name": "Trellis lets viewers ask for reviews: the server's setup script gives the viewer role \"request reviews\"",
+      "method": "PATCH",
+      "path": "/v1/organization_roles/{viewer_role}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "permissions": [
+          "{p_request}"
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "key",
+          "equals": "org:viewer"
+        },
+        {
+          "path": "permissions.0.key",
+          "equals": "org:reviews:request"
+        }
+      ]
+    },
+    {
+      "name": "Boards reconnected every minute as their tokens ran out, so with her own key Inês's part of the script sends the convex template again, whole, with an hour's lifetime",
+      "method": "PATCH",
+      "path": "/v1/jwt_templates/{convex_tmpl}",
+      "headers": {
+        "authorization": "Bearer {ines}"
+      },
+      "body": {
+        "name": "convex",
+        "claims": {
+          "aud": "convex",
+          "plan": "{{org.public_metadata.plan}}"
+        },
+        "lifetime": 3600
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "convex"
+        },
+        {
+          "path": "lifetime",
+          "equals": 3600
+        },
+        {
+          "path": "claims.aud",
+          "equals": "convex"
+        },
+        {
+          "path": "claims.plan",
+          "equals": "{{org.public_metadata.plan}}"
+        }
+      ]
+    },
+    {
+      "name": "Beatriz, married in April, asks Trellis to change her last name; its profile page saves it through the API server",
+      "method": "PATCH",
+      "path": "/v1/users/{bea}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "last_name": "Lopes Ferreira"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "last_name",
+          "equals": "Lopes Ferreira"
+        },
+        {
+          "path": "first_name",
+          "equals": "Beatriz"
+        }
+      ]
+    },
+    {
+      "name": "The profile reads the verified primary address before saving her account identity",
+      "method": "GET",
+      "path": "/v1/users/{bea}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "capture": {
+        "bea_primary": "primary_email_address_id"
+      }
+    },
+    {
+      "name": "Her profile adopts her married username and keeps the selected verified primary address",
+      "method": "PATCH",
+      "path": "/v1/users/{bea}",
+      "status": 200,
+      "body": {
+        "username": "beatriz_ferreira",
+        "primary_email_address_id": "{bea_primary}"
+      },
+      "expect": [
+        {
+          "path": "username",
+          "equals": "beatriz_ferreira"
+        },
+        {
+          "path": "primary_email_address_id",
+          "equals": "{bea_primary}"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {server}"
+      }
+    },
+    {
+      "name": "Monday 15 June, 10:00",
+      "wait": "1008h"
+    },
+    {
+      "name": "Rui leaves Oak & Ash; Beatriz removes him in Trellis's settings, through the API server",
+      "method": "DELETE",
+      "path": "/v1/organizations/{oak}/memberships/{rui}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_user_data.user_id",
+          "equals": "{rui}"
+        }
+      ]
+    },
+    {
+      "name": "Rui's old board still selects Oak & Ash; its next token request is refused because he has left",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{rui_device_session}/tokens",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={rui_login_client}"
+      },
+      "body": "organization_id={oak}",
+      "status": 403,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "not_a_member_in_organization"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 8 July, 14:00",
+      "wait": "556h"
+    },
+    {
+      "name": "Between agencies Rui helped Northlight; Daniel adds him as a member through Trellis's API server",
+      "method": "POST",
+      "path": "/v1/organizations/{north}/memberships",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "user_id": "{rui}",
+        "role": "org:member"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "public_user_data.user_id",
+          "equals": "{rui}"
+        }
+      ]
+    },
+    {
+      "name": "Rui asks Trellis to delete his account; the API server deletes his user",
+      "method": "DELETE",
+      "path": "/v1/users/{rui}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "deleted",
+          "equals": true
+        },
+        {
+          "path": "id",
+          "equals": "{rui}"
+        }
+      ]
+    },
+    {
+      "name": "Deleting Rui's account also removes his remaining Northlight membership",
+      "method": "GET",
+      "path": "/v1/organizations/{north}/memberships?user_id={rui}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "equals": []
+        },
+        {
+          "path": "total_count",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "Clerk posts user.deleted to Trellis's receiver, which removes his name from his comments",
+      "method": "GET",
+      "path": "/_twin/webhook-messages?type=user.deleted",
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 1
+        },
+        {
+          "path": "data.0.body",
+          "contains": "{rui}"
+        }
+      ]
+    },
+    {
+      "name": "Monday 7 September, 09:00",
+      "wait": "1459h"
+    },
+    {
+      "name": "Trellis adds agency URL slugs; Inês enables them before the renamed agency chooses its URL",
+      "method": "PATCH",
+      "path": "/v1/instance/organization_settings",
+      "headers": {
+        "authorization": "Bearer {ines}"
+      },
+      "body": {
+        "slug_disabled": false
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "slug_disabled",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "The agency renames itself Oak & Ash Studio and its plan now allows ten members; the API server updates the organization",
+      "method": "PATCH",
+      "path": "/v1/organizations/{oak}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Oak & Ash Studio",
+        "max_allowed_memberships": 10,
+        "slug": "oak-ash-studio"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Oak & Ash Studio"
+        },
+        {
+          "path": "max_allowed_memberships",
+          "equals": 10
+        },
+        {
+          "path": "slug",
+          "equals": "oak-ash-studio"
+        }
+      ]
+    },
+    {
+      "name": "Oak & Ash Studio's new IT lead wants its people to sign in with their Okta; the API server makes an enterprise connection (SAML, Okta) for the agency's domain",
+      "method": "POST",
+      "path": "/v1/enterprise_connections",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "name": "Oak & Ash Studio Okta",
+        "provider": "saml_okta",
+        "domains": [
+          "oakandash.pt"
+        ],
+        "organization_id": "{oak}"
+      },
+      "status": 201,
+      "capture": {
+        "okta": "id",
+        "okta_saml": "saml_connection.id"
+      },
+      "expect": [
+        {
+          "path": "active",
+          "equals": false
+        },
+        {
+          "path": "provider",
+          "equals": "saml_okta"
+        },
+        {
+          "path": "organization_id",
+          "equals": "{oak}"
+        },
+        {
+          "path": "domains.0",
+          "equals": "oakandash.pt"
+        },
+        {
+          "path": "name",
+          "equals": "Oak & Ash Studio Okta"
+        }
+      ]
+    },
+    {
+      "name": "The IT lead first points Clerk at Trellis's uploaded IdP export, but the upload server is unavailable",
+      "method": "PATCH",
+      "path": "/v1/enterprise_connections/{okta}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 400,
+      "body": {
+        "saml": {
+          "idp_metadata_url": "https://trellis.app/sso/metadata.xml"
+        }
+      },
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "saml_failed_to_fetch_idp_metadata"
+        }
+      ]
+    },
+    {
+      "name": "The uploaded export still lacks its signing certificate; Clerk names the missing field",
+      "method": "PATCH",
+      "path": "/v1/enterprise_connections/{okta}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 422,
+      "body": {
+        "saml": {
+          "idp_metadata_url": "https://trellis.app/sso/metadata.xml"
+        }
+      },
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "saml_metadata_missing_fields"
+        }
+      ]
+    },
+    {
+      "name": "Once the IT lead uploads the full Okta export to Trellis, the server sets its metadata URL and activates SAML",
+      "method": "PATCH",
+      "path": "/v1/enterprise_connections/{okta}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "active": true,
+        "saml": {
+          "idp_metadata_url": "https://trellis.app/sso/metadata.xml"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "active",
+          "equals": true
+        },
+        {
+          "path": "saml_connection.active",
+          "equals": true
+        },
+        {
+          "path": "saml_connection.idp_entity_id",
+          "equals": "http://www.okta.com/exk1oakandash"
+        },
+        {
+          "path": "saml_connection.idp_sso_url",
+          "equals": "https://oakandash.okta.com/app/trellis/exk1oakandash/sso/saml"
+        },
+        {
+          "path": "saml_connection.idp_metadata_url",
+          "equals": "https://trellis.app/sso/metadata.xml"
+        }
+      ]
+    },
+    {
+      "name": "The server reads the known SAML child back after enterprise configuration, the object a root refresh observes",
+      "method": "GET",
+      "path": "/v1/saml_connections/{okta_saml}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{okta_saml}"
+        },
+        {
+          "path": "enterprise_connection_id",
+          "equals": "{okta}"
+        },
+        {
+          "path": "active",
+          "equals": true
+        },
+        {
+          "path": "idp_entity_id",
+          "equals": "http://www.okta.com/exk1oakandash"
+        }
+      ]
+    },
+    {
+      "name": "Monday 28 September, 11:00",
+      "wait": "506h"
+    },
+    {
+      "name": "The prerelease phone cannot start its Clerk client until Inês enables the Native API",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client?_is_native=true",
+      "status": 400,
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "native_api_disabled"
+        }
+      ]
+    },
+    {
+      "name": "Trellis's iPhone app is ready for the App Store; on the dashboard's Native applications page Inês enables the Native API, which the app needs to use Clerk",
+      "method": "POST",
+      "path": "/_twin/instance",
+      "body": {
+        "native_api": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "native_api",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "…and registers the app, with its App ID prefix and bundle ID",
+      "method": "POST",
+      "path": "/_twin/native-applications",
+      "body": {
+        "platform": "ios",
+        "app_id_prefix": "T7RL4X9K2Q",
+        "bundle_id": "app.trellis.ios"
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "bundle_id",
+          "equals": "app.trellis.ios"
+        }
+      ]
+    },
+    {
+      "name": "Monday 5 October, 10:00",
+      "wait": "167h"
+    },
+    {
+      "name": "Trellis ships its iPhone app and emails each agency's people a link that opens it signed in; for Beatriz's link the API server makes a sign-in token that opens Oak & Ash Studio",
+      "method": "POST",
+      "path": "/v1/sign_in_tokens",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "body": {
+        "user_id": "{bea}",
+        "org_id": "{oak}",
+        "expires_in_seconds": 604800
+      },
+      "status": 200,
+      "capture": {
+        "bea_token": "token"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "pending"
+        },
+        {
+          "path": "user_id",
+          "equals": "{bea}"
+        }
+      ]
+    },
+    {
+      "name": "Before her first app sign-in, the native SDK establishes its client",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client?_is_native=true",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.sessions",
+          "equals": []
+        }
+      ],
+      "capture": {
+        "bea_app": "header:authorization"
+      }
+    },
+    {
+      "name": "Beatriz taps the link on her phone; the app, a native client, signs her in with the token and keeps the client token Clerk answers in the Authorization header",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins?_is_native=true",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "authorization": "{bea_app}"
+      },
+      "body": "strategy=ticket&ticket={bea_token}",
+      "status": 200,
+      "capture": {
+        "bea_app_sess": "response.created_session_id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        },
+        {
+          "path": "client.sessions.0.last_active_organization_id",
+          "equals": "{oak}"
+        }
+      ]
+    },
+    {
+      "name": "Her board in the app connects to Convex with a convex token carrying the team plan",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sessions/{bea_app_sess}/tokens/convex?_is_native=true",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "authorization": "Bearer {bea_app}"
+      },
+      "status": 200,
+      "view": "jwt:jwt",
+      "expect": [
+        {
+          "path": "aud",
+          "equals": "convex"
+        },
+        {
+          "path": "plan",
+          "equals": "team"
+        },
+        {
+          "path": "sub",
+          "equals": "{bea}"
+        }
+      ]
+    },
+    {
+      "name": "Inês registers the Google OAuth client used by Editor’s advertised Google sign-in",
+      "method": "POST",
+      "path": "https://accounts.google.com/_twin/clients",
+      "body": {
+        "client_id": "trellis-google",
+        "client_secret": "synthetic-google-secret",
+        "redirect_uris": [
+          "https://clerk.trellis.app/v1/oauth_callback"
+        ],
+        "name": "Trellis"
+      },
+      "status": 201
+    },
+    {
+      "name": "Nuno’s Google account is the identity he chooses when he joins Marta’s Editor session",
+      "method": "POST",
+      "path": "https://accounts.google.com/_twin/accounts",
+      "body": {
+        "sub": "111111111111111111111",
+        "email": "nuno@example.com",
+        "name": "Nuno Costa",
+        "given_name": "Nuno",
+        "family_name": "Costa"
+      },
+      "status": 201
+    },
+    {
+      "name": "Inês enters the Google client credentials on Clerk’s social connections page",
+      "method": "POST",
+      "path": "/_twin/instance",
+      "body": {
+        "social": {
+          "oauth_google": {
+            "client_id": "trellis-google",
+            "client_secret": "synthetic-google-secret"
+          }
+        }
+      },
+      "status": 200
+    },
+    {
+      "name": "The shared-session sign-in loads the environment and displays its Google button",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/environment",
+      "status": 200,
+      "expect": [
+        {
+          "path": "user_settings.social.oauth_google.enabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Nuno’s new browser establishes its Clerk client before choosing Google",
+      "method": "PUT",
+      "path": "https://clerk.trellis.app/v1/client",
+      "status": 200,
+      "capture": {
+        "nuno_client": "header:set-cookie:__client=([^;]+)"
+      }
+    },
+    {
+      "name": "Nuno tries Google but declines its permission prompt",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "body": "strategy=oauth_google&redirect_url=https%3A%2F%2Ftrellis.app%2Fsso-callback",
+      "status": 200,
+      "capture": {
+        "googleAuthorize": "response.first_factor_verification.external_verification_redirect_url",
+        "googleQuery": "text:\"external_verification_redirect_url\":\"https[^?]+\\?([^\"\\\\]+)",
+        "googleState": "text:[?&]state=([^\"&]+)",
+        "google_si": "response.id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "needs_identifier"
+        },
+        {
+          "path": "response.first_factor_verification.status",
+          "equals": "unverified"
+        }
+      ]
+    },
+    {
+      "name": "Google returns the declined consent to Clerk; the callback goes back to the sign-in page",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/oauth_callback?state={googleState}&error=access_denied",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 303
+    },
+    {
+      "name": "The SDK reloads the failed sign-in and shows the provider refusal",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{google_si}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.first_factor_verification.error.code",
+          "equals": "oauth_access_denied"
+        }
+      ]
+    },
+    {
+      "name": "Nuno chooses Google, then is interrupted while the provider page is open",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "body": "strategy=oauth_google&redirect_url=https%3A%2F%2Ftrellis.app%2Fsso-callback",
+      "status": 200,
+      "capture": {
+        "googleAuthorize": "response.first_factor_verification.external_verification_redirect_url",
+        "googleQuery": "text:\"external_verification_redirect_url\":\"https[^?]+\\?([^\"\\\\]+)",
+        "googleState": "text:[?&]state=([^\"&]+)",
+        "google_si": "response.id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "needs_identifier"
+        },
+        {
+          "path": "response.first_factor_verification.status",
+          "equals": "unverified"
+        }
+      ]
+    },
+    {
+      "name": "Nuno’s first Google sign-in; his browser opens Google’s account chooser",
+      "method": "GET",
+      "path": "{googleAuthorize}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "nuno@example.com"
+        }
+      ]
+    },
+    {
+      "name": "Nuno’s first Google sign-in; he chooses his Google account and consents",
+      "method": "POST",
+      "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "request={encoded:googleQuery}&sub=111111111111111111111",
+      "status": 302,
+      "capture": {
+        "googleCallback": "header:location"
+      }
+    },
+    {
+      "name": "The shared laptop is idle for eleven minutes before Nuno completes the return",
+      "wait": "11m"
+    },
+    {
+      "name": "After eleven minutes he returns to the provider callback; Clerk reports the expired verification",
+      "method": "GET",
+      "path": "{googleCallback}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 303,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "https://trellis.app/sso-callback"
+        }
+      ]
+    },
+    {
+      "name": "The callback page reloads the expired verification and asks him to start again",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{google_si}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.first_factor_verification.status",
+          "equals": "expired"
+        }
+      ]
+    },
+    {
+      "name": "Nuno returns to the shared-session link and chooses Google again",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "body": "strategy=oauth_google&redirect_url=https%3A%2F%2Ftrellis.app%2Fsso-callback",
+      "status": 200,
+      "capture": {
+        "googleAuthorize": "response.first_factor_verification.external_verification_redirect_url",
+        "googleQuery": "text:\"external_verification_redirect_url\":\"https[^?]+\\?([^\"\\\\]+)",
+        "googleState": "text:[?&]state=([^\"&]+)",
+        "google_si": "response.id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "needs_identifier"
+        },
+        {
+          "path": "response.first_factor_verification.status",
+          "equals": "unverified"
+        }
+      ]
+    },
+    {
+      "name": "Nuno’s first Google sign-in; his browser opens Google’s account chooser",
+      "method": "GET",
+      "path": "{googleAuthorize}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "nuno@example.com"
+        }
+      ]
+    },
+    {
+      "name": "Nuno’s first Google sign-in; he chooses his Google account and consents",
+      "method": "POST",
+      "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "request={encoded:googleQuery}&sub=111111111111111111111",
+      "status": 302,
+      "capture": {
+        "googleCallback": "header:location"
+      }
+    },
+    {
+      "name": "Nuno’s first Google sign-in; Google returns the code to Clerk and Clerk exchanges it at Google’s token endpoint",
+      "method": "GET",
+      "path": "{googleCallback}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 303,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "https://trellis.app/sso-callback"
+        }
+      ]
+    },
+    {
+      "name": "Clerk’s callback page reloads the transferable sign-in for a first-time account",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{google_si}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.first_factor_verification.status",
+          "equals": "transferable"
+        }
+      ]
+    },
+    {
+      "name": "The pinned SDK transfers the Google identity into signup, with its address already verified",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "body": "transfer=true",
+      "status": 200,
+      "capture": {
+        "nuno_su": "response.id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "missing_requirements"
+        },
+        {
+          "path": "response.missing_fields",
+          "equals": [
+            "legal_accepted"
+          ]
+        },
+        {
+          "path": "response.email_address",
+          "equals": "nuno@example.com"
+        }
+      ]
+    },
+    {
+      "name": "Nuno accepts the displayed terms; signup completes without asking the Google user for a password",
+      "method": "PATCH",
+      "path": "https://clerk.trellis.app/v1/client/sign_ups/{nuno_su}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "body": "legal_accepted=true",
+      "status": 200,
+      "capture": {
+        "nuno": "response.created_user_id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        }
+      ]
+    },
+    {
+      "name": "Nuno leaves the shared laptop using SignIn’s sign-out-all control; Clerk removes its sessions and retains the client cookie",
+      "method": "DELETE",
+      "path": "https://clerk.trellis.app/v1/client/sessions",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.sessions",
+          "equals": []
+        },
+        {
+          "path": "response.last_active_session_id",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "Nuno reopens Editor’s shared-session link and signs into his existing account with Google",
+      "method": "POST",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "body": "strategy=oauth_google&redirect_url=https%3A%2F%2Ftrellis.app%2Fsso-callback",
+      "status": 200,
+      "capture": {
+        "googleAuthorize": "response.first_factor_verification.external_verification_redirect_url",
+        "googleQuery": "text:\"external_verification_redirect_url\":\"https[^?]+\\?([^\"\\\\]+)",
+        "googleState": "text:[?&]state=([^\"&]+)",
+        "google_si": "response.id"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "needs_identifier"
+        },
+        {
+          "path": "response.first_factor_verification.status",
+          "equals": "unverified"
+        }
+      ]
+    },
+    {
+      "name": "Nuno’s returning Google sign-in; his browser opens Google’s account chooser",
+      "method": "GET",
+      "path": "{googleAuthorize}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "nuno@example.com"
+        }
+      ]
+    },
+    {
+      "name": "Nuno’s returning Google sign-in; he chooses his Google account and consents",
+      "method": "POST",
+      "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "request={encoded:googleQuery}&sub=111111111111111111111",
+      "status": 302,
+      "capture": {
+        "googleCallback": "header:location"
+      }
+    },
+    {
+      "name": "Nuno’s returning Google sign-in; Google returns the code to Clerk and Clerk exchanges it at Google’s token endpoint",
+      "method": "GET",
+      "path": "{googleCallback}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 303,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "https://trellis.app/sso-callback"
+        }
+      ]
+    },
+    {
+      "name": "Clerk’s callback page reloads the completed sign-in and its session for the existing account",
+      "method": "GET",
+      "path": "https://clerk.trellis.app/v1/client/sign_ins/{google_si}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={nuno_client}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        },
+        {
+          "path": "response.first_factor_verification.status",
+          "equals": "verified"
+        }
+      ],
+      "capture": {
+        "nuno_sess": "response.created_session_id"
+      }
+    },
+    {
+      "name": "Monday 9 November, 10:00",
+      "wait": "50389m"
+    },
+    {
+      "name": "Daniel tells Trellis Northlight is closing; the API server deletes the organization",
+      "method": "DELETE",
+      "path": "/v1/organizations/{north}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "deleted",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Daniel, who has no other agency, asks Trellis to delete his account; the API server deletes his user",
+      "method": "DELETE",
+      "path": "/v1/users/{dan}",
+      "headers": {
+        "authorization": "Bearer {server}"
+      },
+      "status": 200
+    },
+    {
+      "name": "Clerk posts user.deleted, and the receiver removes his records",
+      "method": "GET",
+      "path": "/_twin/webhook-messages?type=user.deleted",
+      "status": 200,
+      "expect": [
+        {
+          "path": "total_count",
+          "equals": 2
+        },
+        {
+          "path": "data.1.body",
+          "contains": "{dan}"
+        }
+      ]
+    }
+  ],
+  "application": [
+    {
+      "method": "GET",
+      "url": "https://trellis.app/sso/metadata.xml",
+      "status": 503,
+      "body": "upload unavailable"
+    },
+    {
+      "method": "GET",
+      "url": "https://trellis.app/sso/metadata.xml",
+      "status": 200,
+      "body": "<EntityDescriptor entityID=\"http://www.okta.com/exk1oakandash\"><SingleSignOnService Location=\"https://oakandash.okta.com/app/trellis/exk1oakandash/sso/saml\"/></EntityDescriptor>"
+    },
+    {
+      "method": "GET",
+      "url": "https://trellis.app/sso/metadata.xml",
+      "status": 200,
+      "body": "<EntityDescriptor entityID=\"http://www.okta.com/exk1oakandash\"><IDPSSODescriptor><SingleSignOnService Location=\"https://oakandash.okta.com/app/trellis/exk1oakandash/sso/saml\"/><KeyDescriptor><X509Certificate>OAKANDASH-CERTIFICATE</X509Certificate></KeyDescriptor></IDPSSODescriptor></EntityDescriptor>"
+    }
+  ],
+  "companions": [
+    "googleoauth"
+  ]
+}
