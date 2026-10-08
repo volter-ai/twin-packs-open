@@ -10,17 +10,17 @@ In an app that already uses Slack, install the product CLI and this exact twin r
 
 ```console
 npm install --save-dev --save-exact @volter/world@3.0.127 @volter/world-core@3.0.127 @volter/twin-slack@3.0.5
-npx volter world init --name my-app --twins slack --source slack=@volter/twin-slack
+npx @volter/world world init --name my-app --twins slack --source slack=@volter/twin-slack
 ```
 
 Review the detected vendor and bindings before booting. The World issues throwaway bot, Socket Mode and signing
 credentials using the names listed below. Run the app's own command inside the World:
 
 ```console
-npx volter world up
-npx volter world run -- npm test
-npx volter world log
-npx volter world down
+npx @volter/world world up
+npx @volter/world world run -- npm test
+npx @volter/world world log
+npx @volter/world world down
 ```
 
 Replace `npm test` with your app or test command. `down` retains state and a later `up` resumes it.
