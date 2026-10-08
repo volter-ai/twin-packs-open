@@ -8,7 +8,7 @@ import schema from './generated/graphql-sdl.gen.json' with { type: 'json' };
 import graphqlSurface from './generated/graphql.gen.json' with { type: 'json' };
 import * as doors from './semantics/doors.ts';
 import { linearSemantics } from './semantics/index.ts';
-import { screen as screen_authorize } from './screens/authorize.ts';
+import { screen as screen_authorize } from './screens/authorize.tsx';
 
 export function createLinearFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({

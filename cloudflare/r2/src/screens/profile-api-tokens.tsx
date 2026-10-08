@@ -1,6 +1,7 @@
 import type { HandlerContext } from '@volter/world-core';
-import { flowPage, Portal, PORTAL_CSS, formOf } from '@volter/world-ui';
+import { flowPage, formOf } from '@volter/world-ui';
 import { at, person, memberships, dashboardToken, shownTokens } from './shared.tsx';
+import { TokenPage, DASHBOARD_CSS } from './shared.tsx';
 // source: https://developers.cloudflare.com/fundamentals/api/get-started/create-token/ "Create Token"
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const who = person(ctx); if (who instanceof Response) return who;
@@ -19,10 +20,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     const result = await dashboardToken(ctx, who.email, who.id, undefined, form, selected);
     if (result instanceof Response) return result; notice = result.notice;
   }
-  return flowPage({ title: 'Cloudflare API Tokens', css: [PORTAL_CSS], body: <Portal merchant="Cloudflare" notice={notice}
-    sections={[{ heading: 'API Tokens', empty: 'No tokens.', items: shownTokens(ctx, who.email).map(token => ({ title: String(token.name), badge: String(token.status),
-      actions: [{ label: 'Roll', action: at(ctx, url.pathname + url.search), fields: { action: 'roll', token_id: String(token.id) } },
-        { label: 'Delete', action: at(ctx, url.pathname + url.search), fields: { action: 'delete', token_id: String(token.id) }, tone: 'danger' }] })) }]}
+  return flowPage({ title: 'API Tokens | Cloudflare', css: [DASHBOARD_CSS], body: <TokenPage ctx={ctx} title="API Tokens"
+    accountName={who.email} notice={notice} tokens={shownTokens(ctx, who.email)} action={at(ctx, url.pathname + url.search)} deleteLabel="Delete"
     forms={[{ heading: 'Create API Token', action: at(ctx, url.pathname + url.search), submit: { label: 'Create Token' }, fields: [
       { id: 'name', label: 'Token name', value: url.searchParams.get('name') ?? '' },
       { id: 'account_id', label: 'Account', options: accounts.map(member => ({ value: String(member.account_id), label: String((member.account as Record<string, unknown>).name) })) },

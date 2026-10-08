@@ -30,12 +30,33 @@ No webhook subscription is made by this life;
 there is no invented webhook delivery. Release assessments are retained by
 [the independent catalog](https://github.com/volter-ai/twin-catalog-open).
 
-Install the selected release in your app with `npm install --save-dev @volter/twin-linear@3.0.3`.
+## Use with an existing app
+
+Use Node 22.6 or newer.
+
+Install the exact twin release and World CLI in your app's folder:
+
+```console
+npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-linear@3.0.5
+./node_modules/.bin/volter world init --name my-app --twins linear --source linear=@volter/twin-linear
+```
+
+Review the selected vendor and generated bindings before starting. The World supplies synthetic credentials;
+keep your app's real SDK. Read this release's modeled scope below.
+
+```console
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
+```
+
+Replace `npm test` with your app's usual command. `down` retains data, and a later `up` resumes it.
+Use these installed executables from the same app folder; install there first if they are missing.
+[Bring an existing app](https://world-docs.volter.ai/docs/guides/use-with-an-existing-app) explains multi-vendor selection and routing.
+
 The app keeps its real `@linear/sdk`; the packaged customer entry pins 86.0.0.
-For local setup, use the app folder’s `volter world init`, review the detected vendors,
-and keep Linear when the app needs it. Start with `volter world up`, run the app or seed
-through `volter world run -- <command>`, and stop with `volter world down`. The World’s
-`GET /twin` describes identity, time, and the available doors.
+The World's `GET /twin` describes identity, time, and the available doors.
 
 The workspace door takes `{ "name": "Example", "urlKey": "example", "owner": { "name": "Ada", "email": "ada@example.invalid", "password": "example-password" } }`.
 The people door takes `{ "name", "email", "password" }`; the key door takes `{ "email", "label" }`.

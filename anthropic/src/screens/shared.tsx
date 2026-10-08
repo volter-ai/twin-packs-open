@@ -1,5 +1,6 @@
 // What the Console's pages share: its skin, its session cookie, and the page a signed-out person is sent from.
 import { toSignIn } from '@volter/world-ui';
+import type { HandlerContext } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
 
@@ -15,5 +16,9 @@ body { background: #faf9f5; color: #141413; }
 .portal-primary { background: #141413; border-color: #141413; color: #faf9f5; }
 `;
 
-export const toLogin = (path: string): Response => toSignIn('/login', path);
+export function consolePath(ctx: HandlerContext, path: string): string {
+  const base = new URL(ctx.publicBase).pathname.replace(/\/+$/, '');
+  return base && (path === base || path.startsWith(`${base}/`)) ? path : `${base}${path}`;
+}
+export const toLogin = (ctx: HandlerContext, path: string): Response => toSignIn(consolePath(ctx, '/login'), consolePath(ctx, path));
 export const notAllowed = (): Response => new Response('Method Not Allowed', { status: 405, headers: { 'content-type': 'text/plain', allow: 'GET, POST' } });

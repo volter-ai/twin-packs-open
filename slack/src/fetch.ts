@@ -19,6 +19,7 @@ import { screen as screen_join } from './screens/join.tsx';
 import { screen as screen_manage_apps } from './screens/manage-apps.tsx';
 import { screen as screen_oauth } from './screens/oauth.tsx';
 import { screen as screen_response_url } from './screens/response-url.ts';
+import { screen as screen_signin } from './screens/signin.tsx';
 
 export function createSlackFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
@@ -29,6 +30,6 @@ export function createSlackFetch(options: PackFetchOptions = {}): DerivedFetch {
     around,
     clock,
     sockets,
-    screens: { "account": screen_account, "admin": screen_admin, "apps": screen_apps, "files": screen_files, "get-started": screen_get_started, "incoming-webhooks": screen_incoming_webhooks, "invite": screen_invite, "join": screen_join, "manage-apps": screen_manage_apps, "oauth": screen_oauth, "response-url": screen_response_url },
+    screens: { "account": screen_account, "admin": screen_admin, "apps": screen_apps, "files": screen_files, "get-started": screen_get_started, "incoming-webhooks": screen_incoming_webhooks, "invite": screen_invite, "join": screen_join, "manage-apps": screen_manage_apps, "oauth": screen_oauth, "response-url": screen_response_url, "signin": screen_signin },
   }, options);
 }

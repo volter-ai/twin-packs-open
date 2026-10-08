@@ -10,11 +10,11 @@ import type { HandlerContext } from '@volter/world-core';
 import { administers, field, page, refused, visitor } from './shared.tsx';
 import { invite } from '../semantics/shared.ts';
 
-const form = (asAdmin: boolean): Response => page('Invite people', (
+const form = (ctx: HandlerContext, asAdmin: boolean): Response => page('Invite people', (
   <>
     <h1>Invite people to your workspace</h1>
     {asAdmin ? null : <p className="sk-lead">Your invitation will be sent to an admin for approval.</p>}
-    <form className="sk-card" method="post" action="/invite">
+    <form className="sk-card" method="post" action={`${ctx.publicBase}/invite`}>
       <label htmlFor="email">To:</label>
       <input id="email" name="email" type="email" required placeholder="name@example.com" />
       {asAdmin ? (
@@ -40,7 +40,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const who = visitor(ctx);
   if (!who?.row) return refused(401, 'Sign in to Slack first');
   const asAdmin = administers(who.row);
-  if (method === 'GET') return form(asAdmin);
+  if (method === 'GET') return form(ctx, asAdmin);
   if (method !== 'POST') return refused(405, 'Method not allowed');
   const email = field(ctx, 'email').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return refused(400, 'Enter an email address');

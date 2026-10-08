@@ -5,20 +5,24 @@ beside it, git over smart HTTP, and the github.com pages an application sends a 
 
 ## Use with an existing app
 
+Use Node 22.6 or newer.
+
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.127 @volter/twin-github@3.0.6
-npx @volter/world world init --name my-app --twins github --source github=@volter/twin-github
+npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-github@3.0.7
+./node_modules/.bin/volter world init --name my-app --twins github --source github=@volter/twin-github
 ```
+
+Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
 
 Review the detected vendor and generated bindings before booting. Read the credential names and limitations below; the World supplies throwaway credentials. Then run your app's own command through the World:
 
 ```console
-npx @volter/world world up
-npx @volter/world world run -- npm test
-npx @volter/world world log
-npx @volter/world world down
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
 ```
 
 Here `npm test` is your app's existing command; replace it with your app or test command. `down` retains state.
@@ -80,6 +84,12 @@ Point a client at it (`new Octokit({ baseUrl })`, `GH_HOST`), or run the applica
   requests by branch with their commits' status rollup, review decision and merge state), the schema's own
   introspection, and the mutations they send: `createRepository`, `createDiscussion`, `addDiscussionComment`,
   `createPullRequest` and `mergePullRequest`.
+
+## Repository browser
+
+The Code tab shows the stored repository files and README with GitHub’s familiar file-list and About layout. Select a branch, open folders and files, or follow Raw to the stored blob content. Branch selection changes only the viewed ref; mounted World URLs stay local. A Markdown file renders through the shared Markdown renderer; text files show line anchors.
+
+Issues, pull requests, Actions, Projects, Security, Insights and Settings remain API capabilities rather than browser tabs. Those tabs and the clone dropdown and Blame controls are unavailable in this mirror. Symbol navigation and submodule navigation are outside this browser scope.
 
 ## Events
 

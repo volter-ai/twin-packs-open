@@ -24,7 +24,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
         <h1>Your Apps</h1>
         <div className="sk-card">{mine.length === 0 ? <p>You have no apps yet.</p> : mine.map((a) => <div key={String(a.id)} className="sk-row"><span>{appName(a.manifest as Row)}</span><code>{String(a.id)}</code></div>)}</div>
         <h2>Your App Configuration Tokens</h2>
-        <form className="sk-card" method="post" action="/apps">
+        <form className="sk-card" method="post" action={`${ctx.publicBase}/apps`}>
           <label htmlFor="team">Workspace</label>
           <select id="team" name="team">{teams.map((t) => <option key={t} value={t}>{String(ctx.get('team', t)?.name ?? t)}</option>)}</select>
           <div className="sk-actions"><button type="submit">Generate Token</button></div>

@@ -169,7 +169,7 @@ export async function around(ctx: HandlerContext, next: (request?: Request) => P
 
   let run: { items: redis.RunItem[]; wrote: boolean };
   try {
-    const ran = await ctx.redis(commands.filter((_, i) => !denied.has(i)), { dialect: DIALECT, database: String(db.database_id) });
+    const ran = await ctx.redis(commands.filter((_, i) => !denied.has(i)), { dialect: DIALECT, database: String(db.database_id), transaction: path === '/multi-exec' });
     const items = [...ran.items];
     run = { wrote: ran.wrote, items: commands.map((_, i) => (denied.has(i) ? { error: denied.get(i)! } : items.shift()!)) };
   } catch (e) { if (e instanceof redis.ReadOnlyError) return readOnlyWorld(); return engineFailure(e); }

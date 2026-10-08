@@ -28,3 +28,5 @@ https://linear.app/docs/members-roles; team opt-in features are read from https:
 and https://linear.app/docs/use-cycles. These pages do not establish the starter's inactive numeric
 settings, avatar palette, invitation hashes, app actor email or branch template; those values are
 labeled synthetic in the shared model and package README rather than asserted as vendor defaults.
+
+Screen references, read 2026-10-08: [Linear's OAuth guide](https://linear.app/developers/oauth-2-0-authentication) supplies scopes, consent outcomes and redirects. [Rivet's firsthand integration walkthrough](https://rivet.dev/blog/2025-05-28-building-linear-agents-in-node-js-and-rivet-full-walkthrough-and-starter-kit/), published 2025-05-28, supplies its auth-linear.png consent-page layout. The authored page names the actual application, workspace and requested scopes. Team selection is outside this screen's existing grant scope; it presents the authenticated workspace without inventing additional grants. No upstream image, markup or scripts are shipped.

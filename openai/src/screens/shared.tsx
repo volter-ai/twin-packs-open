@@ -18,6 +18,12 @@ export function userOf(ctx: HandlerContext): User | undefined {
 /** A return_to the log-in follows: a path on the dashboard, never another site. */
 export const returnTo = (raw: string | null | undefined): string => (raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/');
 
+/** Keep dashboard navigation and form actions at the place the World served this page. */
+export function dashboardPath(ctx: HandlerContext, path: string): string {
+  const base = new URL(ctx.publicBase).pathname.replace(/\/+$/, '');
+  return base && (path === base || path.startsWith(`${base}/`)) ? path : `${base}${path}`;
+}
+
 // OpenAI's skin: its black primary button on white
 const FONT = 'body { background: #ffffff; color: #0d0d0d; font-family: "Söhne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }';
 export const SIGN_IN_PAGE_CSS = [SIGN_IN_CSS, `

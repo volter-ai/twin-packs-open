@@ -5,20 +5,24 @@ application sends a person through, and Stripe.js, over one state.
 
 ## Use with an existing app
 
+Use Node 22.6 or newer.
+
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-stripe@3.0.2
-npx @volter/world world init --name my-app --twins stripe --source stripe=@volter/twin-stripe
+npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-stripe@3.0.3
+./node_modules/.bin/volter world init --name my-app --twins stripe --source stripe=@volter/twin-stripe
 ```
+
+Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
 
 Review the detected vendor and generated bindings before booting. Read the credential names and limitations below; the World supplies throwaway credentials. Then run your app's own command through the World:
 
 ```console
-npx @volter/world world up
-npx @volter/world world run -- npm test
-npx @volter/world world log
-npx @volter/world world down
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
 ```
 
 Here `npm test` is your app's existing command; replace it with your app or test command. `down` retains state.
@@ -105,28 +109,16 @@ look up a real card issuer.
 
 ## Screens
 
-Stripe's own pages, at their vendor urls (`src/screens/`):
+Authored pages and content at the declared vendor URLs (`src/screens/`):
 
-- **Checkout** (`checkout.stripe.com/c/pay/{session}`): the customer pays; the session completes and
-  `checkout.session.completed` fires.
-- **Customer portal** (`billing.stripe.com/p/session/{session}`): cancel or renew a plan, update the card, pay an
-  open invoice.
-- **Connect onboarding** (`connect.stripe.com/setup/…`): an Account Link's hosted onboarding.
-- **Connect OAuth** (`connect.stripe.com/oauth/authorize`, `/oauth/token`, `/oauth/deauthorize`; Standard accounts,
-  docs.stripe.com/connect/oauth-reference). The platform's client_id is `ca_twin_self` in every World (a test
-  client_id; the platform account is `acct_twin_self`), shown on the Dashboard's Connect OAuth settings page in
-  `<code data-testid="connect-client-id">`. OAuth starts off: a runner POSTs that page as a browser does,
-  `oauth_enabled=on&redirect_uris=<one per line>`. The authorize page offers the test-mode **Skip this form** (a new
-  Standard account, connected) and **Deny access**; the token endpoint exchanges a code once, within 5 minutes (a
-  reused code revokes the connection), and refreshes to an equal or lesser scope; after a deauthorization the
-  account's `Stripe-Account` header is refused 403 `account_invalid`. The deprecated `access_token` and
-  `stripe_publishable_key` act as the connected account. Not modelled: connecting an existing Stripe account, the full
-  account application, holding a `read_only` connection to reads.
-- **Stripe.js** (`js.stripe.com/v3/`, `/v3/stripe.js`, `/<release train>/stripe.js`): `redirectToCheckout({ sessionId })`
-  goes to the hosted Checkout page; any other member
-  throws, naming itself.
-- **Dashboard** (`dashboard.stripe.com/settings/public`, `/settings/connect/onboarding-options/oauth`): Public details
-  (the business name Checkout and the portal show) and the Connect OAuth settings.
+- **Checkout** (`checkout.stripe.com/c/pay/{session}`): payment, setup and subscription sessions, including trials.
+- **Customer portal** (`billing.stripe.com/p/session/{session}`): cancel or renew a plan, update the card and pay an open invoice.
+- **Connect onboarding** (`connect.stripe.com/setup/…`): the Account Link's business, identity, payout and agreement form.
+- **Stripe.js** (`js.stripe.com/v3/`, `/v3/stripe.js`, `/<release train>/stripe.js`): `redirectToCheckout({ sessionId })` opens the hosted session. Unsupported members refuse.
+- **Checkout client wire** (`api.stripe.com/v1/payment_pages/{session}`): the authored session operations used by Stripe.js CheckoutProvider.
+- **Dashboard** (`dashboard.stripe.com/settings/public`, `/radar/lists`, `/test/issuing/balance`): public business name, Radar list creation and test Issuing funding. The declared World workspace opens Public details, with navigation between these stored operator actions. Other dashboard controls are unavailable.
+
+Page actions use the same stored resources as the API. Public screen references and authored choices are in [spec/SOURCE.md](./spec/SOURCE.md).
 
 ## Doors
 

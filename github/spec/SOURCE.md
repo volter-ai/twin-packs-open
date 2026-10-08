@@ -1,5 +1,11 @@
 # github spec — provenance
 
+## Repository mirror
+
+The Code-tab layout follows GitHub's public [repository quickstart](https://docs.github.com/en/repositories/creating-and-managing-repositories/quickstart-for-repositories), including its file-list screenshot. File selection and Raw follow [Viewing and understanding files](https://docs.github.com/en/repositories/working-with-files/using-files/viewing-and-understanding-files). These references were read on October 8, 2026 without signing into GitHub. Pages are authored markup, not copied vendor DOM or assets.
+
+The mirror reads the pack's existing stored Git objects for its branch selector, folders, files and README; navigation preserves the World mount. A private repository remains unavailable to visitors without its existing member session. Source files show escaped text and line anchors; Markdown files render through the shared Markdown renderer. Raw returns the actual blob bytes as plain content. The existing smart-HTTP and raw-content-host handlers remain separate. Branch switching is read-only. Issues, pull requests, Actions, Projects, Security, Insights, Settings, the clone dropdown, Blame, symbol navigation and submodules are not browser implementations here; the visible controls are unavailable. No production browser-fidelity or published-release claim follows from this source change.
+
 - **File:** `openapi.json.gz`, gzip of GitHub's published REST OpenAPI description.
 - **Upstream:** https://github.com/github/rest-api-description, [`descriptions/api.github.com/api.github.com.json` at `0b5823abf64cf5680ebd3d3c7ef22481f97e0e7d`](https://raw.githubusercontent.com/github/rest-api-description/0b5823abf64cf5680ebd3d3c7ef22481f97e0e7d/descriptions/api.github.com/api.github.com.json). The pinned upstream bytes exactly match this snapshot.
 - **Spec version:** `1.1.4` (`info.version`); server `https://api.github.com`.

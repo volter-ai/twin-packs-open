@@ -17,16 +17,16 @@
 // again with the message, answered 200; and a session does not end: no person of a World logs out yet.
 import { personWith, type HandlerContext } from '@volter/world-core';
 import { flowPage, formOf, SignIn, startSession } from '@volter/world-ui';
-import { COOKIE, returnTo, SIGN_IN_PAGE_CSS } from './shared.tsx';
+import { COOKIE, dashboardPath, returnTo, SIGN_IN_PAGE_CSS } from './shared.tsx';
 
-function page(back: string, email?: string, error?: string): Response {
+function page(ctx: HandlerContext, back: string, email?: string, error?: string): Response {
   return flowPage({
     title: 'Log in - OpenAI',
     css: SIGN_IN_PAGE_CSS,
     body: (
       <SignIn
         heading="Welcome back"
-        action="/login"
+        action={dashboardPath(ctx, "/login")}
         fields={{ return_to: back }}
         account={{ name: 'email', label: 'Email address', ...(email ? { value: email } : {}) }}
         password={{ name: 'password', label: 'Password' }}
@@ -40,10 +40,10 @@ function page(back: string, email?: string, error?: string): Response {
 /** platform.openai.com/login: the form, and the person it signs in (the log-in names neither which half was wrong). */
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const request = ctx.call.request;
-  if (request.method !== 'POST') return page(returnTo(new URL(request.url).searchParams.get('return_to')));
+  if (request.method !== 'POST') return page(ctx, dashboardPath(ctx, returnTo(new URL(request.url).searchParams.get('return_to'))));
   const form = formOf(ctx);
   const email = (form.email ?? '').trim();
-  const back = returnTo(form.return_to);
-  if (!personWith(ctx, email, form.password ?? '')) return page(back, email, 'Wrong email or password.');
+  const back = dashboardPath(ctx, returnTo(form.return_to));
+  if (!personWith(ctx, email, form.password ?? '')) return page(ctx, back, email, 'Wrong email or password.');
   return startSession(ctx, email.toLowerCase(), COOKIE, back);
 }

@@ -19,7 +19,7 @@ function installed(ctx: HandlerContext, team: string, notice?: string): Response
       {notice ? <p className="sk-notice" role="status">{notice}</p> : null}
       <div className="sk-card">
         {apps.length === 0 ? <p>No apps are installed.</p> : apps.map((a) => (
-          <form key={String(a.id)} className="sk-row" method="post" action="/apps/manage">
+          <form key={String(a.id)} className="sk-row" method="post" action={`${ctx.publicBase}/apps/manage`}>
             <span>{appName(a.manifest as Row)}</span>
             <input type="hidden" name="app" value={String(a.id)} />
             <button className="sk-quiet" name="action" value="remove">Remove App</button>

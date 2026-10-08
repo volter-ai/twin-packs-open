@@ -3,7 +3,8 @@
 // single-use entry point: visiting it takes the owner to their onboarding session, and visiting it again, or after it
 // expires, sends them to refresh_url, where the platform makes a new one (docs.stripe.com/connect/hosted-onboarding).
 // At the session's own address they give Stripe what it requires, and Stripe sends them to return_url. Submitting is
-// the owner's move, not an API call. Authored from @volter/world-ui's payment piece; nothing of Stripe's page is copied.
+// the owner's move, not an API call. Authored from @volter/world-ui's payment piece and Stripe's published visual
+// example; the form moves through one section at a time, retaining answers until the final submit.
 //
 // The page asks for exactly what Stripe requires before a US Express account with card_payments and transfers can
 // take card payments (docs.stripe.com/connect/required-verification-information; the set is the one Stripe's
@@ -23,8 +24,8 @@
 // merchant category codes as its list gives them (./industries.ts), and an industry the page does not offer leaves
 // business_profile.mcc due; the states are the fifty and the District of Columbia; a request with no forwarded address
 // records 127.0.0.1. An update link (account_update) shows the same page.
-import type { HandlerContext } from '@volter/world-core';
-import { CONSENT_CSS, flowPage, Payment, PAYMENT_CSS, type PaymentField } from '@volter/world-ui';
+import { twinVendorUrl, type HandlerContext } from '@volter/world-core';
+import { CONSENT_CSS, flowPage, Payment, PAYMENT_CSS, type PaymentProps, type PaymentField } from '@volter/world-ui';
 import type { Row } from '../engine/common.ts';
 import { nowUnix } from '../engine/stripe.ts';
 import { formOf, notFound, seeOther, STRIPE_CONSENT_SKIN } from './shared.tsx';
@@ -90,12 +91,14 @@ function page(ctx: HandlerContext, sessionUrl: string, link: Row, kind: Kind, va
     : [{ heading: 'Business details', fields: business }, { heading: 'About you', fields: person }, { heading: 'Payout account', fields: payout }, { heading: 'Agreement', fields: agreement }];
   return flowPage({
     title: 'Stripe · Account onboarding',
-    css: [PAYMENT_CSS],
+    css: [ONBOARDING_CSS],
     ...(error ? { status: 400 } : {}),
     body: (
-      <Payment
-        merchant={`Verify your ${kind === 'company' ? 'company' : 'business'} with Stripe · ${String(link.account)} · test mode`}
-        lines={[]}
+      <ConnectOnboarding
+        merchant="Stripe"
+        account={String(link.account)}
+        checked={['owners_provided', 'tos'].filter(name => v[name] === (name === 'tos' ? 'accepted' : 'provided'))}
+        lines={sections.map(section => ({ name: section.heading, amount: '' }))}
         action={sessionUrl}
         sections={sections}
         submit={{ label: 'Submit' }}
@@ -167,7 +170,7 @@ async function visit(ctx: HandlerContext, id: string): Promise<Response> {
   if (!usable(ctx, link)) return seeOther(String(link.refresh_url));
   const session = `onbs_${id.replace(/^acctlink_/, '')}`;
   await ctx.write(LINK, id, { used: true, _session: session }, 'account_link.used');
-  return seeOther(`${ctx.publicBase}${SESSIONS}${session}`);
+  return seeOther(twinVendorUrl(ctx.call.request, `${SESSIONS}${session}`));
 }
 
 /** connect.stripe.com's onboarding pages, or undefined for any other request. */
@@ -184,7 +187,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const stored = ctx.rowsRaw(LINK).find((l) => l._session === sid && l._submitted !== true);
   const link = stored ? ctx.get(LINK, String(stored.id)) : undefined;
   if (!stored || !link) return gone();
-  const sessionUrl = `${ctx.publicBase}${SESSIONS}${sid}`;
+  const sessionUrl = twinVendorUrl(request, `${SESSIONS}${sid}`);
   const account = ctx.get('account', String(link.account)) ?? {};
   const kind = kindOf(account);
   if (!kind) return unmodelled(account);
@@ -194,4 +197,59 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   await ctx.write(LINK, String(stored.id), { _submitted: true }, 'account_link.submitted');
   await submit(ctx, link, kind, form, request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1');
   return seeOther(String(link.return_url));
+}
+
+// Visual reference: Stripe's own hosted onboarding example, read 2026-10-08:
+// https://docs.stripe.com/connect/hosted-onboarding
+// hosted_onboarding_form.e59ba8300f563e43489953f06127f52c.png. Platform branding
+// in that example is configurable; this twin uses its existing Stripe skin.
+
+const ONBOARDING_CSS = PAYMENT_CSS + `
+*{box-sizing:border-box}body{color:#30313d;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.pay{grid-template-columns:minmax(280px,40%) minmax(0,60%)}.pay-summary{background:#f7f7f9;padding:48px max(32px,calc((100vw - 1000px)/2));padding-right:40px;position:relative}
+.pay-back{color:#596171;font-size:13px;margin-bottom:40px}.pay-merchant{color:#635bff;font-size:30px;font-weight:700;letter-spacing:-1px;margin-bottom:32px}
+.pay-lines{counter-reset:step;max-width:280px}.pay-line{counter-increment:step;display:block;position:relative;padding:12px 0 12px 38px;color:#687385;font-size:14px}
+.pay-line::before{content:counter(step);position:absolute;left:0;top:11px;width:24px;height:24px;line-height:22px;text-align:center;border:1px solid #d8dee4;border-radius:50%;background:#fff;font-size:12px}
+.pay-line[aria-current=step]{color:#30313d;font-weight:600}.pay-line[aria-current=step]::before{border-color:#635bff;color:#635bff}.pay-line.is-complete::before{background:#635bff;border-color:#635bff;color:#fff}
+.pay-form{padding:56px 48px;max-width:620px;width:100%}.pay-section legend{font-size:26px;letter-spacing:-.6px;font-weight:600;margin-bottom:24px}.pay-field{margin-bottom:22px}
+.pay-field span{font-size:14px;margin-bottom:8px;font-weight:500}.pay-field input,.pay-field select{background:#fff;border-color:#d8dee4;border-radius:6px;padding:10px 12px;box-shadow:0 1px 2px #00000005;color:#30313d}
+.pay-field input:focus,.pay-field select:focus{outline:2px solid #a5a0ff;outline-offset:1px}
+.pay-field:has(input[type=checkbox]){display:flex;align-items:flex-start;gap:10px}.pay-field:has(input[type=checkbox]) span{order:2;font-weight:400}.pay-field input[type=checkbox]{width:16px;height:16px;flex:none;margin-top:3px;accent-color:#635bff}
+.pay-submit,.connect-next{background:#635bff;color:#fff;border:0;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;padding:12px 16px}
+.connect-actions{display:flex;justify-content:space-between;gap:16px;margin-top:32px}.connect-back{color:#596171;background:transparent;border:0;cursor:pointer;padding:12px 0;font:inherit}.connect-next{min-width:140px;flex:1}
+.pay-error{border:1px solid #f1c2c2;padding:12px;border-radius:6px;color:#b52e2e;background:#fff7f7;font-size:13px;white-space:normal;overflow-wrap:anywhere}
+.connect-progress{height:3px;background:#ececf1;margin:0 0 36px;border-radius:2px;overflow:hidden}.connect-progress div{height:100%;background:#635bff;transition:width .15s}
+.connect-context{position:absolute;bottom:40px;left:32px;color:#687385;font-size:12px}.connect-context strong{display:block;font-weight:500;color:#30313d}
+.connect-ready .pay-section[hidden],.connect-ready .pay-submit[hidden],.connect-actions [hidden]{display:none}
+@media(max-width:800px){.pay{grid-template-columns:1fr}.pay-summary{padding:24px}.pay-back{margin-bottom:20px}.pay-merchant{font-size:24px;margin-bottom:0}.pay-lines{display:none}.connect-context{position:static;padding:0 24px;background:#f7f7f9}.pay-form{padding:32px 24px;max-width:100%}.pay-section legend{font-size:24px}}
+`;
+
+// Progressive enhancement only: Back/Continue move through the existing form.
+// No account state is written until its existing Submit operation succeeds.
+const STEPS = `(function(){
+var root=document.querySelector('.connect-onboarding'),form=root.querySelector('form'),groups=Array.from(form.querySelectorAll('.pay-section')),items=Array.from(root.querySelectorAll('.pay-line')),submit=form.querySelector('.pay-submit');
+var progress=document.createElement('div');progress.className='connect-progress';progress.setAttribute('role','progressbar');progress.setAttribute('aria-label','Onboarding progress');progress.setAttribute('aria-valuemin','0');progress.setAttribute('aria-valuemax',String(groups.length));
+var bar=document.createElement('div');progress.append(bar);form.before(progress);
+var controls=document.createElement('div');controls.className='connect-actions';
+var back=document.createElement('button');back.type='button';back.className='connect-back';back.textContent='Back';
+var next=document.createElement('button');next.type='button';next.className='connect-next';next.textContent='Continue';
+controls.append(back,next);form.append(controls);
+var checked=JSON.parse(root.getAttribute('data-checked-fields')||'[]');
+groups.forEach(function(group){group.querySelectorAll('input,select').forEach(function(input){input.required=true;if(input.type==='checkbox')input.checked=checked.includes(input.name);if(input.name==='ssn_last_4'){input.pattern='[0-9]{4}';input.inputMode='numeric';input.maxLength=4;}});});
+var index=0;
+function show(i){index=i;groups.forEach(function(group,n){group.hidden=n!==i;});items.forEach(function(item,n){if(n===i)item.setAttribute('aria-current','step');else item.removeAttribute('aria-current');item.classList.toggle('is-complete',n<i);});back.hidden=i===0;next.hidden=i===groups.length-1;submit.hidden=i!==groups.length-1;bar.style.width=((i+1)/groups.length*100)+'%';progress.setAttribute('aria-valuenow',String(i+1));progress.setAttribute('aria-valuetext',groups[i].querySelector('legend').textContent);root.classList.add('connect-ready');}
+function invalid(group){return Array.from(group.querySelectorAll('input,select')).find(function(input){return !input.checkValidity();});}
+back.addEventListener('click',function(){show(index-1);});
+next.addEventListener('click',function(){var field=invalid(groups[index]);if(field){field.reportValidity();return;}show(index+1);groups[index].querySelector('input,select')?.focus();});
+form.noValidate=true;
+form.addEventListener('submit',function(event){for(var i=0;i<groups.length;i++){var field=invalid(groups[i]);if(field){event.preventDefault();show(i);field.reportValidity();return;}}});
+if(form.querySelector('.pay-error')){var first=groups.findIndex(function(group){return invalid(group);});show(first<0?groups.length-1:first);}else show(0);
+})();`;
+
+function ConnectOnboarding(props: PaymentProps & { account: string; checked: string[] }) {
+  return <div className="connect-onboarding" data-checked-fields={JSON.stringify(props.checked)}>
+    <Payment {...props} />
+    <div className="connect-context"><strong>Test mode</strong>{props.account}</div>
+    <script dangerouslySetInnerHTML={{ __html: STEPS }} />
+  </div>;
 }

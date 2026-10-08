@@ -2,9 +2,10 @@
 // deployed Worker and opens its site. A domain opens where the World shows it (twinSiteUrl): the site the twin serves,
 // as Cloudflare would serve it.
 import { twinSiteUrl, type HandlerContext } from '@volter/world-core';
-import { flowPage, Portal, PORTAL_CSS } from '@volter/world-ui';
+import { flowPage } from '@volter/world-ui';
 import { sameAccount, WORKER_DOMAIN, type Row } from '../semantics/shared.ts';
 import { person, memberships } from './shared.tsx';
+import { Dashboard, DASHBOARD_CSS } from './shared.tsx';
 
 const SCRIPT = 'worker_script';
 
@@ -21,14 +22,15 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const domains = ctx.rowsRaw(WORKER_DOMAIN).filter(d => ids.has(String(d.account_id)) && d.deleted !== true);
   const workers = ctx.rowsRaw(SCRIPT).filter(s => ids.has(String(s.account_id)) && s.deleted !== true)
     .sort((a, b) => String(b.modified_on ?? '').localeCompare(String(a.modified_on ?? '')));
-  // Where the documentation stops: the page's columns are not recorded; a Worker shows its name, its domains and when it
-  // was last deployed, and each domain opens the site
   const item = (s: Row) => {
     const own = domains.filter(d => d.service === s.name).map(d => String(d.hostname)).sort();
-    return { title: String(s.name), detail: own.length ? own.join(', ') : 'No Custom Domains',
-      note: s.modified_on ? `Modified ${String(s.modified_on)}` : undefined,
-      actions: own.map(host => ({ label: `Visit ${host}`, action: twinSiteUrl(ctx.call.request, host), method: 'get' as const })) };
+    const subdomain = ctx.rowsRaw('workers_subdomain').find(row => row.deleted !== true && ids.has(String(row.id)));
+    if ((s.subdomain as { enabled?: boolean } | undefined)?.enabled && subdomain) own.push(`${String(s.name)}.${String(subdomain.subdomain)}.workers.dev`);
+    return <article className="cf-app" key={String(s.id)} data-application-name={String(s.name)}><div className="cf-app-header"><h2>{String(s.name)}<span className="cf-badge">Worker</span></h2><span className="cf-count">{s.modified_on ? `Modified ${String(s.modified_on).slice(0, 10)}` : ''}</span></div>{own.length ? <div className="cf-domains">{own.map(host => <a key={host} href={twinSiteUrl(ctx.call.request, host)} aria-label={`Visit ${host}`}>{host}</a>)}</div> : <p>No Custom Domains</p>}</article>;
   };
-  return flowPage({ title: 'Workers & Pages', css: [PORTAL_CSS], body: <Portal merchant={`Cloudflare · ${String((member.account as Row | undefined)?.name ?? account)}`}
-    sections={[{ heading: 'Workers & Pages', empty: 'No Workers yet.', items: workers.map(item) }]} /> });
+  return flowPage({ title: 'Workers & Pages | Cloudflare', css: [DASHBOARD_CSS], body: <Dashboard ctx={ctx} account={account} accountName={String((member.account as Row | undefined)?.name ?? account)} active="workers">
+    <div className="cf-heading"><div><h1>Workers & Pages</h1><p>Build and deploy serverless applications.</p></div><button type="button" className="cf-button cf-primary" disabled title="Dashboard application creation is outside this twin's declared screen scope. Deploy through the Workers API.">Create application</button></div>
+    <div className="cf-toolbar"><input className="cf-search" type="search" aria-label="Search applications" placeholder="Search applications" data-application-search/><span className="cf-count">{workers.length} application{workers.length === 1 ? '' : 's'}</span></div>
+    <section className="cf-applications" aria-label="Applications">{workers.map(item)}<p className="cf-empty" data-search-empty hidden={workers.length !== 0}>{workers.length ? 'No applications match your search.' : 'No applications yet.'}</p></section>
+  </Dashboard> });
 }
