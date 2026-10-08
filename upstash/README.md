@@ -10,18 +10,20 @@ A local Upstash: Redis over Upstash's REST API, the one the unmodified `@upstash
 For an app using the supported Redis REST or QStash workflows, install the exact release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-upstash@1.0.1
-npx volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
+npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-upstash@1.0.2
+./node_modules/.bin/volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
 ```
+
+Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
 
 Review the detected vendor and generated bindings before booting. The World supplies throwaway credentials;
 seed stored data through the unchanged vendor SDK, then run your app's existing test command inside the World.
 
 ```console
-npx volter world up
-npx volter world run -- npm test
-npx volter world log
-npx volter world down
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
 ```
 
 Use your app's test command in place of `npm test`. Ordinary `down` retains state for the next `up`.
@@ -42,7 +44,9 @@ world-upstash serve [--port N] [--root DIR] [--read-only]
 A person signs in to the console and creates a Redis database there (name, primary region, the free plan). The
 database's page shows `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` and the Read Only token. On a first visit to
 QStash they pick a region; the page then shows `QSTASH_URL`, `QSTASH_TOKEN` and the two signing keys, and can reset the
-token and roll the keys.
+token and roll the keys. The Redis console has the vendor product navigation, a Create Database dialog and
+database Details/Connect sections. Redis Usage, CLI, Data Browser, Search, Monitor, Backups, ACL and paid/read-region
+controls remain unavailable; no usage metrics are fabricated. QStash retains its existing console layout.
 
 ## What it models
 

@@ -33,3 +33,5 @@
   `error ?? message`). https://upstash.com/docs/devops/developer-api/http_status_codes lists the statuses; only its 401 row
   ("Your API key is wrong") is specific to this API, the other rows' texts are template text (a "kitten" for 403, 404, 405
   and 429). Each refusal's status is the twin's reading of that page.
+
+Authored Redis console navigation and credential presentation, reference read 2026-10-08: https://upstash.com/docs/redis/overall/getstarted and its published database screenshot (capture date unspecified), plus https://upstash.com/docs/redis/features/restapi. Stored databases, credentials and existing create/delete rules remain the behavior. Usage/billing charts, read regions, paid plans and other products are not fabricated; unavailable tabs are marked. No reference image, DOM or scripts are shipped.

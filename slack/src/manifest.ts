@@ -10,7 +10,8 @@
 // THE WORLD'S SLACK. An ordinary workspace, `T0VOLTER01`, made on the sign-up page (./screens/get-started.tsx).
 // No Enterprise Grid or SCIM provisioning is modeled. A person acts with their own client token,
 // `xoxp-<their user id>` (the twin's decision: the Slack client's session, which no API mints); an app acts with the
-// tokens its install makes (oauth.v2.access), each kept by its SHA-256 with the scopes granted (`_token`).
+// tokens its install makes (oauth.v2.access), each kept by its SHA-256 with the scopes granted (`_token`). A browser's
+// member identity comes from email confirmation and the kernel session kit, with no injected client header.
 import type { DerivedManifest } from '@volter/world-core';
 import { data, SLACK_EVENTS, values } from './semantics/shared.ts';
 import { states } from './semantics/states.ts';
@@ -122,6 +123,11 @@ export const manifest: DerivedManifest = {
     source: 'https://docs.slack.dev/apis/events-api/using-socket-mode',
   }],
   screens: [
+    {
+      id: 'signin', kind: 'flow', host: 'slack.com', path: '/signin', status: 'done',
+      demand: 'a browser opens OAuth consent as an existing workspace member', controls: ['Email', 'Sign In with Email', 'Confirmation code', 'Continue'],
+      source: 'https://slack.com/help/articles/212681477-Sign-in-to-Slack',
+    },
     {
       id: 'get-started', kind: 'flow', host: 'slack.com', path: '/get-started', status: 'done',
       demand: 'a workspace exists only once someone creates it here', controls: ['Email', 'Full name', 'Create workspace'],

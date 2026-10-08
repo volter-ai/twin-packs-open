@@ -30,7 +30,7 @@ No webhook subscription is made by this life;
 there is no invented webhook delivery. Release assessments are retained by
 [the independent catalog](https://github.com/volter-ai/twin-catalog-open).
 
-Install the selected release in your app with `npm install --save-dev @volter/twin-linear@3.0.3`.
+Install the selected release in your app with `npm install --save-dev @volter/twin-linear@3.0.5`.
 The app keeps its real `@linear/sdk`; the packaged customer entry pins 86.0.0.
 For local setup, use the app folder’s `volter world init`, review the detected vendors,
 and keep Linear when the app needs it. Start with `volter world up`, run the app or seed

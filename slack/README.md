@@ -9,18 +9,20 @@ The current product callers, operation decisions and customer story are in journ
 In an app that already uses Slack, install the product CLI and this exact twin release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.127 @volter/world-core@3.0.127 @volter/twin-slack@3.0.5
-npx volter world init --name my-app --twins slack --source slack=@volter/twin-slack
+npm install --save-dev --save-exact @volter/world@3.0.127 @volter/world-core@3.0.127 @volter/twin-slack@3.0.6
+./node_modules/.bin/volter world init --name my-app --twins slack --source slack=@volter/twin-slack
 ```
+
+Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
 
 Review the detected vendor and bindings before booting. The World issues throwaway bot, Socket Mode and signing
 credentials using the names listed below. Run the app's own command inside the World:
 
 ```console
-npx volter world up
-npx volter world run -- npm test
-npx volter world log
-npx volter world down
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
 ```
 
 Replace `npm test` with your app or test command. `down` retains state and a later `up` resumes it.
@@ -37,6 +39,10 @@ A person creates the workspace at slack.com/get-started and joins through invita
 admins manage members and invitation requests at slack.com/admin. Developers configure their app at api.slack.com/apps;
 installation uses slack.com/oauth/v2/authorize and oauth.v2.access. Program calls use their own issued tokens; a person's
 synthetic client session is xoxp-<user-id>. Real credentials are never needed.
+In a named World browser, an existing member enters OAuth consent through `slack.com/signin`: their email,
+the confirmation code in the twin's `/_twin/mail` inbox, then the browser session. The consent page shows the
+requested bot/user scopes and the eligible channel for an incoming webhook. Apple/Google, SSO, passkeys and
+multi-workspace switching are outside that screen's scope. This flow sends no real email.
 Fresh local Worlds seed a synthetic workspace named World with its owner and #general through that signup flow.
 The default seed is copied into the application's `.volter/seeds/` by init and remains editable there. Use the CLI and core versions pinned above for this release.
 
