@@ -32,7 +32,7 @@ function installed(ctx: HandlerContext, team: string, notice?: string): Response
 
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const who = visitor(ctx);
-  if (!who?.row) return refused(401, 'Sign in to Slack first');
+  if (!who?.row) return refused(401, 'Sign in to Slack first', `${ctx.publicBase}/signin`);
   // source: https://slack.com/help/articles/360003125231-Remove-apps-and-custom-integrations-from-your-workspace "By default, all members except for guests"
   if (who.row.is_restricted === true) return refused(403, 'Guests cannot manage apps');
   const team = String(who.row.team_id);

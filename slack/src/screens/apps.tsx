@@ -5,7 +5,7 @@
 // Information page its app-level tokens, which Socket Mode connects with: "App-Level Tokens … Generate Token and Scopes",
 // named, with the scopes chosen (`connections:write`), shown once (https://docs.slack.dev/apis/events-api/using-socket-mode). A workspace (docs/
 // contributing/architecture.md, "Screens").
-import type { HandlerContext } from '@volter/world-core';
+import { twinSiteUrl, type HandlerContext } from '@volter/world-core';
 import { appName } from '../engine/app-manifest.ts';
 import { issueConfigTokens, keepToken, teamsOf } from '../semantics/shared.ts';
 import { field, page, refused, visitor } from './shared.tsx';
@@ -15,7 +15,7 @@ type Row = Record<string, unknown>;
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const method = ctx.call.request.method;
   const who = visitor(ctx);
-  if (!who?.row) return refused(401, 'Sign in to Slack first');
+  if (!who?.row) return refused(401, 'Sign in to Slack first', twinSiteUrl(ctx.call.request, 'slack.com') + '/signin');
   const teams = teamsOf(ctx, String(who.row.id));
   if (method === 'GET') {
     const mine = ctx.rowsRaw('app').filter((a) => a.creator === who.id && a.deleted !== true);

@@ -57,7 +57,7 @@ function requests(ctx: HandlerContext, team: string, notice?: string): Response 
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const method = ctx.call.request.method;
   const who = visitor(ctx);
-  if (!who?.row) return refused(401, 'Sign in to Slack first');
+  if (!who?.row) return refused(401, 'Sign in to Slack first', `${ctx.publicBase}/signin`);
   if (!administers(who.row)) return refused(403, 'Only owners and admins can manage this workspace');
   const team = String(who.row.team_id);
   const path = new URL(ctx.call.request.url).pathname.replace(/\/+$/, '');

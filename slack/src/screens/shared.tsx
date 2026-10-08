@@ -35,7 +35,10 @@ type Body = Parameters<typeof flowPage>[0]['body'];
 export const page = (title: string, body: Body, status = 200, css: string[] = []): Response => flowPage({ title: `${title} | Slack`, css: [SLACK_CSS, ...css], body: <main className="sk">{body}</main>, status });
 
 /** A page's answer for a person who may not use it, or for nobody signed in. */
-export const refused = (status: number, text: string): Response => page('Slack', <><h1>{text}</h1></>, status);
+export const refused = (status: number, text: string, signInHref?: string): Response => page('Slack', <>
+  <h1>{text}</h1>
+  {signInHref ? <p><a href={signInHref}>Sign in to Slack</a></p> : null}
+</>, status);
 
 /** The person on the page: the id their client token names, and their row when they are a member. */
 export function visitor(ctx: HandlerContext): { id: string; row?: Row } | undefined {

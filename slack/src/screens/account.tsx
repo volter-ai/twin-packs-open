@@ -29,7 +29,7 @@ const form = (ctx: HandlerContext, s: Row | undefined, notice?: string): Respons
 
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const who = visitor(ctx);
-  if (!who?.row) return refused(401, 'Sign in to Slack first');
+  if (!who?.row) return refused(401, 'Sign in to Slack first', `${ctx.publicBase}/signin`);
   const path = new URL(ctx.call.request.url).pathname.replace(/\/+$/, '');
   if (path !== '/account/notifications') return refused(404, 'Page not found');
   if (ctx.call.request.method === 'GET') return form(ctx, who.row._dnd_schedule as Row | undefined);
