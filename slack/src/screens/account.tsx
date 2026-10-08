@@ -11,7 +11,7 @@ import { field, page, refused, visitor } from './shared.tsx';
 type Row = Record<string, unknown>;
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-const form = (s: Row | undefined, notice?: string): Response => page('Notifications', (
+const form = (ctx: HandlerContext, s: Row | undefined, notice?: string): Response => page('Notifications', (
   <>
     <h1>Notifications</h1>
     {notice ? <p className="sk-notice" role="status">{notice}</p> : null}
@@ -32,12 +32,12 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (!who?.row) return refused(401, 'Sign in to Slack first');
   const path = new URL(ctx.call.request.url).pathname.replace(/\/+$/, '');
   if (path !== '/account/notifications') return refused(404, 'Page not found');
-  if (ctx.call.request.method === 'GET') return form(who.row._dnd_schedule as Row | undefined);
+  if (ctx.call.request.method === 'GET') return form(ctx, who.row._dnd_schedule as Row | undefined);
   const days = field(ctx, 'days') || 'every_day';
   const start = field(ctx, 'start');
   const end = field(ctx, 'end');
   if (days !== 'every_day' || !HHMM.test(start) || !HHMM.test(end) || start === end) return refused(400, 'Choose the hours you take notifications in');
   const schedule = { days, start, end };
   await ctx.write('user', who.id, { _dnd_schedule: schedule }, 'user.notifications');
-  return form(schedule, `Notifications every day from ${start} to ${end}`);
+  return form(ctx, schedule, `Notifications every day from ${start} to ${end}`);
 }

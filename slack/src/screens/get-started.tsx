@@ -12,7 +12,7 @@ import { HOME_TEAM } from '../engine/wire.ts';
 import { addMember, addToTeam } from '../semantics/shared.ts';
 import { field, page, refused, visitor } from './shared.tsx';
 
-const form = (error?: string): Response => page('Create a workspace', (
+const form = (ctx: HandlerContext, error?: string): Response => page('Create a workspace', (
   <>
     <h1>Create a new Slack workspace</h1>
     <p className="sk-lead">Slack gives your team a home: a place where they can talk and work together.</p>
@@ -32,10 +32,10 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (method !== 'GET' && method !== 'POST') return refused(405, 'Method not allowed');
   const who = visitor(ctx);
   if (!who) return refused(401, 'Sign in to Slack first');
-  if (method === 'GET') return form();
+  if (method === 'GET') return form(ctx);
   const email = field(ctx, 'email').trim().toLowerCase();
   const name = field(ctx, 'name').trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !name) return form('Enter your work email and your full name.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !name) return form(ctx, 'Enter your work email and your full name.');
   if (ctx.get('team', HOME_TEAM)) return refused(409, 'This World already has its workspace');
   const label = email.split('@')[1]!.split('.')[0]!;
   const at = Math.floor(Date.parse(ctx.occurredAt) / 1000);
