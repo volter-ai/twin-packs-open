@@ -81,8 +81,8 @@ function page(ctx: HandlerContext, id: string, session: Row, problem?: { error: 
       badge: s.status === 'trialing' ? 'Trial' : s.status === 'past_due' ? 'Past due' : ending ? 'Cancels' : undefined,
       note: ending ? `Your plan will be canceled on ${day(s.current_period_end)}.` : s.status === 'trialing' ? `Trial ends ${day(s.trial_end)}.` : `Renews on ${day(s.current_period_end)}.`,
       actions: ending
-        ? [{ label: 'Renew plan', action: `/p/session/${id}/renew`, fields: { subscription: String(s.id) }, tone: 'primary' as const }]
-        : features.cancel.enabled ? [{ label: 'Cancel plan', action: `/p/session/${id}/cancel`, fields: { subscription: String(s.id) }, tone: 'danger' as const }] : [],
+        ? [{ label: 'Renew plan', action: `${ctx.publicBase}/p/session/${id}/renew`, fields: { subscription: String(s.id) }, tone: 'primary' as const }]
+        : features.cancel.enabled ? [{ label: 'Cancel plan', action: `${ctx.publicBase}/p/session/${id}/cancel`, fields: { subscription: String(s.id) }, tone: 'danger' as const }] : [],
     };
   });
   const defaultPm = ((customer.invoice_settings as Row | undefined)?.default_payment_method as string | undefined) ?? undefined;
@@ -97,7 +97,7 @@ function page(ctx: HandlerContext, id: string, session: Row, problem?: { error: 
     ? ctx.rows('invoice').filter((i) => i.customer === session.customer && i.status !== 'draft').sort((a, b) => Number(b.created) - Number(a.created))
       .map((i) => ({
         title: day(i.created), detail: money(i.amount_due ?? i.total, i.currency), badge: String(i.status ?? '').replace(/^./, (c) => c.toUpperCase()),
-        ...(i.status === 'open' && i.collection_method !== 'send_invoice' ? { actions: [{ label: 'Pay', action: `/p/session/${id}/pay`, fields: { invoice: String(i.id) }, tone: 'primary' as const }] } : {}),
+        ...(i.status === 'open' && i.collection_method !== 'send_invoice' ? { actions: [{ label: 'Pay', action: `${ctx.publicBase}/p/session/${id}/pay`, fields: { invoice: String(i.id) }, tone: 'primary' as const }] } : {}),
       }))
     : [];
   const back = typeof session.return_url === 'string' ? session.return_url : undefined;
@@ -124,7 +124,7 @@ function page(ctx: HandlerContext, id: string, session: Row, problem?: { error: 
       <Portal
         merchant={merchant}
         {...(problem ? { notice: problem.error } : {})}
-        {...(features.paymentMethod ? { forms: [{ heading: pm ? 'Update payment method' : 'Add payment method', action: `/p/session/${id}/payment_method`, fields: cardFields, submit: { label: pm ? 'Update' : 'Add' } }] } : {})}
+        {...(features.paymentMethod ? { forms: [{ heading: pm ? 'Update payment method' : 'Add payment method', action: `${ctx.publicBase}/p/session/${id}/payment_method`, fields: cardFields, submit: { label: pm ? 'Update' : 'Add' } }] } : {})}
         {...(back ? { back: { href: back, label: `← Return to ${merchant}` } } : {})}
         sections={[
           { heading: 'Current plan', items: plans, empty: 'You have no active plans.' },
@@ -141,7 +141,7 @@ function page(ctx: HandlerContext, id: string, session: Row, problem?: { error: 
 async function move(ctx: HandlerContext, id: string, session: Row, subscription: string, kind: 'cancel' | 'renew'): Promise<Response> {
   const sub = resourceView(ctx, SUB, subscription);
   if (!sub || sub.customer !== session.customer || sub.status === 'canceled') return gone();
-  const back = new Response(null, { status: 303, headers: { location: `/p/session/${id}` } });
+  const back = new Response(null, { status: 303, headers: { location: `${ctx.publicBase}/p/session/${id}` } });
   if (kind === 'renew') {
     await ctx.write(SUB, subscription, { cancel_at_period_end: false, cancel_at: null, canceled_at: null, cancellation_details: { comment: null, feedback: null, reason: null } }, 'subscription.update');
     return back;
@@ -179,7 +179,7 @@ async function updatePaymentMethod(ctx: HandlerContext, id: string, session: Row
   for (const sub of ctx.rows(SUB).map((s) => ctx.expand(SUB, s)).filter((s) => s.customer === customer && s.status !== 'canceled' && s.status !== 'incomplete_expired')) {
     await ctx.write(SUB, String(sub.id), { default_payment_method: pm.id }, 'subscription.update');
   }
-  return new Response(null, { status: 303, headers: { location: `/p/session/${id}` } });
+  return new Response(null, { status: 303, headers: { location: `${ctx.publicBase}/p/session/${id}` } });
 }
 
 /** The customer pays one of their open invoices with the card on file. */
@@ -192,7 +192,7 @@ async function payInvoice(ctx: HandlerContext, id: string, session: Row, invoice
   if (!pm) return page(ctx, id, session, { error: 'Add a payment method to pay this invoice.', values: {} });
   const declined = await payOpenInvoice(ctx, invoiceId, pm);
   if (declined) return page(ctx, id, session, { error: declined.message, values: {} });
-  return new Response(null, { status: 303, headers: { location: `/p/session/${id}` } });
+  return new Response(null, { status: 303, headers: { location: `${ctx.publicBase}/p/session/${id}` } });
 }
 
 /** billing.stripe.com's portal pages, or undefined for any other request. */

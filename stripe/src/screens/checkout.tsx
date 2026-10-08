@@ -94,7 +94,7 @@ function customerEmailOf(session: Row): string | undefined {
   return typeof email === 'string' && EMAIL.test(email) ? email : undefined;
 }
 
-function page(session: Row, id: string, now: number, values: Record<string, string> = {}, error?: string): Response {
+function page(publicBase: string, session: Row, id: string, now: number, values: Record<string, string> = {}, error?: string): Response {
   const lines = (((session.line_items as { data?: Row[] } | undefined)?.data) ?? []).map((item) => ({
     name: String(item.description ?? 'Item'),
     amount: money(item.amount_total, item.currency ?? session.currency),
@@ -128,7 +128,7 @@ function page(session: Row, id: string, now: number, values: Record<string, stri
         merchant={merchant}
         lines={lines}
         {...(trialText ? { total: trialText.lead, note: trialText.note } : session.amount_total !== null && session.amount_total !== undefined ? { total: { label: mode === 'subscription' ? 'Subscribe' : `Pay ${merchant}`, amount: money(session.amount_total, session.currency) } } : {})}
-        action={`/c/pay/${id}`}
+        action={`${publicBase}/c/pay/${id}`}
         sections={[{ heading: 'Contact information', fields: contact }, { heading: 'Payment method', fields: card }]}
         submit={{ label: submit, testId: 'hosted-payment-submit-button' }}
         {...(typeof session.cancel_url === 'string' ? { back: { href: session.cancel_url, label: '← Back' } } : {})}
@@ -145,13 +145,13 @@ async function pay(ctx: HandlerContext, id: string, session: Row, v: Record<stri
   const onFile = customerEmailOf(session);
   const email = onFile ?? (typeof session.customer_email === 'string' ? session.customer_email : (v.email ?? '').trim());
   if (session.mode !== 'setup' || !session.customer) {
-    if (!EMAIL.test(email)) return page(session, id, nowUnix(ctx.occurredAt), v, 'Your email address is incomplete.');
+    if (!EMAIL.test(email)) return page(ctx.publicBase, session, id, nowUnix(ctx.occurredAt), v, 'Your email address is incomplete.');
   }
   // a trial charges nothing now unless a one-time price is on the first invoice
   const oneTimeDue = (((session.line_items as { data?: Row[] } | undefined)?.data) ?? []).some((it, i) => isOneTime(it, inlineOf(session, i)));
   const chargesNow = session.mode === 'payment' || (session.mode === 'subscription' && (!trialOf(session, nowUnix(ctx.occurredAt)) || oneTimeDue));
   const refused = cardAnswer(v, nowUnix(ctx.occurredAt), chargesNow);
-  if (refused) return page(session, id, nowUnix(ctx.occurredAt), v, refused);
+  if (refused) return page(ctx.publicBase, session, id, nowUnix(ctx.occurredAt), v, refused);
   let existing = session;
   // Checkout always makes a customer for a subscription; a payment makes one only when the session asks
   if (!session.customer && (session.mode === 'subscription' || session.customer_creation === 'always')) {
@@ -199,5 +199,5 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const stored = ctx.row(CS, id) ?? {};
   const coupon = (stored._discount as Row | undefined)?.coupon;
   const full = { ...session, _subscription_data: stored._subscription_data, _price_data: stored._price_data, _merchant: merchantOf(ctx, stored), _coupon: typeof coupon === 'string' ? ctx.get('coupon', coupon) : undefined, _customer: typeof session.customer === 'string' ? ctx.get('customer', session.customer) : undefined };
-  return request.method === 'GET' ? page(full, id, nowUnix(ctx.occurredAt)) : pay(ctx, id, full, values);
+  return request.method === 'GET' ? page(ctx.publicBase, full, id, nowUnix(ctx.occurredAt)) : pay(ctx, id, full, values);
 }

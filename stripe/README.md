@@ -47,9 +47,10 @@ vendor-backed World's refresh; each served operation is decided in `journeys/dec
 - **Catalog**: products and prices created and listed, prices retrieved, coupons and promotion codes managed. Product search and administrative product/price updates answer the gap.
 - **Checkout Sessions** and the customer portal (sessions and configurations): pay, add a card, pay an open invoice,
   cancel at the period's end or at once.
-- **Subscriptions**: created (charged at once, trialing, `default_incomplete` or `error_if_incomplete`), updated (items,
-  discounts, a trial ended early or added), searched, canceled; their items, schedules (made, updated, released),
-  renewals on the World clock, and a renewal declined and paid later.
+- **Subscriptions**: created by hosted Checkout (including trials), read, updated (items, discounts, a trial
+  ended early or added) and canceled, with renewals on the World clock. Direct `POST /v1/subscriptions` is outside
+  the declared application demand and returns the gap; use the release operation table to check other subscription
+  and schedule endpoints before choosing this twin.
 - **Invoices**: invoice items, drafts, finalize, pay (a draft is finalized on the way), void, delete, lines,
   previews and their payments. Invoice lines are read in the invoice; the standalone lines endpoint answers the gap.
 - **Intents**: payment and setup intents, confirmed on the server or by Stripe.js with the publishable key and the
@@ -97,6 +98,10 @@ SDK's `constructEvent` verifies) and delivers to the account's enabled webhook e
   account's (`STRIPE_WEBHOOK_SECRET` and the other names an application reads it by) and its Connect endpoint's
   (`STRIPE_CONNECT_WEBHOOK_SECRET`), the same on every boot; an endpoint made on the Webhooks page (a door) is signed
   with the one of its kind. The twin reads no env.
+
+The documented card-brand samples keep their brand and credit/debit/prepaid funding type when saved
+through Checkout or the portal. Other raw numbers retain synthetic Visa metadata; the twin does not
+look up a real card issuer.
 
 ## Screens
 
