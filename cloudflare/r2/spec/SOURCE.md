@@ -41,3 +41,5 @@ explicit OAuth code lifetime is ten minutes and its access lifetime is exposed a
 World policies where the vendor reference gives no fixed guarantee. Token values use World secret custody.
 API-issued temporary S3 sessions are served; locally signed temporary JWT sessions and streaming checksum trailers
 remain unserved wire features and refuse authentication/unsupported framing instead of granting parent access.
+
+Screen references, read 2026-10-08: [Cloudflare's developer-platform changelog](https://developers.cloudflare.com/changelog/product-group/developer-platform/4/), its 2026-08-14 Worker screenshots, supplies the dashboard navigation. [Cloudflare's Workers/Pages convergence announcement](https://blog.cloudflare.com/pages-and-workers-are-converging-into-one-experience/), published 2023-05-16, supplies the historic application-list layout. The authored list shows stored Worker scripts and their actual domains; API-token dialogs perform the existing token operations. Additional navigation remains outside the declared screen scope. No upstream page or screenshot asset is shipped.

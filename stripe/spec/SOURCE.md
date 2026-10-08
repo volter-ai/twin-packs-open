@@ -16,3 +16,5 @@ The pack serves this document's version (`SERVED_VERSION` in `src/engine/version
   publish (its testing page's cards, the payment lifecycle's states, each reference page's stated rule), each with its
   page's URL and the page's words for what it does, read with twin-standard's `read-page`. **Read by:**
   `bun scripts/vendor-examples.ts stripe`.
+
+Screen references, read 2026-10-08: [Stripe's hosted-onboarding guide](https://docs.stripe.com/connect/hosted-onboarding), its hosted_onboarding_form.e59ba8300f563e43489953f06127f52c.png image, supplies the two-column layout, progress and sequential form. The image's example platform branding is configurable; this screen retains the Stripe skin. Back/Continue keep local form answers; only the existing final submit changes the connected account. The existing US requirements and refusal behavior remain the contract. No upstream page, image or script is shipped.

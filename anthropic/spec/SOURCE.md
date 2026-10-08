@@ -22,3 +22,5 @@
   vendored SDK's beta Messages client sends it. The literal system date in the rendered request is input text,
   not the replay date. Server web-search examples replay with synthetic scripted calls/results. The two rendered create requests contain sampling settings the same vendor spec rejects; replay preserves their inputs and expects its documented 400.
   The spec itself publishes no operation response examples.
+
+Screen references, read 2026-10-08: [the vendor's authentication guide](https://platform.claude.com/docs/en/manage-claude/authentication) supplies the key actions, expiration choices and workspace contract. [Sean Lloyd's firsthand Console walkthrough](https://www.sean-lloyd.com/post/how-to-get-your-claude-api-key), published 2026-03-22, supplies the pictured navigation and key-page layout. The screenshot is visual evidence only; the screen reads the World's organization and keys. No vendor sign-in or upstream UI capture is required, and no reference image is shipped.
