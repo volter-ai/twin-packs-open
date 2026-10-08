@@ -32,7 +32,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   }
   if (method !== 'POST') return refused(405, 'Method not allowed');
   const who = visitor(ctx);
-  if (!who) return refused(401, 'Sign in to Slack first');
+  if (!who) return refused(401, 'Sign in to Slack first', `${ctx.publicBase}/signin`);
   const name = field(ctx, 'name').trim();
   if (!name) return refused(400, 'Enter your full name');
   const email = String(invitation.email);

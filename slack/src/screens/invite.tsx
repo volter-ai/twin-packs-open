@@ -38,7 +38,7 @@ const form = (ctx: HandlerContext, asAdmin: boolean): Response => page('Invite p
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const method = ctx.call.request.method;
   const who = visitor(ctx);
-  if (!who?.row) return refused(401, 'Sign in to Slack first');
+  if (!who?.row) return refused(401, 'Sign in to Slack first', `${ctx.publicBase}/signin`);
   const asAdmin = administers(who.row);
   if (method === 'GET') return form(ctx, asAdmin);
   if (method !== 'POST') return refused(405, 'Method not allowed');

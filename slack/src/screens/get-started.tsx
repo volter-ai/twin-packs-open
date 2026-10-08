@@ -31,7 +31,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const method = ctx.call.request.method;
   if (method !== 'GET' && method !== 'POST') return refused(405, 'Method not allowed');
   const who = visitor(ctx);
-  if (!who) return refused(401, 'Sign in to Slack first');
+  if (!who) return refused(401, 'Sign in to Slack first', `${ctx.publicBase}/signin`);
   if (method === 'GET') return form(ctx);
   const email = field(ctx, 'email').trim().toLowerCase();
   const name = field(ctx, 'name').trim();
