@@ -6,10 +6,12 @@ The current product callers, operation decisions and customer story are in journ
 
 ## Use with an existing app
 
+Use Node 22.6 or newer.
+
 In an app that already uses Slack, install the product CLI and this exact twin release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.127 @volter/world-core@3.0.127 @volter/twin-slack@3.0.6
+npm install --save-dev --save-exact @volter/world@3.0.146 @volter/world-core@3.0.146 @volter/twin-slack@3.0.6
 ./node_modules/.bin/volter world init --name my-app --twins slack --source slack=@volter/twin-slack
 ```
 

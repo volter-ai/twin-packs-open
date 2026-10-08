@@ -7,6 +7,31 @@ clerk-js; a session clerk-js starts is one the Backend API lists and mints token
 
 The Frontend API also answers at `frontend-api.clerk.dev`, the destination of Clerk’s documented same-site proxy and vgauth’s Worker. That host routes directly to the Frontend API lane, with the same instance state and browser credentials.
 
+## Use with an existing app
+
+Use Node 22.6 or newer.
+
+Install the exact twin release and World CLI in your app's folder:
+
+```console
+npm install --save-dev --save-exact @volter/world@3.0.146 @volter/twin-clerk@1.0.3
+./node_modules/.bin/volter world init --name my-app --twins clerk --source clerk=@volter/twin-clerk
+```
+
+Review the selected vendor and generated bindings before starting. The World supplies synthetic credentials;
+keep your app's real SDK. Read this release's modeled scope below.
+
+```console
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
+```
+
+Replace `npm test` with your app's usual command. `down` retains data, and a later `up` resumes it.
+Use these installed executables from the same app folder; install there first if they are missing.
+[Bring an existing app](https://world-docs.volter.ai/docs/guides/use-with-an-existing-app) explains multi-vendor selection and routing.
+
 A Protocol 3 derived pack ([publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md), "Protocol 3" and "Creating a
 pack"): the surface is generated from Clerk's published OpenAPI documents (`spec/`, `fapi/spec/`), plain reads, writes
 and deletes are the derived core's, the state machines are `src/semantics/states.ts`, and handlers by operationId

@@ -7,10 +7,12 @@ A local Upstash: Redis over Upstash's REST API, the one the unmodified `@upstash
 
 ## Use with an existing app
 
+Use Node 22.6 or newer.
+
 For an app using the supported Redis REST or QStash workflows, install the exact release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-upstash@1.0.2
+npm install --save-dev --save-exact @volter/world@3.0.146 @volter/twin-upstash@1.0.2
 ./node_modules/.bin/volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
 ```
 

@@ -4,15 +4,19 @@ A local Supabase project's **Postgres database**: in a World it is the World's o
 the application its URL. A Protocol 3 derived pack (twin-world's
 architecture, "Protocol 3: the derived pack"); no real Supabase is contacted.
 
-Install the exact twin and World CLI in your app:
+Use Node 22.6 or newer. Install the exact twin and World CLI in your app:
 
 ```sh
-npm install --save-dev --save-exact @volter/world@3.0.92 @volter/twin-supabase@1.0.4
+npm install --save-dev --save-exact @volter/world@3.0.146 @volter/twin-supabase@1.0.4
 ```
 
-Follow [Run a full stack](https://github.com/volter-ai/twin-world/blob/main/docs/guides/run-a-full-stack.md#a-real-database)
+Follow [Run a full stack](https://world-docs.volter.ai/docs/guides/run-a-full-stack#a-real-database)
 to configure the World-owned Postgres and run your migrations and app inside the World. Keep your native Postgres
 client unchanged. This release does not implement Supabase's HTTP APIs or make supabase-js calls work.
+
+The [managed-database example](https://world-docs.volter.ai/cookbook/managed-database/README)
+supplies a complete SQL client and stop/resume workflow. It pins its own example releases;
+keep the selected release above when adopting this twin in your app.
 
 For an operator calling the server directly:
 

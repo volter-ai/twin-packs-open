@@ -5,10 +5,12 @@ application sends a person through, and Stripe.js, over one state.
 
 ## Use with an existing app
 
+Use Node 22.6 or newer.
+
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-stripe@3.0.3
+npm install --save-dev --save-exact @volter/world@3.0.146 @volter/twin-stripe@3.0.3
 ./node_modules/.bin/volter world init --name my-app --twins stripe --source stripe=@volter/twin-stripe
 ```
 
