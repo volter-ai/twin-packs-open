@@ -46,7 +46,7 @@ database's page shows `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` and t
 QStash they pick a region; the page then shows `QSTASH_URL`, `QSTASH_TOKEN` and the two signing keys, and can reset the
 token and roll the keys. The Redis console has the vendor product navigation, a Create Database dialog and
 database Details/Connect sections. Redis Usage, CLI, Data Browser, Search, Monitor, Backups, ACL and paid/read-region
-controls remain unavailable; no usage metrics are fabricated. QStash retains its existing console layout.
+controls remain unavailable; no usage metrics are fabricated. QStash uses the same product navigation and an Overview with masked Quickstart credentials, a token reset confirmation and signing-key rotation. QStash message, usage and cost charts and unserved navigation are unavailable; its read-only-token switch is not reproduced.
 
 ## What it models
 
