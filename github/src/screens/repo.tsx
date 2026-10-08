@@ -1,7 +1,7 @@
 // A REPOSITORY'S PAGE — github.com/{owner}/{repo}, its Code tab: the repository's name and visibility, its tabs, the
 // default branch's latest commit and its files and folders (each with the last commit that touched it), and its README
-// rendered, the About sidebar beside them. A private repository is its members' alone: anyone else finds no page, as on
-// GitHub. Every other request under the path (git over HTTP, a page deeper in) is git's (./git.ts).
+// rendered, the About sidebar beside them. Files, directories and branch selection read those same stored Git objects.
+// A private repository is its members' alone: anyone else finds no page, as on GitHub. Git transport stays in ./git.ts.
 import { git, type HandlerContext } from '@volter/world-core';
 import { flowPage, markdownHtml } from '@volter/world-ui';
 import { gitOf, repoNamed, roleIn, type Row } from '../semantics/shared.ts';
@@ -22,11 +22,25 @@ svg { fill: currentColor; vertical-align: text-bottom; }
 .tabs { display: flex; gap: 8px; }
 .tabs span { display: flex; align-items: center; gap: 8px; padding: 0 8px 8px; color: #1f2328; border-bottom: 2px solid transparent; }
 .tabs .on { border-bottom-color: #fd8c73; font-weight: 600; }
+.tabs button { border: 0; background: none; font: inherit; color: #59636e; padding: 0 8px 8px; cursor: not-allowed; }
+.tabs { overflow-x: auto; white-space: nowrap; }
 .count { background: rgba(129,139,152,0.12); border-radius: 2em; padding: 0 6px; font-size: 12px; font-weight: 500; }
 .body { max-width: 1280px; margin: 0 auto; padding: 24px 32px; display: grid; grid-template-columns: minmax(0, 1fr) 296px; gap: 24px; }
 .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid #d1d9e0; border-radius: 6px; background: #f6f8fa; font-weight: 500; color: #1f2328; }
 .btn.green { background: #1f883d; border-color: rgba(31,35,40,0.15); color: #fff; margin-left: auto; }
+.btn:disabled { cursor: not-allowed; opacity: .65; }
+.branch { position: relative; } .branch summary { cursor: pointer; list-style: none; }
+.branch-menu { position: absolute; z-index: 1; min-width: 240px; max-width: 320px; max-height: 320px; overflow: auto; background: #fff; border: 1px solid #d1d9e0; border-radius: 6px; padding: 8px; }
+.branch-menu a { display: block; padding: 6px 8px; color: #1f2328; overflow-wrap: anywhere; }
+.breadcrumbs { margin: 0 0 16px; overflow-wrap: anywhere; }
+.file-view { grid-column: 1 / -1; min-width: 0; }
+.file-head { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f6f8fa; border-bottom: 1px solid #d1d9e0; }
+.file-head .raw { margin-left: auto; } .source { overflow: auto; margin: 0; padding: 16px; font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.source .line { display: flex; min-height: 1.7em; } .source .line:target { background: #fff8c5; }
+.source .line-no { flex: 0 0 48px; color: #59636e; text-align: right; padding-right: 16px; user-select: none; }
+.source code { white-space: pre; } .files .name a { color: #1f2328; }
+@media (max-width: 800px) { .head { padding: 16px 16px 0; } .body { grid-template-columns: minmax(0, 1fr); padding: 16px; } .about { border-top: 1px solid #d1d9e0; padding-top: 16px; } .files td.when { display: none; } .files td { padding: 8px; } .bar { flex-wrap: wrap; } .markdown { padding: 16px; } }
 .muted { color: #59636e; }
 .box { border: 1px solid #d1d9e0; border-radius: 6px; overflow: hidden; margin-bottom: 24px; }
 .latest { display: flex; align-items: center; gap: 8px; background: #f6f8fa; padding: 16px; border-bottom: 1px solid #d1d9e0; }
@@ -80,10 +94,12 @@ const LIMIT = 300;
 // source: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes "If you put your README file in your repository's hidden .github , root, or docs directory, GitHub will recognize and automatically surface your README to repository visitors."
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const url = new URL(ctx.call.request.url);
-  const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
-  // the repository's own page, asked for by a person's browser; anything else under the path is git's
-  const wantsPage = (ctx.call.request.method === 'GET' || ctx.call.request.method === 'HEAD') && parts.length === 2 && !parts[1]!.endsWith('.git')
-    && (ctx.call.request.headers.get('accept') ?? '').includes('text/html');
+  let parts: string[];
+  try { parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent); } catch { return refused(404, 'Not Found'); }
+  const view = parts[2];
+  const fileRoute = ['tree', 'blob', 'raw'].includes(view ?? '') && parts.length >= 4;
+  const wantsPage = (ctx.call.request.method === 'GET' || ctx.call.request.method === 'HEAD') && !parts[1]?.endsWith('.git')
+    && (parts.length === 2 || fileRoute) && (view === 'raw' || (ctx.call.request.headers.get('accept') ?? '').includes('text/html'));
   if (!wantsPage) return gitScreen(ctx);
   const [owner, name] = parts as [string, string];
   const repo = repoNamed(ctx, owner, name);
@@ -94,8 +110,9 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const full = String(repo.full_name);
   const now = Date.parse(ctx.occurredAt) / 1000;
   const { store, refs } = gitOf(ctx, repo);
-  const branch = String(repo.default_branch ?? 'main');
+  let branch = String(repo.default_branch ?? 'main');
   const all = refs.list();
+  const branchNames = all.filter((r) => r.name.startsWith('refs/heads/')).map((r) => r.name.slice('refs/heads/'.length)).sort();
   const branches = all.filter((r) => r.name.startsWith('refs/heads/')).length;
   const tags = all.filter((r) => r.name.startsWith('refs/tags/')).length;
   const issues = ctx.rowsRaw('issue').filter((i) => i._repo === full && i.state === 'open' && i.deleted !== true);
@@ -104,13 +121,47 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
 
   // the branch's history, newest first along its first parents: the latest commit, how many there are, and for each
   // entry at the root the newest commit that changed it
-  const tip = refs.get(`refs/heads/${branch}`);
+  let tip = refs.get(`refs/heads/${branch}`);
+  let path = '';
+  if (fileRoute) {
+    tip = null;
+    const rest = parts.slice(3);
+    // Branch names can contain slashes: use the longest existing branch prefix, as the raw-content screen does.
+    for (let n = rest.length; n > 0 && !tip; n -= 1) {
+      const candidate = rest.slice(0, n).join('/');
+      tip = refs.get(`refs/heads/${candidate}`) ?? (/^[0-9a-f]{40}$/.test(candidate) ? candidate : null);
+      if (tip) { branch = candidate; path = rest.slice(n).join('/'); }
+    }
+    if (!tip) return refused(404, 'Not Found');
+  }
+  const base = ctx.publicBase.replace(/\/$/, '');
+  const repoPath = `/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+  const here = (suffix = ''): string => `${base}${repoPath}${suffix}`;
+  const at = (kind: 'tree' | 'blob' | 'raw', item = '', ref = branch): string => here(`/${kind}/${encodeURIComponent(ref)}${item ? '/' + item.split('/').map(encodeURIComponent).join('/') : ''}`);
+  const objectAt = async (commit: git.Commit, item: string): Promise<Awaited<ReturnType<typeof store.read>>> => {
+    let object = await store.read(commit.tree);
+    for (const part of item.split('/').filter(Boolean)) {
+      if (object?.type !== 'tree') return null;
+      const entry = git.decodeTree(object.payload).find((e) => e.name === part);
+      if (!entry || entry.mode === '160000') return null;
+      object = await store.read(entry.sha);
+    }
+    return object;
+  };
+  const tipObject = tip ? await store.read(tip) : null;
+  if (fileRoute && tipObject?.type !== 'commit') return refused(404, 'Not Found');
+  const selected = tipObject?.type === 'commit' ? await objectAt(git.decodeCommit(tipObject.payload), path) : null;
+  if (fileRoute && (view === 'tree' ? selected?.type !== 'tree' : selected?.type !== 'blob')) return refused(404, 'Not Found');
+  if (view === 'raw' && selected?.type === 'blob') return new Response(selected.payload as Uint8Array<ArrayBuffer>, {
+    headers: { 'content-type': 'text/plain; charset=utf-8', 'x-content-type-options': 'nosniff' },
+  });
+  const file = selected?.type === 'blob' ? selected.payload : undefined;
   let latest: { sha: string; c: git.Commit } | undefined;
   let entries: git.TreeEntry[] = [];
   const touched = new Map<string, { sha: string; c: git.Commit }>();
   let commits = 0;
   const treeOf = async (commit: git.Commit): Promise<Map<string, string>> => {
-    const t = await store.read(commit.tree);
+    const t = await objectAt(commit, file ? path.split('/').slice(0, -1).join('/') : path);
     return new Map(t?.type === 'tree' ? git.decodeTree(t.payload).map((e) => [e.name, e.sha]) : []);
   };
   if (tip) {
@@ -123,7 +174,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
       commits += 1;
       if (!latest) {
         latest = { sha, c };
-        const t = await store.read(c.tree);
+        const t = await objectAt(c, file ? path.split('/').slice(0, -1).join('/') : path);
         entries = t?.type === 'tree' ? git.decodeTree(t.payload) : [];
       }
       if (touched.size < entries.length) {
@@ -149,7 +200,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     const t = e ? await store.read(e.sha) : undefined;
     return t?.type === 'tree' ? git.decodeTree(t.payload) : [];
   };
-  const readmeEntry = readmeIn(await folder('.github')) ?? readmeIn(entries) ?? readmeIn(await folder('docs'));
+  const readmeEntry = file ? undefined : path ? readmeIn(entries) : readmeIn(await folder('.github')) ?? readmeIn(entries) ?? readmeIn(await folder('docs'));
   const readmeBlob = readmeEntry ? await store.read(readmeEntry.sha) : undefined;
   const readmeText = readmeBlob?.type === 'blob' ? new TextDecoder().decode(readmeBlob.payload) : undefined;
   const firstLine = (c: git.Commit): string => c.message.split('\n')[0] ?? '';
@@ -158,18 +209,19 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const body = (
     <>
       <div className="head">
-        <div className="title"><Icon d={icon.repo} /><a className="owner" href={`/${String((repo.owner as Row).login)}`}>{String((repo.owner as Row).login)}</a><span className="muted">/</span><a className="name" href={`/${full}`}>{String(repo.name)}</a><span className="label">{repo.private === true ? 'Private' : 'Public'}</span></div>
-        <nav className="tabs">{tabs.map(([t, n], i) => <span key={t} className={i === 0 ? 'on' : undefined}>{t}{n ? <span className="count">{n}</span> : null}</span>)}</nav>
+        <div className="title"><Icon d={icon.repo} /><span className="owner">{String((repo.owner as Row).login)}</span><span className="muted">/</span><a className="name" href={here()}>{String(repo.name)}</a><span className="label">{repo.private === true ? 'Private' : 'Public'}</span></div>
+        <nav className="tabs" aria-label="Repository">{tabs.map(([t, n], i) => i === 0 ? <span key={t} className="on" aria-current="page">{t}</span> : <button key={t} disabled title={`${t} is not available in this mirror`}>{t}{n ? <span className="count">{n}</span> : null}</button>)}</nav>
       </div>
       <div className="body">
-        <div>
+        <div className={file ? 'file-view' : undefined}>
           <div className="bar">
-            <span className="btn"><Icon d={icon.branch} />{branch}</span>
+            <details className="branch"><summary className="btn"><Icon d={icon.branch} />{branch} ▾</summary><div className="branch-menu" aria-label="Branches"><b>Switch branches</b>{branchNames.map((ref) => <a key={ref} href={at('tree', '', ref)} aria-current={ref === branch ? 'true' : undefined}>{ref}</a>)}</div></details>
             <span className="muted"><Icon d={icon.branch} /> <b>{branches}</b> {branches === 1 ? 'Branch' : 'Branches'}</span>
             <span className="muted"><b>{tags}</b> {tags === 1 ? 'Tag' : 'Tags'}</span>
-            <span className="btn green">Code</span>
+            <button className="btn green" disabled title="The clone dropdown is not available in this mirror">Code</button>
           </div>
-          {latest ? (
+          {path ? <nav className="breadcrumbs" aria-label="File path"><a href={at('tree')}>{String(repo.name)}</a>{path.split('/').map((part, i, parts) => <span key={i}> / {i < parts.length - 1 ? <a href={at('tree', parts.slice(0, i + 1).join('/'))}>{part}</a> : <b>{part}</b>}</span>)}</nav> : null}
+          {file ? <div className="box"><div className="file-head"><Icon d={icon.file} /><b>{path.split('/').at(-1)}</b><span className="muted">{file.length} bytes</span><button className="btn" disabled title="Blame is not available in this mirror">Blame</button><a className="btn raw" href={at('raw', path)}>Raw</a></div>{file.includes(0) ? <div className="empty muted">Binary file. <a href={at('raw', path)}>View raw content</a></div> : /\.(md|markdown)$/i.test(path) ? <div className="markdown" dangerouslySetInnerHTML={{ __html: markdownHtml(new TextDecoder().decode(file)) }} /> : <pre className="source">{new TextDecoder().decode(file).split('\n').map((line, i) => <span className="line" id={`L${i + 1}`} key={i}><a className="line-no" href={`#L${i + 1}`}>{i + 1}</a><code>{line}</code></span>)}</pre>}</div> : latest ? (
             <div className="box">
               <div className="latest">
                 <span className="avatar" aria-hidden="true" /><b>{latest.c.author.name}</b>
@@ -178,11 +230,12 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
                 <span className="muted"><Icon d={icon.history} /> <b>{commits}{commits >= LIMIT ? '+' : ''}</b> {commits === 1 ? 'Commit' : 'Commits'}</span>
               </div>
               <table className="files"><tbody>
+                {path ? <tr><td className="name" colSpan={3}><a href={at('tree', path.split('/').slice(0, -1).join('/'))}>..</a></td></tr> : null}
                 {listed.map((e) => {
                   const last = touched.get(e.name);
                   return (
                     <tr key={e.name} className={isDir(e.mode) ? 'dir' : 'file'}>
-                      <td className="name"><Icon d={isDir(e.mode) ? icon.dir : icon.file} /> {e.name}</td>
+                      <td className="name"><Icon d={isDir(e.mode) ? icon.dir : icon.file} /> {e.mode === '160000' ? <span title="Submodule navigation is not available">{e.name}</span> : <a href={at(isDir(e.mode) ? 'tree' : 'blob', path ? `${path}/${e.name}` : e.name)}>{e.name}</a>}</td>
                       <td className="msg">{last ? firstLine(last.c) : ''}</td>
                       <td className="when">{last ? ago(now, last.c.committer.time) : ''}</td>
                     </tr>
@@ -202,7 +255,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
             </div>
           ) : null}
         </div>
-        <aside className="about">
+        {!file ? <aside className="about">
           <h2>About</h2>
           {typeof repo.description === 'string' && repo.description ? <p>{repo.description}</p> : <p className="muted">No description, website, or topics provided.</p>}
           {typeof repo.homepage === 'string' && repo.homepage ? <p><a href={repo.homepage}>{repo.homepage.replace(/^https?:\/\//, '')}</a></p> : null}
@@ -211,7 +264,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
           <div className="line"><b>{Number(repo.stargazers_count ?? 0)}</b> stars</div>
           <div className="line"><b>{Number(repo.watchers_count ?? 0)}</b> watching</div>
           <div className="line"><b>{Number(repo.forks_count ?? 0)}</b> forks</div>
-        </aside>
+        </aside> : null}
       </div>
     </>
   );

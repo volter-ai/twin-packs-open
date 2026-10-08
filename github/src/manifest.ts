@@ -247,10 +247,11 @@ export const manifest: DerivedManifest = {
       source: 'https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app',
     },
     {
-      // ahead of git, whose path it shares: it answers a person's browser at the repository's own page, and hands git
-      // every other request under the path (./screens/repo.tsx)
+      // Ahead of git, whose path it shares: the Code tab and stored file/directory views answer browsers; git transport
+      // stays with ./screens/git.ts. Branch selection changes only the viewed ref, never the repository's default.
       id: 'repo', kind: 'workspace', host: 'github.com', path: '/{owner}/{repo}', status: 'done',
       demand: "a repository on the World's board is seen at its page, its files and README as GitHub shows them (the board's GitHub frames)",
+      controls: ['Branches', 'Files', 'Raw'],
       source: 'https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes',
     },
     {

@@ -8,7 +8,7 @@ beside it, git over smart HTTP, and the github.com pages an application sends a 
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.127 @volter/twin-github@3.0.6
+npm install --save-dev --save-exact @volter/world@3.0.127 @volter/twin-github@3.0.7
 ./node_modules/.bin/volter world init --name my-app --twins github --source github=@volter/twin-github
 ```
 
@@ -82,6 +82,12 @@ Point a client at it (`new Octokit({ baseUrl })`, `GH_HOST`), or run the applica
   requests by branch with their commits' status rollup, review decision and merge state), the schema's own
   introspection, and the mutations they send: `createRepository`, `createDiscussion`, `addDiscussionComment`,
   `createPullRequest` and `mergePullRequest`.
+
+## Repository browser
+
+The Code tab shows the stored repository files and README with GitHub’s familiar file-list and About layout. Select a branch, open folders and files, or follow Raw to the stored blob content. Branch selection changes only the viewed ref; mounted World URLs stay local. A Markdown file renders through the shared Markdown renderer; text files show line anchors.
+
+Issues, pull requests, Actions, Projects, Security, Insights and Settings remain API capabilities rather than browser tabs. Those tabs and the clone dropdown and Blame controls are unavailable in this mirror. Symbol navigation and submodule navigation are outside this browser scope.
 
 ## Events
 
