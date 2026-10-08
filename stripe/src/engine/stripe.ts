@@ -712,6 +712,28 @@ export function disputeEvidence(): Record<string, unknown> {
 type Params = Record<string, unknown>;
 const subParams = (params: Params, k: string): Params => (params[k] && typeof params[k] === 'object' ? (params[k] as Params) : {});
 
+// source: https://docs.stripe.com/testing
+// The documented brand cards keep their brand and funding type when Checkout or the portal saves them.
+// Where the documentation stops and the twin decides: other numbers retain the existing synthetic Visa default.
+const TEST_CARD_PROFILES: Record<string, { brand: string; funding: string }> = {
+  '4000056655665556': { brand: 'visa', funding: 'debit' },
+  '5555555555554444': { brand: 'mastercard', funding: 'credit' },
+  '2223003122003222': { brand: 'mastercard', funding: 'credit' },
+  '5200828282828210': { brand: 'mastercard', funding: 'debit' },
+  '5105105105105100': { brand: 'mastercard', funding: 'prepaid' },
+  '378282246310005': { brand: 'amex', funding: 'credit' },
+  '371449635398431': { brand: 'amex', funding: 'credit' },
+  '6011111111111117': { brand: 'discover', funding: 'credit' },
+  '6011000990139424': { brand: 'discover', funding: 'credit' },
+  '6011981111111113': { brand: 'discover', funding: 'debit' },
+  '3056930009020004': { brand: 'diners', funding: 'credit' },
+  '36227206271667': { brand: 'diners', funding: 'credit' },
+  '3566002020360505': { brand: 'jcb', funding: 'credit' },
+  '6200000000000005': { brand: 'unionpay', funding: 'credit' },
+  '6200000000000047': { brand: 'unionpay', funding: 'debit' },
+  '6205500000000000004': { brand: 'unionpay', funding: 'credit' },
+};
+
 /** A card's own sub-object, from the number and expiry given. */
 function cardSubObject(params: Params): Params {
   const c = subParams(params, 'card');
@@ -720,15 +742,16 @@ function cardSubObject(params: Params): Params {
   // produces its real last4 instead of silently falling back to the '4242' default.
   const number = typeof c.number === 'string' ? c.number.replace(/\D/g, '')
     : typeof c.number === 'number' ? String(c.number).replace(/\D/g, '') : '';
+  const profile = TEST_CARD_PROFILES[number] ?? { brand: 'visa', funding: 'credit' };
   return { card: {
-    brand: 'visa', last4: number ? number.slice(-4) : '4242',
+    brand: profile.brand, last4: number ? number.slice(-4) : '4242',
     exp_month: Number(c.exp_month) || 12, exp_year: Number(c.exp_year) || 2034,
-    funding: 'credit', country: 'US',
+    funding: profile.funding, country: 'US',
     // source: spec:/components/schemas/payment_method_card/properties/fingerprint/description "Uniquely identifies this particular card number."
     // The synthetic fingerprint is stable for a number; Stripe's opaque fingerprint algorithm is not published.
     fingerprint: digest('sha256', number || '4242424242424242').slice(0, 16),
     checks: { address_line1_check: null, address_postal_code_check: null, cvc_check: 'pass' },
-    networks: { available: ['visa'], preferred: null },
+    networks: { available: [profile.brand], preferred: null },
     three_d_secure_usage: { supported: true }, wallet: null,
   } };
 }
