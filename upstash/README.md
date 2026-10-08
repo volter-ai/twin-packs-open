@@ -61,6 +61,10 @@ controls remain unavailable; no usage metrics are fabricated. QStash uses the sa
   HSETNX, HGET, HGETALL, HMGET, HDEL, HINCRBY; LPUSH, RPUSH, LPOP, LRANGE; SADD, SREM, SMEMBERS, SISMEMBER, SMISMEMBER;
   ZINCRBY, ZRANGE; XADD, XRANGE, XREVRANGE, XDEL; SCAN; EVAL and EVALSHA running the script's Lua (`@upstash/ratelimit`'s
   windows verbatim). Every other command is refused as Upstash refuses one it does not have, in a request or a script.
+- **Lua script flags**: `no-writes` prevents script mutations. `allow-key-locking` restricts commands to declared
+  Redis hash tags, including dynamic keys sharing those tags; scripts in `/multi-exec` use the vendor's transaction
+  exception. Script hashes include the header. Other flags, database-wide reads under key locking, and Search-index
+  locking are not modeled; this does not simulate parallel scheduling.
 - **QStash**:
   - Publishing: publish with method, timeout, delay, not-before, retries, deduplication (ten minutes), flow control's
     keyed rate, period and parallelism (a key alone keeps its limits), durations as `<number><unit>` or compound

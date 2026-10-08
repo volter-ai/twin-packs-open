@@ -15,7 +15,7 @@ const form = (s: Row | undefined, notice?: string): Response => page('Notificati
   <>
     <h1>Notifications</h1>
     {notice ? <p className="sk-notice" role="status">{notice}</p> : null}
-    <form className="sk-card" method="post" action="/account/notifications">
+    <form className="sk-card" method="post" action={`${ctx.publicBase}/account/notifications`}>
       <label htmlFor="days">Notification schedule</label>
       <select id="days" name="days"><option value="every_day">Every day</option></select>
       <label htmlFor="start">From</label>

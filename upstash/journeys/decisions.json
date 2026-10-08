@@ -385,13 +385,18 @@
       "operation": "EVAL",
       "demand": "Dub's lock release script; @upstash/ratelimit on NOSCRIPT; the life's booking script",
       "mechanism": "handler",
-      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the script's Lua run with the commands above; a failing script leaves nothing it wrote",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the script's Lua run with the commands above; a failing script leaves nothing it wrote. The core parses script headers and enforces no-writes; the dialect's allow-key-locking guard admits only declared hash tags outside a transaction. Unknown flags and unsupported key-restriction semantics remain gaps, never ignored headers.",
       "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
       "sourceRules": [
         {
           "source": "https://raw.githubusercontent.com/redis/redis/c9d29f6a918c335bc1778d9f68e521c1bbb36a0f/src/object.c",
           "quote": "value is not an integer or out of range",
           "means": "The shared Redis argument rule and its observable effect."
+        },
+        {
+          "source": "https://upstash.com/docs/redis/features/key-locking",
+          "quote": "Every key passed to redis.call must be covered by an existing lock.",
+          "means": "The dialect restricts keys by declared Redis hash tags outside a transaction. Search-index locking is unmodeled."
         }
       ]
     },
@@ -399,7 +404,7 @@
       "operation": "EVALSHA",
       "demand": "@upstash/ratelimit's first try of its script",
       "mechanism": "handler",
-      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a cached script by its SHA-1, NOSCRIPT when not cached"
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a cached script by its SHA-1, NOSCRIPT when not cached; cached source retains its full header and runs the same flag restrictions as EVAL"
     },
     {
       "operation": "post_v2_publish_destination",

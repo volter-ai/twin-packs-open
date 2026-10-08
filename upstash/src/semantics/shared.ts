@@ -55,6 +55,25 @@ export const DIALECT: redis.RedisDialect = {
   lua: { extend: ({ set, commandApi }) => set('redis', commandApi), numberArg: (n) => String(Math.trunc(n)) },
   // a script that fails part-way leaves nothing it wrote (probed: a SET before the script's error is gone)
   scriptErrorsKeepWrites: false,
+  scriptFlags: {
+    // Source: https://upstash.com/docs/redis/features/key-locking — called keys must hold the declared locks.
+    // The same source specifies the global lock for scripts inside a transaction.
+    'allow-key-locking': (keys, transaction) => {
+      const tags = new Set(keys.map(redis.redisHashTag));
+      return argv => {
+        if (transaction) return;
+        const command = (argv[0] ?? '').toUpperCase();
+        const calledKeys = redis.redisCommandKeys(argv);
+        // The docs prohibit database-wide writes but give no error text; use the REST error envelope and disclose
+        // the unsupported restriction on database-wide reads. Search-index locks are outside the served surface.
+        if (command === 'FLUSHDB' || command === 'FLUSHALL') throw new redis.RedisCommandError(`ERR ${command} is not allowed with allow-key-locking`);
+        if (calledKeys === undefined) throw new redis.RedisCommandError(`ERR twin: ${command} with allow-key-locking is not modeled`);
+        for (const key of calledKeys) {
+          if (!tags.has(redis.redisHashTag(key))) throw new redis.RedisCommandError(`ERR Dynamic keys are not allowed in Lua scripts when 'allow-key-locking' flag is set. Key was: ${key}`);
+        }
+      };
+    },
+  },
 };
 
 /** The database a REST request reaches: the one whose endpoint is the request's host (`<endpoint>.upstash.io`). */

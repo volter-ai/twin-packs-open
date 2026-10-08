@@ -2,7 +2,7 @@
 // email, confirmation code in email, then the member's browser session. No external mail is sent.
 // The code is in the existing /_twin/mail inbox. SSO/passkeys/Apple/Google and workspace switching are gaps.
 // Twin decisions: opaque challenge and cookie names; a six-digit code expires after ten World minutes.
-import { personOf, recordPerson, twinVendorUrl, type HandlerContext } from '@volter/world-core';
+import { personOf, recordPerson, type HandlerContext } from '@volter/world-core';
 import { formOf, startSession } from '@volter/world-ui';
 import { now, sendMail, serial } from '../semantics/shared.ts';
 import { CLIENT_COOKIE, page, refused, visitor } from './shared.tsx';
@@ -21,7 +21,7 @@ function form(ctx: HandlerContext, next: string, challenge?: Row, error?: string
     <h1>{challenge ? 'Check your email for a code' : 'Sign in to Slack'}</h1>
     <p className="lead">{challenge ? <>We sent a confirmation code to <strong>{String(challenge.email)}</strong>.</> : 'Enter the email address you use for your workspace.'}</p>
     {error ? <p className="sk-notice" role="alert">{error}</p> : null}
-    <form className="sk-card" method="post" action={twinVendorUrl(ctx.call.request, '/signin')}>
+    <form className="sk-card" method="post" action={`${ctx.publicBase}/signin`}>
       <input type="hidden" name="next" value={next}/>
       {challenge ? <><input type="hidden" name="challenge" value={String(challenge.id)}/><label htmlFor="code">Confirmation code</label><input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required/><button type="submit">Continue</button></> : <><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" required/><button type="submit">Sign In with Email</button></>}
     </form>
@@ -33,7 +33,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'POST') return refused(405, 'Method not allowed');
   if (request.method === 'GET') {
     const next = nextOf(new URL(request.url).searchParams.get('next'));
-    return visitor(ctx)?.row ? new Response(null, {status: 302, headers: {location: twinVendorUrl(request, next)}}) : form(ctx, next);
+    return visitor(ctx)?.row ? new Response(null, {status: 302, headers: {location: `${ctx.publicBase}${next}`}}) : form(ctx, next);
   }
   const fields = formOf(ctx);
   const next = nextOf(fields.next);
@@ -54,5 +54,5 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   await ctx.record(CHALLENGES, {...challenge, used: true}, String(challenge.id));
   const email = String(challenge.email);
   if (!personOf(ctx, email)) await recordPerson(ctx, email, await ctx.secret(`email-confirmed-person:${email}`));
-  return startSession(ctx, email, CLIENT_COOKIE, twinVendorUrl(request, nextOf(String(challenge.next))));
+  return startSession(ctx, email, CLIENT_COOKIE, `${ctx.publicBase}${nextOf(String(challenge.next))}`);
 }

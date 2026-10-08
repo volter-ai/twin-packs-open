@@ -17,7 +17,7 @@ const form = (error?: string): Response => page('Create a workspace', (
     <h1>Create a new Slack workspace</h1>
     <p className="sk-lead">Slack gives your team a home: a place where they can talk and work together.</p>
     {error ? <p className="sk-notice" role="alert">{error}</p> : null}
-    <form className="sk-card" method="post" action="/get-started">
+    <form className="sk-card" method="post" action={`${ctx.publicBase}/get-started`}>
       <label htmlFor="email">Your work email</label>
       <input id="email" name="email" type="email" required placeholder="name@work-email.com" />
       <label htmlFor="name">Your full name</label>

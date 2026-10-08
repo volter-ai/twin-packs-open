@@ -19,7 +19,7 @@ function members(ctx: HandlerContext, team: string, notice?: string): Response {
       {notice ? <p className="sk-notice" role="status">{notice}</p> : null}
       <div className="sk-card">
         {people.map((u) => (
-          <form key={String(u.id)} className="sk-row" method="post" action="/admin">
+          <form key={String(u.id)} className="sk-row" method="post" action={`${ctx.publicBase}/admin`}>
             <span>{nameOf(u)} {u.deleted === true ? '(deactivated)' : u.is_primary_owner === true ? '(Primary Owner)' : u.is_admin === true ? '(Workspace Admin)' : u.is_restricted === true ? '(Guest)' : ''}</span>
             <input type="hidden" name="user" value={String(u.id)} />
             {u.is_primary_owner === true ? null : u.deleted === true ? <button name="action" value="reactivate">Activate account</button> : (
@@ -43,7 +43,7 @@ function requests(ctx: HandlerContext, team: string, notice?: string): Response 
       {notice ? <p className="sk-notice" role="status">{notice}</p> : null}
       <div className="sk-card">
         {pending.length === 0 ? <p>No pending requests.</p> : pending.map((r) => (
-          <form key={String(r.id)} className="sk-row" method="post" action="/admin/invites">
+          <form key={String(r.id)} className="sk-row" method="post" action={`${ctx.publicBase}/admin/invites`}>
             <span>{String(r.email)}: {String(r.reason ?? '')}</span>
             <input type="hidden" name="request" value={String(r.id)} />
             <span><button name="answer" value="approve">Approve</button><button className="sk-quiet" name="answer" value="deny">Deny</button></span>

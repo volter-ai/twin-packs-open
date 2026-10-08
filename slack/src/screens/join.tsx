@@ -17,13 +17,12 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const invitation = id ? ctx.row('invitation', id) : undefined;
   if (!invitation || invitation.accepted === true) return refused(404, 'This invitation link is no longer valid');
   const team = ctx.get('team', String(invitation.team_id));
-  const link = String(invitation.link);
   // the link is the invitation: whoever holds it sees the page; joining names who they are
   if (method === 'GET') {
     return page(`Join ${String(team?.name ?? '')}`, (
       <>
         <h1>Join {String(team?.name ?? 'your team')} on Slack</h1>
-        <form className="sk-card" method="post" action={link}>
+        <form className="sk-card" method="post" action={`${ctx.publicBase}${new URL(ctx.call.request.url).pathname}`}>
           <label htmlFor="name">Full name</label>
           <input id="name" name="name" required />
           <div className="sk-actions"><button type="submit">Join</button></div>

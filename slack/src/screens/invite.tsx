@@ -14,7 +14,7 @@ const form = (asAdmin: boolean): Response => page('Invite people', (
   <>
     <h1>Invite people to your workspace</h1>
     {asAdmin ? null : <p className="sk-lead">Your invitation will be sent to an admin for approval.</p>}
-    <form className="sk-card" method="post" action="/invite">
+    <form className="sk-card" method="post" action={`${ctx.publicBase}/invite`}>
       <label htmlFor="email">To:</label>
       <input id="email" name="email" type="email" required placeholder="name@example.com" />
       {asAdmin ? (

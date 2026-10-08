@@ -7,7 +7,7 @@
 // The app is one made in the person's own workspace, or one distributed from another; its redirect URI must be one its
 // manifest lists ("bad_redirect_uri"). Where the documentation stops and the twin decides: the page's words; a code is
 // 40 hex characters.
-import { twinVendorUrl, type HandlerContext } from '@volter/world-core';
+import type { HandlerContext } from '@volter/world-core';
 import { appName, redirectsOf } from '../engine/app-manifest.ts';
 import { listArg } from '../engine/wire.ts';
 import { channelTeam, appOfClient, channelMembers, CODES, serial } from '../semantics/shared.ts';
@@ -34,7 +34,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const who = visitor(ctx);
   if (!who?.row) {
     const asked = new URL(ctx.call.request.url);
-    return toSignIn(twinVendorUrl(ctx.call.request, '/signin'), `${asked.pathname}${asked.search}`);
+    return toSignIn(`${ctx.publicBase}/signin`, `${asked.pathname}${asked.search}`);
   }
   const query = new URL(ctx.call.request.url).searchParams;
   const read = (k: string): string => (method === 'GET' ? query.get(k) ?? '' : field(ctx, k));
@@ -58,7 +58,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
         <header className="consent-top"><span className="slack-wordmark">Slack</span><span className="workspace">{workspace}</span></header>
         <div className="consent-identity" aria-hidden="true"><span className="identity-card">{appName(manifest).slice(0, 1).toUpperCase()}</span><span className="identity-direction">↔</span><span className="identity-card">{workspace.slice(0, 1).toUpperCase()}</span></div>
         <h1>{appName(manifest)} is requesting permission to access the {`${workspace} Slack workspace`}</h1>
-        <form className="sk-card" method="post" action={twinVendorUrl(ctx.call.request, '/oauth/v2/authorize')}>
+        <form className="sk-card" method="post" action={`${ctx.publicBase}/oauth/v2/authorize`}>
           {scopes.length ? <><h2>What will {appName(manifest)} be able to do?</h2><details className="permission-group"><summary>Permissions for the app</summary><ul>{scopes.map((s) => <li key={s}><code>{s}</code></li>)}</ul></details></> : null}
           {userScopes.length ? <details className="permission-group"><summary>Permissions on your behalf</summary><ul>{userScopes.map((s) => <li key={s}><code>{s}</code></li>)}</ul></details> : null}
           {webhook ? <><h2>Where should {appName(manifest)} post?</h2><p className="channel-description">Select a channel for this app’s incoming webhook.</p><label className="channel-picker"><span>Channel</span><select id="webhook_channel" name="webhook_channel">{channels.map((c) => <option key={String(c.id)} value={String(c.id)}>#{String(c.name)}</option>)}</select></label></> : null}
