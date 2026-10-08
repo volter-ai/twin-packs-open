@@ -7,7 +7,7 @@ architecture, "Protocol 3: the derived pack"); no real Supabase is contacted.
 Use Node 22.6 or newer. Install the exact twin and World CLI in your app:
 
 ```sh
-npm install --save-dev --save-exact @volter/world@3.0.146 @volter/twin-supabase@1.0.4
+npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-supabase@1.0.4
 ```
 
 Follow [Run a full stack](https://world-docs.volter.ai/docs/guides/run-a-full-stack#a-real-database)

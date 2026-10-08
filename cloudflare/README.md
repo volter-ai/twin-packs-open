@@ -12,7 +12,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.146 @volter/twin-cloudflare@3.0.13
+npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-cloudflare@3.0.13
 ./node_modules/.bin/volter world init --name my-app --twins cloudflare --source cloudflare=@volter/twin-cloudflare
 ```
 

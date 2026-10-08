@@ -37,7 +37,7 @@ Use Node 22.6 or newer.
 Install the exact twin release and World CLI in your app's folder:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.146 @volter/twin-linear@3.0.5
+npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-linear@3.0.5
 ./node_modules/.bin/volter world init --name my-app --twins linear --source linear=@volter/twin-linear
 ```
 
