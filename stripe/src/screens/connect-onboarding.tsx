@@ -167,7 +167,7 @@ async function visit(ctx: HandlerContext, id: string): Promise<Response> {
   if (!usable(ctx, link)) return seeOther(String(link.refresh_url));
   const session = `onbs_${id.replace(/^acctlink_/, '')}`;
   await ctx.write(LINK, id, { used: true, _session: session }, 'account_link.used');
-  return seeOther(`${SESSIONS}${session}`);
+  return seeOther(`${ctx.publicBase}${SESSIONS}${session}`);
 }
 
 /** connect.stripe.com's onboarding pages, or undefined for any other request. */
@@ -184,7 +184,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const stored = ctx.rowsRaw(LINK).find((l) => l._session === sid && l._submitted !== true);
   const link = stored ? ctx.get(LINK, String(stored.id)) : undefined;
   if (!stored || !link) return gone();
-  const sessionUrl = `${SESSIONS}${sid}`;
+  const sessionUrl = `${ctx.publicBase}${SESSIONS}${sid}`;
   const account = ctx.get('account', String(link.account)) ?? {};
   const kind = kindOf(account);
   if (!kind) return unmodelled(account);

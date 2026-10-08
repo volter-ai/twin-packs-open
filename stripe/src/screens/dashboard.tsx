@@ -130,9 +130,6 @@ async function publicDetails(ctx: HandlerContext): Promise<Response> {
 /** Dashboard settings, Radar list creation and test Issuing funding; other pages answer Stripe's 404. */
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const path = new URL(ctx.call.request.url).pathname.replace(/\/+$/, '');
-  // The twin's declared workspace entry opens its implemented Public details page; this authored choice does not
-  // reproduce Stripe's Dashboard home. The request's public base retains the World mount when the console frames it.
-  if (path === '' && ['GET', 'HEAD'].includes(ctx.call.request.method)) return redirect(`${ctx.publicBase}${PUBLIC_DETAILS_PATH}`);
   // source: https://docs.stripe.com/radar/lists "Use the Dashboard or the API to create lists."
   // source: https://docs.stripe.com/radar/lists "Enter a name for the list"
   // source: https://docs.stripe.com/radar/lists "Select the type of list to create."
@@ -154,9 +151,9 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
         list_items: { object: 'list', data: [], has_more: false, url: '/v1/radar/value_list_items' },
       });
       await ctx.write(VL, String(list.id), { list_items: { object: 'list', data: [], has_more: false, url: `/v1/radar/value_list_items?value_list=${list.id}` } }, 'radar.value_list.updated');
-      return redirect(`/radar/lists/${list.id}`);
+      return redirect(`${ctx.publicBase}/radar/lists/${list.id}`);
     }
-    return flowPage({ css: [], title: 'Lists – Radar – Stripe', body: <main><h1>Radar Lists</h1><form method="post" action="/radar/lists"><h2>New list</h2><label>Name<input name="name" required /></label><label>Alias<input name="alias" /></label><label>List type<select name="item_type"><option value="customer_id">Customer ID</option><option value="email">Email</option><option value="card_fingerprint">Card fingerprint</option><option value="ip_address">IP address</option><option value="string">String</option></select></label><button>Add</button></form><ul>{ctx.rows(VL).map(row => <li key={String(row.id)}>{String(row.name)} ({String(row.alias)})</li>)}</ul></main> });
+    return flowPage({ css: [], title: 'Lists – Radar – Stripe', body: <main><h1>Radar Lists</h1><form method="post" action={`${ctx.publicBase}/radar/lists`}><h2>New list</h2><label>Name<input name="name" required /></label><label>Alias<input name="alias" /></label><label>List type<select name="item_type"><option value="customer_id">Customer ID</option><option value="email">Email</option><option value="card_fingerprint">Card fingerprint</option><option value="ip_address">IP address</option><option value="string">String</option></select></label><button>Add</button></form><ul>{ctx.rows(VL).map(row => <li key={String(row.id)}>{String(row.name)} ({String(row.alias)})</li>)}</ul></main> });
   }
   // source: https://docs.stripe.com/issuing/testing "Before you create test transactions, you must add test funds to the Issuing balance on your account."
   // source: https://docs.stripe.com/issuing/testing "You can create test top-ups in the Dashboard, or with the Top-ups API"
@@ -172,9 +169,10 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
       const amount = Number(form.amount);
       if (!Number.isInteger(amount) || amount <= 0) return invalid('Enter a positive amount in cents.');
       await created(ctx, 'balance_transaction', {}, { amount, currency: 'usd', fee: 0, net: amount, type: 'topup', reporting_category: 'topup', source: null, status: 'available', balance_type: 'issuing', available_on: Number(nowUnix(ctx.occurredAt)), fee_details: [] });
-      return redirect('/test/issuing/balance');
+      return redirect(`${ctx.publicBase}/test/issuing/balance`);
     }
     return flowPage({ css: [], title: 'Test Issuing balance – Stripe', body: <main><h1>Test Issuing balance</h1><form method="post"><label>Amount<input name="amount" type="number" min="1" required /></label><button>Add test funds</button></form></main> });
   }
   return path === PUBLIC_DETAILS_PATH ? publicDetails(ctx) : notFound();
 }
+
