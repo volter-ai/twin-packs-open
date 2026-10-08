@@ -8,16 +8,18 @@ In an app that already uses this vendor, install this exact release and the prod
 
 ```console
 npm install --save-dev --save-exact @volter/world@3.0.92 @volter/twin-openai@3.0.2
-npx volter world init --name my-app --twins openai --source openai=@volter/twin-openai
+./node_modules/.bin/volter world init --name my-app --twins openai --source openai=@volter/twin-openai
 ```
+
+Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
 
 Review the detected vendor and generated bindings before booting. Read the credential names and limitations below; the World supplies throwaway credentials. Then run your app's own command through the World:
 
 ```console
-npx volter world up
-npx volter world run -- npm test
-npx volter world log
-npx volter world down
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
 ```
 
 Here `npm test` is your app's existing command; replace it with your app or test command. `down` retains state.

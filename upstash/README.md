@@ -11,17 +11,19 @@ For an app using the supported Redis REST or QStash workflows, install the exact
 
 ```console
 npm install --save-dev --save-exact @volter/world@3.0.68 @volter/twin-upstash@1.0.1
-npx volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
+./node_modules/.bin/volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
 ```
+
+Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
 
 Review the detected vendor and generated bindings before booting. The World supplies throwaway credentials;
 seed stored data through the unchanged vendor SDK, then run your app's existing test command inside the World.
 
 ```console
-npx volter world up
-npx volter world run -- npm test
-npx volter world log
-npx volter world down
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
 ```
 
 Use your app's test command in place of `npm test`. Ordinary `down` retains state for the next `up`.
