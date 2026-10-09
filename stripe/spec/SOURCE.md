@@ -8,6 +8,15 @@
 
 The pack serves this document's version (`SERVED_VERSION` in `src/engine/version.ts`).
 
+Customer Dashboard references, read 2026-10-09: [Export customer data](https://support.stripe.com/questions/export-customer-data-without-the-payment-details)
+establishes the Customers section at `/customers`. [Updates to the Customer details page](https://support.stripe.com/questions/updates-to-the-customer-detail-page)
+establishes dynamic payments, invoices and subscriptions in the primary column, with details and metadata on the right.
+[Manage customer information](https://support.stripe.com/questions/manage-a-customer-s-information-and-payments)
+names the customer profile and payment-method modules; its older left-details layout is superseded by the update article.
+The pages publish no version date. The authored list and read-only detail use stored API views, UTC dates and an explicitly
+limited name/email/id/description search. Dashboard create/edit actions, exports and guest-customer grouping are outside this scope.
+Only public documentation was read; no vendor sign-in, upstream DOM, script or image is shipped.
+
 - **Published examples:** `fixtures3.json.gz`, gzip of Stripe's `openapi/fixtures3.json` (one sample object per resource,
   the objects Stripe's API reference shows), from commit `0d98342fc985dc7710a44be25e8528dd8e099bc2` (2026-09-23).
   SHA-256 of the uncompressed file: `e6822f7ee6fd71bdde6228537368aafcfb7191109340fe119d9aca27c6e9396d`.

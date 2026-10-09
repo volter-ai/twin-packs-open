@@ -116,7 +116,7 @@ Authored pages and content at the declared vendor URLs (`src/screens/`):
 - **Connect onboarding** (`connect.stripe.com/setup/…`): the Account Link's business, identity, payout and agreement form.
 - **Stripe.js** (`js.stripe.com/v3/`, `/v3/stripe.js`, `/<release train>/stripe.js`): `redirectToCheckout({ sessionId })` opens the hosted session. Unsupported members refuse.
 - **Checkout client wire** (`api.stripe.com/v1/payment_pages/{session}`): the authored session operations used by Stripe.js CheckoutProvider.
-- **Dashboard** (`dashboard.stripe.com/settings/public`, `/radar/lists`, `/test/issuing/balance`): public business name, Radar list creation and test Issuing funding. The declared World workspace opens Public details, with navigation between these stored operator actions. Other dashboard controls are unavailable.
+- **Dashboard** (`dashboard.stripe.com/customers`, `/customers/{customer}`, `/settings/public`, `/radar/lists`, `/test/issuing/balance`): inspect SDK-created customers and their stored subscriptions, payments, payment methods, invoices and metadata; set the public business name, create Radar lists and fund test Issuing. The workspace opens Public details; choose Customers in its sidebar to inspect a record. Customer pages are read-only. Search matches name, email, id or description; dates are UTC. Dashboard customer creation/editing, exports, guest-customer grouping and global search are unavailable.
 
 Page actions use the same stored resources as the API. Public screen references and authored choices are in [spec/SOURCE.md](./spec/SOURCE.md).
 
