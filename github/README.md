@@ -10,7 +10,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-github@3.0.7
+npm install --save-dev --save-exact @volter/world@3.0.151 @volter/world-core@3.0.147 @volter/world-runtime@3.0.150 @volter/world-console@3.0.144 @volter/twin-github@3.0.9
 ./node_modules/.bin/volter world init --name my-app --twins github --source github=@volter/twin-github
 ```
 
@@ -89,7 +89,7 @@ Point a client at it (`new Octokit({ baseUrl })`, `GH_HOST`), or run the applica
 
 The Code tab shows the stored repository files and README with GitHub’s familiar file-list and About layout. Select a branch, open folders and files, or follow Raw to the stored blob content. Branch selection changes only the viewed ref; mounted World URLs stay local. A Markdown file renders through the shared Markdown renderer; text files show line anchors.
 
-Issues, pull requests, Actions, Projects, Security, Insights and Settings remain API capabilities rather than browser tabs. Those tabs and the clone dropdown and Blame controls are unavailable in this mirror. Symbol navigation and submodule navigation are outside this browser scope.
+Issues and Pull requests show stored lists and conversations; the [Doors](#doors) section describes their read-only scope and the Files changed view. Actions, Projects, Security, Insights and Settings have no browser tabs. The clone dropdown, Blame, symbol navigation and submodule navigation are unavailable in this mirror.
 
 ## Events
 

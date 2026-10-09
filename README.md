@@ -14,6 +14,8 @@ A successful upload is never repeated. The release step uses `scripts/publish.mj
 
 Publication is serialized per vendor, so different vendors can release together while the same package/version cannot upload concurrently.
 
+The selected package manifest owns its installation version. Before creating the immutable archive, `scripts/pack.mjs` binds that package's tokens in README installation commands to its manifest name and version, including continued command lines. Other dependencies, historical prose and example pins keep their authored versions. The packed README and qualification therefore describe the same release; updating a version does not require manually finding every installation snippet.
+
 The release workflow builds and qualifies the selected pack with the exact released standard inside a fresh World before uploading it. That publisher report is retained separately; catalog Actions independently evaluates the immutable registry bytes and performs Chromium replay before admission. Qualification failures stop publication. If assessment throws before completing its report, `qualification.json` retains the candidate identity and the exception with `ready: false`; missing measurements are not reported as passes.
 
 The manual `qualify.yml` workflow performs the same build and qualification for its named `vendor` input without publication credentials, catalog bootstrap dependencies or an upload. Its report is publisher evidence, not catalog admission.
