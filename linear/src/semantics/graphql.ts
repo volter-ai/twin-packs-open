@@ -4,11 +4,10 @@
 // comments and people) and each filter the demand uses. A filter the twin does not read is refused by name.
 import { GraphqlError, type GraphqlPart, type HandlerContext } from '@volter/world-core';
 import {
-  arr, belongs, callerOf, COMMENT, DEFAULT_STATES, ISSUE, ISSUE_FIELDS, issueBranchName, issueFields, LABEL, mine, obj, ORG, PRIORITY_LABELS, PROJECT, relation, optionalIssueChanges, type Row, STATE, TEAM, TEAM_FIELDS, teamFields, USER, USER_FIELDS, writer, type Caller,
+  arr, callerOf, COMMENT, DEFAULT_STATES, ISSUE, ISSUE_FIELDS, issueBy, issueFields, LABEL, mine, obj, ORG, ORGANIZATION_FIELDS, PAID_SUBSCRIPTION_FIELDS, PRIORITY_LABELS, PROJECT, PROJECT_STATUS_FIELDS, relation, type Row, STATE, TEAM, TEAM_FIELDS, teamFields, updateIssue, USER, USER_FIELDS, visibleRows as live, WORKFLOW_STATE_FIELDS, writer, type Caller,
 } from './shared.ts';
 
 type C = HandlerContext;
-const live = (ctx: C, type: string, c: Caller): Row[] => ctx.rowsRaw(type).filter((r) => r.deleted !== true && belongs(ctx, r, c.org) && (!c.teamIds || (type === TEAM ? c.teamIds.includes(String(r.id)) : !relation(r, 'team') || c.teamIds.includes(String(relation(r, 'team'))))));
 
 // ── filters ─────────────────────────────────────────────────────────────────────────────────────────
 // source: https://linear.app/developers/filtering "eq"
@@ -81,15 +80,6 @@ const issues = (ctx: C, a: Row, predicate: (i: Row) => boolean): Row[] => ordere
 // Where the documentation stops: valid schema choices this scope cannot execute are refused before writes.
 const supported = (input: Row, fields: string[]): void => { const key = Object.keys(input).find((k) => !fields.includes(k)); if (key) throw new GraphqlError(`The twin does not model input ${key}`, 'invalid input'); };
 
-/** The issue an id names: its UUID, or its identifier (`BOOK-1`). */
-function issueBy(ctx: C, c: Caller, id: unknown): Row {
-  const key = ctx.resolve(ISSUE, String(id ?? ''));
-  const hit = live(ctx, ISSUE, c).find((i) => i.id === key || i.identifier === key);
-  // Where the documentation stops: the message is the twin's
-  if (!hit) throw new GraphqlError('Entity not found: Issue', 'invalid input');
-  return hit;
-}
-
 const ordered = (rows: Row[], orderBy: unknown): Row[] => {
   const key = orderBy === 'updatedAt' ? 'updatedAt' : 'createdAt';
   // source: https://linear.app/developers/pagination "orderBy"
@@ -113,7 +103,7 @@ async function teamCreate(ctx: C, input: Row): Promise<Row> {
   let defaultState: string | undefined;
   // the team's workflow states, as a new team has them
   for (const [position, s] of DEFAULT_STATES.entries()) {
-    const state = await ctx.create(STATE, (sid) => ({ id: sid, name: s.name, type: s.type, color: s.color, position, createdAt: ctx.occurredAt, updatedAt: ctx.occurredAt, _team: id, _org: c.org }), 'workflowStateCreate');
+    const state = await ctx.create(STATE, (sid) => ({ id: sid, name: s.name, type: s.type, color: s.color, position, description: null, archivedAt: null, inheritedFrom: null, createdAt: ctx.occurredAt, updatedAt: ctx.occurredAt, _team: id, _org: c.org }), 'workflowStateCreate');
     if (!defaultState && s.type === 'backlog') defaultState = String(state.id);
   }
   if (defaultState) await ctx.change(TEAM, id, () => ({ defaultIssueState: { id: defaultState } }), 'teamCreate');
@@ -152,25 +142,7 @@ async function issueCreate(ctx: C, input: Row): Promise<Row> {
 
 async function issueUpdate(ctx: C, id: unknown, input: Row): Promise<Row> {
   supported(input, ['stateId','labelIds','title','description','priority','assigneeId','projectId','estimate','dueDate']);
-  const c = writer(ctx);
-  const issue = issueBy(ctx, c, id);
-  const fields: Row = { updatedAt: ctx.occurredAt };
-  if (input.stateId !== undefined) {
-    const s = mine(ctx, c, STATE, input.stateId, 'WorkflowState');
-    if (ctx.resolve(TEAM, String(relation(s, 'team'))) !== ctx.resolve(TEAM, String(relation(issue, 'team')))) throw new GraphqlError('The state does not belong to the issue\'s team', 'invalid input');
-    fields._state = s.id; fields.state = { id: s.id }; fields.completedAt = ctx.own(s).type === 'completed' ? ctx.occurredAt : null;
-    fields.canceledAt = ctx.own(s).type === 'canceled' ? ctx.occurredAt : null;
-    if (ctx.own(s).type === 'started' && !ctx.own(issue).startedAt) fields.startedAt = ctx.occurredAt;
-  }
-  if (input.labelIds !== undefined) { for (const l of arr<string>(input.labelIds)) mine(ctx, c, LABEL, l, 'IssueLabel'); fields._labels = arr<string>(input.labelIds); fields.labelIds = arr<string>(input.labelIds); fields.labels = { nodes: arr<string>(input.labelIds).map((id) => ({ id })) }; }
-  if (input.estimate !== undefined) fields.estimate = input.estimate;
-  if (input.dueDate !== undefined) fields.dueDate = input.dueDate;
-  if (input.title !== undefined) { fields.title = input.title; fields.branchName = issueBranchName(String(issue.identifier), input.title); }
-  if (input.description !== undefined) fields.description = input.description;
-  Object.assign(fields, optionalIssueChanges(ctx, c, input));
-  if (input.projectId !== undefined) fields.addedToProjectAt = input.projectId ? ctx.occurredAt : null;
-  await ctx.change(ISSUE, String(issue.id), () => fields, 'issueUpdate');
-  return ctx.row(ISSUE, String(issue.id))!;
+  return updateIssue(ctx, writer(ctx), id, input);
 }
 
 async function issueArchive(ctx: C, id: unknown): Promise<Row> {
@@ -193,6 +165,9 @@ const resolvers: GraphqlPart<C>['resolvers'] = {
   'Query.organization': (_s, _a, ctx) => related(ctx, ORG, callerOf(ctx).org),
   'Query.teams': (_s, a, ctx) => { supported(a, ['first','last','after','before','includeArchived','orderBy']); return live(ctx, TEAM, callerOf(ctx)).map((r) => ctx.own(r)); },
   'Query.team': (_s, a, ctx) => ctx.own(mine(ctx, callerOf(ctx), TEAM, a.id, 'Team')),
+  // The pinned SDL declares workflowState(id: String!); an ordinary SDK issue.state read uses it.
+  // source: https://linear.app/developers/graphql
+  'Query.workflowState': (_s, a, ctx) => { supported(a, ['id']); return ctx.own(mine(ctx, callerOf(ctx), STATE, a.id, 'WorkflowState')); },
   'Query.workflowStates': (_s, a, ctx) => {
     const c = callerOf(ctx);
     return live(ctx, STATE, c).filter((s) => matches(obj(a.filter), {
@@ -272,9 +247,12 @@ const resolvers: GraphqlPart<C>['resolvers'] = {
 
 const stored: GraphqlPart<C>['stored'] = {
   User: USER_FIELDS,
-  Organization: ['id', 'name', 'urlKey', 'createdAt', 'updatedAt', 'userCount'],
+  Organization: ORGANIZATION_FIELDS,
+  ProjectStatus: PROJECT_STATUS_FIELDS,
+  PaidSubscription: PAID_SUBSCRIPTION_FIELDS,
+  Integration: ['id'],
   Team: TEAM_FIELDS,
-  WorkflowState: ['id', 'name', 'type', 'color', 'position', 'createdAt', 'updatedAt'],
+  WorkflowState: WORKFLOW_STATE_FIELDS,
   Project: ['id', 'name', 'description', 'createdAt', 'updatedAt', 'state'],
   Issue: ISSUE_FIELDS,
   IssueSharedAccess: ['disallowedIssueFields', 'isShared', 'sharedWithCount', 'sharedWithUsers', 'viewerHasOnlySharedAccess'],

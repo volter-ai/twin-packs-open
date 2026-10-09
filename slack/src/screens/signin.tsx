@@ -9,7 +9,7 @@ import { CLIENT_COOKIE, page, refused, visitor } from './shared.tsx';
 
 type Row = Record<string, unknown>;
 const CHALLENGES = '_signin_challenge';
-const nextOf = (value: string | null | undefined): string => value?.startsWith('/') && !value.startsWith('//') ? value : '/admin';
+const nextOf = (value: string | null | undefined): string => value?.startsWith('/') && !value.startsWith('//') ? value : '/client';
 const memberOf = (ctx: HandlerContext, email: string): Row | undefined => ctx.rowsRaw('user').find(u => u.deleted !== true && String((u.profile as Row | undefined)?.email ?? '').toLowerCase() === email);
 const SKIN = `
 body:has(.slack-signin){background:#fff}.sk:has(.slack-signin){max-width:520px;margin:32px auto;padding:0 24px}.slack-signin .wordmark{text-align:center;font-size:28px;font-weight:800;margin-bottom:38px}.slack-signin h1{text-align:center;font-size:36px;line-height:1.15;margin-bottom:16px}.slack-signin .lead{text-align:center;color:#616061;line-height:1.5;margin-bottom:28px}.slack-signin .sk-card{padding:0;border:0}.slack-signin input{padding:13px 16px}.slack-signin button{width:100%;background:#611f69;padding:13px 16px;margin-top:18px}.slack-signin .notice{color:#616061;line-height:1.5}@media(max-width:600px){.slack-signin h1{font-size:30px}}

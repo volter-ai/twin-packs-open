@@ -32,6 +32,7 @@ function members(ctx: HandlerContext, team: string, notice?: string): Response {
       <header className="workspace-bar">
         <strong>Slack</strong><span className="workspace-name">{workspace}</span>
         <nav aria-label="Workspace administration">
+          <a href={`${ctx.publicBase}/client/${team}`}>Open Slack</a>
           <a href={`${ctx.publicBase}/admin`} aria-current="page">Manage members</a>
           <a href={`${ctx.publicBase}/admin/invites`}>Invitation requests</a>
           <a href={`${ctx.publicBase}/apps/manage`}>Manage apps</a>

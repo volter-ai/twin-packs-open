@@ -1,5 +1,5 @@
 {
- "about": "The decision table for the Slack pack: each operation served, the demand or life step or refresh that brings it in (journeys/demand.json, journeys/customer-life.json, the manifest's refresh scopes), and its mechanism. Admin API, SCIM and legacy OAuth are outside it; an operation no demand, life step or refresh reaches answers the gap.",
+ "about": "The decision table for the Slack pack: each operation served, the demand or life step or refresh that brings it in (journeys/demand.json, journeys/customer-life.json, the manifest's refresh scopes), and its mechanism. Admin API, SCIM and legacy OAuth are outside it; an operation no demand, life step or refresh reaches answers the gap. The conversation client is declared in manifest.screens and reads existing vendor rows. Browser sends, replies, joins and DM opens reach these same decided Web API handlers, with the authenticated active member session translated before ordinary dispatch.",
  "decisions": [
   {
    "operation": "auth_test",
@@ -65,7 +65,7 @@
    "operation": "chat_postMessage",
    "demand": "demand: RH2, Volter Harness (text and markdown_text in a thread), Twin's on-call recipe, Postiz",
    "mechanism": "handler",
-   "why": "Authorize channel membership and granted scope; append the timestamped message/thread reply and send subscribed message events."
+   "why": "Authorize channel membership and granted scope; append the timestamped message/thread reply and send subscribed message events. The client composer and thread reply POST this endpoint; the API checks membership, archived/missing channels and thread existence, and successful stored writes appear in channel/thread readback."
   },
   {
    "operation": "chat_update",
@@ -137,7 +137,7 @@
    "operation": "conversations_join",
    "demand": "demand: RH2, Postiz",
    "mechanism": "handler",
-   "why": "Join a public unarchived channel and emit member_joined_channel; RH2 retries posting after not_in_channel."
+   "why": "Join a public unarchived channel and emit member_joined_channel; RH2 retries posting after not_in_channel. Browse channels uses this endpoint to add the actual active member before showing a composer."
   },
   {
    "operation": "conversations_invite",
@@ -167,19 +167,19 @@
    "operation": "conversations_history",
    "demand": "demand: Twin's on-call recipe; the message refresh reads it",
    "mechanism": "handler",
-   "why": "Read visible messages with oldest/latest boundaries and cursor paging."
+   "why": "Read visible messages with oldest/latest boundaries and cursor paging. The conversation mirror uses the same stored message visibility and top-level/thread-broadcast selection."
   },
   {
    "operation": "conversations_replies",
    "demand": "the life (journeys/customer-life.json)",
    "mechanism": "handler",
-   "why": "Read the visible parent and its replies using thread timestamps."
+   "why": "Read the visible parent and its replies using thread timestamps. The thread panel reads the existing root and its replies; the life reads browser-created replies through this method as well."
   },
   {
    "operation": "conversations_open",
    "demand": "the life (journeys/customer-life.json)",
    "mechanism": "handler",
-   "why": "Resolve or create the caller direct-message conversation for its user set."
+   "why": "Resolve or create the caller direct-message conversation for its user set. New message uses this endpoint to open or resume the member\u2019s DM; the client then navigates to the returned stored conversation id."
   },
   {
    "operation": "conversations_archive",

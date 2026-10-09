@@ -3,7 +3,7 @@
 // their workspace; the browser is sent to the redirect URI with `code` and `state`, or `error=access_denied`. With
 // `actor=app` the grant acts as the application itself: its own user in the workspace, made on its first install.
 import type { HandlerContext } from '@volter/world-core';
-import { APP, appUserFields, CODE, hexToken, ORG, type Row, sha256, USER } from '../semantics/shared.ts';
+import { APP, appUserFields, browserPerson, browserSignIn, CODE, hexToken, ORG, type Row, sha256, USER } from '../semantics/shared.ts';
 
 const PARAMS = ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'prompt', 'actor'];
 // Where the documentation stops: a code's lifetime is Linear's; the twin gives it ten minutes
@@ -30,22 +30,19 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const hidden = PARAMS.filter((p) => q.get(p) !== null).map((p) => `<input type="hidden" name="${p}" value="${esc(q.get(p))}">`).join('');
   let sessionCookie: string | undefined;
   const login = (error = ''): Response => loginPage(hidden, error, q.get('email') ?? '');
-  const cookie = /(?:^|;\s*)linear_session=([^;]+)/.exec(request.headers.get('cookie') ?? '')?.[1];
-  const session = cookie ? ctx.rowsRaw('_browser_session').find((s) => s.sha256 === sha256(ctx, cookie) && Date.parse(String(s.expires)) > Date.parse(ctx.occurredAt)) : undefined;
-  let person = session ? ctx.row(USER, String(session.user)) : undefined;
+  let person = browserPerson(ctx);
   if (!person) {
     if (request.method !== 'POST' || q.has('decision')) return login();
-    person = ctx.rowsRaw(USER).find((u) => u.deleted !== true && u.app !== true && u.email === q.get('email'));
-    if (!person || person._password !== sha256(ctx, `${String(person.id)}:${String(q.get('password') ?? '')}`)) return login('Invalid email or password');
-    const sessionId = await ctx.issue('_browser_session');
-    sessionCookie = await hexToken(ctx, `linear-browser:${sessionId}`);
-    await ctx.record('_browser_session', { user: person.id, sha256: sha256(ctx, sessionCookie), expires: new Date(Date.parse(ctx.occurredAt) + 90 * 86400000).toISOString() }, sessionId);
+    const signed = await browserSignIn(ctx, q.get('email') ?? '', q.get('password') ?? '');
+    if (!signed) return login('Invalid email or password');
+    person = signed.person;
+    sessionCookie = signed.cookie;
   }
   const org = ctx.row(ORG, String(person._org))!;
   if (q.get('decision') === 'cancel') return back({ error: 'access_denied' });
   if (q.get('decision') !== 'authorize') {
     const consent = consentPage(String(app.name), String(org.name), scopes, hidden);
-    if (sessionCookie) consent.headers.set('set-cookie', `linear_session=${sessionCookie}; Path=/; HttpOnly; Secure; SameSite=Lax`);
+    if (sessionCookie) consent.headers.set('set-cookie', sessionCookie);
     return consent;
   }
   // source: https://linear.app/developers/oauth-2-0-authentication "actor"

@@ -9,6 +9,7 @@ import graphqlSurface from './generated/graphql.gen.json' with { type: 'json' };
 import * as doors from './semantics/doors.ts';
 import { linearSemantics } from './semantics/index.ts';
 import { screen as screen_authorize } from './screens/authorize.tsx';
+import { screen as screen_workspace } from './screens/workspace.tsx';
 
 export function createLinearFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
@@ -17,6 +18,6 @@ export function createLinearFetch(options: PackFetchOptions = {}): DerivedFetch 
     handlers: linearSemantics,
     doors,
     graphql: { ...graphql, operations: graphqlSurface.operations as NonNullable<typeof graphql.operations>, sdl: schema.sdl },
-    screens: { "authorize": screen_authorize },
+    screens: { "authorize": screen_authorize, "workspace": screen_workspace },
   }, options);
 }

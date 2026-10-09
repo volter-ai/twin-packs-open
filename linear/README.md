@@ -21,6 +21,34 @@ starter workspace/owner, issue its personal key and register a World OAuth clien
 owner and is retained across stop/resume. Teams and projects are created through the
 vendor API. The authorize screen uses the registered callback and carries its state back.
 
+The browser workspace at `linear.app/` uses the same stored person and `linear_session`
+cookie as OAuth consent. Sign in with the synthetic email/password supplied to the workspace
+or people door. The local credential starter uses `owner@linear-world.invalid` and
+`world-linear-local-password`; these are the existing synthetic settings inputs, not vendor
+credentials. After sign-in the browser opens the first stored team by name. Workspace and
+issue addresses use the stored organization `urlKey`, team `key` and issue `identifier`.
+
+The team view (`/{urlKey}/team/{key}/all`) lists that team's actual nonarchived issues,
+grouped by their stored workflow states. Filter by title or identifier and open a row at
+`/{urlKey}/issue/{identifier}`. The detail shows its title, Markdown description, state,
+priority, assignee, team, recorded dates and stored comments. Change the status or choose
+one assignee (including No assignee) and press Save properties. The form calls the same
+`issueUpdate` action as GraphQL and rereads the stored row after its redirect; unknown
+objects, states from another team and unsupported form actions are refused. My issues
+provides Assigned and Created views from the stored assignee and creator relations.
+People and assignees appear by their stored names; the browser does not synthesize avatar art.
+
+The public [My issues](https://linear.app/docs/my-issues) and
+[assignment](https://linear.app/docs/assigning-issues) screenshots guide the sidebar,
+issue rows and right properties panel. [Screen references](./spec/screen-references.json)
+records the exact images, read date, author and declared workflow. This basic browser does
+not implement Subscribed/Activity tabs, curated SLA/cycle/blocker ordering, keyboard
+shortcuts, board drag/drop, browser issue creation, editable descriptions or comment posting.
+Private-team membership and suspended-user assignment enforcement remain outside the
+existing pack permission scope. Archived issues are hidden from lists and can be read at
+their known detail address; no manual archive control is presented. OAuth consent remains
+a separate screen and uses the registered application and callback.
+
 The published relation, logical, date, label, comment, estimate and project-lead filters are served.
 Other GraphQL fields, private-team access management, webhook configuration, PKCE and OAuth
 revocation are outside this modeled scope and are refused. The SDK’s default
@@ -30,6 +58,20 @@ No webhook subscription is made by this life;
 there is no invented webhook delivery. Release assessments are retained by
 [the independent catalog](https://github.com/volter-ai/twin-catalog-open).
 
+The SDK's unchanged default Organization selection also reads the stored workspace settings,
+including native nested ProjectStatus/PaidSubscription fields when present. The synthetic
+starter has no configured project-status records, paid subscription, Slack project integration,
+customer feature or AI/reminder service. Its inactive settings are explicitly synthetic; empty
+or nullable state does not implement those features' mutations. The existing local credential
+door fills only previously absent starter settings on resume and preserves stored values.
+The kernel maintains the workspace's created issue count from actual issue ownership.
+
+The SDK's normal `issue.state` lookup reads the existing workflow-state resource by id,
+with its native description, archive time, inherited-parent id and team relation. Nullable
+values stay absent/null on the synthetic new-team states, and refresh preserves observed
+native values. The lookup uses the existing workspace/team visibility and Entity not found
+refusals; it does not add workflow creation, inheritance or archive controls.
+
 ## Use with an existing app
 
 Use Node 22.6 or newer.
@@ -37,7 +79,7 @@ Use Node 22.6 or newer.
 Install the exact twin release and World CLI in your app's folder:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-linear@3.0.5
+npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-linear@3.0.6
 ./node_modules/.bin/volter world init --name my-app --twins linear --source linear=@volter/twin-linear
 ```
 
