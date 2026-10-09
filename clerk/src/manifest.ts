@@ -91,7 +91,13 @@ export const manifest: DerivedManifest = {
       { lane: 'fapi', host: '^frontend-api\\.clerk\\.dev$' },
       // source: https://clerk.com/docs/guides/configure/auth-strategies/oauth/how-clerk-implements-oauth "for a production environment."
       { lane: 'fapi', host: '^clerk\\.(?:[a-z0-9-]+\\.)+[a-z0-9-]+$' },
-      { lane: 'fapi', exceptHosts: ['api.clerk.com', 'img.clerk.com'], header: { name: 'authorization', prefix: 'Bearer sk_', absent: true }, unlessOnlyRoot: true },
+      // On the twin's own address only the Frontend API's published prefixes go to that lane.
+      // Dashboard workspace paths belong to the root screen; an explicit instance host above retains its full routing.
+      { lane: 'fapi', path: '/v1', exceptHosts: ['api.clerk.com', 'img.clerk.com', 'dashboard.clerk.com'], header: { name: 'authorization', prefix: 'Bearer sk_', absent: true }, unlessOnlyRoot: true },
+      { lane: 'fapi', path: '/oauth', exceptHosts: ['api.clerk.com', 'img.clerk.com', 'dashboard.clerk.com'], header: { name: 'authorization', prefix: 'Bearer sk_', absent: true } },
+      { lane: 'fapi', path: '/sign-in', exceptHosts: ['api.clerk.com', 'img.clerk.com', 'dashboard.clerk.com'], header: { name: 'authorization', prefix: 'Bearer sk_', absent: true } },
+      { lane: 'fapi', path: '/npm/@clerk', exceptHosts: ['api.clerk.com', 'img.clerk.com', 'dashboard.clerk.com'], header: { name: 'authorization', prefix: 'Bearer sk_', absent: true } },
+      { lane: 'fapi', path: '/.well-known', exceptHosts: ['api.clerk.com', 'img.clerk.com', 'dashboard.clerk.com'], header: { name: 'authorization', prefix: 'Bearer sk_', absent: true } },
     ],
   },
   // offset paging (spec:/components/parameters/LimitParameter, OffsetParameter): `limit` 1–500, default 10
@@ -149,6 +155,10 @@ export const manifest: DerivedManifest = {
   ],
   accountSetup: [{ operation: 'CreateOAuthApplication', why: 'Register the OAuth client before the worker can authorize its customers.' }],
   screens: [{
+    id: 'dashboard', kind: 'workspace', host: 'dashboard.clerk.com', path: '/', status: 'done', takes: ['POST'],
+    demand: "The World first-use operator inspects users and sessions created by the Backend SDK, updates personal names and revokes an active session",
+    source: 'https://clerk.com/docs/guides/dashboard/user-profile',
+  }, {
     // img.clerk.com: the avatar Clerk shows for a user or organization with no uploaded image (./screens/images.ts)
     id: 'images', kind: 'content', host: 'img.clerk.com', path: '/', status: 'done',
     demand: "clerk-js and an application draw a user's or an organization's image_url, which names img.clerk.com when it has none of its own",
@@ -235,7 +245,7 @@ export const manifest: DerivedManifest = {
     } },
     // source: https://clerk.com/docs/guides/dashboard/dns-domains/proxy-fapi "must be forwarded to https://frontend-api.clerk.dev/* with the body and all headers intact."
     // source: https://clerk.com/docs/guides/configure/auth-strategies/oauth/how-clerk-implements-oauth "https://clerk.<INSERT_YOUR_APP_DOMAIN>.com/.well-known/oauth-authorization-server"
-    hosts: [{ host: 'api.clerk.com' }, { suffix: '.clerk.accounts.dev' }, { host: 'frontend-api.clerk.dev' }, { hostPattern: '^clerk\\.(?:[a-z0-9-]+\\.)+[a-z0-9-]+$' }, { host: 'img.clerk.com' }],
+    hosts: [{ host: 'api.clerk.com' }, { host: 'dashboard.clerk.com' }, { suffix: '.clerk.accounts.dev' }, { host: 'frontend-api.clerk.dev' }, { hostPattern: '^clerk\\.(?:[a-z0-9-]+\\.)+[a-z0-9-]+$' }, { host: 'img.clerk.com' }],
     // The Clerk frontend SDK calls api.clerk.com; the dev proxy forwards that host to the
     // twin so calls come back same-origin, and /.well-known/jwks.json is served by the twin.
     browserRouting: { apiPathPrefix: '/v1/', loaderHost: 'https://api.clerk.com' },

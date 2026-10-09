@@ -1,10 +1,22 @@
 // What Slack's handlers share: who is calling (their token), the workspace and org they act in, the objects Slack
 // answers (a channel, a user, a message) as it answers them, and the events a workspace's activity sends an app.
-import { sha256, type EventsDecl, type EventWrite, type HandlerContext, type WriteHookContext } from '@volter/world-core';
+import { browserSessionToken, personOf, sha256, type EventsDecl, type EventWrite, type HandlerContext, type WriteHookContext } from '@volter/world-core';
 import { epochOf, HOME_TEAM, personOfToken, tokenKind, tsAt } from '../engine/wire.ts';
 import { appName } from '../engine/app-manifest.ts';
 
 type Row = Record<string, unknown>;
+
+/** The opaque browser session established by Slack's existing email-confirmation screen. */
+export const CLIENT_COOKIE = 'slack_client_session';
+
+/** An authenticated browser acts only as its own active stored workspace member. */
+export function clientMember(ctx: HandlerContext): Row | undefined {
+  const token = browserSessionToken(ctx.call.request, CLIENT_COOKIE);
+  const session = token ? ctx.rowsRaw('_web_session').find((s) => s.token === token) : undefined;
+  const person = session ? personOf(ctx, String(session.email)) : undefined;
+  return person ? ctx.rowsRaw('user').find((u) => u.deleted !== true
+    && String((u.profile as Row | undefined)?.email ?? '').toLowerCase() === person.email.toLowerCase()) : undefined;
+}
 
 /** The workspace carried by Slack's conversation wire object; retained local rows may use team_id. */
 // source: https://docs.slack.dev/reference/methods/conversations.info "\"context_team_id\": \"T123ABC456\""

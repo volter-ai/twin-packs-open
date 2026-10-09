@@ -2,7 +2,7 @@
 // OAuth application made in settings, a workspace made with its first person, a person joining, and a person's API key.
 // Teams and projects are not doors: they are made through the API (teamCreate, projectCreate).
 import type { HandlerContext } from '@volter/world-core';
-import { ACCESS, APP, appUserFields, hexToken, obj, ORG, sha256, TEAM, USER, userFields } from './shared.ts';
+import { ACCESS, APP, appUserFields, completeStarterOrganization, hexToken, obj, ORG, organizationFields, sha256, TEAM, USER, userFields } from './shared.ts';
 
 const bad = (message: string, status = 400): Response => Response.json({ message }, { status });
 const orgOf = (ctx: HandlerContext, urlKey: unknown): Record<string, unknown> | undefined => ctx.rowsRaw(ORG).find((o) => o.deleted !== true && o.urlKey === urlKey);
@@ -61,7 +61,7 @@ export async function workspaces(ctx: HandlerContext): Promise<Response> {
   if (typeof b.urlKey !== 'string' || !/^[a-z0-9-]{3,32}$/.test(b.urlKey)) return bad('a urlKey is 3-32 lowercase letters, digits and dashes');
   if (orgOf(ctx, b.urlKey)) return bad('that workspace URL is taken', 409);
   const invalidOwner = personInput(ctx, obj(b.owner)); if (invalidOwner) return invalidOwner;
-  const org = await ctx.create(ORG, (id) => ({ id, name: b.name, urlKey: b.urlKey, createdAt: ctx.occurredAt, updatedAt: ctx.occurredAt, userCount: 1 }), 'organization.create');
+  const org = await ctx.create(ORG, (id) => organizationFields(ctx, id, { name: b.name as string, urlKey: b.urlKey as string }), 'organization.create');
   const id = String(org.id);
   const owner = await person(ctx, id, obj(b.owner), true, true);
   if (owner instanceof Response) return owner;
@@ -97,6 +97,7 @@ export async function localCredentials(ctx: HandlerContext): Promise<Response> {
     if (!made.ok) return made;
     org = orgOf(ctx, urlKey)!;
   }
+  org = await completeStarterOrganization(ctx, org);
   const owner = ctx.rowsRaw(USER).find((row) => row.deleted !== true && row._org === org!.id && row.owner === true);
   if (!owner) return bad('The synthetic starter has no retained owner', 409);
   // The marker identifies only this World's retained synthetic credential.

@@ -42,6 +42,15 @@ are in `src/semantics/<family>.ts`, the key front in `src/semantics/around.ts`, 
 world-resend serve [--port N] [--root DIR] [--read-only]
 ```
 
+## Emails workspace in this source
+
+This source addition is separate from the installed `1.0.2` release above. Its public package build, release
+qualification and catalog admission have not been completed by this source export.
+
+The read-only Emails workspace (`resend.com/emails`) lists the same stored sent emails and opens their details,
+recorded events, Preview, Plain Text and HTML content. It uses the World's operator access; no Resend account is needed.
+Preview blocks external assets and scripts. Sharing, engagement totals and sending from the dashboard are outside this screen's scope.
+
 ## What it models
 
 - **Keys**:

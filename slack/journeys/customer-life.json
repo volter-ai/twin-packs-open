@@ -1,8 +1,8 @@
 {
   "vendor": "slack",
-  "author": "Contributor 59",
+  "author": "Codex Slack conversation mirror",
   "host": "slack.com",
-  "about": "Kiln grows an ordinary workspace from January 2026 to its June 2028 acquisition: people, developer apps, Runhuman notifications and RH2 task threads, Dub short links and pending priority-support Connect invitations, private files, a returning colleague and retained channel history. Authored anew from the c1 outline and pinned vendor/product sources; no SCIM or Grid chapter.",
+  "about": "Kiln grows an ordinary workspace from January 2026 to its June 2028 acquisition: people, developer apps, Runhuman notifications and RH2 task threads, Dub short links and pending priority-support Connect invitations, private files, a returning colleague and retained channel history. Authored anew from the c1 outline and pinned vendor/product sources; no SCIM or Grid chapter. The conversation client reads the same stored channel/DM messages and threads; its verified browser session sends through the published Web API, with explicit credentials taking precedence and membership, missing and archived refusals preserved.",
   "application": [
     {
       "method": "POST",
@@ -4074,6 +4074,484 @@
       ]
     },
     {
+      "name": "The conversation client requires an active member session",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{studio}",
+      "status": 401,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Sign in to Slack first"
+        }
+      ]
+    },
+    {
+      "name": "Maya requests a confirmation code for the conversation client",
+      "method": "POST",
+      "path": "https://app.slack.com/signin",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=maya%40kiln.studio&next=%2Fclient%2FT0VOLTER01%2F{studio}",
+      "capture": {
+        "client_challenge": "text:name=\"challenge\" value=\"([^\"]+)\""
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Check your email for a code"
+        }
+      ]
+    },
+    {
+      "name": "She reads that synthetic confirmation code in her World mail",
+      "method": "GET",
+      "path": "/_twin/mail?to=maya@kiln.studio",
+      "status": 200,
+      "capture": {
+        "client_code": "text:Your confirmation code is ([0-9]{6})"
+      },
+      "expect": [
+        {
+          "path": "mail.0.subject",
+          "equals": "Your Slack confirmation code"
+        }
+      ]
+    },
+    {
+      "name": "Her confirmation establishes her own opaque browser session",
+      "method": "POST",
+      "path": "https://app.slack.com/signin",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "challenge={client_challenge}&code={client_code}&next=%2Fclient%2FT0VOLTER01%2F{studio}",
+      "capture": {
+        "client_cookie": "header:set-cookie:(slack_client_session=[^;]+)"
+      }
+    },
+    {
+      "name": "Maya opens actual studio messages in the conversation client",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{studio}",
+      "status": 200,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "A shipping startup needs its first identity."
+        },
+        {
+          "path": "",
+          "contains": "Direct messages"
+        },
+        {
+          "path": "",
+          "contains": "Reply in thread"
+        },
+        {
+          "path": "",
+          "contains": "Message # studio"
+        }
+      ]
+    },
+    {
+      "name": "The normal composer sends through chat.postMessage with the browser session",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "{studio}",
+        "text": "The handoff ticket is ready for review."
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.user",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "message.text",
+          "equals": "The handoff ticket is ready for review."
+        }
+      ],
+      "capture": {
+        "client_handoff": "ts"
+      }
+    },
+    {
+      "name": "The new stored handoff message is visible in its channel",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{studio}",
+      "status": 200,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "The handoff ticket is ready for review."
+        }
+      ]
+    },
+    {
+      "name": "Reply uses the same API and parent timestamp",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "{studio}",
+        "thread_ts": "{client_handoff}",
+        "text": "I will follow up with the customer."
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.user",
+          "equals": "UMAYA"
+        },
+        {
+          "path": "message.thread_ts",
+          "equals": "{client_handoff}"
+        }
+      ],
+      "capture": {
+        "client_reply": "ts"
+      }
+    },
+    {
+      "name": "The API reads the browser-created thread back",
+      "method": "POST",
+      "path": "/api/conversations.replies",
+      "status": 200,
+      "body": {
+        "channel": "{studio}",
+        "ts": "{client_handoff}"
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "messages.0.text",
+          "equals": "The handoff ticket is ready for review."
+        },
+        {
+          "path": "messages.1.text",
+          "equals": "I will follow up with the customer."
+        },
+        {
+          "path": "messages.1.ts",
+          "equals": "{client_reply}"
+        }
+      ]
+    },
+    {
+      "name": "The thread panel shows its stored parent and reply",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{studio}?thread_ts={client_handoff}",
+      "status": 200,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "aria-label=\"Thread\""
+        },
+        {
+          "path": "",
+          "contains": "The handoff ticket is ready for review."
+        },
+        {
+          "path": "",
+          "contains": "I will follow up with the customer."
+        },
+        {
+          "path": "",
+          "contains": "Send reply"
+        }
+      ]
+    },
+    {
+      "name": "The thread checkbox can also send a reply to the channel",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "{studio}",
+        "thread_ts": "{client_handoff}",
+        "text": "Customer follow-up is assigned.",
+        "reply_broadcast": true
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.subtype",
+          "equals": "thread_broadcast"
+        }
+      ]
+    },
+    {
+      "name": "A broadcast thread reply also appears in the channel",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{studio}",
+      "status": 200,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Customer follow-up is assigned."
+        }
+      ]
+    },
+    {
+      "name": "A missing thread refuses instead of fabricating its contents",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{studio}?thread_ts=0.000000",
+      "status": 404,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "thread_not_found"
+        }
+      ]
+    },
+    {
+      "name": "A missing conversation refuses without a composer",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/CUNAVAILABLE",
+      "status": 404,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "channel_not_found"
+        }
+      ]
+    },
+    {
+      "name": "Theo cannot inspect the private client channel",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{private}",
+      "status": 404,
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "channel_not_found"
+        }
+      ]
+    },
+    {
+      "name": "Theo can browse reviews but must join before sending",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{work}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Join this channel to send messages."
+        },
+        {
+          "path": "",
+          "contains": "Join Channel"
+        }
+      ]
+    },
+    {
+      "name": "Explicit Theo identity wins over Maya browser cookie and refuses a nonmember send",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "{work}",
+        "text": "This draft must not be posted."
+      },
+      "headers": {
+        "cookie": "{client_cookie}",
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "not_in_channel"
+        }
+      ]
+    },
+    {
+      "name": "Theo joins reviews through the published join API",
+      "method": "POST",
+      "path": "/api/conversations.join",
+      "status": 200,
+      "body": {
+        "channel": "{work}"
+      },
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "His joined conversation has the normal composer",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{work}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Message # reviews"
+        }
+      ]
+    },
+    {
+      "name": "Theo opens Lena\u2019s existing DM and reads her stored schedule",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{dm}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer xoxp-UTHEO"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Revised schedule: the client review moves to Thursday 21 January"
+        }
+      ]
+    },
+    {
+      "name": "Maya starts or resumes a DM with Theo through New message\u2019s API",
+      "method": "POST",
+      "path": "/api/conversations.open",
+      "status": 200,
+      "body": {
+        "users": "UTHEO"
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "client_dm": "channel.id"
+      }
+    },
+    {
+      "name": "The same composer posts into Maya\u2019s own DM",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "{client_dm}",
+        "text": "Please review the customer handoff today."
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        },
+        {
+          "path": "message.user",
+          "equals": "UMAYA"
+        }
+      ]
+    },
+    {
+      "name": "The DM view shows that stored message and its counterpart",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{client_dm}",
+      "status": 200,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Theo Marsh"
+        },
+        {
+          "path": "",
+          "contains": "Please review the customer handoff today."
+        }
+      ]
+    },
+    {
+      "name": "The browser API refuses a missing destination without writing",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "CUNAVAILABLE",
+        "text": "This draft must not be posted."
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "channel_not_found"
+        }
+      ]
+    },
+    {
       "name": "June 2028: the acquired studio retires its integrations",
       "wait": "44150400s"
     },
@@ -4225,6 +4703,48 @@
         {
           "path": "ok",
           "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The archived client retains history and removes sending",
+      "method": "GET",
+      "path": "https://app.slack.com/client/T0VOLTER01/{studio}",
+      "status": 200,
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "This channel is archived. You can read its messages, but you cannot send new messages."
+        },
+        {
+          "path": "",
+          "contains": "The handoff ticket is ready for review."
+        }
+      ]
+    },
+    {
+      "name": "An archived channel refuses a browser API send too",
+      "method": "POST",
+      "path": "/api/chat.postMessage",
+      "status": 200,
+      "body": {
+        "channel": "{studio}",
+        "text": "This draft must not be posted."
+      },
+      "headers": {
+        "cookie": "{client_cookie}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": false
+        },
+        {
+          "path": "error",
+          "equals": "is_archived"
         }
       ]
     },

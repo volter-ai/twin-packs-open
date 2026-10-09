@@ -68,6 +68,10 @@ export const manifest: DerivedManifest = {
     { id: 'deliveries', method: 'GET', path: '/_twin/deliveries', note: '?to=<url>[&type=][&email=]: the webhooks Resend sent there, oldest first' },
   ],
   screens: [{
+    id: 'emails', kind: 'workspace', host: 'resend.com', path: '/emails',
+    demand: 'An operator inspects SDK-sent email rows and their content in the familiar Emails list and detail view', status: 'done',
+    source: 'https://resend.com/docs/dashboard/emails/manage-emails',
+  }, {
     id: 'inbound-cdn', kind: 'content', host: 'inbound-cdn.resend.com', path: '/',
     demand: "Twenty downloads a received email's raw message at its pre-signed URL", status: 'done',
     source: 'https://resend.com/docs/api-reference/emails/retrieve-received-email',
@@ -130,7 +134,7 @@ export const manifest: DerivedManifest = {
     specSource: "Resend's OpenAPI document (spec/, provenance in spec/SOURCE.md)",
     description: 'Resend email API twin — emails sent singly and in batches and their lifecycle, sending domains verified against their DNS, received emails, and svix-signed webhooks; keys and endpoints made on the dashboard.',
     adoption: { pypi: ['resend'], sdks: ['resend'], envStems: ['RESEND', 'NEXTPRIVATERESEND'] },
-    hosts: [{ host: 'api.resend.com' }, { host: 'inbound-cdn.resend.com' }],
+    hosts: [{ host: 'api.resend.com' }, { host: 'inbound-cdn.resend.com' }, { host: 'resend.com', pathPattern: '^/emails(?:/|$)' }],
     // the World's applications hold a key the API Keys page made (the keys door), never a fixture: the twin refuses any
     // key it did not issue
     credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { RESEND_API_KEY: 'token' } },
