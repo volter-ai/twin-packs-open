@@ -109,7 +109,8 @@ limits (5,000 an hour, 900 points a minute).
 The repository mirror opens its Code, Issues and Pull requests tabs. Code reads stored branches, files and README;
 Issues and Pull requests show open or closed lists and numbered conversations, including their API-created
 description and comments, labels, assignees and milestone. A pull request names its head and base branches.
-These workspace views are read-only. Browser creation, comment editing, reviews, checks, file diffs and merging
+Its Files changed tab reads the same stored Git comparison as the API, including added and removed lines.
+These workspace views are read-only. Browser creation, comment editing, reviews, checks and merging
 are not implemented; use the existing API for writes. Private repositories keep the same signed-in membership
 requirement across all these pages.
 

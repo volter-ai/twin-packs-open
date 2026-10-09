@@ -89,10 +89,15 @@ table.files { width: 100%; border-collapse: collapse; }
 .conversation-grid aside section { padding: 16px 0; border-bottom: 1px solid #d1d9e0; }
 .conversation-grid aside h2 { color: #59636e; font-size: 12px; margin: 0 0 8px; }
 .conversation-tabs { display: flex; gap: 8px; border-bottom: 1px solid #d1d9e0; margin-bottom: 16px; overflow-x: auto; }
-.conversation-tabs > span, .conversation-tabs > button { padding: 8px 12px; white-space: nowrap; font: inherit; }
-.conversation-tabs > span { border: 1px solid #d1d9e0; border-bottom: 0; border-radius: 6px 6px 0 0; }
+.conversation-tabs > a, .conversation-tabs > button { padding: 8px 12px; white-space: nowrap; font: inherit; }
+.conversation-tabs > a { color: #1f2328; } .conversation-tabs > a[aria-current] { border: 1px solid #d1d9e0; border-bottom: 0; border-radius: 6px 6px 0 0; }
 .conversation-tabs > button { border: 0; background: none; color: #59636e; cursor: not-allowed; }
 .conversation-heading code { padding: 2px 4px; background: #ddf4ff; border-radius: 6px; color: #0969da; }
+.patch { margin: 0; overflow: auto; padding: 0; font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.patch code { display: block; padding: 0 16px; min-height: 1.7em; white-space: pre; }
+.patch .added { background: #dafbe1; } .patch .removed { background: #ffebe9; } .patch .hunk { background: #ddf4ff; }
+.patch-summary { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+.patch-summary button { margin-left: auto; }
 @media (max-width: 800px) { .conversation-grid { grid-template-columns: minmax(0, 1fr); } .conversation-heading h1 { font-size: 24px; } }
 `;
 
@@ -124,7 +129,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const view = parts[2];
   const fileRoute = ['tree', 'blob', 'raw'].includes(view ?? '') && parts.length >= 4;
   const workRoute = ((view === 'issues' || view === 'pulls') && parts.length === 3)
-    || ((view === 'issues' || view === 'pull') && parts.length === 4 && /^[1-9]\d*$/.test(parts[3]!));
+    || ((view === 'issues' || view === 'pull') && parts.length === 4 && /^[1-9]\d*$/.test(parts[3]!))
+    || (view === 'pull' && parts.length === 5 && /^[1-9]\d*$/.test(parts[3]!) && parts[4] === 'files');
   const wantsPage = (ctx.call.request.method === 'GET' || ctx.call.request.method === 'HEAD') && !parts[1]?.endsWith('.git')
     && (parts.length === 2 || fileRoute || workRoute) && (view === 'raw' || (ctx.call.request.headers.get('accept') ?? '').includes('text/html'));
   if (!wantsPage) return gitScreen(ctx);
@@ -151,8 +157,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
       : <button key={t} disabled title={`${t} is not available in this mirror`}>{t}</button>)}</nav>
   </div>;
   // source: https://docs.github.com/en/get-started/using-github/communicating-on-github "In the Conversation tab of the pull request, the author explains why they created the pull request."
-  // The public examples establish the title/state, conversation cards and metadata sidebar. UI mutation, reviews,
-  // checks and file diffs are outside this workspace slice; no successful action or check is invented for them.
+  // The public examples establish the title/state, conversation cards, metadata sidebar and Files changed layout.
+  // UI mutation, reviews and checks are outside this slice; no successful action or check is invented for them.
   if (workRoute) {
     const isPull = view === 'pulls' || view === 'pull';
     const listPath = isPull ? '/pulls' : '/issues';
@@ -173,7 +179,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
           {selected.length ? selected.map((i) => <article className="work-item" key={String(i.id)}>
             <span className={`state-dot${closed ? ' closed' : ''}`} aria-hidden="true" />
             <div><h2><a href={link(i)}>{String(i.title)}</a></h2>{labels(i)}<span className="muted">#{Number(i.number)} {closed ? 'closed' : 'opened'} {atTime(closed ? i.closed_at ?? i.updated_at : i.created_at)} by {user(i)}</span></div>
-            {Number(i.comments) > 0 ? <span className="muted">{Number(i.comments)} comments</span> : null}
+            {Number(i.comments) > 0 ? <span className="muted">{Number(i.comments)} {Number(i.comments) === 1 ? 'comment' : 'comments'}</span> : null}
           </article>) : <div className="empty"><h2>No {closed ? 'closed' : 'open'} {isPull ? 'pull requests' : 'issues'}</h2><p className="muted">{closed ? 'Closed' : 'Open'} {isPull ? 'pull requests' : 'issues'} will appear here.</p></div>}
         </div>
       </main></>;
@@ -192,22 +198,42 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     </article>;
     const assignees = (issue.assignees as Row[] | undefined) ?? [];
     const milestone = issue.milestone as Row | undefined;
+    const filesView = parts[4] === 'files';
+    // GitHub's published comparison uses the merge base; reuse the kernel comparison used by the pack's API.
+    const diff = filesView && pull ? await (async () => {
+      const { store } = gitOf(ctx, repo);
+      const base = String((pull.base as Row).sha), head = String((pull.head as Row).sha);
+      return git.diffFiles(store, (await git.mergeBase(store, base, head)) ?? base, head, { patch: true });
+    })() : undefined;
+    if (filesView && diff === null) return refused(404, 'Not Found');
     const body = <>{header}<main className="body work">
       <div className="conversation-heading">
         <h1>{String(record.title)} <span className="muted">#{Number(issue.number)}</span></h1>
         <span className={`state-pill ${stateClass}`}>{state}</span>
-        {pull ? <span className="muted"><b>{user(record)}</b> {pull.merged === true ? 'merged' : 'wants to merge'} {Number(pull.commits ?? 0)} commits into <code>{String((pull.base as Row).label)}</code> from <code>{String((pull.head as Row).label)}</code></span>
-          : <span className="muted"><b>{user(issue)}</b> opened this issue {atTime(issue.created_at)} · {comments.length} comments</span>}
+        {pull ? <span className="muted"><b>{user(record)}</b> {pull.merged === true ? 'merged' : 'wants to merge'} {Number(pull.commits ?? 0)} {Number(pull.commits) === 1 ? 'commit' : 'commits'} into <code>{String((pull.base as Row).label)}</code> from <code>{String((pull.head as Row).label)}</code></span>
+          : <span className="muted"><b>{user(issue)}</b> opened this issue {atTime(issue.created_at)} · {comments.length} {comments.length === 1 ? 'comment' : 'comments'}</span>}
       </div>
-      {pull ? <nav className="conversation-tabs" aria-label="Pull request"><span aria-current="page">Conversation <span className="count">{comments.length + 1}</span></span>{[['Commits', pull.commits], ['Checks', undefined], ['Files changed', pull.changed_files]].map(([name, n]) => <button key={String(name)} disabled title={`${String(name)} is not available in this mirror`}>{String(name)} {n !== undefined ? <span className="count">{Number(n)}</span> : null}</button>)}</nav> : null}
-      <div className="conversation-grid">
+      {pull ? <nav className="conversation-tabs" aria-label="Pull request">
+        <a href={here(`/pull/${Number(issue.number)}`)} aria-current={!filesView ? 'page' : undefined}>Conversation <span className="count">{comments.length + 1}</span></a>
+        <button disabled title="Commits is not available in this mirror">Commits <span className="count">{Number(pull.commits)}</span></button>
+        <button disabled title="Checks is not available in this mirror">Checks</button>
+        <a href={here(`/pull/${Number(issue.number)}/files`)} aria-current={filesView ? 'page' : undefined}>Files changed <span className="count">{Number(pull.changed_files)}</span></a>
+      </nav> : null}
+      {filesView ? <section aria-label="Files changed">
+        <div className="patch-summary"><b>{diff?.length ?? 0} changed {diff?.length === 1 ? 'file' : 'files'}</b><span>+{diff?.reduce((n, f) => n + f.additions, 0)} −{diff?.reduce((n, f) => n + f.deletions, 0)}</span><button className="btn green" disabled title="Submitting reviews is not available in this mirror">Review changes</button></div>
+        {diff?.map((f) => <article className="box" key={f.filename}>
+          <div className="file-head"><b>{f.filename}</b><span className="muted">{f.status} · +{f.additions} −{f.deletions}</span></div>
+          {f.patch !== undefined ? <pre className="patch">{f.patch.split('\n').map((line, i) => <code key={i} className={line.startsWith('@@') ? 'hunk' : line.startsWith('+') ? 'added' : line.startsWith('-') ? 'removed' : undefined}>{line}</code>)}</pre> : <div className="empty muted">No text patch is available for this file.</div>}
+        </article>)}
+        {!diff?.length ? <p className="muted">No changed files in this comparison.</p> : null}
+      </section> : <div className="conversation-grid">
         <section aria-label="Conversation">{card(record, true)}{comments.map((c) => card(c))}</section>
         <aside aria-label="Issue metadata">
           <section><h2>Assignees</h2>{assignees.length ? assignees.map((a) => <div key={String(a.login)}>{String(a.login)}</div>) : <span className="muted">No one assigned</span>}</section>
           <section><h2>Labels</h2>{(issue.labels as Row[] | undefined)?.length ? labels(issue) : <span className="muted">None yet</span>}</section>
           <section><h2>Milestone</h2>{milestone ? String(milestone.title) : <span className="muted">No milestone</span>}</section>
         </aside>
-      </div>
+      </div>}
     </main></>;
     return flowPage({ title: `${String(record.title)} · ${isPull ? 'Pull request' : 'Issue'} #${Number(issue.number)} · ${full}`, css: [CSS], body });
   }

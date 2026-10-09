@@ -251,7 +251,7 @@ export const manifest: DerivedManifest = {
       // stays with ./screens/git.ts. Branch selection changes only the viewed ref, never the repository's default.
       id: 'repo', kind: 'workspace', host: 'github.com', path: '/{owner}/{repo}', status: 'done',
       demand: "a repository on the World's board shows its files and README; its Issues and Pull requests tabs open the agent's stored handoff and conversation",
-      controls: ['Branches', 'Files', 'Raw', 'Issues', 'Pull requests', 'Open', 'Closed', 'Conversation'],
+      controls: ['Branches', 'Files', 'Raw', 'Issues', 'Pull requests', 'Open', 'Closed', 'Conversation', 'Files changed'],
       source: 'https://docs.github.com/en/get-started/using-github/communicating-on-github',
     },
     {
