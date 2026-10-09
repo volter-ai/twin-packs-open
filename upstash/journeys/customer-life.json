@@ -109,6 +109,40 @@
       ]
     },
     {
+      "name": "Before Kiln writes its first key, Priya opens the new database Data Browser: no keys yet",
+      "method": "GET",
+      "path": "https://console.upstash.com/redis/{db_id}/data-browser",
+      "status": 200,
+      "headers": {
+        "cookie": "upstash_twin_session={console}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "No keys on this page."
+        },
+        {
+          "path": "",
+          "contains": "Select a key to view its value."
+        }
+      ]
+    },
+    {
+      "name": "An old key link has no value to show; Priya sees the native missing-key state",
+      "method": "GET",
+      "path": "https://console.upstash.com/redis/{db_id}/data-browser?key=missing:profile",
+      "status": 200,
+      "headers": {
+        "cookie": "upstash_twin_session={console}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Key not found or expired."
+        }
+      ]
+    },
+    {
       "name": "Tomás checks the new REST endpoint by hand, mistypes SET as SETT, and receives the documented unsupported-command refusal before using the client",
       "source": "https://upstash.com/docs/redis/features/restapi",
       "method": "POST",
@@ -737,6 +771,59 @@
         {
           "path": "11.result",
           "equals": 6
+        }
+      ]
+    },
+    {
+      "name": "Priya inspects the type and expiry of the first session through Redis, the same native reads used by Data Browser",
+      "method": "POST",
+      "path": "https://{endpoint}.upstash.io/pipeline",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rest_token}",
+        "content-type": "application/json"
+      },
+      "body": [
+        [
+          "TYPE",
+          "session:terra-0110-handbuilding"
+        ],
+        [
+          "TTL",
+          "session:terra-0110-handbuilding"
+        ]
+      ],
+      "expect": [
+        {
+          "path": "0.result",
+          "equals": "hash"
+        },
+        {
+          "path": "1.result",
+          "equals": -1
+        }
+      ]
+    },
+    {
+      "name": "She opens Data Browser, filters to the session hash and reads the stored title and no-expiry TTL",
+      "method": "GET",
+      "path": "https://console.upstash.com/redis/{db_id}/data-browser?pattern=session%3Aterra-0110-handbuilding&type=hash&key=session%3Aterra-0110-handbuilding",
+      "status": 200,
+      "headers": {
+        "cookie": "upstash_twin_session={console}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Handbuilding basics"
+        },
+        {
+          "path": "",
+          "contains": "TTL:"
+        },
+        {
+          "path": "",
+          "contains": "No expiration"
         }
       ]
     },

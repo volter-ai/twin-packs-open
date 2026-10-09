@@ -5,33 +5,7 @@ A local Upstash: Redis over Upstash's REST API, the one the unmodified `@upstash
 (`console.upstash.com`, the `api/` lane, beside the Developer API's spec), and QStash with Workflow
 (`https://qstash[-<region>].upstash.io`, the `qstash/` lane), over one vendor state.
 
-## Use with an existing app
-
-Use Node 22.6 or newer.
-
-For an app using the supported Redis REST or QStash workflows, install the exact release:
-
-```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-upstash@1.0.2
-./node_modules/.bin/volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
-```
-
-Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
-
-Review the detected vendor and generated bindings before booting. The World supplies throwaway credentials;
-seed stored data through the unchanged vendor SDK, then run your app's existing test command inside the World.
-
-```console
-./node_modules/.bin/volter world up
-./node_modules/.bin/volter world run -- npm test
-./node_modules/.bin/volter world log
-./node_modules/.bin/volter world down
-```
-
-Use your app's test command in place of `npm test`. Ordinary `down` retains state for the next `up`.
-
-
-A Protocol 3 pack ([publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md)). The Redis
+A Protocol 3 pack ([architecture](../../../docs/contributing/architecture.md), "Protocol 3" and "Other wires"). The Redis
 unit's surface is Redis's command table (`spec/commands`), and its front (`src/semantics/around.ts`) reads Upstash's REST
 forms and runs the commands with the kernel's Redis core under Upstash's dialect (`src/semantics/shared.ts`). Each lane's
 surface is generated from its own spec, with handlers in `<lane>/src/semantics/<family>.ts` and state machines in
@@ -44,11 +18,9 @@ world-upstash serve [--port N] [--root DIR] [--read-only]
 ## The World's Upstash
 
 A person signs in to the console and creates a Redis database there (name, primary region, the free plan). The
-database's page shows `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` and the Read Only token. On a first visit to
+database's page shows `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` and the Read Only token. Data Browser lists its keys with Search, All Types and native cursor pages; selecting a key shows its stored value, type and TTL. The view is read-only and uses the same database-scoped kernel Redis state as the app SDK. On a first visit to
 QStash they pick a region; the page then shows `QSTASH_URL`, `QSTASH_TOKEN` and the two signing keys, and can reset the
-token and roll the keys. The Redis console has the vendor product navigation, a Create Database dialog and
-database Details/Connect sections. Redis Usage, CLI, Data Browser, Search, Monitor, Backups, ACL and paid/read-region
-controls remain unavailable; no usage metrics are fabricated. QStash uses the same product navigation and an Overview with masked Quickstart credentials, a token reset confirmation and signing-key rotation. QStash message, usage and cost charts and unserved navigation are unavailable; its read-only-token switch is not reproduced.
+token and roll the keys.
 
 ## What it models
 
@@ -59,7 +31,7 @@ controls remain unavailable; no usage metrics are fabricated. QStash uses the sa
 - **Redis's semantics** are the kernel's (`@volter/world-core/redis`), for the commands Dub sends and the life sends
   (`src/semantics/shared.ts`, SERVED): SET, GET, GETDEL, DEL, EXISTS, EXPIRE, PEXPIRE, INCR, INCRBY, RENAME; HSET,
   HSETNX, HGET, HGETALL, HMGET, HDEL, HINCRBY; LPUSH, RPUSH, LPOP, LRANGE; SADD, SREM, SMEMBERS, SISMEMBER, SMISMEMBER;
-  ZINCRBY, ZRANGE; XADD, XRANGE, XREVRANGE, XDEL; SCAN; EVAL and EVALSHA running the script's Lua (`@upstash/ratelimit`'s
+  ZINCRBY, ZRANGE; XADD, XRANGE, XREVRANGE, XDEL; SCAN, TYPE, TTL; EVAL and EVALSHA running the script's Lua (`@upstash/ratelimit`'s
   windows verbatim). Every other command is refused as Upstash refuses one it does not have, in a request or a script.
 - **Lua script flags**: `no-writes` prevents script mutations. `allow-key-locking` restricts commands to declared
   Redis hash tags, including dynamic keys sharing those tags; scripts in `/multi-exec` use the vendor's transaction
@@ -106,3 +78,9 @@ Looplinks on QStash and Workflow.
   read only while it is delivered or retried, as QStash keeps it.
 - Every Redis command no demand or life sends (Upstash's table holds 248).
 - Upstash Vector (Dub's docs embeddings): another product with its own wire.
+
+## Synthetic console owner
+
+The runtime’s declared app-credential door creates the app database for `owner@world.test`. It does not create a console sign-in. The `journeys/first-use.json` app files include `seed-console.mjs`, which an operator runs with `volter world run -- node seed-console.mjs`. It records that explicitly synthetic local owner through `POST https://console.upstash.com/_twin/users/owner%40world.test` with the throwaway password `upstash-data-browser-20261009`. Sign in on the local twin with that email and password, open Redis, choose `world`, and open Data Browser. Creating a console user does not issue or replace the native app credentials.
+
+The layout is authored from Upstash’s public [2024 session-management article](https://upstash.com/blog/session-management-nextjs) and its published Data Browser image, with [native read behavior](https://upstash.com/docs/redis/troubleshooting/command_count_increases_unexpectedly). Usage, CLI, Monitor, Backups, ACL, paid/read-region controls and key mutations remain outside this screen’s scope. The sidebar reports only the returned scan page’s key count; no memory or usage metrics are fabricated.
