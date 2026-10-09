@@ -1,6 +1,6 @@
 // THE DASHBOARD — dashboard.stripe.com's pages an operator sets what Stripe's API cannot (docs/contributing/architecture.md,
-// "Screens": a workspace): Public details (/settings/public), Radar lists and test Issuing funding.
-// The operator controls prepare the cited real application calls; other Dashboard pages answer Stripe's 404.
+// "Screens": a workspace): Customers, Public details, Radar lists and test Issuing funding.
+// Customer inspection reads the same stored resources as the SDK. Other pages answer Stripe's 404.
 //
 // THE DASHBOARD'S PUBLIC DETAILS — a workspace page (docs/contributing/architecture.md, "Screens") of the Dashboard
 // (manifest screen `dashboard`), at dashboard.stripe.com/settings/public: Settings → Business → Public details, where
@@ -30,7 +30,7 @@ import type { Row } from '../engine/common.ts';
 import { platformAccountDefault } from '../engine/connect.ts';
 import { publicBusinessName } from '../engine/display.ts';
 import { PLATFORM_ACCOUNT_ID } from '../engine/stripe.ts';
-import { formOf, notFound } from './shared.tsx';
+import { formOf, money, notFound } from './shared.tsx';
 import { created } from '../semantics/shared.ts';
 const redirect = (path: string): Response => new Response(null, { status: 303, headers: { location: path } });
 const invalid = (message: string): Response => flowPage({ css: [], title: 'Stripe', status: 400, body: <main><p role="alert">{message}</p></main> });
@@ -82,6 +82,19 @@ a { color: #635bff; text-decoration: none; }
 .sd-table th { font-size: 12px; font-weight: 600; color: #697386; background: #f6f8fa; }
 .sd-empty { color: #697386; padding: 40px; text-align: center; }
 .sd-code { font-family: ui-monospace,SFMono-Regular,monospace; font-size: 12px; }
+.sd-customer-grid { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 32px; align-items: start; }
+.sd-customer-grid > * { min-width: 0; }
+.sd-module { border-bottom: 1px solid #e3e8ee; padding: 0 0 24px; margin-bottom: 24px; overflow-x: auto; }
+.sd-module h2 { font-size: 18px; margin: 0 0 16px; }
+.sd-customer-details { border-left: 1px solid #e3e8ee; padding-left: 24px; overflow-wrap: anywhere; }
+.sd-customer-details dl { margin: 0; }
+.sd-customer-details dt { color: #697386; font-size: 12px; margin-top: 16px; }
+.sd-customer-details dd { margin: 3px 0 0; }
+.sd-customer-filter { display: flex; gap: 8px; margin-bottom: 20px; }
+.sd-customer-filter input { min-width: 0; width: 320px; border: 1px solid #c1c9d2; border-radius: 6px; padding: 8px 10px; }
+.sd-customer-tabs { display: flex; border-bottom: 1px solid #e3e8ee; margin-bottom: 28px; }
+.sd-customer-tabs span { border-bottom: 2px solid #635bff; padding: 0 0 12px; color: #635bff; font-weight: 600; }
+@media(max-width:1000px) { .sd-customer-grid { grid-template-columns: minmax(0,1fr); } .sd-customer-details { border-left: 0; padding: 0; } }
 .sd-dialog { width: min(480px,calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; border: 1px solid #e3e8ee; border-radius: 8px; padding: 24px; color: #1a1f36; }
 .sd-dialog::backdrop { background: rgba(26,31,54,.4); }
 .sd-dialog h2 { font-size: 20px; margin: 0 0 20px; }
@@ -100,13 +113,65 @@ function dashboardPage(ctx: HandlerContext, opts: DashboardPage): Response {
   const links = [['Public details', PUBLIC_DETAILS_PATH], ['Radar lists', '/radar/lists'], ['Issuing balance', '/test/issuing/balance']];
   return flowPage({ title: `${opts.title} – Stripe`, css: [DETAILS_CSS], status: opts.status ?? 200, body: <div className="sd">
     <aside className="sd-side"><div className="sd-account">{publicBusinessName(account)}<span className="sd-mode">Test mode</span></div><nav className="sd-nav" aria-label="Dashboard">
-      {['Home', 'Balances', 'Transactions', 'Customers', 'Product catalog'].map(label => <button key={label} type="button" disabled title="Not available in this twin's Dashboard">{label}</button>)}
+      {['Home', 'Balances', 'Transactions', 'Customers', 'Product catalog'].map(label => label === 'Customers'
+        ? <a key={label} href={`${ctx.publicBase}/customers`} aria-current={opts.path === '/customers' ? 'page' : undefined}>Customers</a>
+        : <button key={label} type="button" disabled title="Not available in this twin's Dashboard">{label}</button>)}
       <p className="sd-nav-title">Shortcuts</p>{links.map(([label,path]) => <a key={path} href={`${ctx.publicBase}${path}`} aria-current={opts.path === path ? 'page' : undefined}>{label}</a>)}
       <p className="sd-nav-title">Products</p>{['Payments', 'Billing', 'Reporting', 'Connect', 'More'].map(label => <button key={label} type="button" disabled title="Not available in this twin's Dashboard">{label}</button>)}
     </nav></aside><div className="sd-body"><header className="sd-top"><input className="sd-search" aria-label="Search Dashboard" placeholder="Search" disabled title="Dashboard search is not available in this twin"/><button type="button" disabled title="Not available in this twin's Dashboard">Create</button><button type="button" disabled>Help</button><a href={`${ctx.publicBase}${PUBLIC_DETAILS_PATH}`}>Settings</a></header>
     <main className="sd-content"><nav className="sd-crumbs" aria-label="Breadcrumb"><span>{opts.section}</span><span aria-hidden="true">/</span><span>{opts.title}</span></nav><div className="sd-title"><h1>{opts.title}</h1>{opts.action}</div>{opts.body}</main></div>
     <script dangerouslySetInnerHTML={{ __html: "document.querySelectorAll('[data-open-dialog]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.openDialog).showModal()));document.querySelectorAll('[data-close-dialog]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));" }}/>
   </div> });
+}
+
+const customerName = (row: Row): string => String(row.name || row.email || row.id);
+const resourceId = (value: unknown): string => typeof value === 'string' ? value : value && typeof value === 'object' ? String((value as Row).id ?? '') : '';
+const newest = (rows: Row[]): Row[] => rows.slice().reverse().sort((a,b) => Number(b.created ?? 0) - Number(a.created ?? 0));
+const customerDate = (value: unknown): string => typeof value === 'number' && Number.isFinite(value)
+  ? new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(value * 1000)) : '—';
+
+// source: https://support.stripe.com/questions/export-customer-data-without-the-payment-details
+// source: https://support.stripe.com/questions/updates-to-the-customer-detail-page
+// These public support articles render their body in JavaScript; the source reader gets their shell.
+// Their public rendered body supplies Customers and the dynamic-left/static-right layout (spec/SOURCE.md).
+// Where public references stop: q is an authored name/email/id/description substring filter, not Stripe's
+// private Dashboard search wire. Dates are shown in UTC; browser actions here are read-only. The declared
+// page addresses preserve the customer's returned API id. There is no invented payment history or total.
+function customersPage(ctx: HandlerContext, path: string): Response {
+  if (ctx.call.request.method !== 'GET') return notFound();
+  if (path === '/customers') {
+    const query = new URL(ctx.call.request.url).searchParams.get('q') ?? '';
+    const needle = query.trim().toLowerCase();
+    const customers = newest(ctx.rows('customer')).filter(row => !needle ||
+      [row.name, row.email, row.id, row.description].some(value => typeof value === 'string' && value.toLowerCase().includes(needle)));
+    return dashboardPage(ctx, { title: 'Customers', section: 'Customers', path: '/customers',
+      body: <><form className="sd-customer-filter" method="get" action={`${ctx.publicBase}/customers`}>
+        <input name="q" aria-label="Search customers" placeholder="Search customers" defaultValue={query}/><button className="sd-cancel" type="submit">Search</button>
+        {query ? <a href={`${ctx.publicBase}/customers`}>Clear</a> : null}
+      </form><table className="sd-table"><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Description</th><th scope="col">Created (UTC)</th></tr></thead>
+        <tbody>{customers.map(row => <tr key={String(row.id)}><td><a href={`${ctx.publicBase}/customers/${encodeURIComponent(String(row.id))}`}>{customerName(row)}</a></td><td>{String(row.email ?? '—')}</td><td>{String(row.description ?? '—')}</td><td>{customerDate(row.created)}</td></tr>)}</tbody></table>
+        {!customers.length ? <p className="sd-empty">{needle ? 'No customers match your search.' : 'No customers yet.'}</p> : null}</> });
+  }
+  let id: string;
+  try { id = decodeURIComponent(path.slice('/customers/'.length)); } catch { return notFound(); }
+  const customer = ctx.get('customer', id);
+  if (!customer || customer.deleted === true) return notFound();
+  const related = (type: string): Row[] => newest(ctx.rows(type)).filter(row => resourceId(row.customer) === id);
+  const payments = related('charge'), subscriptions = related('subscription'), invoices = related('invoice'), methods = related('payment_method');
+  const metadata = customer.metadata && typeof customer.metadata === 'object' ? Object.entries(customer.metadata as Row) : [];
+  const address = customer.address && typeof customer.address === 'object' ? customer.address as Row : undefined;
+  const addressText = address ? ['line1','line2','city','state','postal_code','country'].map(key => address[key]).filter(Boolean).join(', ') : '—';
+  return dashboardPage(ctx, { title: customerName(customer), section: 'Customers', path: '/customers',
+    body: <><a href={`${ctx.publicBase}/customers`}>← Customers</a><p className="pd-lead sd-code">{id}</p><div className="sd-customer-tabs"><span>Overview</span></div>
+      <div className="sd-customer-grid"><div>
+        <section className="sd-module"><h2>Subscriptions</h2>{subscriptions.length ? <table className="sd-table"><thead><tr><th scope="col">Subscription</th><th scope="col">Status</th><th scope="col">Created (UTC)</th></tr></thead><tbody>{subscriptions.map(row => <tr key={String(row.id)}><td className="sd-code">{String(row.id)}</td><td>{String(row.status ?? '—')}</td><td>{customerDate(row.created)}</td></tr>)}</tbody></table> : <p className="pd-lead">No subscriptions</p>}</section>
+        <section className="sd-module"><h2>Payments</h2>{payments.length ? <table className="sd-table"><thead><tr><th scope="col">Amount</th><th scope="col">Status</th><th scope="col">Description</th><th scope="col">Created (UTC)</th></tr></thead><tbody>{payments.map(row => <tr key={String(row.id)}><td>{money(row.amount, row.currency)}</td><td>{row.refunded === true ? 'Refunded' : String(row.status ?? '—')}</td><td>{String(row.description ?? row.id)}</td><td>{customerDate(row.created)}</td></tr>)}</tbody></table> : <p className="pd-lead">No payments</p>}</section>
+        <section className="sd-module"><h2>Payment methods</h2>{methods.length ? <ul>{methods.map(row => { const card = row.card && typeof row.card === 'object' ? row.card as Row : undefined; return <li key={String(row.id)}>{card ? `${String(card.brand ?? 'Card')} •••• ${String(card.last4 ?? '')}` : String(row.type ?? 'Payment method')} <span className="sd-code">{String(row.id)}</span></li>; })}</ul> : <p className="pd-lead">No payment methods</p>}</section>
+        <section className="sd-module"><h2>Invoices</h2>{invoices.length ? <table className="sd-table"><thead><tr><th scope="col">Invoice</th><th scope="col">Amount due</th><th scope="col">Status</th></tr></thead><tbody>{invoices.map(row => <tr key={String(row.id)}><td>{String(row.number ?? row.id)}</td><td>{money(row.amount_due, row.currency)}</td><td>{String(row.status ?? '—')}</td></tr>)}</tbody></table> : <p className="pd-lead">No invoices</p>}</section>
+      </div><aside className="sd-customer-details" aria-label="Customer details">
+        <section className="sd-module"><h2>Details</h2><dl><dt>Customer ID</dt><dd className="sd-code">{id}</dd><dt>Name</dt><dd>{String(customer.name ?? '—')}</dd><dt>Email</dt><dd>{String(customer.email ?? '—')}</dd><dt>Phone</dt><dd>{String(customer.phone ?? '—')}</dd><dt>Description</dt><dd>{String(customer.description ?? '—')}</dd><dt>Billing address</dt><dd>{addressText}</dd><dt>Created (UTC)</dt><dd>{customerDate(customer.created)}</dd></dl></section>
+        <section className="sd-module"><h2>Metadata</h2>{metadata.length ? <dl>{metadata.map(([key,value]) => <div key={key}><dt>{key}</dt><dd>{typeof value === 'string' ? value : JSON.stringify(value)}</dd></div>)}</dl> : <p className="pd-lead">No metadata</p>}</section>
+      </aside></div></> });
 }
 
 function detailsPage(ctx: HandlerContext, account: Row | undefined, opts: { value?: string; error?: string; saved?: boolean } = {}): Response {
@@ -158,11 +223,12 @@ async function publicDetails(ctx: HandlerContext): Promise<Response> {
   return new Response(null, { status: 303, headers: { location: '?saved=1' } });
 }
 
-/** Dashboard settings, Radar list creation and test Issuing funding; other pages answer Stripe's 404. */
+/** Dashboard customer inspection, settings, Radar lists and test Issuing funding. */
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const path = new URL(ctx.call.request.url).pathname.replace(/\/+$/, '');
   // The declared workspace opens a served setting, not a fabricated analytics home.
   if (!path && ctx.call.request.method === 'GET') return redirect(`${ctx.publicBase}${PUBLIC_DETAILS_PATH}`);
+  if (path === '/customers' || /^\/customers\/[^/]+$/.test(path)) return customersPage(ctx, path);
   // source: https://docs.stripe.com/radar/lists "Use the Dashboard or the API to create lists."
   // source: https://docs.stripe.com/radar/lists "Enter a name for the list"
   // source: https://docs.stripe.com/radar/lists "Select the type of list to create."

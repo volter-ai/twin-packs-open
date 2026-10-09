@@ -365,7 +365,7 @@ export const manifest: DerivedManifest = {
     hosts: [
       { host: 'api.stripe.com' }, { host: 'checkout.stripe.com', pathPattern: '^/c/pay/' }, { host: 'billing.stripe.com', pathPattern: '^/p/session/' },
       { host: 'connect.stripe.com', pathPattern: '^/setup/' },
-      { host: 'dashboard.stripe.com', pathPattern: '^/radar/lists(?:/[^/]+)?/?$|^/test/issuing/balance/?$|^/settings/public/?$' },
+      { host: 'dashboard.stripe.com', pathPattern: '^/customers(?:/[^/]+)?/?$|^/radar/lists(?:/[^/]+)?/?$|^/test/issuing/balance/?$|^/settings/public/?$' },
       { host: 'verify.stripe.com', pathPattern: '^/start/' },
       { host: 'js.stripe.com', pathPattern: '^/v3/?$|^/(v3|[a-z]+)/stripe\\.js$' },
     ],
@@ -411,8 +411,8 @@ export const manifest: DerivedManifest = {
     },
     {
       id: 'dashboard', kind: 'workspace', host: 'dashboard.stripe.com', path: '/', status: 'done',
-      demand: 'Operator setup for the cited application calls: Public details; Radar lists for Dub add-to-stripe-fraud-value-lists.ts:3-7; sandbox funding for Open Autonomy world/model/scenario.ts:60,62',
-      controls: ['Business name', 'Save', 'New list', 'Name', 'Alias', 'List type', 'Add', 'Add test funds', 'Amount'], source: 'https://docs.stripe.com/dashboard/basics',
+      demand: 'World first-use customer inspection (twin-world/docs/contributing/first-use.md); operator setup: Public details; Radar lists for Dub add-to-stripe-fraud-value-lists.ts:3-7; sandbox funding for Open Autonomy world/model/scenario.ts:60,62',
+      controls: ['Customers', 'Search customers', 'Search', 'Business name', 'Save', 'New list', 'Name', 'Alias', 'List type', 'Add', 'Add test funds', 'Amount'], source: 'https://docs.stripe.com/dashboard/basics',
     },
   ],
   resources: {

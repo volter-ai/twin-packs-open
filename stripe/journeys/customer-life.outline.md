@@ -55,6 +55,9 @@ Elapsed: 120m.
 - and every customer — GET /v1/customers?limit=100. Volter Harness: container/retake/stack/app/src/app.py:116
 - The sample shop's seeder looks its first customer up by email before seeding — GET /v1/customers?email=billing%40ravel.test. Twin: apps/platform/src/sample.ts:40
 - Dub reads Ravel’s billing customer — GET /v1/customers/{ravel}. Dub: apps/web/app/api/workspaces/[idOrSlug]/billing/payment-methods/route.ts:66
+- Femke opens Customers to inspect the SDK-created billing customer — GET https://dashboard.stripe.com/customers?q=billing%40ravel.test. World first-use customer inspection; Stripe: https://support.stripe.com/questions/export-customer-data-without-the-payment-details
+- Femke opens Ravel's profile and sees the stored subscriptions and billing details — GET https://dashboard.stripe.com/customers/{ravel}. World first-use customer inspection; Stripe: https://support.stripe.com/questions/updates-to-the-customer-detail-page
+- A missing customer profile is not an invented customer — GET https://dashboard.stripe.com/customers/cus_missing. The profile reads the existing customer view only.
 - Twenty’s app health check reads its Stripe account with the user-supplied key — GET /v1/account. Twenty: packages/twenty-docs/developers/extend/apps/logic/logic-functions.mdx:850 (GET, Authorization only)
 - Twenty’s invoice workflow creates the quote invoice for Ravel — POST /v1/invoices. Twenty: packages/twenty-docs/user-guide/workflows/how-tos/connect-to-other-tools/generate-quote-or-invoice-from-twenty.mdx:101; packages/twenty-server/src/modules/workflow/workflow-executor/workflow-actions/http-request/http-request.workflow-action.ts:28
 - The invoice workflow reads the saved draft — GET /v1/invoices/{workflow_invoice}. Postiz: libraries/nestjs-libraries/src/services/stripe.service.ts; Stripe: pinned API and Stripe.js Checkout contract
