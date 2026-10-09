@@ -58,8 +58,10 @@ function listing(ctx: HandlerContext, url: URL, teams: string[], team: string, e
 
 function details(ctx: HandlerContext, url: URL, teams: string[], team: string, email: Row): Response {
   const view = ['preview', 'text', 'html'].includes(url.searchParams.get('view') ?? '') ? url.searchParams.get('view')! : 'preview';
-  // A recorded transition's time and state, read through the kernel's native history. No open/click totals or invented events.
-  const events = ctx.history(EMAIL, String(email.id)).filter((entry) => typeof entry.fields?.last_event === 'string');
+  // A snapshot's current status is not an event. Keep recorded operations from parent and branch history in its native order.
+  // No open/click totals or invented events; the current status above comes from the API's stored email view.
+  const events = ctx.history(EMAIL, String(email.id)).filter((entry) =>
+    typeof entry.operation === 'string' && typeof entry.fields?.last_event === 'string');
   const text = typeof email.text === 'string' ? email.text : '';
   const html = typeof email.html === 'string' ? email.html : '';
   // Native browser isolation, not a custom HTML parser: the sandbox grants no scripts, forms or origin privileges,
