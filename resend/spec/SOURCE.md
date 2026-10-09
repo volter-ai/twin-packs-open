@@ -17,4 +17,6 @@
 
 The read-only Emails workspace is authored from Resend's public [manage-emails guide](https://resend.com/docs/dashboard/emails/manage-emails), its published Email Details image, the [List Sent Emails Endpoint](https://resend.com/changelog/list-sent-emails-endpoint) Emails table image, and the [Email Events Timeline](https://resend.com/changelog/email-events-timeline). It lists stored sent emails and opens the same email fields the API returns, with Preview, Plain Text and HTML views. It uses the kernel's stored rows and history; only recorded events appear. Preview uses a browser-native sandbox and blocks external assets. No dashboard login, sending controls, share links, logs or engagement totals are modeled by this screen.
 
-Reference observation dates, retained image hashes and explicit capture limits are recorded in `screen-references.json` (SHA-256: `7e8c8b99085f69a520b97f985ad943c1d4366f3d41e8ae039fdcc8ab84d67a37`).
+Reference observation dates, retained image hashes and explicit capture limits are recorded in `screen-references.json` (SHA-256: `fb448069a3b2c1128415cae403737dea197c3404fe57555ec57e4644fdaf9b14`).
+
+The vendor document's neutral palette follows the retained official Email Details pixels recorded there; shared layout/type tokens remain unchanged. This is a source-only correction after the original teal candidate, with no new rendering claim.
