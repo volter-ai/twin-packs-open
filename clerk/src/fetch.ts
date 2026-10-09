@@ -6,6 +6,7 @@ import { manifest } from './manifest.ts';
 import { around } from './semantics/around.ts';
 import * as doors from './semantics/doors.ts';
 import { clerkSemantics } from './semantics/index.ts';
+import { screen as screen_dashboard } from './screens/dashboard.tsx';
 import { screen as screen_images } from './screens/images.ts';
 import { createFapiLaneFetch, manifest as fapi_manifest } from '../fapi/src/index.ts';
 
@@ -16,7 +17,7 @@ export function createClerkFetch(options: PackFetchOptions = {}): DerivedFetch {
     handlers: clerkSemantics,
     doors,
     around,
-    screens: { "images": screen_images },
+    screens: { "dashboard": screen_dashboard, "images": screen_images },
     lanes: { "fapi": { fetch: createFapiLaneFetch(options), manifest: fapi_manifest } },
   }, options);
 }
