@@ -1,9 +1,20 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { selectedPack } from './selected-pack.mjs';
 
 const pack = selectedPack();
+const readmePath = join(pack.directory, 'README.md');
+const readme = readFileSync(readmePath, 'utf8');
+const escapedName = pack.manifest.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const packageToken = new RegExp(`(^|[\\s'"])${escapedName}(?:@[^\\s'";|&\\\\]+)?(?=[\\s'";|&\\\\]|$)`, 'g');
+let continuedInstall = false;
+const boundReadme = readme.split('\n').map((line) => {
+  const installing = continuedInstall || /^\s*(?:npm\s+(?:install|i)|pnpm\s+(?:add|install)|yarn\s+add|bun\s+(?:add|install))\b/.test(line);
+  continuedInstall = installing && /\\\s*$/.test(line);
+  return installing ? line.replace(packageToken, (_token, prefix) => `${prefix}${pack.manifest.name}@${pack.manifest.version}`) : line;
+}).join('\n');
+if (boundReadme !== readme) writeFileSync(readmePath, boundReadme);
 mkdirSync(pack.release, { recursive: true });
 const result = spawnSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', pack.release], {
   cwd: pack.directory, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
