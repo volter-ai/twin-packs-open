@@ -1,10 +1,10 @@
-// A REPOSITORY'S PAGE — github.com/{owner}/{repo}, its Code tab: the repository's name and visibility, its tabs, the
+// A REPOSITORY'S PAGE — github.com/{owner}/{repo}: Code, Issues and Pull requests share its stored state. Code shows the
 // default branch's latest commit and its files and folders (each with the last commit that touched it), and its README
 // rendered, the About sidebar beside them. Files, directories and branch selection read those same stored Git objects.
 // A private repository is its members' alone: anyone else finds no page, as on GitHub. Git transport stays in ./git.ts.
 import { git, type HandlerContext } from '@volter/world-core';
 import { flowPage, markdownHtml } from '@volter/world-ui';
-import { gitOf, repoNamed, roleIn, type Row } from '../semantics/shared.ts';
+import { gitOf, issueByNumber, pullByNumber, repoNamed, roleIn, type Row } from '../semantics/shared.ts';
 import { screen as gitScreen } from './git.ts';
 import { person, refused } from './shared.tsx';
 
@@ -20,7 +20,8 @@ svg { fill: currentColor; vertical-align: text-bottom; }
 .title .owner { font-weight: 400; } .title .name { font-weight: 600; }
 .label { border: 1px solid #d1d9e0; border-radius: 2em; padding: 0 7px; font-size: 12px; font-weight: 500; line-height: 18px; color: #59636e; }
 .tabs { display: flex; gap: 8px; }
-.tabs span { display: flex; align-items: center; gap: 8px; padding: 0 8px 8px; color: #1f2328; border-bottom: 2px solid transparent; }
+.tabs > span, .tabs > a { display: flex; align-items: center; gap: 8px; padding: 0 8px 8px; color: #1f2328; border-bottom: 2px solid transparent; }
+.tabs > a:hover { text-decoration: none; background: #f6f8fa; }
 .tabs .on { border-bottom-color: #fd8c73; font-weight: 600; }
 .tabs button { border: 0; background: none; font: inherit; color: #59636e; padding: 0 8px 8px; cursor: not-allowed; }
 .tabs { overflow-x: auto; white-space: nowrap; }
@@ -69,6 +70,30 @@ table.files { width: 100%; border-collapse: collapse; }
 .topic { background: #ddf4ff; color: #0969da; border-radius: 2em; padding: 0 10px; font-size: 12px; font-weight: 500; line-height: 22px; }
 .about .line { display: flex; align-items: center; gap: 8px; color: #59636e; margin-bottom: 8px; }
 .empty { padding: 32px; text-align: center; }
+.work { display: block; }
+.work-list-head { display: flex; gap: 20px; padding: 16px; background: #f6f8fa; }
+.work-list-head a { color: #59636e; } .work-list-head a[aria-current] { color: #1f2328; font-weight: 600; }
+.work-item { display: flex; gap: 12px; padding: 12px 16px; border-top: 1px solid #d1d9e0; }
+.work-item:hover { background: #f6f8fa; } .work-item > div { min-width: 0; flex: 1; }
+.work-item h2 { display: inline; font-size: 16px; line-height: 1.5; margin: 0 8px 0 0; }
+.work-item h2 a { color: #1f2328; } .work-item .muted { display: block; font-size: 12px; margin-top: 4px; }
+.state-dot { flex: 0 0 14px; height: 14px; border: 2px solid currentColor; border-radius: 50%; color: #1f883d; margin-top: 5px; }
+.state-dot.closed { color: #8250df; } .state-dot.draft { color: #59636e; }
+.conversation-heading { margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid #d1d9e0; }
+.conversation-heading h1 { margin: 0 0 8px; font-size: 32px; font-weight: 400; overflow-wrap: anywhere; }
+.state-pill { display: inline-flex; align-items: center; gap: 8px; color: #fff; background: #1f883d; border-radius: 2em; padding: 5px 12px; font-weight: 500; margin-right: 8px; }
+.state-pill.closed { background: #8250df; } .state-pill.draft { background: #59636e; }
+.conversation-grid { display: grid; grid-template-columns: minmax(0, 1fr) 256px; gap: 24px; }
+.comment-head { display: flex; gap: 6px; align-items: center; padding: 8px 16px; background: #f6f8fa; border-bottom: 1px solid #d1d9e0; }
+.comment-head .label { margin-left: auto; } .comment-body { padding: 16px; font-size: 14px; }
+.conversation-grid aside section { padding: 16px 0; border-bottom: 1px solid #d1d9e0; }
+.conversation-grid aside h2 { color: #59636e; font-size: 12px; margin: 0 0 8px; }
+.conversation-tabs { display: flex; gap: 8px; border-bottom: 1px solid #d1d9e0; margin-bottom: 16px; overflow-x: auto; }
+.conversation-tabs > span, .conversation-tabs > button { padding: 8px 12px; white-space: nowrap; font: inherit; }
+.conversation-tabs > span { border: 1px solid #d1d9e0; border-bottom: 0; border-radius: 6px 6px 0 0; }
+.conversation-tabs > button { border: 0; background: none; color: #59636e; cursor: not-allowed; }
+.conversation-heading code { padding: 2px 4px; background: #ddf4ff; border-radius: 6px; color: #0969da; }
+@media (max-width: 800px) { .conversation-grid { grid-template-columns: minmax(0, 1fr); } .conversation-heading h1 { font-size: 24px; } }
 `;
 
 // GitHub's Octicons (MIT), at 16px
@@ -98,8 +123,10 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   try { parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent); } catch { return refused(404, 'Not Found'); }
   const view = parts[2];
   const fileRoute = ['tree', 'blob', 'raw'].includes(view ?? '') && parts.length >= 4;
+  const workRoute = ((view === 'issues' || view === 'pulls') && parts.length === 3)
+    || ((view === 'issues' || view === 'pull') && parts.length === 4 && /^[1-9]\d*$/.test(parts[3]!));
   const wantsPage = (ctx.call.request.method === 'GET' || ctx.call.request.method === 'HEAD') && !parts[1]?.endsWith('.git')
-    && (parts.length === 2 || fileRoute) && (view === 'raw' || (ctx.call.request.headers.get('accept') ?? '').includes('text/html'));
+    && (parts.length === 2 || fileRoute || workRoute) && (view === 'raw' || (ctx.call.request.headers.get('accept') ?? '').includes('text/html'));
   if (!wantsPage) return gitScreen(ctx);
   const [owner, name] = parts as [string, string];
   const repo = repoNamed(ctx, owner, name);
@@ -109,15 +136,87 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (repo.private === true && !role) return refused(404, 'Not Found');
   const full = String(repo.full_name);
   const now = Date.parse(ctx.occurredAt) / 1000;
+  const issues = ctx.rowsRaw('issue').filter((i) => i._repo === full && i.deleted !== true);
+  const openIssues = issues.filter((i) => !i.pull_request && i.state === 'open').length;
+  const openPulls = issues.filter((i) => Boolean(i.pull_request) && i.state === 'open').length;
+  const base = ctx.publicBase.replace(/\/$/, '');
+  const repoPath = `/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+  const here = (suffix = ''): string => `${base}${repoPath}${suffix}`;
+  const tab = view === 'issues' ? 'Issues' : view === 'pulls' || view === 'pull' ? 'Pull requests' : 'Code';
+  const tabs: Array<[string, number | undefined, string | undefined]> = [['Code', undefined, ''], ['Issues', openIssues, '/issues'], ['Pull requests', openPulls, '/pulls'], ['Actions', undefined, undefined], ['Projects', undefined, undefined], ['Security', undefined, undefined], ['Insights', undefined, undefined], ...(role === 'admin' ? [['Settings', undefined, undefined] as [string, undefined, undefined]] : [])];
+  const header = <div className="head">
+    <div className="title"><Icon d={icon.repo} /><span className="owner">{String((repo.owner as Row).login)}</span><span className="muted">/</span><a className="name" href={here()}>{String(repo.name)}</a><span className="label">{repo.private === true ? 'Private' : 'Public'}</span></div>
+    <nav className="tabs" aria-label="Repository">{tabs.map(([t, n, suffix]) => suffix !== undefined
+      ? <a key={t} href={here(suffix)} className={tab === t ? 'on' : undefined} aria-current={tab === t ? 'page' : undefined}>{t}{n ? <span className="count">{n}</span> : null}</a>
+      : <button key={t} disabled title={`${t} is not available in this mirror`}>{t}</button>)}</nav>
+  </div>;
+  // source: https://docs.github.com/en/get-started/using-github/communicating-on-github "In the Conversation tab of the pull request, the author explains why they created the pull request."
+  // The public examples establish the title/state, conversation cards and metadata sidebar. UI mutation, reviews,
+  // checks and file diffs are outside this workspace slice; no successful action or check is invented for them.
+  if (workRoute) {
+    const isPull = view === 'pulls' || view === 'pull';
+    const listPath = isPull ? '/pulls' : '/issues';
+    const link = (i: Row): string => here(`/${i.pull_request ? 'pull' : 'issues'}/${Number(i.number)}`);
+    const atTime = (value: unknown): string => ago(now, Date.parse(String(value)) / 1000);
+    const user = (i: Row): string => String((i.user as Row | undefined)?.login ?? '');
+    const labels = (i: Row) => ((i.labels as Row[] | undefined) ?? []).map((l) => <span key={String(l.id ?? l.name)} className="label">{String(l.name)}</span>);
+    if (parts.length === 3) {
+      const closed = /\bis:closed\b/.test(url.searchParams.get('q') ?? '');
+      const all = issues.filter((i) => Boolean(i.pull_request) === isPull);
+      const selected = all.filter((i) => i.state === (closed ? 'closed' : 'open')).sort((a, b) => Number(b.number) - Number(a.number));
+      const body = <>{header}<main className="body work">
+        <div className="box">
+          <nav className="work-list-head" aria-label={`${tab} state`}>
+            <a href={here(listPath)} aria-current={!closed ? 'page' : undefined}>{all.filter((i) => i.state === 'open').length} Open</a>
+            <a href={here(`${listPath}?q=${encodeURIComponent(`is:${isPull ? 'pr' : 'issue'} is:closed`)}`)} aria-current={closed ? 'page' : undefined}>{all.filter((i) => i.state === 'closed').length} Closed</a>
+          </nav>
+          {selected.length ? selected.map((i) => <article className="work-item" key={String(i.id)}>
+            <span className={`state-dot${closed ? ' closed' : ''}`} aria-hidden="true" />
+            <div><h2><a href={link(i)}>{String(i.title)}</a></h2>{labels(i)}<span className="muted">#{Number(i.number)} {closed ? 'closed' : 'opened'} {atTime(closed ? i.closed_at ?? i.updated_at : i.created_at)} by {user(i)}</span></div>
+            {Number(i.comments) > 0 ? <span className="muted">{Number(i.comments)} comments</span> : null}
+          </article>) : <div className="empty"><h2>No {closed ? 'closed' : 'open'} {isPull ? 'pull requests' : 'issues'}</h2><p className="muted">{closed ? 'Closed' : 'Open'} {isPull ? 'pull requests' : 'issues'} will appear here.</p></div>}
+        </div>
+      </main></>;
+      return flowPage({ title: `${tab} · ${full}`, css: [CSS], body });
+    }
+    const issue = issueByNumber(ctx, repo, parts[3]);
+    const pull = isPull ? pullByNumber(ctx, repo, parts[3]) : undefined;
+    if (!issue || issue.deleted === true || Boolean(issue.pull_request) !== isPull || (isPull && (!pull || pull.deleted === true))) return refused(404, 'Not Found');
+    const record = pull ?? issue;
+    const comments = ctx.rowsRaw('issue_comment').filter((c) => c._repo === full && c._issue === String(issue.number) && c.deleted !== true).sort((a, b) => Number(a.id) - Number(b.id));
+    const state = pull?.merged === true ? 'Merged' : record.state === 'closed' ? 'Closed' : pull?.draft === true ? 'Draft' : 'Open';
+    const stateClass = state === 'Closed' || state === 'Merged' ? 'closed' : state === 'Draft' ? 'draft' : '';
+    const card = (c: Row, original = false) => <article className="box" id={original ? 'issue-body' : `issuecomment-${String(c.id)}`} key={String(c.id)}>
+      <div className="comment-head"><b>{user(c)}</b><span className="muted">commented {atTime(c.created_at)}</span>{c.author_association && c.author_association !== 'NONE' ? <span className="label">{String(c.author_association).toLowerCase()}</span> : null}</div>
+      <div className="markdown comment-body" dangerouslySetInnerHTML={{ __html: markdownHtml(String(c.body ?? '*No description provided.*')) }} />
+    </article>;
+    const assignees = (issue.assignees as Row[] | undefined) ?? [];
+    const milestone = issue.milestone as Row | undefined;
+    const body = <>{header}<main className="body work">
+      <div className="conversation-heading">
+        <h1>{String(record.title)} <span className="muted">#{Number(issue.number)}</span></h1>
+        <span className={`state-pill ${stateClass}`}>{state}</span>
+        {pull ? <span className="muted"><b>{user(record)}</b> {pull.merged === true ? 'merged' : 'wants to merge'} {Number(pull.commits ?? 0)} commits into <code>{String((pull.base as Row).label)}</code> from <code>{String((pull.head as Row).label)}</code></span>
+          : <span className="muted"><b>{user(issue)}</b> opened this issue {atTime(issue.created_at)} · {comments.length} comments</span>}
+      </div>
+      {pull ? <nav className="conversation-tabs" aria-label="Pull request"><span aria-current="page">Conversation <span className="count">{comments.length + 1}</span></span>{[['Commits', pull.commits], ['Checks', undefined], ['Files changed', pull.changed_files]].map(([name, n]) => <button key={String(name)} disabled title={`${String(name)} is not available in this mirror`}>{String(name)} {n !== undefined ? <span className="count">{Number(n)}</span> : null}</button>)}</nav> : null}
+      <div className="conversation-grid">
+        <section aria-label="Conversation">{card(record, true)}{comments.map((c) => card(c))}</section>
+        <aside aria-label="Issue metadata">
+          <section><h2>Assignees</h2>{assignees.length ? assignees.map((a) => <div key={String(a.login)}>{String(a.login)}</div>) : <span className="muted">No one assigned</span>}</section>
+          <section><h2>Labels</h2>{(issue.labels as Row[] | undefined)?.length ? labels(issue) : <span className="muted">None yet</span>}</section>
+          <section><h2>Milestone</h2>{milestone ? String(milestone.title) : <span className="muted">No milestone</span>}</section>
+        </aside>
+      </div>
+    </main></>;
+    return flowPage({ title: `${String(record.title)} · ${isPull ? 'Pull request' : 'Issue'} #${Number(issue.number)} · ${full}`, css: [CSS], body });
+  }
   const { store, refs } = gitOf(ctx, repo);
   let branch = String(repo.default_branch ?? 'main');
   const all = refs.list();
   const branchNames = all.filter((r) => r.name.startsWith('refs/heads/')).map((r) => r.name.slice('refs/heads/'.length)).sort();
   const branches = all.filter((r) => r.name.startsWith('refs/heads/')).length;
   const tags = all.filter((r) => r.name.startsWith('refs/tags/')).length;
-  const issues = ctx.rowsRaw('issue').filter((i) => i._repo === full && i.state === 'open' && i.deleted !== true);
-  const openIssues = issues.filter((i) => !i.pull_request).length;
-  const openPulls = issues.filter((i) => Boolean(i.pull_request)).length;
 
   // the branch's history, newest first along its first parents: the latest commit, how many there are, and for each
   // entry at the root the newest commit that changed it
@@ -134,9 +233,6 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     }
     if (!tip) return refused(404, 'Not Found');
   }
-  const base = ctx.publicBase.replace(/\/$/, '');
-  const repoPath = `/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
-  const here = (suffix = ''): string => `${base}${repoPath}${suffix}`;
   const at = (kind: 'tree' | 'blob' | 'raw', item = '', ref = branch): string => here(`/${kind}/${encodeURIComponent(ref)}${item ? '/' + item.split('/').map(encodeURIComponent).join('/') : ''}`);
   const objectAt = async (commit: git.Commit, item: string): Promise<Awaited<ReturnType<typeof store.read>>> => {
     let object = await store.read(commit.tree);
@@ -205,14 +301,10 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const readmeText = readmeBlob?.type === 'blob' ? new TextDecoder().decode(readmeBlob.payload) : undefined;
   const firstLine = (c: git.Commit): string => c.message.split('\n')[0] ?? '';
 
-  const tabs: Array<[string, number | undefined]> = [['Code', undefined], ['Issues', openIssues], ['Pull requests', openPulls], ['Actions', undefined], ['Projects', undefined], ['Security', undefined], ['Insights', undefined], ...(role === 'admin' ? [['Settings', undefined] as [string, undefined]] : [])];
   const body = (
     <>
-      <div className="head">
-        <div className="title"><Icon d={icon.repo} /><span className="owner">{String((repo.owner as Row).login)}</span><span className="muted">/</span><a className="name" href={here()}>{String(repo.name)}</a><span className="label">{repo.private === true ? 'Private' : 'Public'}</span></div>
-        <nav className="tabs" aria-label="Repository">{tabs.map(([t, n], i) => i === 0 ? <span key={t} className="on" aria-current="page">{t}</span> : <button key={t} disabled title={`${t} is not available in this mirror`}>{t}{n ? <span className="count">{n}</span> : null}</button>)}</nav>
-      </div>
-      <div className="body">
+      {header}
+      <main className="body">
         <div className={file ? 'file-view' : undefined}>
           <div className="bar">
             <details className="branch"><summary className="btn"><Icon d={icon.branch} />{branch} ▾</summary><div className="branch-menu" aria-label="Branches"><b>Switch branches</b>{branchNames.map((ref) => <a key={ref} href={at('tree', '', ref)} aria-current={ref === branch ? 'true' : undefined}>{ref}</a>)}</div></details>
@@ -265,7 +357,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
           <div className="line"><b>{Number(repo.watchers_count ?? 0)}</b> watching</div>
           <div className="line"><b>{Number(repo.forks_count ?? 0)}</b> forks</div>
         </aside> : null}
-      </div>
+      </main>
     </>
   );
   return flowPage({ title: `${full}${typeof repo.description === 'string' && repo.description ? `: ${repo.description}` : ''}`, css: [CSS], body });

@@ -247,12 +247,12 @@ export const manifest: DerivedManifest = {
       source: 'https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app',
     },
     {
-      // Ahead of git, whose path it shares: the Code tab and stored file/directory views answer browsers; git transport
+      // Ahead of git, whose path it shares: Code, Issues and Pull requests answer browsers; git transport
       // stays with ./screens/git.ts. Branch selection changes only the viewed ref, never the repository's default.
       id: 'repo', kind: 'workspace', host: 'github.com', path: '/{owner}/{repo}', status: 'done',
-      demand: "a repository on the World's board is seen at its page, its files and README as GitHub shows them (the board's GitHub frames)",
-      controls: ['Branches', 'Files', 'Raw'],
-      source: 'https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes',
+      demand: "a repository on the World's board shows its files and README; its Issues and Pull requests tabs open the agent's stored handoff and conversation",
+      controls: ['Branches', 'Files', 'Raw', 'Issues', 'Pull requests', 'Open', 'Closed', 'Conversation'],
+      source: 'https://docs.github.com/en/get-started/using-github/communicating-on-github',
     },
     {
       id: 'git', kind: 'content', host: 'github.com', path: '/{owner}/{repo}', status: 'done',

@@ -106,6 +106,13 @@ limits (5,000 an hour, 900 points a minute).
 
 ## Doors
 
+The repository mirror opens its Code, Issues and Pull requests tabs. Code reads stored branches, files and README;
+Issues and Pull requests show open or closed lists and numbered conversations, including their API-created
+description and comments, labels, assignees and milestone. A pull request names its head and base branches.
+These workspace views are read-only. Browser creation, comment editing, reviews, checks, file diffs and merging
+are not implemented; use the existing API for writes. Private repositories keep the same signed-in membership
+requirement across all these pages.
+
 What happens outside the API is the World's door (`/_twin/…`, declared in the manifest): signing up, choosing a
 password, turning on two-factor authentication and reading the authenticator's code, making a personal access token,
 an organization, a GitHub App or an OAuth app, and a runner starting and completing a workflow run.

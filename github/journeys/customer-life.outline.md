@@ -2,6 +2,14 @@
 
 Author: Contributor 101
 
+**Inspecting the agent's handoff.** After the agent opens an issue or a pull request through the vendor's API,
+octocat follows the repository's Issues or Pull requests tab to its list, opens the numbered conversation, and
+reads the stored description and comments, state, labels, assignees and milestone. A pull request also names its
+head and base branches. Open and closed lists are separate views of those same records. These are read-only
+workspace pages; creating, commenting, editing and merging still use the existing API. The page hierarchy and
+conversation layout follow GitHub's public [communication guide](https://docs.github.com/en/get-started/using-github/communicating-on-github)
+and its published issue and pull-request images, without signing in to GitHub or capturing its application.
+
 **Customer.** Tessellate, an open-source geometry library. Its author, octocat, keeps it in her organization,
 `tessellate-dev`, from the start of 2026, and over the year hands its day-to-day running to an Open Autonomy agent,
 works on it in the Volter Editor, ships releases that installers and update checks read, and signs in with her GitHub
