@@ -11,28 +11,68 @@ type Row = Record<string, unknown>;
 
 const nameOf = (u: Row): string => String((u.profile as Row | undefined)?.real_name ?? u.name);
 
+// Workspace member-table reference (2021 public capture, not an Enterprise dashboard):
+// https://news.mynavi.jp/article/20211118-1978513/images/003.jpg
+// Roles/actions: https://slack.com/help/articles/218124397-Change-a-members-role
+const MEMBERS_CSS = `
+body:has(.sk-members){background:#fff}.sk:has(.sk-members){max-width:none;margin:0;padding:0}.sk-members .workspace-bar{border-bottom:1px solid #ddd;display:flex;align-items:center;gap:28px;padding:18px 32px;background:#fff}.sk-members .workspace-name{font-size:20px;font-weight:700}.sk-members nav{display:flex;flex-wrap:wrap;gap:22px;margin-left:auto}.sk-members a{color:#616061;text-decoration:none}.sk-members nav a[aria-current=page]{color:#1d1c1d;font-weight:700}.sk-members .members-heading{background:#f8f8f8;border-bottom:1px solid #ddd}.sk-members .members-width{max-width:1200px;margin:auto;padding:32px 40px}.sk-members .members-title{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}.sk-members h1{font-size:28px}.sk-members .invite-button{background:#007a5a;color:#fff;border-radius:4px;padding:10px 18px;font-weight:700;white-space:nowrap}.sk-members .member-filter{display:flex;gap:12px;align-items:center}.sk-members .member-filter input{flex:1;min-width:0}.sk-members .member-filter input,.sk-members .member-filter select{font:inherit;background:#fff;padding:10px 12px;border:1px solid #bbb;border-radius:4px}.sk-members .members-count{color:#616061;margin:0 0 16px}.sk-members table{width:100%;border-collapse:collapse;text-align:left}.sk-members th{font-size:13px;color:#616061;font-weight:700;padding:14px 16px;border-bottom:1px solid #ddd}.sk-members td{padding:18px 16px;border-bottom:1px solid #eee}.sk-members tr:hover td{background:#f8f8f8}.sk-members .member-name{font-weight:700}.sk-members .member-email{font-size:13px;color:#616061;margin-top:4px}.sk-members .member-actions{position:relative;width:36px;margin-left:auto}.sk-members summary{list-style:none;cursor:pointer;border:1px solid transparent;border-radius:4px;padding:5px 8px;font-size:20px;line-height:1}.sk-members summary:hover{border-color:#bbb}.sk-members summary::-webkit-details-marker{display:none}.sk-members .member-menu{position:absolute;right:0;top:34px;z-index:1;min-width:220px;border:1px solid #ddd;border-radius:6px;box-shadow:0 3px 12px #0002;background:#fff;padding:6px}.sk-members .member-menu button{display:block;width:100%;text-align:left;background:#fff;color:#1d1c1d;font-weight:400;white-space:nowrap;border:0}.sk-members .member-menu button:hover{background:#f8f8f8}.sk-members .member-menu button[value=deactivate]{color:#e01e5a}.sk-members .empty-members{text-align:center;padding:32px;color:#616061}@media(max-width:700px){.sk-members .workspace-bar{align-items:flex-start;gap:12px;padding:16px;flex-direction:column}.sk-members nav{margin-left:0;gap:14px}.sk-members .members-width{padding:24px 16px}.sk-members .members-title{align-items:flex-start;flex-direction:column}.sk-members .member-filter{flex-wrap:wrap}.sk-members .member-filter input{flex-basis:100%}.sk-members td,.sk-members th{padding:12px 8px}.sk-members .member-email{overflow-wrap:anywhere}}
+`;
+
+const roleOf = (u: Row): string => u.is_primary_owner === true ? 'Primary Owner' : u.is_owner === true ? 'Workspace Owner' : u.is_admin === true ? 'Workspace Admin' : u.is_restricted === true ? 'Guest' : 'Full Member';
+
 function members(ctx: HandlerContext, team: string, notice?: string): Response {
   const people = ctx.rowsRaw('user', { withDeleted: true }).filter((u) => u.is_bot !== true && teamsOf(ctx, String(u.id)).includes(team));
+  const query = field(ctx, 'q').trim();
+  const status = field(ctx, 'status');
+  const shown = people.filter(u => (status !== 'active' || u.deleted !== true) && (status !== 'deactivated' || u.deleted === true)
+    && [nameOf(u), String(u.id), String((u.profile as Row | undefined)?.email ?? ''), String((u.profile as Row | undefined)?.display_name ?? '')].some(value => value.toLowerCase().includes(query.toLowerCase())));
+  const workspace = String(ctx.row('team', team)?.name ?? 'Workspace');
   return page('Manage members', (
-    <>
-      <h1>Manage members</h1>
-      {notice ? <p className="sk-notice" role="status">{notice}</p> : null}
-      <div className="sk-card">
-        {people.map((u) => (
-          <form key={String(u.id)} className="sk-row" method="post" action={`${ctx.publicBase}/admin`}>
-            <span>{nameOf(u)} {u.deleted === true ? '(deactivated)' : u.is_primary_owner === true ? '(Primary Owner)' : u.is_admin === true ? '(Workspace Admin)' : u.is_restricted === true ? '(Guest)' : ''}</span>
-            <input type="hidden" name="user" value={String(u.id)} />
-            {u.is_primary_owner === true ? null : u.deleted === true ? <button name="action" value="reactivate">Activate account</button> : (
-              <span>
-                {u.is_admin === true || u.is_restricted === true ? null : <button name="action" value="make_admin">Make Workspace Admin</button>}
-                <button className="sk-quiet" name="action" value="deactivate">Deactivate account</button>
-              </span>
-            )}
+    <div className="sk-members">
+      <header className="workspace-bar">
+        <strong>Slack</strong><span className="workspace-name">{workspace}</span>
+        <nav aria-label="Workspace administration">
+          <a href={`${ctx.publicBase}/admin`} aria-current="page">Manage members</a>
+          <a href={`${ctx.publicBase}/admin/invites`}>Invitation requests</a>
+          <a href={`${ctx.publicBase}/apps/manage`}>Manage apps</a>
+          <a href={`${ctx.publicBase}/account/notifications`}>Notifications</a>
+        </nav>
+      </header>
+      <section className="members-heading">
+        <div className="members-width">
+          <div className="members-title"><h1>Manage members</h1><a className="invite-button" href={`${ctx.publicBase}/invite`}>Invite people</a></div>
+          {notice ? <p className="sk-notice" role="status">{notice}</p> : null}
+          <form className="member-filter" method="get" action={`${ctx.publicBase}/admin`}>
+            <input aria-label="Search members" type="search" name="q" placeholder="Search current members by name, email or ID" defaultValue={query} />
+            <select aria-label="Member status" name="status" defaultValue={status === 'active' || status === 'deactivated' ? status : ''}>
+              <option value="">All members</option><option value="active">Active members</option><option value="deactivated">Deactivated members</option>
+            </select>
+            <button className="sk-quiet" type="submit">Search</button>
           </form>
-        ))}
+        </div>
+      </section>
+      <div className="members-width">
+        <p className="members-count">{shown.length} of {people.length} {people.length === 1 ? 'member' : 'members'}</p>
+        <table aria-label="Workspace members">
+          <thead><tr><th scope="col">Name</th><th scope="col">Account type</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+          <tbody>{shown.map(u => <tr key={String(u.id)}>
+            <td><div className="member-name">{nameOf(u)}</div><div className="member-email">{String((u.profile as Row | undefined)?.email ?? '')}</div></td>
+            <td>{roleOf(u)}</td><td>{u.deleted === true ? 'Deactivated' : 'Active'}</td>
+            <td>{u.is_primary_owner === true ? null : <details className="member-actions">
+              <summary aria-label={`Manage ${nameOf(u)}`}>···</summary>
+              <form className="member-menu" method="post" action={`${ctx.publicBase}/admin`}>
+                <input type="hidden" name="user" value={String(u.id)} />
+                {u.deleted === true ? <button name="action" value="reactivate">Activate account</button> : <>
+                  {u.is_admin === true || u.is_restricted === true ? null : <button name="action" value="make_admin">Make Workspace Admin</button>}
+                  <button name="action" value="deactivate">Deactivate account</button>
+                </>}
+              </form>
+            </details>}</td>
+          </tr>)}{shown.length === 0 ? <tr><td className="empty-members" colSpan={4}>No members match this search.</td></tr> : null}</tbody>
+        </table>
       </div>
-    </>
-  ), notice ? 201 : 200);
+    </div>
+  ), notice ? 201 : 200, [MEMBERS_CSS]);
 }
 
 function requests(ctx: HandlerContext, team: string, notice?: string): Response {
