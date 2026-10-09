@@ -71,6 +71,10 @@ with its native description, archive time, inherited-parent id and team relation
 values stay absent/null on the synthetic new-team states, and refresh preserves observed
 native values. The lookup uses the existing workspace/team visibility and Entity not found
 refusals; it does not add workflow creation, inheritance or archive controls.
+The normal `issue.assignee` lookup reads that user's existing native stored profile through
+`user(id)`, with the same workspace visibility, authentication and Entity not found refusal.
+The default User fields and current-caller `isMe` behavior are shared with `viewer`; this
+adds no membership, invitation or profile mutation.
 
 ## Use with an existing app
 

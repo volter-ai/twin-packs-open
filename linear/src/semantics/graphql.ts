@@ -159,6 +159,9 @@ async function issueArchive(ctx: C, id: unknown): Promise<Row> {
 const resolvers: GraphqlPart<C>['resolvers'] = {
   // source: https://linear.app/developers/graphql "query Me"
   'Query.viewer': (_s, _a, ctx) => related(ctx, USER, callerOf(ctx).user),
+  // The pinned SDL's user(id: String!) root is the unchanged SDK's issue.assignee read.
+  // source: https://linear.app/developers/graphql
+  'Query.user': (_s, a, ctx) => { supported(a, ['id']); return ctx.own(mine(ctx, callerOf(ctx), USER, a.id, 'User')); },
   'Query.users': (_s, a, ctx) => { supported(a, ['first','last','after','before','includeArchived','orderBy']); return live(ctx, USER, callerOf(ctx)).map((r) => ctx.own(r)); },
   'Query.projects': (_s, a, ctx) => live(ctx, PROJECT, callerOf(ctx)).filter((p) => projectFilter(ctx, p, obj(a.filter), 'filter')).map((r) => ctx.own(r)),
   'Query.comments': (_s, a, ctx) => { supported(a, ['first','last','after','before','includeArchived','orderBy']); return live(ctx, COMMENT, callerOf(ctx)).map((r) => ctx.own(r)); },

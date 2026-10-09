@@ -72,3 +72,9 @@ entity reads. The SDK's default WorkflowState fragment also selects nullable des
 archive time and inherited-parent id, plus the stored team's id. New synthetic team states
 record absent description, archive and inheritance as null; refresh preserves these native
 fields when observed. This does not add workflow creation, inheritance or archive actions.
+
+The unchanged SDK's `issue.assignee` relation performs `Query.user(id: String!)`, whose
+pinned-SDL argument names the user identifier. This root reads the existing workspace
+user resource through native identifier aliases, preserving authentication and Entity not found
+refusals; the existing default User fields and current-caller `isMe` resolver remain unchanged.
+It adds no membership, invitation, profile mutation or broader permission behavior.
