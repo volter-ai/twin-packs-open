@@ -21,6 +21,9 @@ const restricted = (name: string): string => `ERR Command "${name.toUpperCase()}
  *  @upstash/ratelimit, and ratelimit's analytics: ../../journeys/demand.json) and those the life calls (HINCRBY, ZRANGE:
  *  ../../journeys/customer-life.json), each decided in ../../journeys/decisions.json. Every other command of Upstash's
  *  table is the gap, answered as Upstash answers a command it does not have, in a request and in a script alike. */
+// The vendored command table is an array at /commands (type.json and ttl.json supply these entries).
+// source: spec:/commands "Determines the type of value stored at a key."
+// source: spec:/commands "Returns the expiration time in seconds of a key."
 export const SERVED = new Set([
   'SET', 'GET', 'GETDEL', 'DEL', 'EXISTS', 'EXPIRE', 'PEXPIRE', 'INCR', 'INCRBY', 'RENAME',
   'HSET', 'HSETNX', 'HGET', 'HGETALL', 'HMGET', 'HDEL', 'HINCRBY',
@@ -28,7 +31,7 @@ export const SERVED = new Set([
   'SADD', 'SREM', 'SMEMBERS', 'SISMEMBER', 'SMISMEMBER',
   'ZINCRBY', 'ZRANGE',
   'XADD', 'XRANGE', 'XREVRANGE', 'XDEL',
-  'SCAN', 'EVAL', 'EVALSHA',
+  'SCAN', 'TYPE', 'TTL', 'EVAL', 'EVALSHA',
 ]);
 
 /** The dialect adds no command of its own (`commands` is empty), so the core never runs one through it: a guard. */

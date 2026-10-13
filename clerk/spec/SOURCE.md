@@ -38,3 +38,6 @@
     pages' entries.
 
 - **Proxy Frontend API host:** https://clerk.com/docs/guides/dashboard/dns-domains/proxy-fapi, read 2026-10-03. It requires same-site proxy requests to reach `frontend-api.clerk.dev` with their body and headers; that host routes to the Frontend API lane. The demanded caller is vgauth (its pinned Worker `CLERK_FAPI_ORIGIN`, `../vgauth/spec/recordings/worker-source.txt:106,279-284`).
+
+- **Authored screen reference record:** `screen-references.json`, SHA-256 of the file bytes:
+  `faced5fd4f1db5725e00eb6f3f72de30a82c137858fdf5e0d15eba17eabd90dc`.

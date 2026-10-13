@@ -1,5 +1,5 @@
 {
-  "about": "upstash's decision table (the P3 procedure), for the vendor and its lanes. The Redis unit (the vendor's root) serves the commands of Upstash's table that Dub sends and the life sends, through the REST front; every other command is the gap (src/semantics/shared.ts, SERVED). The qstash lane serves publish, batch, enqueue and the end of a workflow run, which Dub's SDKs call, and a message's read, cancel by filter and a queue's upsert, which only the life calls; every other QStash and Workflow operation is the gap, the declared resources' named in its manifest's unmodeled. The api lane serves no Developer API operation (no demand or life calls it; its declared resources' operations are unmodeled): the console's pages (screens sign-in, redis and qstash) make a database and open QStash. The doors are the console's sign-up, the runtime's credentials, and QStash's destinations and deliveries.",
+  "about": "upstash's decision table (the P3 procedure), for the vendor and its lanes. The Redis unit (the vendor's root) serves the commands of Upstash's table that Dub sends and the life sends, through the REST front; every other command is the gap (src/semantics/shared.ts, SERVED). The qstash lane serves publish, batch, enqueue and the end of a workflow run, which Dub's SDKs call, and a message's read, cancel by filter and a queue's upsert, which only the life calls; every other QStash and Workflow operation is the gap, the declared resources' named in its manifest's unmodeled. The api lane serves no Developer API operation (no demand or life calls it; its declared resources' operations are unmodeled): the console's pages (screens sign-in, redis and qstash) make a database and open QStash. The doors are the console's sign-up, the runtime's credentials, and QStash's destinations and deliveries. Data Browser remains part of the existing api redis screen: The existing redis screen keeps signedIn and the exact database.user_email ownership check. GET /redis/<database_id>/data-browser renders Search/All Types/Refresh, a key sidebar and selected native value/type/TTL from ctx.redis. Reads only; browser POST is 405; foreign databases are 404; unauthenticated visits go through native login. String, hash, list, set, sorted-set and stream contents use the already-served GET/HGETALL/LRANGE/SMEMBERS/ZRANGE/XRANGE operations.",
   "decisions": [
     {
       "operation": "SET",
@@ -369,9 +369,9 @@
     },
     {
       "operation": "SCAN",
-      "demand": "Dub's deep-link cache (track/open); the life's housekeeping and export",
+      "demand": "Dub's deep-link cache (track/open); the life's housekeeping and export; authenticated Data Browser key search and native cursor pagination",
       "mechanism": "handler",
-      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a cursor walk with MATCH and COUNT; the Read Only token refused it",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a cursor walk with MATCH and COUNT; the Read Only token refused it; Data Browser uses this native cursor and MATCH/TYPE without KEYS, a database-wide count or a second keyspace",
       "verification": "journeys/vendor-examples.json Shared integer/count rules assert canonical signed-int64 refusals, accepted full-range counts/counters and exact stored decimal bytes through the existing demanded REST operations. Numeric parsing is the shared kernel integerArgument; private RESP tags leave REST JSON numeric replies unchanged.",
       "sourceRules": [
         {
@@ -471,6 +471,32 @@
       "demand": "the life: every delivery QStash made to Looplinks' routes is read back as the routes received it",
       "mechanism": "door",
       "why": "QStash offers no read of what a destination received beyond its logs; the World shows what was sent"
+    },
+    {
+      "operation": "TYPE",
+      "demand": "The signed-in owner inspects the app cache in Data Browser (journeys/demand.json and journeys/first-use.json).",
+      "mechanism": "handler",
+      "why": "The console Data Browser uses TYPE through HandlerContext.redis under the already-authorized database.database_id. The same declared read is served over the REST front. Its result comes from the kernel keyspace; a missing/expired key answers none.",
+      "sourceRules": [
+        {
+          "source": "spec:/commands",
+          "quote": "Determines the type of value stored at a key.",
+          "means": "The vendored Redis command table declares this native read. Its source bytes are spec/commands/type.json; the command IR retains these words in the /commands array."
+        }
+      ]
+    },
+    {
+      "operation": "TTL",
+      "demand": "The signed-in owner inspects the app cache in Data Browser (journeys/demand.json and journeys/first-use.json).",
+      "mechanism": "handler",
+      "why": "The console Data Browser uses TTL through HandlerContext.redis under the already-authorized database.database_id. The kernel owns the World-clock deadline, -1 for no expiry and -2 for a missing key. The same declared read is served over the REST front.",
+      "sourceRules": [
+        {
+          "source": "spec:/commands",
+          "quote": "Returns the expiration time in seconds of a key.",
+          "means": "The vendored Redis command table declares this native read. Its source bytes are spec/commands/ttl.json; the command IR retains these words in the /commands array."
+        }
+      ]
     }
   ],
   "integerPrecision": {

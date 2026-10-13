@@ -239,6 +239,7 @@ Elapsed: 32d.
 - Ravel buys a lifetime upgrade in Checkout — POST /v1/checkout/sessions. Stripe: spec:PostCheckoutSessions
 - The subscriber enters a card — POST {lifetime_cs_url}. Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works
 - The completed lifetime checkout names its payment — GET /v1/checkout/sessions/{lifetime_cs}. Stripe: spec:GetCheckoutSessionsSession
+- The app reads the saved lifetime payment with its secret key — GET /v1/payment_intents/{lifetime_pi}. Stripe: spec:GetPaymentIntentsIntent
 - Femke reopens the launch promotion for an alumni webinar — POST /v1/promotion_codes/{promo}. Dub: apps/web/lib/discounts/discount-provider-stripe.ts:294
 - Ravel buys a third workspace with the reopened promotion — POST /v1/checkout/sessions. Stripe: spec:PostCheckoutSessions
 - The subscriber enters a card — POST {promo_cs_url}. Stripe hosted continuation: https://docs.stripe.com/payments/checkout/how-checkout-works

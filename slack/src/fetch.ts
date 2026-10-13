@@ -11,6 +11,7 @@ import { slackSemantics } from './semantics/index.ts';
 import { screen as screen_account } from './screens/account.tsx';
 import { screen as screen_admin } from './screens/admin.tsx';
 import { screen as screen_apps } from './screens/apps.tsx';
+import { screen as screen_client } from './screens/client.tsx';
 import { screen as screen_files } from './screens/files.ts';
 import { screen as screen_get_started } from './screens/get-started.tsx';
 import { screen as screen_incoming_webhooks } from './screens/incoming-webhooks.ts';
@@ -30,6 +31,6 @@ export function createSlackFetch(options: PackFetchOptions = {}): DerivedFetch {
     around,
     clock,
     sockets,
-    screens: { "account": screen_account, "admin": screen_admin, "apps": screen_apps, "files": screen_files, "get-started": screen_get_started, "incoming-webhooks": screen_incoming_webhooks, "invite": screen_invite, "join": screen_join, "manage-apps": screen_manage_apps, "oauth": screen_oauth, "response-url": screen_response_url, "signin": screen_signin },
+    screens: { "account": screen_account, "admin": screen_admin, "apps": screen_apps, "client": screen_client, "files": screen_files, "get-started": screen_get_started, "incoming-webhooks": screen_incoming_webhooks, "invite": screen_invite, "join": screen_join, "manage-apps": screen_manage_apps, "oauth": screen_oauth, "response-url": screen_response_url, "signin": screen_signin },
   }, options);
 }

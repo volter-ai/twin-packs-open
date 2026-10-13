@@ -31,7 +31,7 @@ export function createGithubFetch(options: PackFetchOptions = {}): DerivedFetch 
     doors,
     around,
     board,
-    graphql: { ...graphql, operations: graphqlSurface.operations as NonNullable<typeof graphql.operations>, sdl: schema.sdl },
+    graphql: { ...graphql, operations: graphqlSurface.operations as NonNullable<typeof graphql.operations>, sdl: schema.sdl, loadLibrary: () => import('graphql') },
     screens: { "apps": screen_apps, "device": screen_device, "git": screen_git, "login": screen_login, "oauth": screen_oauth, "oidc": screen_oidc, "organizations": screen_organizations, "raw": screen_raw, "repo": screen_repo, "session": screen_session, "sessions": screen_sessions, "settings": screen_settings },
   }, options);
 }

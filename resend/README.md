@@ -4,6 +4,15 @@ A local Resend. Its API (`api.resend.com`) serves the calls Dub, Twenty, Postiz 
 sent singly and in batches and listed, sending domains (created, read, listed, updated, verified, removed), and received
 emails and their list. Resend's webhooks go to a team's
 endpoints, signed as svix signs them. The inbound CDN (`inbound-cdn.resend.com`) serves a received email's raw message.
+The read-only Emails workspace (`resend.com/emails`) lists the same stored sent emails and opens their details,
+recorded events, Preview, Plain Text and HTML content. It uses the World's operator access; no Resend account is needed.
+Preview blocks external assets and scripts. Sharing, engagement totals and sending from the dashboard are outside this screen's scope.
+The detail page leads with its recipient and From/Subject/To overview, followed by the stored event timeline
+and content preview. Reply-to, IDs, current status and Created remain available in the Email details disclosure.
+Times are the actual stored timestamps, displayed in UTC; timeline icons add no events.
+The sidebar follows Resend's published Emails workspace: destinations outside this screen are
+shown as disabled labels. Their presence does not add those dashboard features. Sidebar icons
+use `brand.volter.ai`; the email-content preview continues to block all external assets.
 
 ## Use with an existing app
 
@@ -12,7 +21,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-resend@1.0.2
+npm install --save-dev --save-exact @volter/world@3.0.165 @volter/twin-resend@1.0.3
 ./node_modules/.bin/volter world init --name my-app --twins resend --source resend=@volter/twin-resend
 ```
 

@@ -88,3 +88,15 @@ signed-in person acts for themself, and in an organization only as far as their 
 **Identity options and recovery.** The anonymous API handshake clears stale cookies before Marta signs up; her account header loads the exact image URL Clerk returns. She shares the board with two outside reviewers, and the administrative invitation script refuses its duplicate without the force flag. Both one-day links expire unread. The typoed organization recipient follows a link after revocation and is refused. Rui first chooses signup on his new device and is told the existing email is taken. April’s four-person CSV asserts alphabetical and creation ordering. Beatriz delays the lost-device phone code past expiry, requests another and corrects a typo. After revoking the laptop she resets her password, correcting short and email-identical entries, and the saved password ends the remaining active phone session. In May her profile adopts her married username, retains its verified primary address. Inês’s existing JWT setup also registers a shared-key reports audience, used when Marta opens the private report.
 
 **Editor’s Google guest.** In October Nuno follows Marta’s Editor shared-session link, whose shipped landing page offers Google or email (Editor share-session-gateway.ts:590). He declines Google consent once, then lets another attempt expire while interrupted, and finally chooses his Google account. Clerk exchanges the provider’s code with the Google OAuth companion and the callback transfers his verified identity into signup; he accepts the terms. On the shared laptop he signs out through SignIn’s account chooser. Reopening the link, he signs into the same account with Google again.
+
+## Dashboard user-management workspace
+
+The World's first-use operator opens the Clerk Dashboard workspace to inspect the users created by the unchanged
+Backend SDK. The Users table opens a user's User details: their profile, identifiers and public, private and unsafe
+metadata; Organizations reads that user's stored memberships; Sessions reads their stored session status and times.
+A profile-name save calls UpdateUser, and an active session's Revoke session calls RevokeSession, then each returns
+to a fresh read of the same stored result the Backend SDK sees. Unknown users/sessions, a session belonging to a
+different user, unsupported actions, invalid form keys and read-only writes are refused. The workspace is the World's
+operator view; it adds no Clerk Dashboard account login, team-role model, production instance switch or application
+frontend sign-in contract. Metadata is displayed only, and no device/location, analytics, billing or impersonation
+data is fabricated. Public reference pages and official screenshots are listed in spec/screen-references.json.
