@@ -15,9 +15,12 @@ export async function around(ctx: HandlerContext, next: (request?: Request) => P
   if (!method) return next();
   let asked = ctx.call.operation.id === 'unmatched' && request.method !== method.method ? await asSpecNames(request, method.method) : undefined;
   // The synthetic browser session is the same member identity as the client's existing xoxp token.
-  // Explicit API credentials always win. The browser posts the published Web API endpoint, so
+  // Explicit API credentials always win. Only an original same-origin browser POST may
+  // borrow the cookie session; method normalization must not turn a navigation into a write.
+  // The browser posts the published Web API endpoint, so
   // dispatch, recorded requests, membership checks and stored effects remain the API's own.
-  if (!request.headers.has('authorization') && !(await tokenIn(asked ?? request))) {
+  if (request.method === 'POST' && request.headers.get('sec-fetch-site') === 'same-origin'
+    && !request.headers.has('authorization') && !(await tokenIn(asked ?? request))) {
     const member = clientMember(ctx);
     if (member) {
       const source = asked ?? request;

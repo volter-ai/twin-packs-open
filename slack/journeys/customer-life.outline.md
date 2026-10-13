@@ -71,6 +71,8 @@ are built and distributed outside Kiln, by their own vendor.
    her old channels are not restored, so she joins the studio again, and her contribution is still in the brief's
    thread. She opens a direct conversation with Theo and sends him the revised schedule, and Theo reads her message
    there. Maya signs in with the code from her World mail and inspects the studio in the conversation client.
+   Her same-origin browser POSTs carry the browser's fetch metadata before any API method normalization.
+   A navigation or a request without that original intent does not borrow her cookie identity.
    Her message and its thread reply call chat.postMessage with that browser identity and are read back through
    conversations.replies and the thread panel. Missing conversations, missing threads and Theo's inaccessible
    private project refuse without exposing their messages. Theo sees reviews' join prompt; an explicit Theo API

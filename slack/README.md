@@ -55,6 +55,10 @@ channels and existing individual or group DMs. Public channels outside the membe
 under Browse channels, with Join Channel using `conversations.join`. New message opens or resumes a DM
 through `conversations.open`.
 
+The opaque browser session authenticates API calls only from an original same-origin POST.
+Opening an API URL as a link does not borrow that session. Explicit API tokens retain Slack's
+GET/POST method compatibility and take precedence over the browser cookie.
+
 The client displays actual stored messages in time order, sender names, text, Slack links and mentions,
 section/rich-text content from blocks, attachments, file names, edit markers, reaction counts and thread reply counts. Reply in thread
 opens the original message and its replies alongside the channel. Send now and thread replies call
