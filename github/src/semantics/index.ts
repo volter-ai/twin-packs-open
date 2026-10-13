@@ -51,6 +51,7 @@ export const githubSemantics: Record<string, Handler> = {
   "pulls/create": pulls.pulls_create,
   "pulls/create-review": pulls.pulls_create_review,
   "pulls/list": pulls.pulls_list,
+  "pulls/list-files": pulls.pulls_list_files,
   "pulls/merge": pulls.pulls_merge,
   "repos/compare-commits": repos.repos_compare_commits,
   "repos/create-commit-status": repos_ops.repos_create_commit_status,
