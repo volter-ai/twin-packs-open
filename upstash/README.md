@@ -12,7 +12,7 @@ Use Node 22.6 or newer.
 For an app using the supported Redis REST or QStash workflows, install the exact release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.163 @volter/twin-upstash@1.0.3
+npm install --save-dev --save-exact @volter/world@3.0.165 @volter/twin-upstash@1.0.3
 ./node_modules/.bin/volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
 ```
 
@@ -47,7 +47,7 @@ A person signs in to the console and creates a Redis database there (name, prima
 database's page shows `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` and the Read Only token. Data Browser lists its keys with Search, All Types and native cursor pages; selecting a key shows its stored value, type and TTL. The view is read-only and uses the same database-scoped kernel Redis state as the app SDK. On a first visit to
 QStash they pick a region; the page then shows `QSTASH_URL`, `QSTASH_TOKEN` and the two signing keys, and can reset the
 token and roll the keys. The Redis console has the vendor product navigation, a Create Database dialog and
-database Details/Connect sections. Redis Usage, CLI, Data Browser, Search, Monitor, Backups, ACL and paid/read-region
+database Details/Connect sections. Redis Usage, CLI, the Search tab, Monitor, Backups, ACL and paid/read-region
 controls remain unavailable; no usage metrics are fabricated. QStash uses the same product navigation and an Overview with masked Quickstart credentials, a token reset confirmation and signing-key rotation. QStash message, usage and cost charts and unserved navigation are unavailable; its read-only-token switch is not reproduced.
 
 ## What it models

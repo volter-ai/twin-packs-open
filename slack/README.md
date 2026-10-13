@@ -11,7 +11,7 @@ Use Node 22.6 or newer.
 In an app that already uses Slack, install the product CLI and this exact twin release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.163 @volter/world-core@3.0.153 @volter/twin-slack@3.0.9
+npm install --save-dev --save-exact @volter/world@3.0.165 @volter/world-core@3.0.155 @volter/twin-slack@3.0.9
 ./node_modules/.bin/volter world init --name my-app --twins slack --source slack=@volter/twin-slack
 ```
 

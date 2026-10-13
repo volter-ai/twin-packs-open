@@ -10,7 +10,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.163 @volter/twin-stripe@3.0.5
+npm install --save-dev --save-exact @volter/world@3.0.165 @volter/twin-stripe@3.0.5
 ./node_modules/.bin/volter world init --name my-app --twins stripe --source stripe=@volter/twin-stripe
 ```
 
