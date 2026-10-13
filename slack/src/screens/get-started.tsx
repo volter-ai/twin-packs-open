@@ -54,5 +54,5 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     topic: { value: '', creator: '', last_set: 0 }, purpose: { value: 'This is the one channel that will always include everyone.', creator: '', last_set: 0 },
   }, 'channel.create');
   await addMember(ctx, general, who.id);
-  return page('Your workspace is ready', <><h1>Your workspace is ready</h1><p className="sk-lead">Welcome to Slack, {name}.</p></>, 201);
+  return page('Your workspace is ready', <><h1>Your workspace is ready</h1><p className="sk-lead">Welcome to Slack, {name}.</p><p><a href={`${ctx.publicBase}/client/${HOME_TEAM}/${general}`}>Open Slack</a></p></>, 201);
 }

@@ -3,7 +3,7 @@
 // token_revoked, account_inactive), and its scopes against the method's (missing_scope, with `needed` and `provided`).
 import type { HandlerContext } from '@volter/world-core';
 import { methodOf, missingScope } from '../engine/methods.ts';
-import { caller } from './shared.ts';
+import { caller, clientMember } from './shared.ts';
 
 const TOKENLESS = new Set(['oauth_access', 'oauth_token', 'oauth_v2_access', 'openid_connect_token', 'tooling_tokens_rotate']);
 
@@ -13,7 +13,20 @@ export async function around(ctx: HandlerContext, next: (request?: Request) => P
   // "Methods can be called with HTTP GET or POST" (https://docs.slack.dev/apis/web-api/#basics): a call made with the
   // other one is the same call, its arguments where the spec's method carries them
   if (!method) return next();
-  const asked = ctx.call.operation.id === 'unmatched' && request.method !== method.method ? await asSpecNames(request, method.method) : undefined;
+  let asked = ctx.call.operation.id === 'unmatched' && request.method !== method.method ? await asSpecNames(request, method.method) : undefined;
+  // The synthetic browser session is the same member identity as the client's existing xoxp token.
+  // Explicit API credentials always win. The browser posts the published Web API endpoint, so
+  // dispatch, recorded requests, membership checks and stored effects remain the API's own.
+  if (!request.headers.has('authorization') && !(await tokenIn(asked ?? request))) {
+    const member = clientMember(ctx);
+    if (member) {
+      const source = asked ?? request;
+      const headers = new Headers(source.headers);
+      headers.set('authorization', `Bearer xoxp-${String(member.id)}`);
+      asked = new Request(source.url, { method: source.method, headers, signal: source.signal,
+        ...(source.method === 'GET' || source.method === 'HEAD' ? {} : { body: await source.clone().arrayBuffer() }) });
+    }
+  }
   const by = caller(ctx, await tokenIn(asked ?? request));
   // a method taking no token: the OAuth exchanges (a client id and secret), and the refresh token's rotation;
   // every other, a scope or not, refuses a call with none ("not_authed: No authentication token provided")

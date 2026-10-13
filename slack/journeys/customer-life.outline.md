@@ -1,6 +1,7 @@
 # Kiln's workspace and its Runhuman apps
 
 Maya owns Kiln, a design studio. Theo and Lena are its designers.
+Conversation-client acts authored by Codex Slack conversation mirror; the existing workspace life is Contributor 59's.
 The story runs from January 2026, when Maya opens the workspace, to June 2028, when another studio acquires Kiln. People
 act in their own Slack sessions; the apps Kiln builds or installs act with the grants Kiln gave them. Runhuman and RH2
 are built and distributed outside Kiln, by their own vendor.
@@ -69,13 +70,20 @@ are built and distributed outside Kiln, by their own vendor.
    which her old session is refused. Months later Theo reactivates her: her session identifies her retained account,
    her old channels are not restored, so she joins the studio again, and her contribution is still in the brief's
    thread. She opens a direct conversation with Theo and sends him the revised schedule, and Theo reads her message
-   there.
+   there. Maya signs in with the code from her World mail and inspects the studio in the conversation client.
+   Her message and its thread reply call chat.postMessage with that browser identity and are read back through
+   conversations.replies and the thread panel. Missing conversations, missing threads and Theo's inaccessible
+   private project refuse without exposing their messages. Theo sees reviews' join prompt; an explicit Theo API
+   token keeps his identity even beside Maya's browser cookie, so his send refuses not_in_channel before he
+   joins through conversations.join. Theo can inspect Lena's existing DM, and Maya's New message opens her
+   own DM through conversations.open, where her API-created message is visible.
 6. **June 2028: the acquisition.** The acquiring studio retires Kiln's integrations. Maya, the workspace's owner,
    removes RH2 on Manage apps, and RH2 receives its uninstall notice. She uninstalls
    Kiln Bot with its own credentials, the bot receiving its uninstall event, rotates her long-held configuration pair
    and deletes the app. She removes the Slack integration in Dub, which uninstalls Dub's app with its token and
    client credentials. Runhuman's still-active grant sends its final notification. Maya archives the studio at the
-   handover, and a Runhuman notification someone forgot to turn off cannot post into it, which shows her Runhuman is
+   handover. Its client keeps history readable and removes the composer; Maya's browser API send refuses
+   is_archived as the bot's does. A Runhuman notification someone forgot to turn off cannot post into it, which shows her Runhuman is
    still connected: she disconnects Slack in Runhuman, whose server revokes its grant. She archives the private client
    project too. A month later the acquiring team wants the handover posted in the studio channel, so she unarchives it,
    and Lena posts the handover note there with her retained account.

@@ -101,7 +101,7 @@ export const manifest: DerivedManifest = {
   },
   // what GET /twin says this twin is
   discovery: {
-    twinOf: "Slack's Web API, its OAuth install, the pages people work on (sign-up, invitations, the admin pages, the app settings) and incoming webhooks",
+    twinOf: "Slack's Web API, its OAuth install, the conversation client, sign-up, invitations, the admin pages, the app settings and incoming webhooks",
     stores: 'the workspace, people, channels and their messages, threads, reactions and pins, files, user groups, apps and their tokens, invitations',
     identity: 'a person acts with their own client token, xoxp-<user id>; an app with the tokens its install makes',
   },
@@ -124,7 +124,15 @@ export const manifest: DerivedManifest = {
   }],
   screens: [
     {
-      id: 'signin', kind: 'flow', host: 'slack.com', path: '/signin', status: 'done',
+      // source: https://slack.com/help/articles/221769328-Locate-your-Slack-URL-or-ID "https://app.slack.com/client/TXXXXXXX/CXXXXXXX"
+      // source: https://slack.com/help/articles/360059928654-How-to-use-Slack--your-quick-start-guide "open your direct messages"
+      id: 'client', kind: 'workspace', host: 'app.slack.com', path: '/client', status: 'done',
+      demand: 'a teammate inspects an agent handoff in its actual channel and thread, and continues the conversation',
+      controls: ['Home', 'DMs', 'Channels', 'Direct messages', 'Reply in thread', 'Close thread', 'Message', 'Send now', 'Reply', 'Also send to channel', 'Join Channel', 'New message'],
+      source: 'https://slack.com/help/articles/360059928654-How-to-use-Slack--your-quick-start-guide',
+    },
+    {
+      id: 'signin', kind: 'flow', host: 'slack.com', hosts: ['app.slack.com'], path: '/signin', status: 'done',
       demand: 'a browser opens OAuth consent as an existing workspace member', controls: ['Email', 'Sign In with Email', 'Confirmation code', 'Continue'],
       source: 'https://slack.com/help/articles/212681477-Sign-in-to-Slack',
     },
@@ -224,6 +232,8 @@ export const manifest: DerivedManifest = {
       envStems: ['SLACK', 'SLACKBOTUSER'],
     },
     hosts: [
+      // source: https://slack.com/help/articles/221769328-Locate-your-Slack-URL-or-ID "https://app.slack.com/client/TXXXXXXX/CXXXXXXX"
+      { host: 'app.slack.com' },
       { host: 'slack.com' }, { host: 'www.slack.com' }, { host: 'api.slack.com' }, 
       { host: 'hooks.slack.com', pathPattern: '^/services/' }, { host: 'files.slack.com', pathPattern: '^/upload/' },
     ],

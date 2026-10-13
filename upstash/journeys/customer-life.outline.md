@@ -268,3 +268,9 @@ Before launch, Maya deploys Looplinks and sends preview welcome, receipt and fol
 
 Kiln also checks its direct IPv6 loopback REST endpoint with the same issued token; the
 bracketed host and port do not change authentication or database selection.
+
+## Inspecting the app cache in the console
+
+The installed first-use entry is `first-use.json`: the unchanged `@upstash/redis` 1.39.0 writes the synthetic `app:profile` for Ada once and only reads it after native down/up. The runtime credential door supplies the database and throwaway tokens for `owner@world.test`; those credentials create no console person. The optional `seed-console.mjs` explicitly records that synthetic person through the existing declared sign-up door. The reader enters that email and password in the native local sign-in and opens Redis → world → Data Browser. No real vendor account or browser session is imported.
+
+In Priya’s existing quarter, she first opens her owned database’s empty Data Browser, follows a missing-key link, then selects the session hash after Tomás’s original launch-session seed. The sidebar uses SCAN’s native cursor/MATCH/TYPE; selected type and TTL come from TYPE and TTL; content comes from the existing native read for that type. The reader sees the vendor’s key/sidebar/content/TTL layout. Create/edit/delete-key controls, memory estimates and usage charts are outside this read-only screen.

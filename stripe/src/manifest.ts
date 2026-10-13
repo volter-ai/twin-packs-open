@@ -89,7 +89,6 @@ export const manifest: DerivedManifest = {
     'GetLinkedAccounts',
     'GetLinkedAccountsAccount',
     'GetMandatesMandate',
-    'GetPaymentIntentsIntent',
     'GetPaymentIntentsSearch',
     'GetPaymentLinksPaymentLink',
     'GetPayoutsPayout',

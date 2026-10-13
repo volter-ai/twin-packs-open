@@ -10,7 +10,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-stripe@3.0.3
+npm install --save-dev --save-exact @volter/world@3.0.163 @volter/twin-stripe@3.0.5
 ./node_modules/.bin/volter world init --name my-app --twins stripe --source stripe=@volter/twin-stripe
 ```
 
@@ -72,6 +72,9 @@ vendor-backed World's refresh; each served operation is decided in `journeys/dec
   asked of the real-time endpoint, approved or declined within the window or decided by Stripe when it ends, and
   received from the vendor and closed by its transactions. Their published fixtures are recorded notReplayed because authorization creation and capture test helpers remain outside demand.
 - **Webhook endpoints** made through the API, each with its own signing secret; events listed.
+
+**Payment readback.** An app using its secret key can retrieve the saved PaymentIntent and its latest charge after
+Checkout. PaymentIntent retrieval with a publishable key and `client_secret` is unsupported.
 
 **Keys.** The platform's secret and publishable keys, and its webhook secret, are issued by the credential door and
 held by their SHA-256. A request with no key, or with one Stripe never issued, is refused 401. A connected account's

@@ -11,7 +11,7 @@ Use Node 22.6 or newer.
 In an app that already uses Slack, install the product CLI and this exact twin release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/world-core@3.0.147 @volter/twin-slack@3.0.6
+npm install --save-dev --save-exact @volter/world@3.0.163 @volter/world-core@3.0.153 @volter/twin-slack@3.0.9
 ./node_modules/.bin/volter world init --name my-app --twins slack --source slack=@volter/twin-slack
 ```
 
@@ -48,6 +48,38 @@ multi-workspace switching are outside that screen's scope. This flow sends no re
 Fresh local Worlds seed a synthetic workspace named World with its owner and #general through that signup flow.
 The default seed is copied into the application's `.volter/seeds/` by init and remains editable there. Use the CLI and core versions pinned above for this release.
 
+The conversation mirror opens at `app.slack.com/client/<workspace-id>/<conversation-id>`, or `/client`
+at the World's Slack address. Sign in with an existing synthetic member's email and the confirmation code in
+`/_twin/mail?to=<email>`; the opaque browser session acts as that active member. The sidebar lists joined
+channels and existing individual or group DMs. Public channels outside the member's sidebar are available
+under Browse channels, with Join Channel using `conversations.join`. New message opens or resumes a DM
+through `conversations.open`.
+
+The client displays actual stored messages in time order, sender names, text, Slack links and mentions,
+section/rich-text content from blocks, attachments, file names, edit markers, reaction counts and thread reply counts. Reply in thread
+opens the original message and its replies alongside the channel. Send now and thread replies call
+`chat.postMessage`, including `thread_ts` and the optional `reply_broadcast`. The existing API supplies
+timestamps, stored writes and app events. A successful call opens a fresh stored view; a refusal preserves
+the draft and displays the API's error. Archived channels retain readable history and have no composer.
+Missing or inaccessible conversations and missing threads refuse without disclosing their messages.
+The administration, app settings and OAuth screens remain separate.
+
+The composer sends with Enter; Shift-Enter inserts a line break. Synthetic member/app avatars and rail icons
+use the public brand.volter.ai service, which must be reachable. No vendor avatar is downloaded.
+Section fields and rich-text lists, quotes, preformatted text and styles are read from the stored blocks.
+Section mrkdwn displays bold, italic, strikethrough, inline code and fenced code while retaining existing
+links and visible mentions. Plain-text fields remain literal; advanced formatting combinations are not claimed.
+Unsupported block elements remain text-only or explicitly unavailable; their controls do not pretend to act.
+
+The client is a basic conversation mirror. Message editing, adding/removing reactions, file upload/download, rich composer
+formatting, search, notification/activity feeds, huddles, canvases and lists have no client controls here.
+Reading existing conversations works without JavaScript; automatic return to the conversation and inline
+API errors require it. A native form submission receives the API's JSON answer.
+Thread selection uses the mirror's `thread_ts` query parameter. Message times are displayed in UTC.
+The local sign-in page also answers on the client host so its World-scoped session remains on the
+same browser origin. Appearance follows Slack Support's public quick-start channel, sidebar and composer
+references; no Slack page, avatar asset or DOM is captured or copied into the pack.
+
 World doors represent acts the API does not perform: an externally developed distributed app (/_twin/apps), a client
 slash command, Home opening, link share or action (/_twin/client/*), and observation of app deliveries or invitation mail
 (/_twin/deliveries and /_twin/mail). The application's own credentials come from /_twin/app-credentials, which the
@@ -68,3 +100,10 @@ Dub priority support can create a channel and send a recipient-specific Slack Co
 pending invitation is read through conversations.listConnectInvites with count/cursor pagination and retained in the
 local mail outbox. Receiving-workspace acceptance, approval, user-id recipients and join links are outside this
 workflow; the twin sends no real invitation mail. Targeted invitation responses disclose no shareable URL.
+
+## Install a selected release
+
+Choose the implementation and exact package version in the [Slack catalog](https://world.volter.ai/twins/slack).
+Use that release's Setup tab for installation instructions. [Use a catalog twin](https://world-docs.volter.ai/docs/guides/use-a-catalog-twin)
+explains selection and setup. Keep the selected package version, your app's lockfile and the World service's
+`source.package` and `source.version` in agreement.

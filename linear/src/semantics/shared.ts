@@ -15,6 +15,7 @@ export const APP = '_app';
 export const CODE = '_code';
 export const ACCESS = '_access_token';
 export const REFRESH = '_refresh_token';
+export const BROWSER_SESSION = '_browser_session';
 
 export const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 export const arr = <T = Row>(v: unknown): T[] => (Array.isArray(v) ? v as T[] : []);
@@ -56,6 +57,44 @@ export function mine(ctx: HandlerContext, c: Caller, type: string, id: unknown, 
   return r;
 }
 
+/** The same workspace/team visibility for GraphQL and the signed-in workspace screen. */
+export function visibleRows(ctx: HandlerContext, type: string, c: Caller): Row[] {
+  return ctx.rowsRaw(type).filter((r) => r.deleted !== true && belongs(ctx, r, c.org) && (!c.teamIds || (type === TEAM ? c.teamIds.includes(String(r.id)) : !relation(r, 'team') || c.teamIds.includes(String(relation(r, 'team'))))));
+}
+
+/** The issue an id names: its UUID or its native identifier (for example BOOK-1). */
+export function issueBy(ctx: HandlerContext, c: Caller, id: unknown): Row {
+  const key = ctx.resolve(ISSUE, String(id ?? ''));
+  const hit = visibleRows(ctx, ISSUE, c).find((i) => i.id === key || i.identifier === key);
+  // Where the documentation stops: the message is the twin's existing GraphQL refusal.
+  if (!hit) throw new GraphqlError('Entity not found: Issue', 'invalid input');
+  return hit;
+}
+
+/** Browser identity uses the existing consent session; it never substitutes cookie auth for API Authorization. */
+export function browserPerson(ctx: HandlerContext): Row | undefined {
+  const token = /(?:^|;\s*)linear_session=([^;]+)/.exec(ctx.call.request.headers.get('cookie') ?? '')?.[1];
+  const session = token ? ctx.rowsRaw(BROWSER_SESSION).find((s) => s.deleted !== true && s.sha256 === sha256(ctx, token) && Date.parse(String(s.expires)) > Date.parse(ctx.occurredAt)) : undefined;
+  const person = session ? ctx.row(USER, String(session.user)) : undefined;
+  return person && person.deleted !== true && person.app !== true && person.active !== false ? person : undefined;
+}
+
+/** Sign in with the synthetic password recorded by the workspace/people settings doors. */
+export async function browserSignIn(ctx: HandlerContext, email: string, password: string): Promise<{ person: Row; cookie: string } | undefined> {
+  const person = ctx.rowsRaw(USER).find((u) => u.deleted !== true && u.app !== true && u.active !== false && u.email === email);
+  if (!person || person._password !== sha256(ctx, `${String(person.id)}:${password}`)) return undefined;
+  const id = await ctx.issue(BROWSER_SESSION);
+  const token = await hexToken(ctx, `linear-browser:${id}`);
+  await ctx.record(BROWSER_SESSION, { user: person.id, sha256: sha256(ctx, token), expires: new Date(Date.parse(ctx.occurredAt) + 90 * 86400000).toISOString() }, id);
+  return { person, cookie: `linear_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax` };
+}
+
+/** A form token bound to the existing HttpOnly session, for ordinary workspace mutation forms. */
+export function browserFormKey(ctx: HandlerContext): string {
+  const token = /(?:^|;\s*)linear_session=([^;]+)/.exec(ctx.call.request.headers.get('cookie') ?? '')?.[1] ?? '';
+  return sha256(ctx, `linear-issue-form:${token}`);
+}
+
 // Where the documentation stops: a new team's states are the app's defaults (Backlog, Todo, In Progress, In Review,
 // Done, Canceled, Duplicate), each of the schema's WorkflowState types
 export const DEFAULT_STATES: Array<{ name: string; type: string; color: string }> = [
@@ -67,6 +106,71 @@ export const DEFAULT_STATES: Array<{ name: string; type: string; color: string }
 
 /** The priority's label, as Linear names each level. */
 export const PRIORITY_LABELS = ['No priority', 'Urgent', 'High', 'Medium', 'Low'];
+
+// The default SDK WorkflowState fragment reads the pinned SDL's native fields. Description, archive
+// time and inherited-parent relation are nullable; a synthetic new team's states have none of them.
+export const WORKFLOW_STATE_FIELDS = ['id', 'name', 'type', 'color', 'position', 'createdAt', 'updatedAt', 'description', 'archivedAt', 'inheritedFrom'];
+export const WORKFLOW_STATE_SELECTION = `${WORKFLOW_STATE_FIELDS.map((field) => field === 'inheritedFrom' ? 'inheritedFrom { id }' : field).join(' ')} team { id }`;
+
+// The unchanged SDK86 Organization fragment, from the pinned SDL. Nested types are stored inside this
+// organization model when observed, not minted as substitute resources. Their mutation families remain gaps.
+export const PROJECT_STATUS_FIELDS = ['id', 'description', 'type', 'color', 'updatedAt', 'name', 'position', 'archivedAt', 'createdAt', 'indefinite'];
+export const PAID_SUBSCRIPTION_FIELDS = ['id', 'collectionMethod', 'cancelAt', 'canceledAt', 'nextBillingAt', 'updatedAt', 'seatsMaximum', 'seatsMinimum', 'seats', 'type', 'pendingChangeType', 'archivedAt', 'createdAt', 'creator'];
+export const ORGANIZATION_FIELDS = [
+  'id', 'name', 'urlKey', 'createdAt', 'updatedAt', 'archivedAt', 'userCount', 'createdIssueCount',
+  'allowedAuthServices', 'allowedFileUploadContentTypes', 'authSettings', 'customersConfiguration',
+  'defaultFeedSummarySchedule', 'previousUrlKeys', 'periodUploadVolume', 'securitySettings',
+  'slackProjectChannelIntegration', 'logoUrl', 'initiativeUpdateRemindersDay', 'projectUpdateRemindersDay',
+  'releaseChannel', 'initiativeUpdateReminderFrequencyInWeeks', 'projectUpdateReminderFrequencyInWeeks',
+  'initiativeUpdateRemindersHour', 'projectUpdateRemindersHour', 'customerCount', 'slackProjectChannelPrefix',
+  'gitBranchFormat', 'deletionRequestedAt', 'trialStartsAt', 'trialEndsAt', 'projectStatuses', 'subscription',
+  'fiscalYearStartMonth', 'hipaaComplianceEnabled', 'samlEnabled', 'scimEnabled', 'gitLinkbackDescriptionsEnabled',
+  'releasesEnabled', 'customersEnabled', 'gitLinkbackMessagesEnabled', 'gitPublicLinkbackMessagesEnabled',
+  'feedEnabled', 'roadmapEnabled', 'aiDiscussionSummariesEnabled', 'aiThreadSummariesEnabled',
+  'hideNonPrimaryOrganizations', 'projectUpdatesReminderFrequency', 'allowMembersToInvite',
+  'restrictTeamCreationToAdmins', 'restrictLabelManagementToAdmins', 'slaDayCount',
+];
+export const ORGANIZATION_SELECTION = ORGANIZATION_FIELDS.map((field) => {
+  if (field === 'slackProjectChannelIntegration') return `${field} { id }`;
+  if (field === 'projectStatuses') return `${field} { ${PROJECT_STATUS_FIELDS.join(' ')} }`;
+  if (field === 'subscription') return `${field} { ${PAID_SUBSCRIPTION_FIELDS.map((name) => name === 'creator' ? 'creator { id }' : name).join(' ')} }`;
+  return field;
+}).join(' ');
+
+// These values describe this synthetic workspace, not undocumented vendor defaults. There is no paid plan,
+// configured project-status model, Slack project integration, customer feature, AI service or reminder schedule.
+// Required Day/ReleaseChannel/SLADayCountType values are SDL enum members for inactive starter settings.
+export const ORGANIZATION_STARTER_FIELDS: Row = {
+  archivedAt: null, createdIssueCount: 0, allowedAuthServices: [], allowedFileUploadContentTypes: null,
+  authSettings: {}, customersConfiguration: {}, defaultFeedSummarySchedule: null, previousUrlKeys: [],
+  periodUploadVolume: 0, securitySettings: {}, slackProjectChannelIntegration: null, logoUrl: null,
+  initiativeUpdateRemindersDay: 'Monday', projectUpdateRemindersDay: 'Monday', releaseChannel: 'public',
+  initiativeUpdateReminderFrequencyInWeeks: null, projectUpdateReminderFrequencyInWeeks: null,
+  initiativeUpdateRemindersHour: 0, projectUpdateRemindersHour: 0, customerCount: 0, slackProjectChannelPrefix: '',
+  gitBranchFormat: null, deletionRequestedAt: null, trialStartsAt: null, trialEndsAt: null,
+  projectStatuses: [], subscription: null, fiscalYearStartMonth: 0, hipaaComplianceEnabled: false,
+  samlEnabled: false, scimEnabled: false, gitLinkbackDescriptionsEnabled: false, releasesEnabled: false,
+  customersEnabled: false, gitLinkbackMessagesEnabled: false, gitPublicLinkbackMessagesEnabled: false,
+  feedEnabled: false, roadmapEnabled: false, aiDiscussionSummariesEnabled: false,
+  aiThreadSummariesEnabled: false, hideNonPrimaryOrganizations: false, projectUpdatesReminderFrequency: 'never',
+  allowMembersToInvite: null, restrictTeamCreationToAdmins: null, restrictLabelManagementToAdmins: null,
+  slaDayCount: 'all',
+};
+
+/** The native organization recorded by the existing workspace settings door. */
+export function organizationFields(ctx: HandlerContext, id: string, input: { name: string; urlKey: string }): Row {
+  return { ...ORGANIZATION_STARTER_FIELDS, id, name: input.name, urlKey: input.urlKey,
+    createdAt: ctx.occurredAt, updatedAt: ctx.occurredAt, userCount: 1 };
+}
+
+/** Retained synthetic starters keep their recorded settings; only fields previously absent are initialized. */
+export async function completeStarterOrganization(ctx: HandlerContext, organization: Row): Promise<Row> {
+  const existing = ctx.own(organization);
+  const missing = Object.fromEntries(Object.entries(ORGANIZATION_STARTER_FIELDS).filter(([field]) => existing[field] === undefined));
+  if (!Object.keys(missing).length) return organization;
+  await ctx.change(ORG, String(organization.id), () => missing, 'organization.settings');
+  return ctx.row(ORG, String(organization.id))!;
+}
 
 // The stored response models selected by the demand-pinned SDK. Field names and nullability are the vendored SDL's;
 // values below describe this synthetic workspace, not undocumented production defaults. Optional integrations,
@@ -226,4 +330,30 @@ function assignmentChange(ctx: HandlerContext, c: Caller, value: unknown): Row {
 function projectChange(ctx: HandlerContext, c: Caller, value: unknown): Row {
   const id = value === null ? null : mine(ctx, c, PROJECT, value, 'Project').id;
   return { _project: id, project: id ? { id } : null };
+}
+
+/** The existing issueUpdate action, shared by the GraphQL mutation and the browser's property form. */
+export async function updateIssue(ctx: HandlerContext, c: Caller, id: unknown, input: Row): Promise<Row> {
+  const fieldsAllowed = ['stateId','labelIds','title','description','priority','assigneeId','projectId','estimate','dueDate'];
+  const unsupported = Object.keys(input).find((key) => !fieldsAllowed.includes(key));
+  if (unsupported) throw new GraphqlError(`The twin does not model input ${unsupported}`, 'invalid input');
+  if (!c.scope.includes('write') && !c.scope.includes('admin')) throw new GraphqlError('Invalid scope: `write` required', 'forbidden');
+  const issue = issueBy(ctx, c, id);
+  const fields: Row = { updatedAt: ctx.occurredAt };
+  if (input.stateId !== undefined) {
+    const state = mine(ctx, c, STATE, input.stateId, 'WorkflowState');
+    if (ctx.resolve(TEAM, String(relation(state, 'team'))) !== ctx.resolve(TEAM, String(relation(issue, 'team')))) throw new GraphqlError('The state does not belong to the issue\'s team', 'invalid input');
+    fields._state = state.id; fields.state = { id: state.id }; fields.completedAt = ctx.own(state).type === 'completed' ? ctx.occurredAt : null;
+    fields.canceledAt = ctx.own(state).type === 'canceled' ? ctx.occurredAt : null;
+    if (ctx.own(state).type === 'started' && !ctx.own(issue).startedAt) fields.startedAt = ctx.occurredAt;
+  }
+  if (input.labelIds !== undefined) { for (const label of arr<string>(input.labelIds)) mine(ctx, c, LABEL, label, 'IssueLabel'); fields._labels = arr<string>(input.labelIds); fields.labelIds = arr<string>(input.labelIds); fields.labels = { nodes: arr<string>(input.labelIds).map((label) => ({ id: label })) }; }
+  if (input.estimate !== undefined) fields.estimate = input.estimate;
+  if (input.dueDate !== undefined) fields.dueDate = input.dueDate;
+  if (input.title !== undefined) { fields.title = input.title; fields.branchName = issueBranchName(String(issue.identifier), input.title); }
+  if (input.description !== undefined) fields.description = input.description;
+  Object.assign(fields, optionalIssueChanges(ctx, c, input));
+  if (input.projectId !== undefined) fields.addedToProjectAt = input.projectId ? ctx.occurredAt : null;
+  await ctx.change(ISSUE, String(issue.id), () => fields, 'issueUpdate');
+  return ctx.row(ISSUE, String(issue.id))!;
 }

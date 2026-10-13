@@ -14,7 +14,7 @@ Use Node 22.6 or newer.
 Install the exact twin release and World CLI in your app's folder:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-clerk@1.0.3
+npm install --save-dev --save-exact @volter/world@3.0.163 @volter/twin-clerk@1.0.4
 ./node_modules/.bin/volter world init --name my-app --twins clerk --source clerk=@volter/twin-clerk
 ```
 
@@ -64,6 +64,19 @@ The OAuth identity-provider flow serves the account worker used by Volter Editor
 The Frontend API accepts the documented `clerk.<application domain>` host family and `frontend-api.clerk.dev`; proxy calls require a held instance secret key in `Clerk-Secret-Key`, the full `Clerk-Proxy-Url`, and `X-Forwarded-For`.
 
 Organization settings are stored as the Backend API's `OrganizationSettings` singleton and read back through `GET /v1/instance/organization_settings`; the Frontend environment renders its domain fields in the Frontend shape. Dashboard-only sign-in configuration remains private bookkeeping. Memberships retain the Backend API's `public_user_data.user_id` reference, including after refresh. The known-resource scopes read JWT templates, enterprise connections and their SAML children without promising enumeration for those types.
+
+## Dashboard workspace
+
+The World operator view opens the Users page at `/users` (the workspace listed by `GET /twin`, on
+`dashboard.clerk.com` inside the World). It displays the same users and sessions the Backend SDK created: search
+users, open a user profile, inspect identifiers and public/private/unsafe metadata, read organization memberships,
+and see session status and timestamps. Saving first and last names uses `UpdateUser`; revoking an active session
+uses `RevokeSession`. These forms return to a fresh stored-row view, and read-only Worlds refuse their writes.
+
+This is an operator workspace authorized by the World. It introduces no Clerk Dashboard account sign-in, team-role
+permissions, instance switching or frontend application sign-in compatibility. Metadata is read-only in the
+workspace; device/location, billing, analytics and impersonation controls are outside this screen's scope. The
+pack's official visual references and limits are in `spec/screen-references.json`.
 
 ## Keys
 

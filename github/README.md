@@ -10,7 +10,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.151 @volter/world-core@3.0.147 @volter/world-runtime@3.0.150 @volter/world-console@3.0.144 @volter/twin-github@3.0.9
+npm install --save-dev --save-exact @volter/world@3.0.163 @volter/world-core@3.0.153 @volter/world-runtime@3.0.161 @volter/world-console@3.0.151 @volter/twin-github@3.0.10
 ./node_modules/.bin/volter world init --name my-app --twins github --source github=@volter/twin-github
 ```
 

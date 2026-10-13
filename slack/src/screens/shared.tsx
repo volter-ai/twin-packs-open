@@ -4,13 +4,14 @@
 // WHO IS ON A PAGE. A client bearer token names its user; an ordinary browser uses the opaque session
 // established after email confirmation in signin.tsx. Both identify an existing, active workspace member.
 import type { HandlerContext } from '@volter/world-core';
-import { flowPage, signedIn } from '@volter/world-ui';
+import { flowPage } from '@volter/world-ui';
 import { personOfToken } from '../engine/wire.ts';
+import { clientMember } from '../semantics/shared.ts';
 
 type Row = Record<string, unknown>;
 
 // The browser's opaque vendor session is the kernel's session kit. The API still uses client tokens.
-export const CLIENT_COOKIE = 'slack_client_session';
+export { CLIENT_COOKIE } from '../semantics/shared.ts';
 
 export const SLACK_CSS = `
 * { box-sizing: border-box; }
@@ -43,8 +44,7 @@ export const refused = (status: number, text: string, signInHref?: string): Resp
 /** The person on the page: the id their client token names, and their row when they are a member. */
 export function visitor(ctx: HandlerContext): { id: string; row?: Row } | undefined {
   const token = /^bearer\s+(\S+)/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
-  const person = token ? undefined : signedIn(ctx, CLIENT_COOKIE);
-  const member = person ? ctx.rowsRaw('user').find(u => u.deleted !== true && String((u.profile as Row | undefined)?.email ?? '').toLowerCase() === person.email.toLowerCase()) : undefined;
+  const member = token ? undefined : clientMember(ctx);
   const id = token ? personOfToken(token) : member ? String(member.id) : undefined;
   if (!id) return undefined;
   const row = ctx.row('user', id);

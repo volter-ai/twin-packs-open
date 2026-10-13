@@ -1,8 +1,8 @@
 {
   "vendor": "linear",
-  "author": "Contributor 74",
+  "author": "/root/journey_evidence_finish",
   "host": "api.linear.app",
-  "about": "Tidewater’s booking team connects its Fieldbook bug-filing integration to Linear. Maya administers the workspace with her personal API key, the read/write OAuth app acts as its app user, and Jonah reads the support report. The life spans setup, duplicate handling, release, recurrence and token recovery.",
+  "about": "Tidewater’s booking team connects its Fieldbook bug-filing integration to Linear. Maya administers the workspace with her personal API key, triages its stored issue in the browser and assigns Jonah; the read/write OAuth app acts as its app user, and Jonah reads his assigned issue and the support report. The original integration acts are by Contributor 74. Workspace list/detail/property/readback acts were authored by /root/journey_evidence_finish on 2026-10-09; no walk run or passing result is claimed. The life spans setup, duplicate handling, browser handoff, release, recurrence and token recovery.",
   "steps": [
     {
       "name": "Maya starts a local World with its synthetic starter credentials before making Tidewater",
@@ -682,6 +682,226 @@
           "path": "data.issues.nodes.0.team.totalIssueCount",
           "equals": 2
         }
+      ]
+    },
+    {
+      "name": "Maya opens the workspace in the browser session established during Fieldbook consent",
+      "method": "GET",
+      "path": "https://linear.app/",
+      "status": 302,
+      "headers": {
+        "cookie": "linear_session={session}"
+      },
+      "capture": {
+        "workspaceTeamUrl": "header:location"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "/tidewater/team/BOOK/all"
+        }
+      ]
+    },
+    {
+      "name": "Her actual team list keeps the live booking issue and omits the archived duplicate",
+      "method": "GET",
+      "path": "{workspaceTeamUrl}",
+      "status": 200,
+      "headers": {
+        "cookie": "linear_session={session}"
+      },
+      "capture": {
+        "workspaceIssueUrl": "text:<a class=\"issue-row\" href=\"([^\"]+)\"",
+        "workspaceAssignedUrl": "text:<a class=\"nav-link [^\"]*\" href=\"([^\"]+)\">My issues</a>"
+      },
+      "expect": [
+        { "path": "", "contains": "Booking App" },
+        { "path": "", "contains": "All issues" },
+        { "path": "", "contains": "{firstIdentifier}" },
+        { "path": "", "contains": "Checkout button does nothing on Safari" },
+        { "path": "", "notContains": "{secondIdentifier}" }
+      ]
+    },
+    {
+      "name": "She filters that team view by the finding's Checkout title",
+      "method": "GET",
+      "path": "{workspaceTeamUrl}?q=Checkout",
+      "status": 200,
+      "headers": {
+        "cookie": "linear_session={session}"
+      },
+      "expect": [
+        { "path": "", "contains": "{firstIdentifier}" },
+        { "path": "", "contains": "Checkout button does nothing on Safari" },
+        { "path": "", "contains": "Filter issues" }
+      ]
+    },
+    {
+      "name": "Maya opens that row and reads the real description, Safari comment and property choices",
+      "method": "GET",
+      "path": "{workspaceIssueUrl}",
+      "status": 200,
+      "headers": {
+        "cookie": "linear_session={session}"
+      },
+      "capture": {
+        "workspaceFormAction": "text:<form method=\"post\" action=\"([^\"]+)\"",
+        "workspaceFormKey": "text:name=\"formKey\" value=\"([^\"]+)\"",
+        "workspaceStarted": "text:<option value=\"([^\"]+)\"[^>]*>In Progress</option>",
+        "workspaceJonah": "text:<option value=\"([^\"]+)\"[^>]*>Jonah</option>"
+      },
+      "expect": [
+        { "path": "", "contains": "Checkout button does nothing on Safari" },
+        { "path": "", "contains": "Steps: open /book, pick a class, press Checkout." },
+        { "path": "", "contains": "Safari 18" },
+        { "path": "", "contains": "selected>Todo</option>" },
+        { "path": "", "contains": "selected>No assignee</option>" },
+        { "path": "", "contains": "Save properties" }
+      ]
+    },
+    {
+      "name": "She marks the finding In Progress and assigns Jonah through the issue's own property form",
+      "method": "POST",
+      "path": "{workspaceFormAction}",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "linear_session={session}"
+      },
+      "body": "action=update&formKey={encoded:workspaceFormKey}&stateId={encoded:workspaceStarted}&assigneeId={encoded:workspaceJonah}",
+      "changes": "{workspaceIssueUrl}",
+      "capture": {
+        "workspaceUpdatedIssueUrl": "header:location"
+      },
+      "expect": [
+        { "header": "location", "equals": "{workspaceIssueUrl}" }
+      ]
+    },
+    {
+      "name": "The redirect rereads the stored issue with In Progress and Jonah selected",
+      "method": "GET",
+      "path": "{workspaceUpdatedIssueUrl}",
+      "status": 200,
+      "headers": {
+        "cookie": "linear_session={session}"
+      },
+      "expect": [
+        { "path": "", "contains": "value=\"{workspaceStarted}\" selected>In Progress</option>" },
+        { "path": "", "contains": "value=\"{workspaceJonah}\" selected>Jonah</option>" },
+        { "path": "", "contains": "Steps: open /book, pick a class, press Checkout." }
+      ]
+    },
+    {
+      "name": "Maya's API client reads the same browser-recorded state and assignee from the stored issue",
+      "method": "POST",
+      "path": "/graphql",
+      "status": 200,
+      "headers": {
+        "authorization": "{mkey}"
+      },
+      "body": {
+        "query": "query($id: String!) { issue(id: $id) { id identifier title description state { id name type } assignee { id name } comments { nodes { body } } } }",
+        "variables": { "id": "{i1}" }
+      },
+      "expect": [
+        { "path": "data.issue.id", "equals": "{i1}" },
+        { "path": "data.issue.identifier", "equals": "{firstIdentifier}" },
+        { "path": "data.issue.title", "equals": "Checkout button does nothing on Safari" },
+        { "path": "data.issue.description", "equals": "Steps: open /book, pick a class, press Checkout." },
+        { "path": "data.issue.state.id", "equals": "{workspaceStarted}" },
+        { "path": "data.issue.state.name", "equals": "In Progress" },
+        { "path": "data.issue.state.type", "equals": "started" },
+        { "path": "data.issue.assignee.id", "equals": "{jonah}" },
+        { "path": "data.issue.assignee.name", "equals": "Jonah" },
+        { "path": "data.issue.comments.nodes.0.body", "contains": "Safari 18" }
+      ]
+    },
+    {
+      "name": "The team list shows the same handoff before Jonah opens his own queue",
+      "method": "GET",
+      "path": "{workspaceTeamUrl}",
+      "status": 200,
+      "headers": {
+        "cookie": "linear_session={session}"
+      },
+      "expect": [
+        { "path": "", "contains": "In Progress" },
+        { "path": "", "contains": "{firstIdentifier}" },
+        { "path": "", "contains": "Jonah" },
+        { "path": "", "notContains": "{secondIdentifier}" }
+      ]
+    },
+    {
+      "name": "Jonah opens Linear in a browser with no session and reads its Log in form",
+      "method": "GET",
+      "path": "https://linear.app/",
+      "status": 200,
+      "capture": {
+        "jonahLoginAction": "text:<form method=\"post\" action=\"([^\"]+)\""
+      },
+      "expect": [
+        { "path": "", "contains": "Log in to Linear" },
+        { "path": "", "contains": "Email address" },
+        { "path": "", "contains": "Password" }
+      ]
+    },
+    {
+      "name": "He signs in with the synthetic identity and password from his workspace invitation",
+      "method": "POST",
+      "path": "{jonahLoginAction}",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "action=login&email=jonah%40tidewater.yoga&password=warrior-two-22",
+      "capture": {
+        "jonahBrowserSession": "header:set-cookie:linear_session=([^;]+)",
+        "jonahWorkspaceEntry": "header:location"
+      }
+    },
+    {
+      "name": "Jonah's signed-in entry selects the actual Booking App team",
+      "method": "GET",
+      "path": "{jonahWorkspaceEntry}",
+      "status": 302,
+      "headers": {
+        "cookie": "linear_session={jonahBrowserSession}"
+      },
+      "expect": [
+        { "header": "location", "equals": "{workspaceTeamUrl}" }
+      ]
+    },
+    {
+      "name": "His Assigned view contains the issue Maya handed to him",
+      "method": "GET",
+      "path": "{workspaceAssignedUrl}",
+      "status": 200,
+      "headers": {
+        "cookie": "linear_session={jonahBrowserSession}"
+      },
+      "capture": {
+        "workspaceCreatedUrl": "text:<a class=\"[^\"]*\" href=\"([^\"]+)\"[^>]*>Created</a>"
+      },
+      "expect": [
+        { "path": "", "contains": "My issues" },
+        { "path": "", "contains": "Assigned" },
+        { "path": "", "contains": "{firstIdentifier}" },
+        { "path": "", "contains": "Checkout button does nothing on Safari" },
+        { "path": "", "contains": "In Progress" }
+      ]
+    },
+    {
+      "name": "His Created view stays empty because Fieldbook, not Jonah, created the reports",
+      "method": "GET",
+      "path": "{workspaceCreatedUrl}",
+      "status": 200,
+      "headers": {
+        "cookie": "linear_session={jonahBrowserSession}"
+      },
+      "expect": [
+        { "path": "", "contains": "Created" },
+        { "path": "", "contains": "There are no issues in this view." },
+        { "path": "", "notContains": "{firstIdentifier}" }
       ]
     },
     {

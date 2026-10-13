@@ -41,8 +41,8 @@ export const manifest: DerivedManifest = {
     controls: ['Email', 'Password', 'Sign in'], source: 'https://upstash.com/docs/redis/overall/getstarted',
   }, {
     id: 'redis', kind: 'workspace', host: 'console.upstash.com', path: '/redis',
-    demand: "a database's REST URL and token (UPSTASH_REDIS_REST_URL and _TOKEN, the applications' only Redis credentials) are made and shown only here",
-    status: 'done', controls: ['Create Database', 'Name', 'Primary Region', 'Create', 'Read-Only Token', 'Delete'],
+    demand: "a database's REST URL and token (UPSTASH_REDIS_REST_URL and _TOKEN, the applications' only Redis credentials) are made and shown here; its signed-in owner opens Data Browser to inspect the application's stored keys, values, types and TTL",
+    status: 'done', controls: ['Create Database', 'Name', 'Primary Region', 'Create', 'Read-Only Token', 'Delete', 'Details', 'Data Browser', 'Search', 'All Types', 'Refresh', 'Copy', 'Next page', 'First page'],
     source: 'https://upstash.com/docs/redis/overall/getstarted',
   }, {
     id: 'qstash', kind: 'workspace', host: 'console.upstash.com', path: '/qstash',
