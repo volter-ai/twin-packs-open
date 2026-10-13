@@ -48,7 +48,7 @@ private-team membership management and GraphQL fields outside the declared scope
 The workspace handoff uses the existing consent-session capture, actual team/issue links,
 the form action/key and In Progress/Jonah option values read from the detail. The browser
 form and GraphQL share `issueUpdate`; the life adds no screen operation IDs or second store.
-These workspace acts and control decisions were authored by `/root/journey_evidence_finish`
+These workspace acts and control decisions were authored by `World launch contributor`
 on 2026-10-09, extending Contributor 74's original integration life. They remain declarations,
 with no walk run or passing result claimed. Their public layout and action sources are
 [screen-references.json](../spec/screen-references.json). Subscribed/Activity views, advanced
