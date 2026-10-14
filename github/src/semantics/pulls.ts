@@ -40,6 +40,56 @@ export async function pulls_list(ctx: HandlerContext): Promise<Response> {
   }));
 }
 
+/** pulls/list-files: the numbered pull's actual Git comparison, paged as diff-entry objects. */
+// source: spec:pulls/list-files "Lists the files in a specified pull request."
+// source: spec:pulls/list-files "Responses include a maximum of 3000 files."
+// source: spec:/components/parameters/per-page "The number of results per page (max 100)."
+// source: spec:/components/parameters/page "The page number of the results to fetch."
+export async function pulls_list_files(ctx: HandlerContext): Promise<Response> {
+  const repo = repoOfPath(ctx);
+  const pull = pullByNumber(ctx, repo, ctx.call.params.pull_number);
+  if (!pull || pull.deleted === true) return notFound(ctx);
+  const base = pull.base as Row | undefined;
+  const head = pull.head as Row | undefined;
+  if (!base || !head) return notFound(ctx);
+  const headName = str((head.repo as Row | null)?.full_name) ?? str(pull._head_repo) ?? String(repo.full_name);
+  const headRepo = ctx.rowsRaw('repository').find((r) => r.full_name === headName);
+  // Open pulls follow their branch tips; a closed pull keeps its recorded comparison even after a merge or deletion.
+  const baseSha = (pull.state === 'open' && str(base.ref) ? tipOf(ctx, repo, String(base.ref)) : undefined) ?? str(base.sha);
+  const headSha = (pull.state === 'open' && headRepo && str(head.ref) ? tipOf(ctx, headRepo, String(head.ref)) : undefined) ?? str(head.sha);
+  if (!baseSha || !headSha) return notFound(ctx);
+  const files = await git.diffFiles(gitOf(ctx, repo).store, baseSha, headSha, { patch: true });
+  if (files === null) return notFound(ctx);
+  const all = files.slice(0, 3000);
+  const per = Math.min(100, Math.max(1, Math.trunc(Number(ctx.params.per_page) || 30)));
+  const number = Math.max(1, Math.trunc(Number(ctx.params.page) || 1));
+  const rows = page({ ...ctx, params: { ...ctx.params, per_page: per, page: number } }, all).map((file) => {
+    const path = file.filename.split('/').map(encodeURIComponent).join('/');
+    const full = String(repo.full_name);
+    return {
+      sha: file.sha ?? null, filename: file.filename, status: file.status, additions: file.additions, deletions: file.deletions,
+      changes: file.additions + file.deletions, blob_url: `https://github.com/${full}/blob/${headSha}/${path}`,
+      raw_url: `https://github.com/${full}/raw/${headSha}/${path}`,
+      contents_url: `https://api.github.com/repos/${full}/contents/${path}?ref=${headSha}`,
+      ...(file.patch === undefined ? {} : { patch: file.patch }),
+    };
+  });
+  const last = Math.max(1, Math.ceil(all.length / per));
+  const headers = new Headers();
+  if (all.length > per) {
+    const at = (n: number): string => {
+      const url = new URL(ctx.call.request.url);
+      url.searchParams.set('page', String(n));
+      return url.toString();
+    };
+    const links = [...(number > 1 ? [`<${at(number - 1)}>; rel="prev"`] : []),
+      ...(number < last ? [`<${at(number + 1)}>; rel="next"`, `<${at(last)}>; rel="last"`] : []),
+      ...(number > 1 ? [`<${at(1)}>; rel="first"`] : [])];
+    if (links.length) headers.set('link', links.join(', '));
+  }
+  return Response.json(rows, { headers });
+}
+
 const STATE_OF: Record<string, string> = { APPROVE: 'APPROVED', REQUEST_CHANGES: 'CHANGES_REQUESTED', COMMENT: 'COMMENTED' };
 
 /** pulls/create-review: a review of the head as it stands (approving, requesting changes or commenting, a body needed

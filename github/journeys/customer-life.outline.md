@@ -5,7 +5,10 @@ Author: Contributor 101
 **Inspecting the agent's handoff.** After the agent opens an issue or a pull request through the vendor's API,
 octocat follows the repository's Issues or Pull requests tab to its list, opens the numbered conversation, and
 reads the stored description and comments, state, labels, assignees and milestone. A pull request also names its
-head and base branches, and its Files changed tab reads the stored Git comparison and patch. Open and closed
+head and base branches, and its Files changed tab reads the stored Git comparison and patch. The unchanged
+Octokit22.0.1 client also calls `pulls.listFiles` for that numbered pull, reading the same Git-backed filenames,
+statuses, counts and patches as a bare array with `page`/`per_page` and Link pagination; the API follows the current
+open head/base refs and keeps the recorded commits when the pull is closed. A missing pull or Git object is refused. Open and closed
 lists are separate views of those same records. These are read-only
 workspace pages; creating, commenting, editing and merging still use the existing API. The page hierarchy and
 conversation layout follow GitHub's public [communication guide](https://docs.github.com/en/get-started/using-github/communicating-on-github)
