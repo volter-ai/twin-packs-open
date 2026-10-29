@@ -16,6 +16,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 const packageRoot = resolve(process.argv[2] ?? process.cwd());
 const dist = resolve(packageRoot, 'dist');
@@ -39,7 +40,10 @@ if (!existsSync(join(packageRoot, config))) {
   }, null, 2));
 }
 rmSync(dist, { recursive: true, force: true }); // the whole built form is remade — nothing stale survives
-const tsc = spawnSync('bunx', ['--no-install', 'tsc', '-p', config], { cwd: packageRoot, encoding: 'utf8', stdio: 'inherit' });
+// The installed compiler, as the package resolves it, run by this Node: no bunx, whose npm install on Windows is only a
+// bunx.cmd shim, which a spawn without a shell cannot start (ENOENT).
+const compiler = createRequire(join(packageRoot, 'package.json')).resolve('typescript/bin/tsc');
+const tsc = spawnSync(process.execPath, [compiler, '-p', config], { cwd: packageRoot, encoding: 'utf8', stdio: 'inherit' });
 if (config !== 'tsconfig.build.json') rmSync(join(packageRoot, config), { force: true });
 // a pack's types are its grade's to judge (the typecheck criterion), not its publish's: what tsc emitted ships
 if (tsc.status !== 0 && !(config !== 'tsconfig.build.json' && existsSync(join(distSrc, 'index.js')))) { process.stderr.write('tsc build failed\n'); process.exit(tsc.status ?? 1); }
