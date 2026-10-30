@@ -1,7 +1,7 @@
 // Prepare the exact release archive in a fresh installation; never assess publisher workspace links.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
@@ -60,10 +60,22 @@ for (const directory of standard.assessmentClientSdks ?? []) {
   process.stderr.write(`Preparing frozen standard SDK fixtures: ${directory}\n`);
   const sdkRoot = join(installedStandard, directory);
   assert.ok(!relative(installedStandard, sdkRoot).startsWith('..'));
-  const before = readFileSync(join(sdkRoot, 'bun.lock'), 'utf8');
-  run(process.argv[2], ['install', '--frozen-lockfile', '--ignore-scripts'], sdkRoot);
-  assert.equal(readFileSync(join(sdkRoot, 'bun.lock'), 'utf8'), before);
-  clientSdkLocks.push({ directory, manifest: read(join(sdkRoot, 'package.json')), lockSha512: hash(before) });
+  // The standard locks its SDK fixtures with Bun (bun.lock, to 1.0.148) or with the pnpm its manifest names
+  // (pnpm-lock.yaml, from 1.0.154); either is installed frozen, and its lock must not move.
+  const sdkManifest = read(join(sdkRoot, 'package.json'));
+  const bunLock = existsSync(join(sdkRoot, 'bun.lock'));
+  const lockFile = join(sdkRoot, bunLock ? 'bun.lock' : 'pnpm-lock.yaml');
+  const before = readFileSync(lockFile, 'utf8');
+  if (bunLock) run(process.argv[2], ['install', '--frozen-lockfile', '--ignore-scripts'], sdkRoot);
+  else {
+    const pnpm = /^pnpm@(\d+\.\d+\.\d+)$/.exec(sdkManifest.packageManager ?? '')?.[1];
+    assert.ok(pnpm, `${directory} locks with pnpm-lock.yaml but names no exact pnpm in packageManager`);
+    // (npm runs pnpm from outside the fixture: npm refuses a directory whose devEngines names another package manager)
+    const installing = npmCommand(['exec', '--yes', `--package=pnpm@${pnpm}`, '--', 'pnpm', '--dir', sdkRoot, 'install', '--frozen-lockfile', '--ignore-scripts']);
+    run(installing.command, installing.args, work);
+  }
+  assert.equal(readFileSync(lockFile, 'utf8'), before);
+  clientSdkLocks.push({ directory, manifest: sdkManifest, lockSha512: hash(before) });
 }
 const packDir = join(work, 'packs', selected.vendor);
 mkdirSync(dirname(packDir), { recursive: true });
@@ -82,22 +94,35 @@ assert.ok(!relative(realpathSync(productRoot), cli).startsWith('..'), 'CLI entry
 const appDir = join(mkdtempSync(join(workRoot, `catalog-customer-${selected.vendor}-`)), 'app');
 const consumerFixture = prepareConsumerApp(packDir, appDir, { cli, artifact: archive });
 process.stderr.write('Preparing the declared customer SDK, exact candidate and kernel dependencies\n');
-run(installing.command, installing.args, appDir);
-const appLock = read(join(appDir, 'package-lock.json'));
-assert.equal(appLock.packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Customer candidate bytes differ from the packed release');
-assert.equal(appLock.packages['node_modules/@volter/world-core']?.version, tools['@volter/world-core'], 'Customer kernel differs from the CLI pin');
+// The standard's consumer app names its package manager (twin-standard 1.0.154: pnpm, hoisted); an app naming none
+// is npm's. Either way the installed candidate is the packed bytes and the installed kernel is the CLI's pin.
+const appManifest = read(join(appDir, 'package.json'));
+const appPnpm = /^pnpm@(\d+\.\d+\.\d+)$/.exec(appManifest.packageManager ?? '')?.[1];
+let appLockFile;
+if (appPnpm) {
+  const installingApp = npmCommand(['exec', '--yes', `--package=pnpm@${appPnpm}`, '--', 'pnpm', '--dir', appDir, 'install', '--ignore-scripts']);
+  run(installingApp.command, installingApp.args, work);
+  appLockFile = join(appDir, 'pnpm-lock.yaml');
+  const lockText = readFileSync(appLockFile, 'utf8');
+  assert.ok(lockText.includes(`integrity: ${integrity}`), 'Customer candidate bytes differ from the packed release');
+} else {
+  run(installing.command, installing.args, appDir);
+  appLockFile = join(appDir, 'package-lock.json');
+  assert.equal(read(appLockFile).packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Customer candidate bytes differ from the packed release');
+}
+assert.equal(read(join(appDir, 'node_modules/@volter/world-core/package.json')).version, tools['@volter/world-core'], 'Customer kernel differs from the CLI pin');
 const consumer = { appDir, cli, artifactIntegrity: integrity };
 const prepared = {
   schemaVersion: 1, vendor: selected.vendor, package: inventory.name, version: inventory.version,
   archive, integrity, work, packDir, release: selected.release,
   sourceCommit: process.env.GITHUB_SHA ?? null, tools, clientDependencyChoices, clientSdkLocks, consumer, consumerFixture,
   executionEnvironment: { imageOS: process.env.ImageOS ?? null, imageVersion: process.env.ImageVersion ?? null, postgresTools: process.env.VOLTER_WORLD_POSTGRES_BIN ?? null },
-  consumerDependencyLockSha512: hash(readFileSync(join(appDir, 'package-lock.json'))),
+  consumerDependencyLockSha512: hash(readFileSync(appLockFile)),
   dependencyLockSha512: hash(readFileSync(join(work, 'package-lock.json'))),
   scope: 'Exact packed archive installed without scripts or workspace links; released standard and declared registry dependencies',
 };
 write(join(selected.release, 'prepared-assessment.json'), prepared);
 cpSync(join(work, 'package-lock.json'), join(selected.release, 'assessment-package-lock.json'));
-cpSync(join(appDir, 'package-lock.json'), join(selected.release, 'consumer-package-lock.json'));
+cpSync(appLockFile, join(selected.release, appPnpm ? 'consumer-pnpm-lock.yaml' : 'consumer-package-lock.json'));
 process.stderr.write('Packed candidate and customer dependency preparation complete\n');
 process.stdout.write(JSON.stringify(prepared) + '\n');
