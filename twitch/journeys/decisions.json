@@ -1,0 +1,86 @@
+{
+ "about": "twitch's decision table (the P3 procedure: demand, then this table, then the code): each operation the pack serves, the demand it answers (journeys/demand.json) and the mechanism that serves it. Every Helix operation the demand reaches reads the caller ./src/semantics/around.ts resolved from its two headers (a Bearer token and the Client-Id it was issued to) and the scope its Authorization block names, so each is a handler; every other operation of the reference answers Twitch's 404, the gap. The id lane's token, validate and revoke are handlers over the credentials it issues; its device code request is the gap. The authorize page, twitch.tv's pages and Twitch's playback host are the manifests' screens, the IRC chat is the root's socket, and the RTMP ingest is the root's live ingest (./src/semantics/live.ts) over the kernel's live media.",
+ "decisions": [
+  {
+   "operation": "getUsers",
+   "demand": "the simulated viewers look up the broadcaster's id by login and their own by the token; the installed customer entry reads the channel's user (Get Started); the channel page and the chat popout read the channel's account; the vendor-backed refresh reads users back by id",
+   "mechanism": "handler",
+   "why": "a computed read: users by id and login (each repeated), or the user access token's own; the email only to that user's token with user:read:email. first-use.json's workflow.mjs asserts the user's login and numeric id and that no email is answered to an app token"
+  },
+  {
+   "operation": "getChannelInformation",
+   "demand": "the channel page, the stream manager and the installed customer entry read the channel's title and category; the vendor-backed refresh reads channels back by id",
+   "mechanism": "handler",
+   "why": "a computed read of the broadcasters asked for, duplicates and unknown ids ignored; first-use.json asserts the channel's broadcaster_id and login and its empty title before any stream"
+  },
+  {
+   "operation": "modifyChannelInformation",
+   "demand": "the stream manager's Edit Stream Info sets the title and the category",
+   "mechanism": "handler",
+   "why": "an update with Twitch's rules: a user access token with channel:manage:broadcast for its own channel, at least one property, no empty title, a category Twitch knows (or 0 and an empty string to unset it), tags within ten of 25 characters, delay for partners only; a live stream shows the new title and category. The reference's description of game_id says an unknown game is not updated while its Response Codes answer 400 The ID in game_id is not valid; the twin answers the 400"
+  },
+  {
+   "operation": "getStreams",
+   "demand": "the channel page, the stream manager and the installed customer entry ask whether the channel is live, with its viewers, title and category; the vendor-backed refresh lists streams",
+   "mechanism": "handler",
+   "why": "a computed read of the streams broadcasting, filtered by user id, login, category and language, most viewers first, paged by first and after; first-use.json asserts the channel offline (an empty data list)"
+  },
+  {
+   "operation": "getStreamKey",
+   "demand": "the streamer copies the channel's Primary Stream key from the dashboard's Stream settings into the rig's stream-key.txt (agent-stream README.md:29)",
+   "mechanism": "handler",
+   "why": "a read of the channel's key, drawn from the World's secret for the channel (never stored; the ingest finds the channel by its SHA-256), for a user access token with channel:read:stream_key and its own channel"
+  },
+  {
+   "operation": "sendChatMessage",
+   "demand": "the simulated viewers post as each viewer; a person chats from the channel page, its popout or the stream manager",
+   "mechanism": "handler",
+   "why": "a write: the message kept in the channel's chat (its sender, badges, first message, reply parent and pin), heard by every chat session that joined the channel (the socket) and shown on the channel's pages; a user access token with user:write:chat whose user is the sender, a broadcaster Twitch knows, at most 500 characters, no for_source_only with a user token, and pin only for the broadcaster with moderator:manage:chat_messages. The app access token path (prior user:bot and channel:bot authorizations) is the gap"
+  },
+  {
+   "operation": "searchCategories",
+   "demand": "the stream manager's category picker finds a category by part of its name",
+   "mechanism": "handler",
+   "why": "a computed read over the categories Twitch knows (those the reference's examples name): every word of the query in the name, without case, paged by first and after"
+  },
+  {
+   "operation": "oauth2Token",
+   "lane": "id",
+   "demand": "the installed customer entry's app access token (client credentials, Get Started); the simulated viewers trade each viewer's authorization code and, once a token is no longer valid, its refresh token",
+   "mechanism": "handler",
+   "why": "an action: the client id and secret checked; an app access token (weeks) for client credentials; for an authorization code (spent once, by its app, at its redirect URI, within ten minutes) a user access token (about four hours) and a refresh token, with the scopes granted; for a refresh token a new access token and the same refresh token. Each credential is drawn from the World's secret and kept by its SHA-256. first-use.json asserts the bearer token and its expiry. The device code grant is the gap"
+  },
+  {
+   "operation": "oauth2Validate",
+   "lane": "id",
+   "demand": "the installed customer entry validates its app token; the simulated viewers validate each viewer's token when they start and hourly",
+   "mechanism": "handler",
+   "why": "a computed read of the token presented (OAuth or Bearer): its client id, login and user id (null for an app token), scopes and the seconds it has left; 401 invalid access token once it expired or was revoked. first-use.json asserts the client id and the nulls"
+  },
+  {
+   "operation": "oauth2Revoke",
+   "lane": "id",
+   "demand": "the simulated viewers revoke each viewer's access token when the rehearsal ends",
+   "mechanism": "handler",
+   "why": "an action: the token's state moves to revoked (the id lane's states); 404 client does not exist for an unknown client id, 400 Invalid token for a token that client does not hold"
+  },
+  {
+   "operation": "door:developerConsole",
+   "demand": "the streamer's account and the app registered in the developer console (the World's credential door: TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, TWITCH_CHANNEL)",
+   "mechanism": "door",
+   "why": "Twitch's sign-up and developer console have no API: the account, its channel, its stream key's record and the person who logs in; the application with its redirect URLs, its client id and secret; the same at every boot"
+  },
+  {
+   "operation": "door:accounts",
+   "demand": "the viewers' accounts the simulated viewers act for",
+   "mechanism": "door",
+   "why": "Twitch's sign-up page has no API: an account, its channel and the password its person logs in with"
+  },
+  {
+   "operation": "door:audience",
+   "demand": "the channel page and the stream manager show how many people are watching the live stream",
+   "mechanism": "door",
+   "why": "viewers are people watching, not an API call: the live stream's viewer_count"
+  }
+ ]
+}

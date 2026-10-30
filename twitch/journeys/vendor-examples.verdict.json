@@ -1,0 +1,50 @@
+{
+ "judge": {
+  "agent": "Claude Sonnet (Claude Code general-purpose subagent, dispatched by the twitch twin builder)",
+  "name": "independent journey judge"
+ },
+ "authors": [
+  "the twitch twin builder"
+ ],
+ "sha256": "1645ac085496e42cf261d25789d1322a89efe561e4bf95309ab00483ce2b0d34",
+ "judgedAt": "2026-10-08",
+ "plausible": true,
+ "rulings": [
+  {
+   "id": "revoked-token-revoked-again",
+   "steps": [
+    16
+   ],
+   "barItem": "a failing repeat of a request that succeeded earlier in the same sitting",
+   "reason": "Step 15 revokes {subTok} and answers 200; step 16 sends the identical request (client_id={cid}&token={subTok}) and expects 400. The Revoking Access Tokens page (https://dev.twitch.tv/docs/authentication/revoke-tokens/) publishes the 400 for 'the client ID is valid but the access token is not', which a token Twitch never issued causes just as well; the journey's other invalid-token examples (step 14's validate, step 28's Get Users, step 9's refresh) each use such a literal. The revoke's own effect is also never read, though its 200 answer is empty: step 16 is standing in for that read.",
+   "correction": "Step 16 sends a token Twitch never issued (a literal, like step 14's) with client_id={cid} and expects 400, keeping its example id. After step 15 add one read of the revoke's effect: GET https://id.twitch.tv/oauth2/validate with Authorization 'OAuth {subTok}', status 401, message 'invalid access token'."
+  }
+ ],
+ "doubts": [
+  "Steps 34-44 (Modify Channel Information) and 59-70 (Send Chat Message) are runs of refusals, one per rule the reference states; accepted as the published rules replayed, which the examples journey exists to do.",
+  "Step 7 asserts the message 'Invalid authorization code', which no page read publishes (the doc-examples entry says the page stops); it is the twin's answer pinned as the vendor's.",
+  "Step 47: the reference states the 1 to 100 range for first but lists only the type value under Get Streams' 400; the 400 for first=101 is inferred.",
+  "Step 66: the reply parent {hello} lives in the Twitch channel's chat, not TwitchDev's own; the 400 is the pin-with-reply rule only because the twin checks that before the parent. A parent in the same room would isolate the cause.",
+  "Step 68: the reference does not say the sender-must-be-broadcaster-or-moderator pin rule answers 403; the 403 is read from the 'sender is not permitted' row.",
+  "Step 73 (IRC failed login) has no entry in doc-examples.json and no example field; it replays the IRC page's stated failure and also reaches the socket's refusal line, so it stands.",
+  "Steps 2, 6, 8: expires_in is asserted as the page's 5011271 and 14124 (step 8 differs from the page's 15583, covered by exampleDiffers); the vendor generates these, so the equals states the twin's choice.",
+  "Step 8: refresh_token is asserted equal to the one sent; the refresh page says refresh tokens 'may change' and its example answers a different one. Allowed, not documented.",
+  "The two Get Streams examples and the Send Chat Message example (for_source_only) are recorded as not replayed; their reasons match the reference (no RTMP in a walk; for_source_only is app-token only) and the README."
+ ],
+ "applied": {
+  "from": "13755070b9ba70831e3930c24c0e013f64a449c3d5d55cc029944e0de02e55ef",
+  "wasPlausible": false,
+  "steps": [
+   "16"
+  ],
+  "rulings": [
+   {
+    "id": "revoked-token-revoked-again",
+    "steps": [
+     16
+    ],
+    "why": "The 400 revoke sends a token Twitch never issued (a literal) with client_id {cid}, keeping its example id; before it, the revoked token's validate answers 401 'invalid access token'."
+   }
+  ]
+ }
+}
