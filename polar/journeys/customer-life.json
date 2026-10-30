@@ -1,0 +1,1323 @@
+{
+ "vendor": "polar",
+ "author": "Contributor 77",
+ "host": null,
+ "about": "Volter's year on Polar (journeys/customer-life.outline.md): the platform's token and Open Autonomy's webhook endpoint, the biller's meters and Team plan made at boot, an org upgrading on Polar's hosted checkout and its state read by its own id, usage reported once per event, the customer portal's sessions, Open Autonomy's patrons paying once and monthly with the paid orders told by webhook and read back on the thanks page, and a leaked token replaced.",
+ "steps": [
+  {
+   "name": "Monday 5 January: Volter sets its Polar organization up",
+   "wait": "6300m"
+  },
+  {
+   "name": "Lena makes the platform's Organization Access Token on the settings page",
+   "method": "POST",
+   "path": "/_twin/access-tokens",
+   "status": 201,
+   "body": {
+    "comment": "volter-platform"
+   },
+   "capture": {
+    "token": "token",
+    "token_id": "id"
+   }
+  },
+  {
+   "name": "The platform's biller boots and finds no meters",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/meters/?limit=100",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "so it makes its world-hours meter, the sum of each world.hour event's units",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/meters/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "world_hours",
+    "filter": {
+     "conjunction": "and",
+     "clauses": [
+      {
+       "property": "name",
+       "operator": "eq",
+       "value": "world.hour"
+      }
+     ]
+    },
+    "aggregation": {
+     "func": "sum",
+     "property": "units"
+    }
+   },
+   "capture": {
+    "meter_hours": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "world_hours"
+    },
+    {
+     "path": "aggregation.func",
+     "equals": "sum"
+    }
+   ]
+  },
+  {
+   "name": "and its worlds-provisioned meter, a count of world.provisioned events",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/meters/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "worlds_provisioned",
+    "filter": {
+     "conjunction": "and",
+     "clauses": [
+      {
+       "property": "name",
+       "operator": "eq",
+       "value": "world.provisioned"
+      }
+     ]
+    },
+    "aggregation": {
+     "func": "count"
+    }
+   },
+   "capture": {
+    "meter_prov": "id"
+   }
+  },
+  {
+   "name": "It finds no products",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/?limit=100",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "so it makes the Team plan: $49 a month, 2 cents a world-hour beyond the plan, a 14-day trial",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Volter World Team",
+    "recurring_interval": "month",
+    "description": "Worlds for every branch, pull request and teammate, deploying to the real vendors when you approve.",
+    "prices": [
+     {
+      "amount_type": "fixed",
+      "price_amount": 4900,
+      "price_currency": "usd"
+     },
+     {
+      "amount_type": "metered_unit",
+      "unit_amount": 2,
+      "meter_id": "{meter_hours}"
+     }
+    ],
+    "trial_interval": "day",
+    "trial_interval_count": 14
+   },
+   "capture": {
+    "team": "id"
+   },
+   "expect": [
+    {
+     "path": "is_recurring",
+     "equals": true
+    },
+    {
+     "path": "prices.0.price_amount",
+     "equals": 4900
+    },
+    {
+     "path": "prices.1.amount_type",
+     "equals": "metered_unit"
+    },
+    {
+     "path": "prices.1.meter_id",
+     "equals": "{meter_hours}"
+    },
+    {
+     "path": "prices.1.meter.unit",
+     "equals": "scalar"
+    },
+    {
+     "path": "prices.1.meter.custom_label",
+     "equals": null
+    },
+    {
+     "path": "prices.1.meter.custom_multiplier",
+     "equals": null
+    },
+    {
+     "path": "trial_interval_count",
+     "equals": 14
+    }
+   ]
+  },
+  {
+   "name": "At its next boot the biller finds both meters",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/meters/?limit=100",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "and the Team plan by its name",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/?limit=100",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{team}"
+    },
+    {
+     "path": "items.0.name",
+     "equals": "Volter World Team"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 6 January: Acme Robotics upgrades to Team",
+   "wait": "1500m"
+  },
+  {
+   "name": "The biller reads Acme's billing by its org id: Polar has no such customer, so Acme is on Free",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/external/org_acme/state",
+   "status": 404,
+   "headers": {
+    "authorization": "Bearer {token}"
+   }
+  },
+  {
+   "name": "Ada, Acme's admin, chooses Team: the biller opens a checkout with Acme's org id as the customer's",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "products": [
+     "{team}"
+    ],
+    "external_customer_id": "org_acme",
+    "success_url": "https://world.volter.ai/acme/billing?upgraded=1",
+    "customer_email": "ada@acme.dev",
+    "metadata": {
+     "org": "org_acme"
+    }
+   },
+   "capture": {
+    "co": "id",
+    "co_secret": "client_secret",
+    "co_url": "url"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "open"
+    },
+    {
+     "path": "amount",
+     "equals": 4900
+    },
+    {
+     "path": "url",
+     "equals": "https://buy.polar.sh/{co_secret}"
+    },
+    {
+     "path": "external_customer_id",
+     "equals": "org_acme"
+    }
+   ]
+  },
+  {
+   "name": "Ada opens Polar's checkout page",
+   "method": "GET",
+   "path": "{co_url}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Volter World Team"
+    },
+    {
+     "path": "",
+     "contains": "$49.00"
+    }
+   ],
+   "capture": {
+    "co_action": "text:action=\"([^\"]+)\""
+   }
+  },
+  {
+   "name": "Ada supplies payment details and starts the Team trial without an immediate charge; Polar returns her to billing",
+   "method": "POST",
+   "path": "{co_action}",
+   "status": 303,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=ada%40acme.dev",
+   "expect": [
+    {
+     "header": "location",
+     "equals": "https://world.volter.ai/acme/billing?upgraded=1"
+    }
+   ]
+  },
+  {
+   "name": "Back from the checkout, the biller reads Acme's state: the Team plan, trialing",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/external/org_acme/state",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "capture": {
+    "acme": "id"
+   },
+   "expect": [
+    {
+     "path": "external_id",
+     "equals": "org_acme"
+    },
+    {
+     "path": "email",
+     "equals": "ada@acme.dev"
+    },
+    {
+     "path": "active_subscriptions.0.product_id",
+     "equals": "{team}"
+    },
+    {
+     "path": "active_subscriptions.0.status",
+     "equals": "trialing"
+    },
+    {
+     "path": "active_subscriptions.0.trial_end",
+     "exists": true
+    },
+    {
+     "path": "active_subscriptions.0.cancel_at_period_end",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 14 January: Acme works",
+   "wait": "11820m"
+  },
+  {
+   "name": "Acme creates a new World: the biller reports provisioning before its first completed hours",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/events/ingest",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "events": [
+     {
+      "name": "world.provisioned",
+      "external_customer_id": "org_acme",
+      "external_id": "org_acme:worlds_provisioned:main",
+      "metadata": {}
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "inserted",
+     "equals": 1
+    },
+    {
+     "path": "duplicates",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "The newly created World runs for two hours",
+   "wait": "120m"
+  },
+  {
+   "name": "The hourly tick reports the World's two hours",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/events/ingest",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "events": [
+     {
+      "name": "world.hour",
+      "external_customer_id": "org_acme",
+      "external_id": "org_acme:world_hours:2026-01:main:2026-01-14T15",
+      "metadata": {
+       "world": "main",
+       "units": 1
+      }
+     },
+     {
+      "name": "world.hour",
+      "external_customer_id": "org_acme",
+      "external_id": "org_acme:world_hours:2026-01:main:2026-01-14T16",
+      "metadata": {
+       "world": "main",
+       "units": 1
+      }
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "inserted",
+     "equals": 2
+    },
+    {
+     "path": "duplicates",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "A tick retried after a timeout sends the last hour again: a duplicate, not a third hour",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/events/ingest",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "events": [
+     {
+      "name": "world.hour",
+      "external_customer_id": "org_acme",
+      "external_id": "org_acme:world_hours:2026-01:main:2026-01-14T16",
+      "metadata": {
+       "world": "main",
+       "units": 1
+      }
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "inserted",
+     "equals": 0
+    },
+    {
+     "path": "duplicates",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "The biller reads Acme's usage: two world-hours consumed",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/external/org_acme/state",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "active_meters",
+     "matches": "\"meter_id\":\"{meter_hours}\"[^{}]*\"consumed_units\":2[,}]|\"consumed_units\":2[,}][^{}]*\"meter_id\":\"{meter_hours}\""
+    }
+   ]
+  },
+  {
+   "name": "Monday 2 February: Manage billing",
+   "wait": "26910m"
+  },
+  {
+   "name": "Ada opens Manage billing: the biller makes a customer session for Acme by its org id",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customer-sessions/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "external_customer_id": "org_acme",
+    "return_url": "https://world.volter.ai/acme/billing"
+   },
+   "expect": [
+    {
+     "path": "customer_id",
+     "equals": "{acme}"
+    },
+    {
+     "path": "customer_portal_url",
+     "exists": true
+    },
+    {
+     "path": "token",
+     "matches": "^polar_cst_"
+    }
+   ],
+   "capture": {
+    "portal_url": "customer_portal_url"
+   }
+  },
+  {
+   "name": "Ada follows the returned portal link and sees her Team subscription and purchase history",
+   "method": "GET",
+   "path": "{portal_url}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Volter World Team"
+    },
+    {
+     "path": "",
+     "contains": "active"
+    },
+    {
+     "path": "",
+     "contains": "Purchase history"
+    }
+   ]
+  },
+  {
+   "name": "She finds January's checkout still open in a tab and presses its button: that checkout is done",
+   "method": "POST",
+   "path": "{co_action}",
+   "status": 403,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=ada%40acme.dev",
+   "expect": [
+    {
+     "path": "",
+     "contains": "The payment could not be completed (403)."
+    }
+   ]
+  },
+  {
+   "name": "Ada, not seeing the trial on the app's plans page, chooses Team again: the biller opens another checkout for Acme",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "products": [
+     "{team}"
+    ],
+    "external_customer_id": "org_acme",
+    "success_url": "https://world.volter.ai/acme/billing?upgraded=1",
+    "customer_email": "ada@acme.dev",
+    "metadata": {
+     "org": "org_acme"
+    }
+   },
+   "capture": {
+    "co2": "id",
+    "co2_url": "url"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "open"
+    },
+    {
+     "path": "external_customer_id",
+     "equals": "org_acme"
+    }
+   ]
+  },
+  {
+   "name": "She opens it",
+   "method": "GET",
+   "path": "{co2_url}",
+   "status": 200,
+   "capture": {
+    "co2_action": "text:action=\"([^\"]+)\""
+   }
+  },
+  {
+   "name": "and confirms it: Polar refuses, Acme already holds the Team subscription",
+   "method": "POST",
+   "path": "{co2_action}",
+   "status": 403,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=ada%40acme.dev",
+   "expect": [
+    {
+     "path": "",
+     "contains": "The payment could not be completed (403)."
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 3 February: Globex asks for its billing portal",
+   "wait": "1440m"
+  },
+  {
+   "name": "Globex's admin opens Manage billing on Free, before Globex has a customer: refused",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customer-sessions/",
+   "status": 422,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "external_customer_id": "org_globex",
+    "return_url": "https://world.volter.ai/globex/billing"
+   }
+  },
+  {
+   "name": "Lena creates Globex its customer after support reports the missing customer",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "email": "ops@globex.io",
+    "external_id": "org_globex"
+   },
+   "capture": {
+    "globex": "id"
+   },
+   "expect": [
+    {
+     "path": "external_id",
+     "equals": "org_globex"
+    },
+    {
+     "path": "type",
+     "equals": "individual"
+    }
+   ]
+  },
+  {
+   "name": "Minutes later a second support agent, working the same ticket, creates Globex's customer too, copying ada@acme.dev from the head of the thread: that address is already Acme's customer",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 422,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "email": "ada@acme.dev",
+    "external_id": "org_globex"
+   }
+  },
+  {
+   "name": "He fixes the address to billing@globex.io: refused again, org_globex is already a customer, so he sees Lena has done it",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 422,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "email": "billing@globex.io",
+    "external_id": "org_globex"
+   }
+  },
+  {
+   "name": "Globex tries Manage billing again and the biller creates its session",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customer-sessions/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "external_customer_id": "org_globex",
+    "return_url": "https://world.volter.ai/globex/billing"
+   },
+   "expect": [
+    {
+     "path": "customer_id",
+     "equals": "{globex}"
+    },
+    {
+     "path": "customer_portal_url",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 10 February: a patron gives to acme/rover on Open Autonomy",
+   "wait": "10080m"
+  },
+  {
+   "name": "and registers Open Autonomy's webhook endpoint for its orders",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/webhooks/endpoints",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "url": "https://platform.open-autonomy.org/webhooks/polar",
+    "format": "raw",
+    "events": [
+     "order.created",
+     "order.paid"
+    ]
+   },
+   "capture": {
+    "whs": "secret",
+    "endpoint": "id"
+   },
+   "expect": [
+    {
+     "path": "secret",
+     "exists": true
+    },
+    {
+     "path": "url",
+     "equals": "https://platform.open-autonomy.org/webhooks/polar"
+    },
+    {
+     "path": "events",
+     "members": [
+      "order.created",
+      "order.paid"
+     ]
+    },
+    {
+     "path": "enabled",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Open Autonomy makes the products behind acme/rover's first tier: monthly",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "acme/rover · $5 a month",
+    "description": "This gift is for whatever rover needs.",
+    "recurring_interval": "month",
+    "prices": [
+     {
+      "amount_type": "fixed",
+      "price_amount": 500,
+      "price_currency": "usd"
+     }
+    ],
+    "metadata": {
+     "account": "acme/rover",
+     "tier": "0",
+     "interval": "month"
+    }
+   },
+   "capture": {
+    "patron_month": "id"
+   },
+   "expect": [
+    {
+     "path": "is_recurring",
+     "equals": true
+    },
+    {
+     "path": "metadata.account",
+     "equals": "acme/rover"
+    }
+   ]
+  },
+  {
+   "name": "and once",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "acme/rover · $5 a month, once",
+    "description": "This gift is for whatever rover needs.",
+    "prices": [
+     {
+      "amount_type": "fixed",
+      "price_amount": 500,
+      "price_currency": "usd"
+     }
+    ],
+    "metadata": {
+     "account": "acme/rover",
+     "tier": "0",
+     "interval": "once"
+    }
+   },
+   "capture": {
+    "patron_once": "id"
+   },
+   "expect": [
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "recurring_interval",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "Grace gives once: Open Autonomy opens her checkout, back to its thanks page with the checkout's id; she opens the returned hosted page and reads its payment form",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "products": [
+     "{patron_once}"
+    ],
+    "success_url": "https://platform.open-autonomy.org/acme/rover/thanks?checkout_id={CHECKOUT_ID}",
+    "metadata": {
+     "account": "acme/rover",
+     "tier": "0",
+     "interval": "once",
+     "for": "{\"type\":\"project\"}",
+     "choice": "This gift is for whatever rover needs."
+    }
+   },
+   "capture": {
+    "pco": "id",
+    "pco_secret": "client_secret",
+    "pco_url": "url"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "open"
+    },
+    {
+     "path": "amount",
+     "equals": 500
+    },
+    {
+     "path": "url",
+     "equals": "https://buy.polar.sh/{pco_secret}"
+    }
+   ]
+  },
+  {
+   "name": "Grace opens the returned hosted checkout and reads its payment form",
+   "method": "GET",
+   "path": "{pco_url}",
+   "status": 200,
+   "capture": {
+    "stale_action": "text:action=\"([^\"]+)\""
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "$5.00"
+    }
+   ]
+  },
+  {
+   "name": "Grace leaves the checkout tab while she checks with the project maintainer",
+   "wait": "1500m"
+  },
+  {
+   "name": "She tries to pay from the stale tab and the checkout has expired",
+   "method": "POST",
+   "path": "{stale_action}",
+   "status": 410,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=grace%40example.org"
+  },
+  {
+   "name": "Grace returns from the expired checkout and Open Autonomy opens a fresh session",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "products": [
+     "{patron_once}"
+    ],
+    "success_url": "https://platform.open-autonomy.org/acme/rover/thanks?checkout_id={CHECKOUT_ID}",
+    "metadata": {
+     "account": "acme/rover",
+     "tier": "0",
+     "interval": "once",
+     "for": "{\"type\":\"project\"}",
+     "choice": "This gift is for whatever rover needs."
+    }
+   },
+   "capture": {
+    "pco": "id",
+    "pco_secret": "client_secret",
+    "pco_url": "url"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "open"
+    },
+    {
+     "path": "amount",
+     "equals": 500
+    },
+    {
+     "path": "url",
+     "equals": "https://buy.polar.sh/{pco_secret}"
+    }
+   ]
+  },
+  {
+   "name": "Grace opens Polar's checkout page",
+   "method": "GET",
+   "path": "{pco_url}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "$5.00"
+    }
+   ],
+   "capture": {
+    "grace_action": "text:action=\"([^\"]+)\""
+   }
+  },
+  {
+   "name": "and pays; Polar returns her to the thanks page, the checkout's id filled in",
+   "method": "POST",
+   "path": "{grace_action}",
+   "status": 303,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=grace%40example.org",
+   "expect": [
+    {
+     "header": "location",
+     "equals": "https://platform.open-autonomy.org/acme/rover/thanks?checkout_id={pco}"
+    }
+   ]
+  },
+  {
+   "name": "Polar tells Open Autonomy the order is paid, signed with the endpoint's secret",
+   "method": "GET",
+   "path": "/_twin/deliveries?to=https://platform.open-autonomy.org/webhooks/polar&type=order.paid",
+   "status": 200,
+   "capture": {
+    "order": "data.0.body.data.id",
+    "grace": "data.0.body.data.customer_id"
+   },
+   "expect": [
+    {
+     "path": "data.0.body.type",
+     "equals": "order.paid"
+    },
+    {
+     "path": "data.0.body.data.checkout_id",
+     "equals": "{pco}"
+    },
+    {
+     "path": "data.0.body.data.paid",
+     "equals": true
+    },
+    {
+     "path": "data.0.body.data.total_amount",
+     "equals": 500
+    },
+    {
+     "path": "data.0.body.data.billing_reason",
+     "equals": "purchase"
+    },
+    {
+     "path": "data.0.body.data.metadata.account",
+     "equals": "acme/rover"
+    },
+    {
+     "path": "data.0.headers.webhook-signature",
+     "matches": "^v1,"
+    }
+   ]
+  },
+  {
+   "name": "and, first, that it was made",
+   "method": "GET",
+   "path": "/_twin/deliveries?to=https://platform.open-autonomy.org/webhooks/polar&type=order.created",
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.body.data.id",
+     "equals": "{order}"
+    }
+   ]
+  },
+  {
+   "name": "On the thanks page Open Autonomy reads Grace's checkout back: paid",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/{pco}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{pco}"
+    },
+    {
+     "path": "status",
+     "oneOf": [
+      "confirmed",
+      "succeeded"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "and the checkout's orders",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/orders/?checkout_id={pco}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{order}"
+    },
+    {
+     "path": "items.0.paid",
+     "equals": true
+    },
+    {
+     "path": "items.0.total_amount",
+     "equals": 500
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "and the order's customer, for the patron's name on the wall",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/{grace}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "email",
+     "equals": "grace@example.org"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 12 February: a monthly patron",
+   "wait": "1380m"
+  },
+  {
+   "name": "Heidi gives $5 a month and opens the returned hosted payment form",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "products": [
+     "{patron_month}"
+    ],
+    "success_url": "https://platform.open-autonomy.org/acme/rover/thanks?checkout_id={CHECKOUT_ID}",
+    "metadata": {
+     "account": "acme/rover",
+     "tier": "0",
+     "interval": "month"
+    }
+   },
+   "capture": {
+    "mco": "id",
+    "mco_secret": "client_secret",
+    "mco_url": "url"
+   }
+  },
+  {
+   "name": "Heidi opens the returned hosted checkout and reads its payment form",
+   "method": "GET",
+   "path": "{mco_url}",
+   "status": 200,
+   "capture": {
+    "heidi_action": "text:action=\"([^\"]+)\""
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "$5.00"
+    }
+   ]
+  },
+  {
+   "name": "and pays on the page",
+   "method": "POST",
+   "path": "{heidi_action}",
+   "status": 303,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=heidi%40example.org",
+   "expect": [
+    {
+     "header": "location",
+     "equals": "https://platform.open-autonomy.org/acme/rover/thanks?checkout_id={mco}"
+    }
+   ]
+  },
+  {
+   "name": "Polar tells Open Autonomy the order is paid: the first of a subscription",
+   "method": "GET",
+   "path": "/_twin/deliveries?to=https://platform.open-autonomy.org/webhooks/polar&type=order.paid",
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.1.body.data.checkout_id",
+     "equals": "{mco}"
+    },
+    {
+     "path": "data.1.body.data.billing_reason",
+     "equals": "subscription_create"
+    },
+    {
+     "path": "data.1.body.data.subscription_id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Thursday 16 April: the platform's token leaks",
+   "wait": "90720m"
+  },
+  {
+   "name": "Lena revokes it on the settings page",
+   "method": "DELETE",
+   "path": "/_twin/access-tokens/{token_id}",
+   "status": 204
+  },
+  {
+   "name": "The old token is refused",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/meters/",
+   "status": 401,
+   "headers": {
+    "authorization": "Bearer {token}"
+   }
+  },
+  {
+   "name": "She makes a new one",
+   "method": "POST",
+   "path": "/_twin/access-tokens",
+   "status": 201,
+   "body": {
+    "comment": "volter-platform-2"
+   },
+   "capture": {
+    "token": "token",
+    "token_id": "id"
+   }
+  },
+  {
+   "name": "which works",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/meters/",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "A vendor-backed World refreshes the organization: its webhook endpoints",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/webhooks/endpoints",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{endpoint}"
+    },
+    {
+     "path": "items.0.secret",
+     "equals": "{whs}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "its checkouts, newest first: Heidi's, paid",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{mco}"
+    },
+    {
+     "path": "items.0.status",
+     "equals": "succeeded"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 5
+    }
+   ]
+  },
+  {
+   "name": "its subscriptions, the latest started first: Heidi's, then Acme's Team",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/subscriptions/",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items.0.product_id",
+     "equals": "{patron_month}"
+    },
+    {
+     "path": "items.0.status",
+     "equals": "active"
+    },
+    {
+     "path": "items.1.product_id",
+     "equals": "{team}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "its customers, newest first: Heidi, Grace, Globex and Acme",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items.0.email",
+     "equals": "heidi@example.org"
+    },
+    {
+     "path": "items.3.id",
+     "equals": "{acme}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 4
+    }
+   ]
+  },
+  {
+   "name": "and its usage events: Acme's World and its two hours, the retried hour not a third",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/events/",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 3
+    },
+    {
+     "path": "items.0.customer.id",
+     "equals": "{acme}"
+    },
+    {
+     "path": "items.0.source",
+     "equals": "user"
+    }
+   ]
+  }
+ ]
+}
