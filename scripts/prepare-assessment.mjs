@@ -8,6 +8,7 @@ import { dirname, join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { selectedPack } from './selected-pack.mjs';
+import { npmCommand } from './commands.mjs';
 
 const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const hash = (bytes, encoding = 'hex') => createHash('sha512').update(bytes).digest(encoding);
@@ -41,7 +42,8 @@ const run = (command, args, cwd) => {
   if (result.status !== 0) throw new Error(`${command} ${args[0]} failed: ${result.stderr || result.stdout}`);
 };
 process.stderr.write('Preparing locked evaluator dependencies and the exact candidate archive\n');
-run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], work);
+const installing = npmCommand(['install', '--ignore-scripts', '--no-audit', '--no-fund']);
+run(installing.command, installing.args, work);
 const lock = read(join(work, 'package-lock.json'));
 assert.equal(lock.packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Installed candidate bytes differ from packed release');
 for (const [name, version] of Object.entries(tools)) {
@@ -80,7 +82,7 @@ assert.ok(!relative(realpathSync(productRoot), cli).startsWith('..'), 'CLI entry
 const appDir = join(mkdtempSync(join(workRoot, `catalog-customer-${selected.vendor}-`)), 'app');
 const consumerFixture = prepareConsumerApp(packDir, appDir, { cli, artifact: archive });
 process.stderr.write('Preparing the declared customer SDK, exact candidate and kernel dependencies\n');
-run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], appDir);
+run(installing.command, installing.args, appDir);
 const appLock = read(join(appDir, 'package-lock.json'));
 assert.equal(appLock.packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Customer candidate bytes differ from the packed release');
 assert.equal(appLock.packages['node_modules/@volter/world-core']?.version, tools['@volter/world-core'], 'Customer kernel differs from the CLI pin');

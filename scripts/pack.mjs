@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { selectedPack } from './selected-pack.mjs';
+import { npmCommand } from './commands.mjs';
 
 const pack = selectedPack();
 const readmePath = join(pack.directory, 'README.md');
@@ -16,7 +17,8 @@ const boundReadme = readme.split('\n').map((line) => {
 }).join('\n');
 if (boundReadme !== readme) writeFileSync(readmePath, boundReadme);
 mkdirSync(pack.release, { recursive: true });
-const result = spawnSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', pack.release], {
+const packing = npmCommand(['pack', '--ignore-scripts', '--json', '--pack-destination', pack.release]);
+const result = spawnSync(packing.command, packing.args, {
   cwd: pack.directory, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
 });
 if (result.status !== 0) {

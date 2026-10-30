@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { npmCommand } from './commands.mjs';
 
 const registry = 'https://registry.npmjs.org';
 const selected = selectedPack();
@@ -22,7 +23,8 @@ if (lookup.status === 404 && !process.argv.includes('--confirm-only') && Number(
   const qualification = JSON.parse(readFileSync(join(selected.release, 'qualification.json'), 'utf8'));
   if (qualification.ready !== true || qualification.package !== pkg.name || qualification.version !== pkg.version || qualification.integrity !== integrity) throw new Error('Upload requires qualification of these exact release bytes');
   if (!process.env.GITHUB_SHA || qualification.sourceCommit !== process.env.GITHUB_SHA) throw new Error('Qualification belongs to a different publisher source');
-  const result = spawnSync('npm', ['publish', '--ignore-scripts', '--access', 'public', '--provenance', archive], { stdio: 'inherit' });
+  const publishing = npmCommand(['publish', '--ignore-scripts', '--access', 'public', '--provenance', archive]);
+  const result = spawnSync(publishing.command, publishing.args, { stdio: 'inherit' });
   if (result.status !== 0) throw new Error('Upload did not report success; retain diagnostics and inspect registry before retrying');
   accepted = true;
   writeFileSync(join(selected.release, 'upload-accepted.json'), JSON.stringify({ package: pkg.name, version: pkg.version, integrity, sourceCommit: process.env.GITHUB_SHA, run: process.env.GITHUB_RUN_ID }, null, 2) + '\n');

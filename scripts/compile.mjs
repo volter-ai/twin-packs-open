@@ -17,6 +17,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { bunExecutable } from './commands.mjs';
 
 const packageRoot = resolve(process.argv[2] ?? process.cwd());
 const dist = resolve(packageRoot, 'dist');
@@ -84,7 +85,7 @@ if (existsSync(clientDir)) {
     if (!/\.tsx$/.test(entry) || /\.test\./.test(entry)) continue;
     const outfile = join(dist, 'client', entry.replace(/\.tsx$/, '.bundle.js'));
     mkdirSync(dirname(outfile), { recursive: true });
-    const b = spawnSync('bun', ['build', join(clientDir, entry), '--target', 'browser', '--minify', '--outfile', outfile], { cwd: packageRoot, encoding: 'utf8' });
+    const b = spawnSync(bunExecutable(), ['build', join(clientDir, entry), '--target', 'browser', '--minify', '--outfile', outfile], { cwd: packageRoot, encoding: 'utf8' });
     if (b.status !== 0) { process.stderr.write(`client bundle failed for ${entry}:\n${b.stderr.slice(-800)}\n`); process.exit(b.status ?? 1); }
   }
 }
