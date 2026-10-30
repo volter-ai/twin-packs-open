@@ -1,0 +1,9669 @@
+{
+ "vendor": "polar",
+ "author": "Contributor 77",
+ "host": null,
+ "about": "Published HTTP and SDK wire requests from Polar reference pages and every served OpenAPI x-codeSamples operation. Equivalent TypeScript/Python spellings share one replay and are cross-referenced in doc-examples. Production and sandbox setups use separate credentials and state.",
+ "steps": [
+  {
+   "name": "Issue the examples organization token",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "capture": {
+    "token": "access_token"
+   },
+   "body": {}
+  },
+  {
+   "name": "Issue a separate sandbox organization credential",
+   "method": "POST",
+   "path": "https://sandbox-api.polar.sh/_twin/app-credentials",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {},
+   "capture": {
+    "sandbox_token": "access_token"
+   }
+  },
+  {
+   "name": "Create the independent sandbox example product",
+   "method": "POST",
+   "path": "https://sandbox-api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {sandbox_token}"
+   },
+   "body": {
+    "name": "Sandbox SDK example product",
+    "prices": [
+     {
+      "amount_type": "fixed",
+      "price_amount": 7000,
+      "price_currency": "usd"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Sandbox SDK example product"
+    },
+    {
+     "path": "prices.0.price_amount",
+     "equals": 7000
+    },
+    {
+     "path": "prices.0.price_currency",
+     "equals": "usd"
+    }
+   ],
+   "capture": {
+    "sandbox_product": "id"
+   }
+  },
+  {
+   "name": "Create the product the checkout examples assume exists",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "capture": {
+    "product": "id"
+   },
+   "body": {
+    "name": "SDK example product",
+    "prices": [
+     {
+      "amount_type": "fixed",
+      "price_amount": 5000,
+      "price_currency": "usd"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Create the customer the portal and ingestion examples assume exists",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "capture": {
+    "customer": "id"
+   },
+   "body": {
+    "email": "examples@example.org",
+    "external_id": "example_customer"
+   }
+  },
+  {
+   "name": "products:list#Production product list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "example": "products:list#doc Production product list",
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "items.0.id",
+     "equals": "{product}"
+    },
+    {
+     "path": "items.0.name",
+     "equals": "SDK example product"
+    },
+    {
+     "path": "items.0.prices.0.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "items.0.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "items.0.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "items.0.prices.0.price_amount",
+     "equals": 5000
+    }
+   ]
+  },
+  {
+   "name": "products:list#Sandbox product list",
+   "method": "GET",
+   "path": "https://sandbox-api.polar.sh/v1/products/",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {sandbox_token}"
+   },
+   "example": "products:list#doc Sandbox product list",
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "items.0.id",
+     "equals": "{sandbox_product}"
+    },
+    {
+     "path": "items.0.name",
+     "equals": "Sandbox SDK example product"
+    },
+    {
+     "path": "items.0.prices.0.product_id",
+     "equals": "{sandbox_product}"
+    },
+    {
+     "path": "items.0.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "items.0.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "items.0.prices.0.price_amount",
+     "equals": 7000
+    }
+   ]
+  },
+  {
+   "name": "checkouts:create#SDK checkout",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "example": "checkouts:create#doc SDK checkout",
+   "body": {
+    "products": [
+     "{product}"
+    ]
+   },
+   "capture": {
+    "checkout": "id"
+   },
+   "expect": [
+    {
+     "path": "product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product.id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product.name",
+     "equals": "SDK example product"
+    },
+    {
+     "path": "product.prices.0.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "product.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "product.prices.0.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "products.0.id",
+     "equals": "{product}"
+    },
+    {
+     "path": "products.0.name",
+     "equals": "SDK example product"
+    },
+    {
+     "path": "products.0.prices.0.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "products.0.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "products.0.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "products.0.prices.0.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "product_price.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product_price.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "product_price.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "product_price.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "prices",
+     "matches": "\"{product}\":\\[\\{[^}]*\"product_id\":\"{product}\"[^}]*\"price_amount\":5000"
+    }
+   ]
+  },
+  {
+   "name": "Read the created checkout to verify the example effect",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/{checkout}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{checkout}"
+    },
+    {
+     "path": "product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "amount",
+     "equals": 5000
+    }
+   ]
+  },
+  {
+   "name": "checkouts:create#Ad-hoc checkout",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "example": "checkouts:create#doc Ad-hoc checkout",
+   "body": {
+    "products": [
+     "{product}"
+    ],
+    "prices": {
+     "{product}": [
+      {
+       "amount_type": "fixed",
+       "price_amount": 10000,
+       "price_currency": "usd"
+      }
+     ]
+    }
+   },
+   "capture": {
+    "checkout": "id"
+   },
+   "expect": [
+    {
+     "path": "product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "amount",
+     "equals": 10000
+    },
+    {
+     "path": "product_price.source",
+     "equals": "ad_hoc"
+    },
+    {
+     "path": "product.id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product.name",
+     "equals": "SDK example product"
+    },
+    {
+     "path": "product.prices.0.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "product.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "product.prices.0.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "products.0.id",
+     "equals": "{product}"
+    },
+    {
+     "path": "products.0.name",
+     "equals": "SDK example product"
+    },
+    {
+     "path": "products.0.prices.0.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "products.0.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "products.0.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "products.0.prices.0.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "product_price.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product_price.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "product_price.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "product_price.price_amount",
+     "equals": 10000
+    },
+    {
+     "path": "net_amount",
+     "equals": 10000
+    },
+    {
+     "path": "total_amount",
+     "equals": 10000
+    },
+    {
+     "path": "currency",
+     "equals": "usd"
+    },
+    {
+     "path": "prices",
+     "matches": "\"{product}\":\\[\\{[^}]*\"product_id\":\"{product}\"[^}]*\"price_amount\":10000"
+    }
+   ]
+  },
+  {
+   "name": "Read the created checkout to verify the example effect",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/{checkout}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{checkout}"
+    },
+    {
+     "path": "product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "amount",
+     "equals": 10000
+    }
+   ]
+  },
+  {
+   "name": "customer-sessions:create#Authenticated portal link",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customer-sessions/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "example": "customer-sessions:create#doc Authenticated portal link",
+   "body": {
+    "customer_id": "{customer}"
+   },
+   "expect": [
+    {
+     "path": "customer_id",
+     "equals": "{customer}"
+    },
+    {
+     "path": "customer_portal_url",
+     "exists": true
+    },
+    {
+     "path": "customer.id",
+     "equals": "{customer}"
+    },
+    {
+     "path": "customer.email",
+     "equals": "examples@example.org"
+    },
+    {
+     "path": "customer.external_id",
+     "equals": "example_customer"
+    }
+   ]
+  },
+  {
+   "name": "events:ingest#SDK ingestion",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/events/ingest",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "example": "events:ingest#doc SDK ingestion",
+   "body": {
+    "events": [
+     {
+      "name": "<value>",
+      "external_customer_id": "usage_customer",
+      "metadata": {
+       "key": "value"
+      }
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "inserted",
+     "equals": 1
+    },
+    {
+     "path": "duplicates",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Read the event the ingestion example stored",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/events/?external_customer_id=usage_customer",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "items.0.name",
+     "equals": "<value>"
+    },
+    {
+     "path": "items.0.external_customer_id",
+     "equals": "usage_customer"
+    },
+    {
+     "path": "items.0.metadata.key",
+     "equals": "value"
+    }
+   ]
+  },
+  {
+   "name": "Replay products:create",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "string",
+    "prices": [
+     {
+      "amount_type": "fixed",
+      "price_amount": 0
+     }
+    ],
+    "recurring_interval": "day",
+    "recurring_interval_count": 1
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "string"
+    },
+    {
+     "path": "recurring_interval",
+     "equals": "day"
+    },
+    {
+     "path": "recurring_interval_count",
+     "equals": 1
+    },
+    {
+     "path": "is_recurring",
+     "equals": true
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "prices.0.price_amount",
+     "equals": 0
+    },
+    {
+     "path": "prices.0.price_currency",
+     "equals": "usd"
+    }
+   ],
+   "capture": {
+    "sdk_product": "id",
+    "sdk_price": "prices.0.id",
+    "sdk_product_row": "",
+    "sdk_price_row": "prices.0"
+   },
+   "example": "products:create#doc OpenAPI SDK products:create"
+  },
+  {
+   "name": "Replay products:get",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/{sdk_product}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "{sdk_product_row}"
+    }
+   ],
+   "example": "products:get#doc OpenAPI SDK products:get"
+  },
+  {
+   "name": "Replay customers:create",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "external_id": "usr_1337",
+    "type": "individual",
+    "email": "customer@example.com"
+   },
+   "expect": [
+    {
+     "path": "external_id",
+     "equals": "usr_1337"
+    },
+    {
+     "path": "email",
+     "equals": "customer@example.com"
+    },
+    {
+     "path": "type",
+     "equals": "individual"
+    }
+   ],
+   "capture": {
+    "sdk_customer": "id",
+    "sdk_customer_row": ""
+   },
+   "example": "customers:create#doc OpenAPI SDK customers:create"
+  },
+  {
+   "name": "Replay webhooks:create_webhook_endpoint",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/webhooks/endpoints",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "url": "https://webhook.site/cb791d80-f26e-4f8c-be88-6e56054192b0",
+    "format": "raw",
+    "events": [
+     "checkout.created"
+    ]
+   },
+   "expect": [
+    {
+     "path": "url",
+     "equals": "https://webhook.site/cb791d80-f26e-4f8c-be88-6e56054192b0"
+    },
+    {
+     "path": "format",
+     "equals": "raw"
+    },
+    {
+     "path": "events",
+     "equals": [
+      "checkout.created"
+     ]
+    },
+    {
+     "path": "enabled",
+     "equals": true
+    }
+   ],
+   "capture": {
+    "sdk_endpoint": "id",
+    "sdk_endpoint_row": ""
+   },
+   "example": "webhooks:create_webhook_endpoint#doc OpenAPI SDK webhooks:create_webhook_endpoint"
+  },
+  {
+   "name": "Replay checkouts:create",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "allow_discount_codes": true,
+    "require_billing_address": false,
+    "allow_trial": true,
+    "is_business_customer": false,
+    "products": [
+     "{sdk_product}"
+    ]
+   },
+   "expect": [
+    {
+     "path": "allow_discount_codes",
+     "equals": true
+    },
+    {
+     "path": "require_billing_address",
+     "equals": false
+    },
+    {
+     "path": "allow_trial",
+     "equals": true
+    },
+    {
+     "path": "is_business_customer",
+     "equals": false
+    },
+    {
+     "path": "product_id",
+     "equals": "{sdk_product}"
+    },
+    {
+     "path": "product",
+     "contains": "{sdk_product_row}"
+    },
+    {
+     "path": "products",
+     "contains": "{sdk_product_row}"
+    },
+    {
+     "path": "product_price.id",
+     "equals": "{sdk_price}"
+    },
+    {
+     "path": "product_price.price_amount",
+     "equals": 0
+    },
+    {
+     "path": "amount",
+     "equals": 0
+    },
+    {
+     "path": "total_amount",
+     "equals": 0
+    },
+    {
+     "path": "prices",
+     "contains": "\"{sdk_product}\""
+    },
+    {
+     "path": "product_price_id",
+     "equals": "{sdk_price}"
+    },
+    {
+     "path": "product_price",
+     "contains": "{sdk_price_row}"
+    },
+    {
+     "path": "allow_discount_codes",
+     "equals": true
+    },
+    {
+     "path": "require_billing_address",
+     "equals": false
+    },
+    {
+     "path": "is_business_customer",
+     "equals": false
+    }
+   ],
+   "capture": {
+    "sdk_checkout": "id",
+    "sdk_open_secret": "client_secret",
+    "sdk_checkout_row": ""
+   },
+   "example": "checkouts:create#doc OpenAPI SDK checkouts:create"
+  },
+  {
+   "name": "Replay checkouts:get",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/{sdk_checkout}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "{sdk_checkout_row}"
+    }
+   ],
+   "example": "checkouts:get#doc OpenAPI SDK checkouts:get"
+  },
+  {
+   "name": "Replay checkouts:client_get",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/client/{sdk_open_secret}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "product",
+     "contains": "{sdk_product_row}"
+    },
+    {
+     "path": "id",
+     "equals": "{sdk_checkout}"
+    },
+    {
+     "path": "status",
+     "equals": "open"
+    },
+    {
+     "path": "product_price.id",
+     "equals": "{sdk_price}"
+    },
+    {
+     "path": "product_price.price_amount",
+     "equals": 0
+    },
+    {
+     "path": "products",
+     "contains": "{sdk_product_row}"
+    },
+    {
+     "path": "prices",
+     "contains": "\"{sdk_product}\""
+    },
+    {
+     "path": "product_price_id",
+     "equals": "{sdk_price}"
+    },
+    {
+     "path": "product_price",
+     "contains": "{sdk_price_row}"
+    },
+    {
+     "path": "allow_discount_codes",
+     "equals": true
+    },
+    {
+     "path": "require_billing_address",
+     "equals": false
+    },
+    {
+     "path": "is_business_customer",
+     "equals": false
+    },
+    {
+     "path": "product_id",
+     "equals": "{sdk_product}"
+    },
+    {
+     "path": "client_secret",
+     "equals": "{sdk_open_secret}"
+    },
+    {
+     "path": "allow_trial",
+     "equals": true
+    }
+   ],
+   "example": "checkouts:client_get#doc OpenAPI SDK checkouts:client_get"
+  },
+  {
+   "name": "Prepare a free checkout with the existing customer for the empty-body SDK confirmation",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "products": [
+     "{sdk_product}"
+    ],
+    "customer_id": "{sdk_customer}"
+   },
+   "expect": [
+    {
+     "path": "amount",
+     "equals": 0
+    },
+    {
+     "path": "customer_id",
+     "equals": "{sdk_customer}"
+    },
+    {
+     "path": "customer_email",
+     "equals": "customer@example.com"
+    }
+   ],
+   "capture": {
+    "sdk_secret": "client_secret",
+    "sdk_confirm_checkout": "id"
+   }
+  },
+  {
+   "name": "Replay checkouts:client_confirm",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/client/{sdk_secret}/confirm",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "confirmed"
+    },
+    {
+     "path": "id",
+     "equals": "{sdk_confirm_checkout}"
+    },
+    {
+     "path": "customer_id",
+     "equals": "{sdk_customer}"
+    },
+    {
+     "path": "customer_email",
+     "equals": "customer@example.com"
+    },
+    {
+     "path": "product",
+     "contains": "{sdk_product_row}"
+    },
+    {
+     "path": "products",
+     "contains": "{sdk_product_row}"
+    },
+    {
+     "path": "product_price.id",
+     "equals": "{sdk_price}"
+    },
+    {
+     "path": "product_price.price_amount",
+     "equals": 0
+    },
+    {
+     "path": "prices",
+     "contains": "\"{sdk_product}\""
+    },
+    {
+     "path": "customer_session_token",
+     "matches": "^polar_cst_"
+    },
+    {
+     "path": "product_price_id",
+     "equals": "{sdk_price}"
+    },
+    {
+     "path": "product_price",
+     "contains": "{sdk_price_row}"
+    },
+    {
+     "path": "allow_discount_codes",
+     "equals": true
+    },
+    {
+     "path": "require_billing_address",
+     "equals": false
+    },
+    {
+     "path": "is_business_customer",
+     "equals": false
+    },
+    {
+     "path": "product_id",
+     "equals": "{sdk_product}"
+    },
+    {
+     "path": "client_secret",
+     "equals": "{sdk_secret}"
+    }
+   ],
+   "example": "checkouts:client_confirm#doc OpenAPI SDK checkouts:client_confirm"
+  },
+  {
+   "name": "Verify the empty-body confirmation created a paid order and subscription",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/orders/?checkout_id={sdk_confirm_checkout}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "items.0.paid",
+     "equals": true
+    },
+    {
+     "path": "items.0.total_amount",
+     "equals": 0
+    },
+    {
+     "path": "items.0.customer_id",
+     "equals": "{sdk_customer}"
+    },
+    {
+     "path": "items.0.product_id",
+     "equals": "{sdk_product}"
+    },
+    {
+     "path": "items.0.checkout_id",
+     "equals": "{sdk_confirm_checkout}"
+    }
+   ],
+   "capture": {
+    "sdk_order_row": "items.0",
+    "sdk_order": "items.0.id"
+   }
+  },
+  {
+   "name": "Read the subscription the confirmation started",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/subscriptions/?customer_id={sdk_customer}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "items.0.status",
+     "equals": "active"
+    },
+    {
+     "path": "items.0.product_id",
+     "equals": "{sdk_product}"
+    },
+    {
+     "path": "items.0.recurring_interval",
+     "equals": "day"
+    }
+   ],
+   "capture": {
+    "sdk_subscription_row": "items.0",
+    "sdk_subscription": "items.0.id"
+   }
+  },
+  {
+   "name": "Replay customers:get",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/{sdk_customer}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "{sdk_customer_row}"
+    }
+   ],
+   "example": "customers:get#doc OpenAPI SDK customers:get"
+  },
+  {
+   "name": "Replay orders:get",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/orders/{sdk_order}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "{sdk_order_row}"
+    }
+   ],
+   "example": "orders:get#doc OpenAPI SDK orders:get"
+  },
+  {
+   "name": "Replay subscriptions:get",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/subscriptions/{sdk_subscription}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "{sdk_subscription_row}"
+    }
+   ],
+   "example": "subscriptions:get#doc OpenAPI SDK subscriptions:get"
+  },
+  {
+   "name": "Create the customer named string by the external-state SDK example",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "email": "external-state@example.org",
+    "external_id": "string"
+   },
+   "expect": [
+    {
+     "path": "email",
+     "equals": "external-state@example.org"
+    },
+    {
+     "path": "external_id",
+     "equals": "string"
+    }
+   ],
+   "capture": {
+    "sdk_external_row": "",
+    "sdk_external_customer": "id"
+   }
+  },
+  {
+   "name": "Replay customers:get_state_external",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/external/string/state",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "external_id",
+     "equals": "string"
+    },
+    {
+     "path": "id",
+     "equals": "{sdk_external_customer}"
+    },
+    {
+     "path": "email",
+     "equals": "external-state@example.org"
+    },
+    {
+     "path": "active_subscriptions",
+     "equals": []
+    },
+    {
+     "path": "granted_benefits",
+     "equals": []
+    }
+   ],
+   "example": "customers:get_state_external#doc OpenAPI SDK customers:get_state_external"
+  },
+  {
+   "name": "Replay customer-sessions:create",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customer-sessions/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "return_url": "https://example.com/account",
+    "customer_id": "{sdk_customer}"
+   },
+   "expect": [
+    {
+     "path": "return_url",
+     "equals": "https://example.com/account"
+    },
+    {
+     "path": "customer_id",
+     "equals": "{sdk_customer}"
+    },
+    {
+     "path": "customer",
+     "contains": "{sdk_customer_row}"
+    },
+    {
+     "path": "customer_portal_url",
+     "contains": "/portal?customer_session_token="
+    }
+   ],
+   "example": "customer-sessions:create#doc OpenAPI SDK customer-sessions:create"
+  },
+  {
+   "name": "Replay events:ingest",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/events/ingest",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "events": [
+     {
+      "name": "string",
+      "customer_id": "{sdk_customer}"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "inserted",
+     "equals": 1
+    },
+    {
+     "path": "duplicates",
+     "equals": 0
+    }
+   ],
+   "example": "events:ingest#doc OpenAPI SDK events:ingest"
+  },
+  {
+   "name": "Read back the SDK event for its existing customer",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/events/?customer_id={sdk_customer}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "items.0.name",
+     "equals": "string"
+    },
+    {
+     "path": "items.0.customer_id",
+     "equals": "{sdk_customer}"
+    },
+    {
+     "path": "items.0.customer",
+     "contains": "{sdk_customer_row}"
+    }
+   ],
+   "capture": {
+    "sdk_event_row": "items.0"
+   }
+  },
+  {
+   "name": "Replay meters:create",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/meters/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "string",
+    "filter": {
+     "conjunction": "and",
+     "clauses": [
+      {
+       "property": "string",
+       "operator": "eq",
+       "value": "string"
+      }
+     ]
+    },
+    "aggregation": {
+     "func": "count"
+    }
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "string"
+    },
+    {
+     "path": "filter",
+     "equals": {
+      "conjunction": "and",
+      "clauses": [
+       {
+        "property": "string",
+        "operator": "eq",
+        "value": "string"
+       }
+      ]
+     }
+    },
+    {
+     "path": "aggregation",
+     "equals": {
+      "func": "count"
+     }
+    },
+    {
+     "path": "unit",
+     "equals": "scalar"
+    }
+   ],
+   "capture": {
+    "sdk_meter": "id",
+    "sdk_meter_row": ""
+   },
+   "example": "meters:create#doc OpenAPI SDK meters:create"
+  },
+  {
+   "name": "Read the complete collection that products:list assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_products": "items"
+   }
+  },
+  {
+   "name": "Replay products:list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_products}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 2
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "products:list#doc OpenAPI SDK products:list"
+  },
+  {
+   "name": "Read the complete collection that customers:list assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_customers": "items"
+   }
+  },
+  {
+   "name": "Replay customers:list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_customers}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 3
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "customers:list#doc OpenAPI SDK customers:list"
+  },
+  {
+   "name": "Read the complete collection that events:list assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/events/?page=1&limit=10&sorting=-timestamp",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_events": "items"
+   }
+  },
+  {
+   "name": "Replay events:list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/events/?page=1&limit=10&sorting=-timestamp",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_events}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 2
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "events:list#doc OpenAPI SDK events:list"
+  },
+  {
+   "name": "Read the complete collection that checkouts:list assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_checkouts": "items"
+   }
+  },
+  {
+   "name": "Replay checkouts:list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_checkouts}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 4
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "checkouts:list#doc OpenAPI SDK checkouts:list"
+  },
+  {
+   "name": "Read the complete collection that orders:list assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/orders/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_orders": "items"
+   }
+  },
+  {
+   "name": "Replay orders:list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/orders/?page=1&limit=10&sorting=-created_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_orders}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "orders:list#doc OpenAPI SDK orders:list"
+  },
+  {
+   "name": "Read the complete collection that subscriptions:list assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/subscriptions/?page=1&limit=10&sorting=-started_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_subscriptions": "items"
+   }
+  },
+  {
+   "name": "Replay subscriptions:list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/subscriptions/?page=1&limit=10&sorting=-started_at",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_subscriptions}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "subscriptions:list#doc OpenAPI SDK subscriptions:list"
+  },
+  {
+   "name": "Read the complete collection that webhooks:list_webhook_endpoints assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/webhooks/endpoints?page=1&limit=10",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_webhooks": "items"
+   }
+  },
+  {
+   "name": "Replay webhooks:list_webhook_endpoints",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/webhooks/endpoints?page=1&limit=10",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_webhooks}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "webhooks:list_webhook_endpoints#doc OpenAPI SDK webhooks:list_webhook_endpoints"
+  },
+  {
+   "name": "Read the complete collection that meters:list assumes exists",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/meters/?page=1&limit=10&sorting=name",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "list_meters": "items"
+   }
+  },
+  {
+   "name": "Replay meters:list",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/meters/?page=1&limit=10&sorting=name",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "contains": "{list_meters}"
+    },
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 1
+    }
+   ],
+   "example": "meters:list#doc OpenAPI SDK meters:list"
+  },
+  {
+   "name": "Create the customer_external_id named by the API overview SDK quickstart",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/customers/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "email": "overview@example.org",
+    "external_id": "customer_external_id"
+   },
+   "expect": [
+    {
+     "path": "email",
+     "equals": "overview@example.org"
+    },
+    {
+     "path": "external_id",
+     "equals": "customer_external_id"
+    }
+   ],
+   "capture": {
+    "overview_customer": "id"
+   }
+  },
+  {
+   "name": "Replay API overview external customer state",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/customers/external/customer_external_id/state",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{overview_customer}"
+    },
+    {
+     "path": "external_id",
+     "equals": "customer_external_id"
+    },
+    {
+     "path": "email",
+     "equals": "overview@example.org"
+    },
+    {
+     "path": "active_subscriptions",
+     "equals": []
+    },
+    {
+     "path": "granted_benefits",
+     "equals": []
+    },
+    {
+     "path": "active_meters.0.meter_id",
+     "equals": "{sdk_meter}"
+    }
+   ],
+   "example": "customers:get_state_external#doc API overview external customer state"
+  },
+  {
+   "name": "Replay Forward the connecting customer IP",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "products": [
+     "{product}"
+    ],
+    "customer_ip_address": "203.0.113.7"
+   },
+   "expect": [
+    {
+     "path": "product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "customer_ip_address",
+     "equals": "203.0.113.7"
+    },
+    {
+     "path": "amount",
+     "equals": 5000
+    },
+    {
+     "path": "product.name",
+     "equals": "SDK example product"
+    },
+    {
+     "path": "product.prices.0.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "product_price.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "product_price.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "products.0.id",
+     "equals": "{product}"
+    },
+    {
+     "path": "products.0.prices.0.price_amount",
+     "equals": 5000
+    },
+    {
+     "path": "prices",
+     "contains": "\"{product}\""
+    },
+    {
+     "path": "product.id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product.prices.0.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "product.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "product.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "products.0.name",
+     "equals": "SDK example product"
+    },
+    {
+     "path": "products.0.prices.0.product_id",
+     "equals": "{product}"
+    },
+    {
+     "path": "products.0.prices.0.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "products.0.prices.0.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "product_price.amount_type",
+     "equals": "fixed"
+    },
+    {
+     "path": "product_price.price_currency",
+     "equals": "usd"
+    },
+    {
+     "path": "allow_discount_codes",
+     "equals": true
+    },
+    {
+     "path": "require_billing_address",
+     "equals": false
+    },
+    {
+     "path": "is_business_customer",
+     "equals": false
+    }
+   ],
+   "capture": {
+    "ip_checkout": "id"
+   },
+   "example": "checkouts:create#doc Forward the connecting customer IP"
+  },
+  {
+   "name": "Read the customer-IP checkout to verify its stored forwarding field",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/checkouts/{ip_checkout}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "customer_ip_address",
+     "equals": "203.0.113.7"
+    },
+    {
+     "path": "product_id",
+     "equals": "{product}"
+    }
+   ]
+  },
+  {
+   "name": "Replay Python checkout legacy product_id spelling",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/checkouts/",
+   "status": 422,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "allow_discount_codes": true,
+    "product_id": "<value>"
+   },
+   "expect": [
+    {
+     "path": "detail.0.loc",
+     "equals": [
+      "body",
+      "products"
+     ]
+    },
+    {
+     "path": "detail.0.type",
+     "equals": "missing"
+    }
+   ],
+   "exampleDiffers": {
+    "status": "The page Python snippet still sends product_id. The vendored CheckoutProductsCreate requires products, so this unchanged request is a documented-schema validation error rather than the page expected checkout."
+   },
+   "example": "checkouts:create#doc Python checkout legacy product_id spelling"
+  },
+  {
+   "name": "Replay Concrete ai_usage event",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/events/ingest",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "events": [
+     {
+      "name": "ai_usage",
+      "external_customer_id": "cus_123",
+      "metadata": {
+       "model": "gpt-4.1-nano",
+       "requests": 1,
+       "total_tokens": 77,
+       "request_tokens": 58,
+       "response_tokens": 19
+      }
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "inserted",
+     "equals": 1
+    },
+    {
+     "path": "duplicates",
+     "equals": 0
+    }
+   ],
+   "example": "events:ingest#doc Concrete ai_usage event"
+  },
+  {
+   "name": "Read the concrete usage event without inventing a Polar customer",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/events/?external_customer_id=cus_123",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 1
+    },
+    {
+     "path": "items.0.name",
+     "equals": "ai_usage"
+    },
+    {
+     "path": "items.0.external_customer_id",
+     "equals": "cus_123"
+    },
+    {
+     "path": "items.0.customer_id",
+     "equals": null
+    },
+    {
+     "path": "items.0.metadata",
+     "equals": {
+      "model": "gpt-4.1-nano",
+      "requests": 1,
+      "total_tokens": 77,
+      "request_tokens": 58,
+      "response_tokens": 19
+     }
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 1",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 1",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 1"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 2",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 2",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 2"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 3",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 3",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 3"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 4",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 4",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 4"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 5",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 5",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 5"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 6",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 6",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 6"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 7",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 7",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 7"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 8",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 8",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 8"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 9",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 9",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 9"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 10",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 10",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 10"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 11",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 11",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 11"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 12",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 12",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 12"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 13",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 13",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 13"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 14",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 14",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 14"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 15",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 15",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 15"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 16",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 16",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 16"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 17",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 17",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 17"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 18",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 18",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 18"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 19",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 19",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 19"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 20",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 20",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 20"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 21",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 21",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 21"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 22",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 22",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 22"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 23",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 23",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 23"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 24",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 24",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 24"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 25",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 25",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 25"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 26",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 26",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 26"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 27",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 27",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 27"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 28",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 28",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 28"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 29",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 29",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 29"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 30",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 30",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 30"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 31",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 31",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 31"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 32",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 32",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 32"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 33",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 33",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 33"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 34",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 34",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 34"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 35",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 35",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 35"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 36",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 36",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 36"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 37",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 37",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 37"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 38",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 38",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 38"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 39",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 39",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 39"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 40",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 40",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 40"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 41",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 41",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 41"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 42",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 42",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 42"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 43",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 43",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 43"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 44",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 44",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 44"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 45",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 45",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 45"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 46",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 46",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 46"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 47",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 47",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 47"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 48",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 48",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 48"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 49",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 49",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 49"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 50",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 50",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 50"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 51",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 51",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 51"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 52",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 52",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 52"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 53",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 53",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 53"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 54",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 54",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 54"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 55",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 55",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 55"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 56",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 56",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 56"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 57",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 57",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 57"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 58",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 58",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 58"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 59",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 59",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 59"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 60",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 60",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 60"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 61",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 61",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 61"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 62",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 62",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 62"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 63",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 63",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 63"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 64",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 64",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 64"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 65",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 65",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 65"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 66",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 66",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 66"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 67",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 67",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 67"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 68",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 68",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 68"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 69",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 69",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 69"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 70",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 70",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 70"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 71",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 71",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 71"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 72",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 72",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 72"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 73",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 73",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 73"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 74",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 74",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 74"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 75",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 75",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 75"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 76",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 76",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 76"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 77",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 77",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 77"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 78",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 78",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 78"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 79",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 79",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 79"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 80",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 80",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 80"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 81",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 81",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 81"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 82",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 82",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 82"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 83",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 83",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 83"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 84",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 84",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 84"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 85",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 85",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 85"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 86",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 86",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 86"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 87",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 87",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 87"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 88",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 88",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 88"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 89",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 89",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 89"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 90",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 90",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 90"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 91",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 91",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 91"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 92",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 92",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 92"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 93",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 93",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 93"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 94",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 94",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 94"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 95",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 95",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 95"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 96",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 96",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 96"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 97",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 97",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 97"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 98",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 98",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 98"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 99",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 99",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 99"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 100",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 100",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 100"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 101",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 101",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 101"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 102",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 102",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 102"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 103",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 103",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 103"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 104",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 104",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 104"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 105",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 105",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 105"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 106",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 106",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 106"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 107",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 107",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 107"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 108",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 108",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 108"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 109",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 109",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 109"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 110",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 110",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 110"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 111",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 111",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 111"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 112",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 112",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 112"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 113",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 113",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 113"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 114",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 114",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 114"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 115",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 115",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 115"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 116",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 116",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 116"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 117",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 117",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 117"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 118",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 118",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 118"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 119",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 119",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 119"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 120",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 120",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 120"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 121",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 121",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 121"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 122",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 122",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 122"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 123",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 123",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 123"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 124",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 124",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 124"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 125",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 125",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 125"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 126",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 126",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 126"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 127",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 127",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 127"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 128",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 128",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 128"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 129",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 129",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 129"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 130",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 130",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 130"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 131",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 131",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 131"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 132",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 132",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 132"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 133",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 133",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 133"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 134",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 134",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 134"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 135",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 135",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 135"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 136",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 136",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 136"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 137",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 137",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 137"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 138",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 138",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 138"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 139",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 139",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 139"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 140",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 140",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 140"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 141",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 141",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 141"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 142",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 142",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 142"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 143",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 143",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 143"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 144",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 144",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 144"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 145",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 145",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 145"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 146",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 146",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 146"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 147",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 147",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 147"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 148",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 148",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 148"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 149",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 149",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 149"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 150",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 150",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 150"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 151",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 151",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 151"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 152",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 152",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 152"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 153",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 153",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 153"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 154",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 154",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 154"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 155",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 155",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 155"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 156",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 156",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 156"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 157",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 157",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 157"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 158",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 158",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 158"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 159",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 159",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 159"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 160",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 160",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 160"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 161",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 161",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 161"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 162",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 162",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 162"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 163",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 163",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 163"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 164",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 164",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 164"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 165",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 165",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 165"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 166",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 166",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 166"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 167",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 167",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 167"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 168",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 168",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 168"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 169",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 169",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 169"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 170",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 170",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 170"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 171",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 171",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 171"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 172",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 172",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 172"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 173",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 173",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 173"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 174",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 174",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 174"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 175",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 175",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 175"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 176",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 176",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 176"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 177",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 177",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 177"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 178",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 178",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 178"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 179",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 179",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 179"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 180",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 180",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 180"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 181",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 181",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 181"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 182",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 182",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 182"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 183",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 183",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 183"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 184",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 184",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 184"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 185",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 185",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 185"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 186",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 186",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 186"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 187",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 187",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 187"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 188",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 188",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 188"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 189",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 189",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 189"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 190",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 190",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 190"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 191",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 191",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 191"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 192",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 192",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 192"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 193",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 193",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 193"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 194",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 194",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 194"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 195",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 195",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 195"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 196",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 196",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 196"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 197",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 197",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 197"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 198",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 198",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 198"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 199",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 199",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 199"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 200",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 200",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 200"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 201",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 201",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 201"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 202",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 202",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 202"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 203",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 203",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 203"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 204",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 204",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 204"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 205",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 205",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 205"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 206",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 206",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 206"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 207",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 207",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 207"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 208",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 208",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 208"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 209",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 209",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 209"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 210",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 210",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 210"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 211",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 211",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 211"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 212",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 212",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 212"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 213",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 213",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 213"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 214",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 214",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 214"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 215",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 215",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 215"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 216",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 216",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 216"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 217",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 217",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 217"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 218",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 218",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 218"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 219",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 219",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 219"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 220",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 220",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 220"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 221",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 221",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 221"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 222",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 222",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 222"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 223",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 223",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 223"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 224",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 224",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 224"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 225",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 225",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 225"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 226",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 226",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 226"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 227",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 227",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 227"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 228",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 228",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 228"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 229",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 229",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 229"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 230",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 230",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 230"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 231",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 231",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 231"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 232",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 232",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 232"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 233",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 233",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 233"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 234",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 234",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 234"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 235",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 235",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 235"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 236",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 236",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 236"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 237",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 237",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 237"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 238",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 238",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 238"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 239",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 239",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 239"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 240",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 240",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 240"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 241",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 241",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 241"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 242",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 242",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 242"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 243",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 243",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 243"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 244",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 244",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 244"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 245",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 245",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 245"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 246",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 246",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 246"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 247",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 247",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 247"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Pagination precondition product 248",
+   "method": "POST",
+   "path": "https://api.polar.sh/v1/products/",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "Pagination product 248",
+    "prices": [
+     {
+      "amount_type": "free"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Pagination product 248"
+    },
+    {
+     "path": "is_recurring",
+     "equals": false
+    },
+    {
+     "path": "prices.0.amount_type",
+     "equals": "free"
+    }
+   ]
+  },
+  {
+   "name": "Read the first page established by the pagination preconditions",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/?page=1&limit=100",
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "status": 200,
+   "capture": {
+    "paged_items": "items"
+   }
+  },
+  {
+   "name": "Replay Paged product request and 250-product illustration",
+   "method": "GET",
+   "path": "https://api.polar.sh/v1/products/?page=1&limit=100",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "pagination.total_count",
+     "equals": 250
+    },
+    {
+     "path": "pagination.max_page",
+     "equals": 3
+    },
+    {
+     "path": "items.99",
+     "exists": true
+    },
+    {
+     "path": "items.100",
+     "exists": false
+    },
+    {
+     "path": "items",
+     "contains": "{paged_items}"
+    }
+   ],
+   "example": "products:list#doc Paged product request and 250-product illustration"
+  }
+ ]
+}

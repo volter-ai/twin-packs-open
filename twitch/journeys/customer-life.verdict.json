@@ -1,0 +1,120 @@
+{
+ "judge": {
+  "agent": "Claude Sonnet (Claude Code general-purpose subagent, dispatched by the twitch twin builder)",
+  "name": "independent journey judge"
+ },
+ "authors": [
+  "the twitch twin builder"
+ ],
+ "sha256": "bb2d18ae5e3d5889aa92fcf4fb2d6ccbdecaa93ff1873725f2396ff7e272fc02",
+ "judgedAt": "2026-10-08",
+ "plausible": true,
+ "rulings": [
+  {
+   "id": "lena-authorization-never-used",
+   "steps": [
+    48,
+    49,
+    54,
+    55
+   ],
+   "barItem": "a stated cause that never happens, and a promise never kept",
+   "reason": "Steps 44 to 49 have Lena cancel, then an hour later authorize Raiku Rig so the simulated viewers may chat as her; step 48 trades her code for lenaToken and step 49 validates it. lenaToken is then used nowhere but step 67's revoke: Lena's chat line (steps 54-55) is typed by her in the popout with her browser session, not sent by the program. The grant she gave, and the 'chat through the API' the life's about line names for both viewers, never happens for her.",
+   "correction": "After step 49 add the program's Send Chat Message as Lena (POST /helix/chat/messages, Bearer {lenaToken}, broadcaster_id {aaronId}, sender_id {lenaId}, message 'first time here, love the avatar', is_sent true) and a ears step that hears it with first-msg=1 and display-name=LurkerLena. Make her popout write (steps 54-55) a different, later line she types herself, heard with first-msg=0. Keep the popout GET (step 53) as it is."
+  },
+  {
+   "id": "validation-is-not-hourly",
+   "steps": [
+    45,
+    58,
+    59,
+    60,
+    62
+   ],
+   "barItem": "a date that contradicts the `wait` steps",
+   "reason": "Step 58 is named 'the program's hourly validation' and step 60 the next one 'four hours after she authorized'. Mina's token is validated at start at 18:10 (step 34). Twitch's Validating Tokens page (https://dev.twitch.tv/docs/authentication/validate-tokens/) says the app validates 'when it starts and on an hourly basis thereafter', so the first is due at 19:10; step 58 is at 19:30 (80 minutes, expires_in 9324), and step 60 at 22:30 follows it by the 180m of step 59, three hours later, and is 4h20 after she authorized, not four hours. A validator on the hour would have found the token expired (it lapses at 22:05:24) at 22:10 and refreshed then.",
+   "correction": "Move step 58 to 19:10 and assert expires_in 10524: waits become 50m after step 44's 18:20 (replacing step 45's 60m), then Mina's validation, then 10m to Lena's 19:20 steps (46-49), then 10m to 19:30 (the conversation, steps 51-57), then 160m to 22:10 for step 60 (name it 'four hours after she authorized') and the refresh (step 61), then 20m to 22:30 for Mina's sign-off and Raiku's PART (steps 62-64), then 15m to 22:45 as now."
+  },
+  {
+   "id": "own-id-read-back",
+   "steps": [
+    36
+   ],
+   "barItem": "a read-back with no need",
+   "reason": "Step 34 validates Mina's token and answers her login and user_id (asserted as {minaId}); step 36 then reads her own account through Get Users with no parameters and asserts the same id and login. The program already holds both from the validate answer one step earlier (Validating Tokens: login, user_id), so step 36 is a get of what the story holds by the same actor. Step 35, the broadcaster's id by login, is a read of something the program does not hold and stands.",
+   "correction": "Remove step 36. Capture Mina's user id from step 34's validate answer (user_id) and use that capture as sender_id in step 37."
+  },
+  {
+   "id": "mina-third-message",
+   "steps": [
+    63
+   ],
+   "barItem": "content that does not bear out the step's name",
+   "reason": "Step 63 is named 'Mina's second message'. Mina has already written 'hi Raiku! what are we building today?' (step 37) and 'is it Godot or Unity?' (step 56); 'gg, see you tomorrow' is her third. The first-msg=0 expectation is right; the name is not.",
+   "correction": "Rename step 63 to say Mina's third message."
+  }
+ ],
+ "doubts": [
+  "Steps 22-23: Aaron opens twitch.tv 'to see his channel as viewers will' but his walk ends at the redirect; the channel page is loaded by the visitor (step 26).",
+  "Step 56: the name says Mina 'opens the channel page herself' but only the chat POST is sent, with no GET of the page by her.",
+  "Step 61 and the outline: the refresh answers the same refresh token; the refresh page says tokens 'may change' and its example shows a different one. Allowed, not documented; the equals assertion pins one allowed behaviour.",
+  "Step 68: the check that the revoked token no longer validates is not something Twitch documents (revoke answers 200); accepted as the program's own check before exit.",
+  "Step 70: 'the channel the stream left': the title and category were set by Aaron in step 15, not by a stream the walk runs; wording only.",
+  "Step 12: the login body carries the redirect as a literal rather than a value read off the login page's form.",
+  "Steps 44 and 46: Lena's cancel and later authorize is a state switched and returned, but the story gives the reason (an hour of watching), so it stands."
+ ],
+ "applied": {
+  "from": "acdce6cc6714d67eaf1c0823ebde0bbe2464c16139c20c937cb4bce07448360f",
+  "wasPlausible": false,
+  "steps": [
+   "36",
+   "45",
+   "48",
+   "49",
+   "54",
+   "55",
+   "58",
+   "59",
+   "60",
+   "62",
+   "63"
+  ],
+  "rulings": [
+   {
+    "id": "lena-authorization-never-used",
+    "steps": [
+     48,
+     49,
+     54,
+     55
+    ],
+    "why": "After Lena's validation (its user_id captured as lenaUser) the program sends 'first time here, love the avatar' as her (Bearer lenaToken, is_sent true) and the ears hear it with first-msg=1 and display-name=LurkerLena; her popout line is now 'the chickens are adorable', heard with first-msg=0; the popout GET stays and shows her API line."
+   },
+   {
+    "id": "validation-is-not-hourly",
+    "steps": [
+     45,
+     58,
+     59,
+     60,
+     62
+    ],
+    "why": "Waits now 50m to 19:10 (Mina's validation, expires_in 10524), 10m to Lena's 19:20, 10m to 19:30, 160m to 22:10 (the 401 named four hours after she authorized, and the refresh), 20m to 22:30 (sign-off and PART), 15m to 22:45."
+   },
+   {
+    "id": "own-id-read-back",
+    "steps": [
+     36
+    ],
+    "why": "The Get Users read of Mina's own account is removed; her validate answer's user_id is captured as minaUser and used as sender_id."
+   },
+   {
+    "id": "mina-third-message",
+    "steps": [
+     63
+    ],
+    "why": "The ears step is named Mina's third message."
+   }
+  ]
+ }
+}

@@ -1,0 +1,1339 @@
+{
+ "vendor": "twitch",
+ "author": "the twitch twin builder",
+ "host": "api.twitch.tv",
+ "about": "Twitch's published examples and stated rules for the operations the twin serves, each sent as its page publishes it: id.twitch.tv's token grants, validate and revoke, then Helix's Get Users, Get and Modify Channel Information, Get Streams, Get Stream Key, Send Chat Message and Search Categories, after the setup a developer makes (an account, an app, its tokens through the authorize page).",
+ "steps": [
+  {
+   "name": "Setup: TwitchDev signs up as twitchdev and registers Dev Console App in the developer console",
+   "method": "POST",
+   "path": "/_twin/console",
+   "status": 200,
+   "body": {
+    "login": "twitchdev",
+    "password": "dev-pass-1",
+    "email": "not-real@email.com",
+    "display_name": "TwitchDev",
+    "application": {
+     "name": "Dev Console App",
+     "redirect_uris": [
+      "http://localhost:3000"
+     ]
+    }
+   },
+   "capture": {
+    "cid": "client_id",
+    "csec": "client_secret",
+    "devId": "user_id"
+   },
+   "expect": [
+    {
+     "path": "login",
+     "equals": "twitchdev"
+    }
+   ]
+  },
+  {
+   "name": "Setup: the Twitch channel has an account, twitch",
+   "method": "POST",
+   "path": "/_twin/accounts",
+   "status": 201,
+   "body": {
+    "login": "twitch",
+    "password": "twitch-pass-1",
+    "email": "twitch@twitch.example",
+    "display_name": "Twitch"
+   },
+   "capture": {
+    "twId": "id"
+   },
+   "expect": [
+    {
+     "path": "login",
+     "equals": "twitch"
+    }
+   ]
+  },
+  {
+   "name": "Client credentials grant flow: the app gets an app access token",
+   "example": "oauth2Token#doc Client credentials grant flow",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&client_secret={csec}&grant_type=client_credentials",
+   "status": 200,
+   "capture": {
+    "app": "access_token"
+   },
+   "expect": [
+    {
+     "path": "expires_in",
+     "equals": 5011271
+    },
+    {
+     "path": "token_type",
+     "equals": "bearer"
+    }
+   ]
+  },
+  {
+   "name": "Setup: TwitchDev opens the authorize page for the app, not logged in",
+   "method": "GET",
+   "path": "https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=channel%3Amoderate+chat%3Aedit+chat%3Aread&state=c3ab8aa609ea11e793ae92361f002671&force_verify=",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Log in to Twitch"
+    }
+   ]
+  },
+  {
+   "name": "Setup: TwitchDev logs in on the page",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/authorize",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=channel%3Amoderate+chat%3Aedit+chat%3Aread&state=c3ab8aa609ea11e793ae92361f002671&force_verify=&intent=login&username=twitchdev&password=dev-pass-1",
+   "status": 302,
+   "capture": {
+    "devSession": "header:set-cookie:auth-token=([^;]+)"
+   }
+  },
+  {
+   "name": "Setup: TwitchDev clicks Authorize",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/authorize",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "auth-token={devSession}"
+   },
+   "body": "response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=channel%3Amoderate+chat%3Aedit+chat%3Aread&state=c3ab8aa609ea11e793ae92361f002671&force_verify=&intent=authorize",
+   "status": 302,
+   "capture": {
+    "code3": "header:location:code=([a-z0-9]+)"
+   }
+  },
+  {
+   "name": "the app trades TwitchDev's code for a user access token",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&client_secret={csec}&code={code3}&grant_type=authorization_code&redirect_uri=http%3A%2F%2Flocalhost%3A3000",
+   "status": 200,
+   "capture": {
+    "tok3": "access_token",
+    "ref3": "refresh_token"
+   },
+   "example": "oauth2Token#doc Use the authorization code to get a token",
+   "expect": [
+    {
+     "path": "scope",
+     "equals": [
+      "channel:moderate",
+      "chat:edit",
+      "chat:read"
+     ]
+    },
+    {
+     "path": "expires_in",
+     "equals": 14124
+    },
+    {
+     "path": "token_type",
+     "equals": "bearer"
+    }
+   ]
+  },
+  {
+   "name": "Use the authorization code to get a token: a code the authorize page never issued",
+   "example": "oauth2Token#doc Use the authorization code to get a token: a code the authorize page did not issue",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&client_secret={csec}&code=gulfwdmys5lsm6qyz4xiz9q32l10&grant_type=authorization_code&redirect_uri=http%3A%2F%2Flocalhost%3A3000",
+   "status": 400,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "Invalid authorization code"
+    }
+   ]
+  },
+  {
+   "name": "How to use a refresh token: the app refreshes TwitchDev's grant",
+   "example": "oauth2Token#doc How to use a refresh token",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={encoded:ref3}&client_id={cid}&client_secret={csec}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "refresh_token",
+     "equals": "{ref3}"
+    },
+    {
+     "path": "scope",
+     "equals": [
+      "channel:moderate",
+      "chat:edit",
+      "chat:read"
+     ]
+    },
+    {
+     "path": "token_type",
+     "equals": "bearer"
+    },
+    {
+     "path": "expires_in",
+     "equals": 14124
+    }
+   ],
+   "exampleDiffers": {
+    "scope": "The answer carries the scopes associated with the grant refreshed (the page: \"the response contains the new access token, refresh token, and scopes associated with the new grant\"): this grant is the one TwitchDev authorized above, channel:moderate, chat:edit and chat:read; the page's example refreshed a grant of two other scopes.",
+    "expires_in": "A user access token lasts about four hours; the page's 15583 is its own token's lifetime and the code example's 14124 the twin's."
+   }
+  },
+  {
+   "name": "How to use a refresh token: a refresh token Twitch does not hold",
+   "example": "oauth2Token#doc How to use a refresh token: the request fails",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token=gdw3k62zpqi0kw01escg7zgbdhtxi6hm0155tiwcztxczkx17&client_id={cid}&client_secret={csec}",
+   "status": 400
+  },
+  {
+   "name": "Setup: TwitchDev opens the authorize page for the app again, still logged in",
+   "method": "GET",
+   "path": "https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=channel%3Aread%3Asubscriptions&state=7f2e1c4a9b3d4e5f8a6b0c1d2e3f4a5b&force_verify=",
+   "headers": {
+    "cookie": "auth-token={devSession}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Authorize Dev Console App"
+    }
+   ]
+  },
+  {
+   "name": "Setup: TwitchDev clicks Authorize",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/authorize",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "auth-token={devSession}"
+   },
+   "body": "response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=channel%3Aread%3Asubscriptions&state=7f2e1c4a9b3d4e5f8a6b0c1d2e3f4a5b&force_verify=&intent=authorize",
+   "status": 302,
+   "capture": {
+    "codeSub": "header:location:code=([a-z0-9]+)"
+   }
+  },
+  {
+   "name": "Setup: the app trades TwitchDev's code for a user access token",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&client_secret={csec}&code={codeSub}&grant_type=authorization_code&redirect_uri=http%3A%2F%2Flocalhost%3A3000",
+   "status": 200,
+   "capture": {
+    "subTok": "access_token"
+   }
+  },
+  {
+   "name": "How to validate a token: TwitchDev's channel:read:subscriptions token",
+   "example": "oauth2Validate#doc How to validate a token",
+   "method": "GET",
+   "path": "https://id.twitch.tv/oauth2/validate",
+   "headers": {
+    "authorization": "OAuth {subTok}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "client_id",
+     "equals": "{cid}"
+    },
+    {
+     "path": "login",
+     "equals": "twitchdev"
+    },
+    {
+     "path": "scopes",
+     "equals": [
+      "channel:read:subscriptions"
+     ]
+    },
+    {
+     "path": "user_id",
+     "equals": "{devId}"
+    }
+   ],
+   "exampleDiffers": {
+    "expires_in": "The seconds the token has left: a user access token of about four hours (14124) just issued; the page's 5520838 is its own token's."
+   }
+  },
+  {
+   "name": "How to validate a token: a token that is not valid",
+   "example": "oauth2Validate#doc How to validate a token: a token that is not valid",
+   "method": "GET",
+   "path": "https://id.twitch.tv/oauth2/validate",
+   "headers": {
+    "authorization": "OAuth 2gbdx6oar67tqtcmt49t3wpcgycthx"
+   },
+   "status": 401
+  },
+  {
+   "name": "Revoking Access Tokens: the app revokes the token it no longer needs",
+   "example": "oauth2Revoke#doc Revoking Access Tokens",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/revoke",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&token={subTok}",
+   "status": 200
+  },
+  {
+   "name": "the revoked token no longer validates",
+   "method": "GET",
+   "path": "https://id.twitch.tv/oauth2/validate",
+   "headers": {
+    "authorization": "OAuth {subTok}"
+   },
+   "status": 401,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "invalid access token"
+    }
+   ]
+  },
+  {
+   "name": "Revoking Access Tokens: a token Twitch never issued",
+   "example": "oauth2Revoke#doc Revoking Access Tokens: a token the client does not hold",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/revoke",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&token=jostpf5q0uzmxmkba9iyug38kjtgh",
+   "status": 400
+  },
+  {
+   "name": "Revoking Access Tokens: a client ID Twitch does not know",
+   "example": "oauth2Revoke#doc Revoking Access Tokens: a client ID that is not valid",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/revoke",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id=hof5gwx0su6owfnys0yan9c87zr6t&token={tok3}",
+   "status": 404
+  },
+  {
+   "name": "Setup: TwitchDev opens the authorize page for the app again, still logged in",
+   "method": "GET",
+   "path": "https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=user%3Aread%3Aemail+channel%3Amanage%3Abroadcast+channel%3Aread%3Astream_key+user%3Awrite%3Achat+moderator%3Amanage%3Achat_messages&state=5d41402abc4b2a76b9719d911017c592&force_verify=",
+   "headers": {
+    "cookie": "auth-token={devSession}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Authorize Dev Console App"
+    }
+   ]
+  },
+  {
+   "name": "Setup: TwitchDev clicks Authorize",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/authorize",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "auth-token={devSession}"
+   },
+   "body": "response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=user%3Aread%3Aemail+channel%3Amanage%3Abroadcast+channel%3Aread%3Astream_key+user%3Awrite%3Achat+moderator%3Amanage%3Achat_messages&state=5d41402abc4b2a76b9719d911017c592&force_verify=&intent=authorize",
+   "status": 302,
+   "capture": {
+    "codeDev": "header:location:code=([a-z0-9]+)"
+   }
+  },
+  {
+   "name": "Setup: the app trades TwitchDev's code for a user access token",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&client_secret={csec}&code={codeDev}&grant_type=authorization_code&redirect_uri=http%3A%2F%2Flocalhost%3A3000",
+   "status": 200,
+   "capture": {
+    "dev": "access_token"
+   }
+  },
+  {
+   "name": "Setup: Twitch opens the authorize page for the app, not logged in",
+   "method": "GET",
+   "path": "https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=user%3Awrite%3Achat&state=9e107d9d372bb6826bd81d3542a419d6&force_verify=",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Log in to Twitch"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Twitch logs in on the page",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/authorize",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=user%3Awrite%3Achat&state=9e107d9d372bb6826bd81d3542a419d6&force_verify=&intent=login&username=twitch&password=twitch-pass-1",
+   "status": 302,
+   "capture": {
+    "twSession": "header:set-cookie:auth-token=([^;]+)"
+   }
+  },
+  {
+   "name": "Setup: Twitch clicks Authorize",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/authorize",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "auth-token={twSession}"
+   },
+   "body": "response_type=code&client_id={cid}&redirect_uri=http%3A%2F%2Flocalhost%3A3000&scope=user%3Awrite%3Achat&state=9e107d9d372bb6826bd81d3542a419d6&force_verify=&intent=authorize",
+   "status": 302,
+   "capture": {
+    "codeTw": "header:location:code=([a-z0-9]+)"
+   }
+  },
+  {
+   "name": "Setup: the app trades Twitch's code for a user access token",
+   "method": "POST",
+   "path": "https://id.twitch.tv/oauth2/token",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={cid}&client_secret={csec}&code={codeTw}&grant_type=authorization_code&redirect_uri=http%3A%2F%2Flocalhost%3A3000",
+   "status": 200,
+   "capture": {
+    "twTok": "access_token"
+   }
+  },
+  {
+   "name": "Get Users: TwitchDev reads their own account, with their email",
+   "example": "getUsers#doc Get Users: Gets information about the specified user",
+   "method": "GET",
+   "path": "/helix/users?id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.id",
+     "equals": "{devId}"
+    },
+    {
+     "path": "data.0.login",
+     "equals": "twitchdev"
+    },
+    {
+     "path": "data.0.display_name",
+     "equals": "TwitchDev"
+    },
+    {
+     "path": "data.0.email",
+     "equals": "not-real@email.com"
+    }
+   ]
+  },
+  {
+   "name": "Get Users: no id or login, the user in the access token",
+   "example": "getUsers#doc Get Users: the user in the access token",
+   "method": "GET",
+   "path": "/helix/users",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.id",
+     "equals": "{devId}"
+    },
+    {
+     "path": "data.0.login",
+     "equals": "twitchdev"
+    },
+    {
+     "path": "data.0.display_name",
+     "equals": "TwitchDev"
+    },
+    {
+     "path": "data.0.email",
+     "equals": "not-real@email.com"
+    }
+   ]
+  },
+  {
+   "name": "Get Users: the app token names no user",
+   "example": "getUsers#doc Get Users: no id or login with an app access token",
+   "method": "GET",
+   "path": "/helix/users",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 400
+  },
+  {
+   "name": "Get Users: no Authorization header",
+   "example": "getUsers#doc Get Users: no Authorization header",
+   "method": "GET",
+   "path": "/helix/users?login=twitchdev",
+   "headers": {
+    "client-id": "{cid}"
+   },
+   "status": 401
+  },
+  {
+   "name": "Get Users: a token Twitch did not issue",
+   "example": "getUsers#doc Get Users: an access token that is not valid",
+   "method": "GET",
+   "path": "/helix/users?login=twitchdev",
+   "headers": {
+    "authorization": "Bearer cfabdegwdoklmawdzdo98xt2fo512y",
+    "client-id": "{cid}"
+   },
+   "status": 401
+  },
+  {
+   "name": "Get Users: another app's Client-Id",
+   "example": "getUsers#doc Get Users: a Client-Id that is not the token's",
+   "method": "GET",
+   "path": "/helix/users?login=twitchdev",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "uo6dggojyb8d6soh92zknwmi5ej1q2"
+   },
+   "status": 401
+  },
+  {
+   "name": "Modify Channel Information: TwitchDev sets the game, title, language and tags",
+   "example": "modifyChannelInformation#doc Modify Channel Information: game, title, language and tags",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "game_id": "33214",
+    "title": "there are helicopters in the game? REASON TO PLAY FORTNITE found",
+    "broadcaster_language": "en",
+    "tags": [
+     "LevelingUp"
+    ]
+   },
+   "status": 204
+  },
+  {
+   "name": "Modify Channel Information: TwitchDev adds a content label, removes another and marks branded content",
+   "example": "modifyChannelInformation#doc Modify Channel Information: content classification labels added and removed",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content_classification_labels": [
+     {
+      "id": "Gambling",
+      "is_enabled": true
+     },
+     {
+      "id": "DrugsIntoxication",
+      "is_enabled": false
+     }
+    ],
+    "is_branded_content": true
+   },
+   "status": 204
+  },
+  {
+   "name": "Get Channel Information: the TwitchDev channel as the two updates left it",
+   "example": "getChannelInformation#doc Get Channel Information: Gets information about the TwitchDev channel",
+   "method": "GET",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.broadcaster_id",
+     "equals": "{devId}"
+    },
+    {
+     "path": "data.0.broadcaster_login",
+     "equals": "twitchdev"
+    },
+    {
+     "path": "data.0.broadcaster_name",
+     "equals": "TwitchDev"
+    },
+    {
+     "path": "data.0.broadcaster_language",
+     "equals": "en"
+    },
+    {
+     "path": "data.0.game_id",
+     "equals": "33214"
+    },
+    {
+     "path": "data.0.game_name",
+     "equals": "Fortnite"
+    },
+    {
+     "path": "data.0.title",
+     "equals": "there are helicopters in the game? REASON TO PLAY FORTNITE found"
+    },
+    {
+     "path": "data.0.tags",
+     "equals": [
+      "LevelingUp"
+     ]
+    },
+    {
+     "path": "data.0.content_classification_labels",
+     "equals": [
+      "Gambling"
+     ]
+    },
+    {
+     "path": "data.0.is_branded_content",
+     "equals": true
+    },
+    {
+     "path": "data.0.delay",
+     "equals": 0
+    }
+   ],
+   "exampleDiffers": {
+    "data[].content_classification_labels": "The channel holds the labels its broadcaster set (Gambling added, DrugsIntoxication removed, the step before). The page's channel also has MatureGame, a label Twitch applies for a mature-rated game: Modify Channel Information's body names only the six a broadcaster can set (DebatedSocialIssuesAndPolitics, DrugsIntoxication, SexualThemes, ViolentGraphic, Gambling, ProfanityVulgarity), and the page's list is that channel's own."
+   }
+  },
+  {
+   "name": "Get Channel Information: no broadcaster_id",
+   "example": "getChannelInformation#doc Get Channel Information: no broadcaster_id",
+   "method": "GET",
+   "path": "/helix/channels",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 400
+  },
+  {
+   "name": "Modify Channel Information: an app access token",
+   "example": "modifyChannelInformation#doc Modify Channel Information: an app access token",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "title": "Hello"
+   },
+   "status": 401
+  },
+  {
+   "name": "Modify Channel Information: a token without channel:manage:broadcast",
+   "example": "modifyChannelInformation#doc Modify Channel Information: a token without channel:manage:broadcast",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {tok3}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "title": "Hello"
+   },
+   "status": 401
+  },
+  {
+   "name": "Modify Channel Information: no broadcaster_id",
+   "example": "modifyChannelInformation#doc Modify Channel Information: no broadcaster_id",
+   "method": "PATCH",
+   "path": "/helix/channels",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "title": "Hello"
+   },
+   "status": 400
+  },
+  {
+   "name": "Modify Channel Information: another broadcaster's channel",
+   "example": "modifyChannelInformation#doc Modify Channel Information: another broadcaster's channel",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={twId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "title": "Hello"
+   },
+   "status": 401
+  },
+  {
+   "name": "Modify Channel Information: nothing to update",
+   "example": "modifyChannelInformation#doc Modify Channel Information: nothing to update",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {},
+   "status": 400
+  },
+  {
+   "name": "Modify Channel Information: an empty title",
+   "example": "modifyChannelInformation#doc Modify Channel Information: an empty title",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "title": ""
+   },
+   "status": 400
+  },
+  {
+   "name": "Modify Channel Information: a game ID Twitch does not know",
+   "example": "modifyChannelInformation#doc Modify Channel Information: a game ID Twitch does not know",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "game_id": "999999999"
+   },
+   "status": 400
+  },
+  {
+   "name": "Modify Channel Information: the category unset",
+   "example": "modifyChannelInformation#doc Modify Channel Information: the category unset",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "game_id": "0"
+   },
+   "status": 204
+  },
+  {
+   "name": "Modify Channel Information: a delay from a broadcaster without partner status",
+   "example": "modifyChannelInformation#doc Modify Channel Information: a delay from a broadcaster without partner status",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "delay": 30
+   },
+   "status": 400
+  },
+  {
+   "name": "Modify Channel Information: more than ten tags",
+   "example": "modifyChannelInformation#doc Modify Channel Information: more than ten tags",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "tags": [
+     "one",
+     "two",
+     "three",
+     "four",
+     "five",
+     "six",
+     "seven",
+     "eight",
+     "nine",
+     "ten",
+     "eleven"
+    ]
+   },
+   "status": 400
+  },
+  {
+   "name": "Modify Channel Information: a tag longer than 25 characters",
+   "example": "modifyChannelInformation#doc Modify Channel Information: a tag longer than 25 characters",
+   "method": "PATCH",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "tags": [
+     "ThisTagIsLongerThanTwentyFiveCharacters"
+    ]
+   },
+   "status": 400
+  },
+  {
+   "name": "Get Channel Information: TwitchDev's category, unset",
+   "method": "GET",
+   "path": "/helix/channels?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.game_id",
+     "equals": ""
+    },
+    {
+     "path": "data.0.game_name",
+     "equals": ""
+    }
+   ]
+  },
+  {
+   "name": "Get Streams: a type that is not all or live",
+   "example": "getStreams#doc Get Streams: a type that is not all or live",
+   "method": "GET",
+   "path": "/helix/streams?type=rerun",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 400
+  },
+  {
+   "name": "Get Streams: a page size outside 1 to 100",
+   "example": "getStreams#doc Get Streams: a page size outside 1 to 100",
+   "method": "GET",
+   "path": "/helix/streams?first=101",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 400
+  },
+  {
+   "name": "Get Stream Key: TwitchDev reads the channel's key",
+   "example": "getStreamKey#doc Get Stream Key",
+   "method": "GET",
+   "path": "/helix/streams/key?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.stream_key",
+     "matches": "^live_{devId}_[a-z0-9]{16}$"
+    }
+   ]
+  },
+  {
+   "name": "Get Stream Key: an app access token",
+   "example": "getStreamKey#doc Get Stream Key: an app access token",
+   "method": "GET",
+   "path": "/helix/streams/key?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 401
+  },
+  {
+   "name": "Get Stream Key: a token without channel:read:stream_key",
+   "example": "getStreamKey#doc Get Stream Key: a token without channel:read:stream_key",
+   "method": "GET",
+   "path": "/helix/streams/key?broadcaster_id={devId}",
+   "headers": {
+    "authorization": "Bearer {tok3}",
+    "client-id": "{cid}"
+   },
+   "status": 401
+  },
+  {
+   "name": "Get Stream Key: no broadcaster_id",
+   "example": "getStreamKey#doc Get Stream Key: no broadcaster_id",
+   "method": "GET",
+   "path": "/helix/streams/key",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}"
+   },
+   "status": 400
+  },
+  {
+   "name": "Get Stream Key: another broadcaster's key",
+   "example": "getStreamKey#doc Get Stream Key: another broadcaster's key",
+   "method": "GET",
+   "path": "/helix/streams/key?broadcaster_id={twId}",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}"
+   },
+   "status": 401
+  },
+  {
+   "name": "Setup: TwitchDev says hello in the Twitch channel's chat",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}",
+    "message": "Hello, world! twitchdevHype"
+   },
+   "status": 200,
+   "capture": {
+    "hello": "data.0.message_id"
+   },
+   "expect": [
+    {
+     "path": "data.0.is_sent",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Setup: a logged-out reader joins the Twitch channel's chat",
+   "socket": "reader",
+   "open": "wss://irc-ws.chat.twitch.tv/",
+   "send": [
+    "CAP REQ :twitch.tv/tags",
+    "PASS SCHMOOPIIE",
+    "NICK justinfan12826",
+    "JOIN #twitch"
+   ],
+   "expect": [
+    {
+     "path": "frames.2",
+     "contains": ":justinfan12826.tmi.twitch.tv 366 justinfan12826 #twitch :End of /NAMES list\r\n"
+    }
+   ]
+  },
+  {
+   "name": "Send Chat Message: a reply to that message",
+   "example": "sendChatMessage#doc Send Chat Message: a reply",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}",
+    "message": "absolutely!",
+    "reply_parent_message_id": "{hello}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.is_sent",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Setup: the reader hears the reply with its parent message named",
+   "socket": "reader",
+   "expect": [
+    {
+     "path": "frames.0",
+     "contains": "reply-parent-msg-id={hello};"
+    },
+    {
+     "path": "frames.0",
+     "contains": "reply-parent-msg-body=Hello,\\sworld!\\stwitchdevHype;"
+    },
+    {
+     "path": "frames.0",
+     "contains": "reply-parent-user-login=twitchdev;"
+    },
+    {
+     "path": "frames.0",
+     "contains": " PRIVMSG #twitch :absolutely!\r\n"
+    }
+   ]
+  },
+  {
+   "name": "Setup: the reader hangs up",
+   "socket": "reader",
+   "close": true,
+   "status": 1000
+  },
+  {
+   "name": "Send Chat Message: TwitchDev sends and pins a message in their own chat",
+   "example": "sendChatMessage#doc Send Chat Message: sent and pinned",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{devId}",
+    "sender_id": "{devId}",
+    "message": "Welcome! Read the rules first.",
+    "pin": true
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.is_sent",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Send Chat Message: no broadcaster_id",
+   "example": "sendChatMessage#doc Send Chat Message: no broadcaster_id",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sender_id": "{devId}",
+    "message": "Hello, world!"
+   },
+   "status": 400
+  },
+  {
+   "name": "Send Chat Message: no sender_id",
+   "example": "sendChatMessage#doc Send Chat Message: no sender_id",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "message": "Hello, world!"
+   },
+   "status": 400
+  },
+  {
+   "name": "Send Chat Message: no message",
+   "example": "sendChatMessage#doc Send Chat Message: no message",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}"
+   },
+   "status": 400
+  },
+  {
+   "name": "Send Chat Message: a broadcaster_id Twitch does not know",
+   "example": "sendChatMessage#doc Send Chat Message: a broadcaster_id Twitch does not know",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "999999999",
+    "sender_id": "{devId}",
+    "message": "Hello, world!"
+   },
+   "status": 400
+  },
+  {
+   "name": "Send Chat Message: a sender who is not the token's user",
+   "example": "sendChatMessage#doc Send Chat Message: a sender who is not the token's user",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{twId}",
+    "message": "Hello, world!"
+   },
+   "status": 401
+  },
+  {
+   "name": "Send Chat Message: a token without user:write:chat",
+   "example": "sendChatMessage#doc Send Chat Message: a token without user:write:chat",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {tok3}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}",
+    "message": "Hello, world!"
+   },
+   "status": 401
+  },
+  {
+   "name": "Send Chat Message: for_source_only with a user access token",
+   "example": "sendChatMessage#doc Send Chat Message: for_source_only with a user access token",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}",
+    "message": "Hello, world!",
+    "for_source_only": true
+   },
+   "status": 400
+  },
+  {
+   "name": "Send Chat Message: a reply that is pinned",
+   "example": "sendChatMessage#doc Send Chat Message: a reply that is pinned",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{devId}",
+    "sender_id": "{devId}",
+    "message": "absolutely!",
+    "reply_parent_message_id": "{hello}",
+    "pin": true
+   },
+   "status": 400
+  },
+  {
+   "name": "Send Chat Message: pinned without moderator:manage:chat_messages",
+   "example": "sendChatMessage#doc Send Chat Message: pinned without moderator:manage:chat_messages",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {twTok}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{twId}",
+    "message": "Hello, world!",
+    "pin": true
+   },
+   "status": 401
+  },
+  {
+   "name": "Send Chat Message: pinned by a sender who is not the broadcaster",
+   "example": "sendChatMessage#doc Send Chat Message: pinned by a sender who is not the broadcaster",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}",
+    "message": "Hello, world!",
+    "pin": true
+   },
+   "status": 403
+  },
+  {
+   "name": "Send Chat Message: a reply to a message that is not there",
+   "example": "sendChatMessage#doc Send Chat Message: a reply to a message that is not there",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}",
+    "message": "absolutely!",
+    "reply_parent_message_id": "885196de-cb67-427a-baa8-82f9b0fcd05f"
+   },
+   "status": 400
+  },
+  {
+   "name": "Send Chat Message: a message of more than 500 characters",
+   "example": "sendChatMessage#doc Send Chat Message: a message of more than 500 characters",
+   "method": "POST",
+   "path": "/helix/chat/messages",
+   "headers": {
+    "authorization": "Bearer {dev}",
+    "client-id": "{cid}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "broadcaster_id": "{twId}",
+    "sender_id": "{devId}",
+    "message": {
+     "$fill": {
+      "text": "Hello, world! ",
+      "bytes": 501
+     }
+    }
+   },
+   "status": 422
+  },
+  {
+   "name": "Search Categories: the categories with fort in the name",
+   "example": "searchCategories#doc Search Categories: Gets the list of games and categories that contain fort in the name",
+   "method": "GET",
+   "path": "/helix/search/categories?query=fort",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.0.id",
+     "equals": "33214"
+    },
+    {
+     "path": "data.0.name",
+     "equals": "Fortnite"
+    },
+    {
+     "path": "pagination",
+     "equals": {}
+    }
+   ],
+   "exampleDiffers": {
+    "pagination.cursor": "The page's list goes on (its \"...\"); the twin knows the categories the reference's examples name, and Fortnite is the one holding fort, so the list ends on this page and its Pagination object is empty (the API guide: \"The Pagination object is empty if there are no more pages\")."
+   }
+  },
+  {
+   "name": "Search Categories: no query",
+   "example": "searchCategories#doc Search Categories: no query",
+   "method": "GET",
+   "path": "/helix/search/categories",
+   "headers": {
+    "authorization": "Bearer {app}",
+    "client-id": "{cid}"
+   },
+   "status": 400
+  },
+  {
+   "name": "Chat: a client logs in with a token Twitch cannot authenticate (the IRC page's stated failure)",
+   "socket": "bot",
+   "open": "wss://irc-ws.chat.twitch.tv/",
+   "send": [
+    "PASS oauth:yfvzjqb705z12hrhy1zkwa9xt7v662",
+    "NICK twitchdev"
+   ],
+   "status": 1000,
+   "expect": [
+    {
+     "path": "frames.0",
+     "equals": ":tmi.twitch.tv NOTICE * :Login authentication failed\r\n"
+    }
+   ]
+  }
+ ],
+ "notReplayed": {
+  "oauth2Token#doc Device code grant flow: the token for an authorized device code": "The device code grant is the twin's gap: no demanded app and no step of the life starts a device flow (POST /oauth2/device is not served), so the token endpoint answers this grant as the twin answers what it does not serve.",
+  "modifyChannelInformation#doc Modify Channel Information: Set CCLs for a Channel": "The page publishes this body with typographic quotes and // comments, so it is not JSON a client can send; what it does (labels added and removed, is_branded_content) is replayed from the request body table as \"content classification labels added and removed\".",
+  "getStreams#doc Get Streams: Gets information about the 20 most active streams": "A stream exists only while a broadcaster's encoder publishes RTMP to the ingest (live media); no journey step speaks RTMP yet (the walk has no RTMP client), so no World a walk makes holds a live stream to list.",
+  "getStreams#doc Get Streams: Gets streams for the specified logins": "As the list of the most active streams: a live stream is made only by an encoder's RTMP publish, which no journey step can make.",
+  "sendChatMessage#doc Send Chat Message": "The example sets for_source_only, which \"can only be set when utilizing an App Access Token\" (its body table): the app access token path (a prior user:bot and channel:bot authorization) is the twin's gap, and no demanded caller sends chat with one."
+ }
+}

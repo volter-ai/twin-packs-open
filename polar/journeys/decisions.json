@@ -1,0 +1,179 @@
+{
+ "about": "polar's decision table (the P3 procedure). Polar is the money in of Volter's platform (twin-world apps/billing over @polar-sh/sdk) and of Open Autonomy's patronage (apps/platform/src/polar.ts over fetch): an organization's meters and products, checkouts paid on the hosted checkout page (which make the order and, for a recurring product, the subscription), customers and their state by the application's own id, customer sessions for the portal, usage events against the meters, and the signed webhooks of the organization's endpoints. The core serves the meters and the webhook endpoints' list (plain objects); every answer that embeds another object or write that makes others is a handler. Every other operation is the gap, those of a declared resource listed in the manifest's unmodeled. Relay adds source-pinned native product/order reads and client-secret offline confirmation; its unmounted recurring source and formerly unimplemented refunds do not establish journey execution.",
+ "decisions": [
+  {
+   "operation": "meters:list",
+   "demand": "Twin's biller finds its meters by name at boot (apps/billing/src/polar.ts:27)",
+   "mechanism": "core",
+   "why": "a plain list of stored meters, newest first, filtered by name; the customer entry's catalog bootstrap (first-use.json billing.mjs) finds the four meters by name, and its readback finds the same ids"
+  },
+  {
+   "operation": "meters:create",
+   "demand": "Twin's biller makes a missing meter (apps/billing/src/polar.ts:32)",
+   "mechanism": "core",
+   "why": "a plain create: the meter as given, with what the server assigns (created_at, organization_id, archived_at, metadata); the customer entry (first-use.json billing.mjs) makes the biller's four meters by filter and aggregation"
+  },
+  {
+   "operation": "products:list",
+   "demand": "Twin's biller finds its Team product by name at boot (apps/billing/src/polar.ts:40)",
+   "mechanism": "handler",
+   "why": "the full stored products, including minted full prices and their meter references, filtered by archive/recurrence/query; the customer entry's readback (first-use.json billing.mjs) finds the Team product by name, not archived, with its prices and trial"
+  },
+  {
+   "operation": "products:create",
+   "demand": "Twin's biller makes its Team product (apps/billing/src/polar.ts:43); Open Autonomy makes each tier's monthly and one-time product (apps/platform/src/polar.ts:40)",
+   "mechanism": "handler",
+   "why": "each price is given an id, a price of no known amount type is refused (422), and the product answers its prices by amount type; the customer entry (first-use.json billing.mjs) makes the Team product with a fixed and a metered price and a 14-day trial"
+  },
+  {
+   "operation": "checkouts:create",
+   "demand": "Twin's biller opens the Team checkout for an org (apps/billing/src/polar.ts:93); Open Autonomy opens a patron's checkout (apps/platform/src/polar.ts:81)",
+   "mechanism": "handler",
+   "why": "the session for the first product at its first price, open for 24 hours, with its client secret and the hosted page's url; no product, an unknown one or an unknown customer is refused (422); the customer entry (first-use.json billing.mjs) asserts the Team checkout's hosted URL and external customer id"
+  },
+  {
+   "operation": "checkouts:get",
+   "demand": "Open Autonomy's thanks page reads the checkout back (apps/platform/src/polar.ts:129)",
+   "mechanism": "handler",
+   "why": "the stored whole checkout including its product, prices and URL; an unknown id is 404"
+  },
+  {
+   "operation": "checkouts:client_get",
+   "demand": "the hosted checkout page every checkout's url opens (Twin apps/billing/src/polar.ts:94, Open Autonomy apps/platform/src/polar.ts:88)",
+   "mechanism": "handler",
+   "why": "the page reads its session by the client secret, the organization beside it (CheckoutPublic)"
+  },
+  {
+   "operation": "checkouts:client_confirm",
+   "demand": "the hosted checkout page's Pay (the same flows)",
+   "mechanism": "handler",
+   "why": "the customer is found or made, the order made and paid (order.created, order.paid), a recurring product's subscription started (trialing through its trial), and the checkout stores succeeded while confirmation answers confirmed plus its customer session token; an expired checkout is 410, one not open 403; an atomic open-to-confirmed claim precedes awaited customer/order effects so concurrent confirmations of the same checkout cannot both create an order; interruption after the claim remains unresolved"
+  },
+  {
+   "operation": "orders:list",
+   "demand": "Open Autonomy's thanks page lists the checkout's orders (apps/platform/src/polar.ts:133)",
+   "mechanism": "handler",
+   "why": "each order embeds its customer, product, subscription and items; filtered by checkout, customer, product, subscription and status"
+  },
+  {
+   "operation": "customers:create",
+   "demand": "Twin's biller makes an org's customer before its portal session (apps/billing/src/polar.ts:104)",
+   "mechanism": "handler",
+   "why": "an individual customer, its email required; an email or external id another customer holds is refused (422); the customer entry (first-use.json billing.mjs) makes the org's customer by its external id"
+  },
+  {
+   "operation": "customers:get",
+   "demand": "Open Autonomy reads a paid order's customer for the patron's name (apps/platform/src/polar.ts:103)",
+   "mechanism": "handler",
+   "why": "the stored whole CustomerIndividual through ctx.own; an unknown id is 404"
+  },
+  {
+   "operation": "customers:get_state_external",
+   "demand": "Twin's biller reads an org's plan and usage (apps/billing/src/polar.ts:74)",
+   "mechanism": "handler",
+   "why": "computed: the customer with its active or trialing subscriptions and each meter's consumed units folded from its events; no customer with the id is 404 (the biller's Free); the customer entry (first-use.json billing.mjs) asserts an unknown org is not found (404), and its readback the org's state with no subscription"
+  },
+  {
+   "operation": "customer-sessions:create",
+   "demand": "Twin's biller opens the customer portal for an org (apps/billing/src/polar.ts:100)",
+   "mechanism": "handler",
+   "why": "a token for the customer named by id or external id, an hour long, and its customer_portal_url; no such customer is refused (422, the validation error the spec documents); the customer entry (first-use.json billing.mjs) asserts the session's customer and portal URL"
+  },
+  {
+   "operation": "events:ingest",
+   "demand": "Twin's biller reports usage (apps/billing/src/polar.ts:114)",
+   "mechanism": "handler",
+   "why": "a batch: an external_id already ingested is a duplicate, not a second event; the customer named by its external id; answers inserted and duplicates; the customer entry (first-use.json billing.mjs) asserts one hour inserted and its retry skipped as a duplicate"
+  },
+  {
+   "operation": "webhooks:create_webhook_endpoint",
+   "demand": "Open Autonomy's order.paid and order.created webhooks (apps/platform/src/polar.ts:160) reach it only through the endpoint its operator registers, whose secret it is given (apps/platform/src/polar.ts:155)",
+   "mechanism": "handler",
+   "why": "the endpoint's signing secret is drawn from the World and answered once; url, format and events are required (422); the event declaration selects raw format only and uses the complete UTF-8 secret for the pinned 2026-04 contract"
+  },
+  {
+   "operation": "customers:list",
+   "demand": "the vendor-backed refresh reads customer back (the manifest's refresh of customer)",
+   "mechanism": "handler",
+   "why": "the customer's whole: Polar's id, the application's external id, its email; newest first, by email, query or a live subscription"
+  },
+  {
+   "operation": "events:list",
+   "demand": "the vendor-backed refresh reads event back (the manifest's refresh of event)",
+   "mechanism": "handler",
+   "why": "each usage event in its stored vendor shape with its resolved customer (UserEvent), newest first, by customer, name or a meter's filter; the customer entry's readback (first-use.json billing.mjs) counts the org's one world.hour event"
+  },
+  {
+   "operation": "checkouts:list",
+   "demand": "the vendor-backed refresh reads Checkout back (the manifest's refresh of Checkout)",
+   "mechanism": "handler",
+   "why": "each checkout with its product and prices embedded (checkoutView, as checkouts:get answers it), newest first"
+  },
+  {
+   "operation": "subscriptions:list",
+   "demand": "the vendor-backed refresh reads Subscription back (the manifest's refresh of Subscription)",
+   "mechanism": "handler",
+   "why": "each subscription with its customer, product and prices embedded (subscriptionView), the latest started first"
+  },
+  {
+   "operation": "webhooks:list_webhook_endpoints",
+   "demand": "the vendor-backed refresh reads WebhookEndpoint back (the manifest's refresh of WebhookEndpoint)",
+   "mechanism": "core",
+   "why": "a plain object: the endpoint as its create stored and answered it, newest first (the manifest's order), paged by the core"
+  },
+  {
+   "operation": "door:accessTokens",
+   "demand": "every application's POLAR_ACCESS_TOKEN (Twin apps/billing/src/polar.ts:15, Open Autonomy apps/platform/src/polar.ts:20)",
+   "mechanism": "door",
+   "why": "an Organization Access Token is made on the organization's settings page; the API makes none"
+  },
+  {
+   "operation": "door:revokeToken",
+   "demand": "a token the organization no longer trusts, refused from then on",
+   "mechanism": "door",
+   "why": "a token is revoked on the settings page; the API revokes none"
+  },
+  {
+   "operation": "door:appCredentials",
+   "demand": "the token the World's application holds at boot (the descriptor's credentialDoor)",
+   "mechanism": "door",
+   "why": "the runtime issues the application's token as the settings page would make it"
+  },
+  {
+   "operation": "door:deliveries",
+   "demand": "what Open Autonomy's /webhooks/polar was sent (apps/platform/src/polar.ts:153)",
+   "mechanism": "door",
+   "why": "the webhooks the World delivered, as the receiving server got them (headers and body), in order"
+  },
+  {
+   "operation": "products:get",
+   "demand": "Relay recurring observation reads its bound product (worker/subscription-observation.ts:40, source-only unmounted route)",
+   "mechanism": "core",
+   "why": "the canonical Product resource maps to stored product and answers its full stored vendor shape, prices and required fields; tenant scoping and unknown-id refusal are the derived core contract"
+  },
+  {
+   "operation": "orders:get",
+   "demand": "Relay reconciles each signed event with a fresh original order (worker/financial-events.ts:85)",
+   "mechanism": "handler",
+   "why": "Order has no organization_id in its vendor shape, so the handler reads through the existing environment-scoped row helper and returns the stored vendor order with its customer, product, items, original checkout and amounts; unknown or other-environment ids are 404"
+  },
+  {
+   "operation": "subscriptions:get",
+   "demand": "Relay recurring observation reads its bound subscription (worker/subscription-observation.ts:37, source-only unmounted route)",
+   "mechanism": "handler",
+   "why": "Subscription has no organization_id in its vendor shape; resolve the request environment with the existing row helper, then answer the full stored vendor subscription or 404 for an unknown/other-environment id"
+  },
+  {
+   "operation": "subscriptions:update",
+   "demand": "Relay's recurring cancellation at the period's end (worker/commerce/subscription-cancellation.ts:316, PATCH {cancel_at_period_end: true})",
+   "mechanism": "handler",
+   "why": "its cancellation form only: cancel_at_period_end true sets canceled_at and ends_at to the period's end and the renewal clock (clock.ts) cancels it at that end instead of advancing it; false undoes it while the period runs; a subscription that is not active, or already set to end, is refused 403 as the spec says; the update's other forms stay the gap"
+  },
+  {
+   "operation": "refunds:create",
+   "demand": "VO-3761 videogame.ai original recurring invoice refund (game-store 0eafaf16, packages/store-core/worker/commerce/subscription-refunds.ts execute door)",
+   "mechanism": "handler",
+   "why": "Polar RefundCreate against the original environment-scoped paid order, amount and reason validated; the action lock claims the remaining refundable balance, updates the original order, and emits the signed order.refunded event. The full succeeded Refund is retained and returned. Fully refunded orders refuse 403 and excessive amounts 422. Subscription benefits remain governed by cancellation."
+  }
+ ]
+}
