@@ -16,7 +16,14 @@ export const manifest: DerivedManifest = {
   vendor: 'polar',
   service: 'polar',
   tenant: { field: 'organization_id' },
-  body: { json: 'always' },
+  // source: spec:/components/schemas/MeterCreate "MeterCreate"
+  // source: spec:/components/schemas/HTTPValidationError "HTTPValidationError"
+  body: { json: 'always', validation: {
+    operations: ['meters:create'], status: 422,
+    missing: { detail: [{ type: 'missing', loc: ['body', '{name}'], msg: 'Field required', input: '{input}' }] },
+    type: { detail: [{ type: '{type}_type', loc: ['body', '{name}'], msg: 'Input should be a valid {type}', input: '{input}' }] },
+    range: { detail: [{ type: 'value_error', loc: ['body', '{name}'], msg: 'Input is outside the permitted range', input: '{input}' }] },
+  } },
   // every id Polar answers is `format: uuid4`
   ids: { template: '{uuid}' },
   time: 'iso',

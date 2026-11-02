@@ -9,10 +9,13 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { selectedPack } from './selected-pack.mjs';
 import { npmCommand } from './commands.mjs';
+import { sourceCommit } from './release-evidence.mjs';
 
 const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const hash = (bytes, encoding = 'hex') => createHash('sha512').update(bytes).digest(encoding);
 const selected = selectedPack();
+assert.ok(!process.env.GITHUB_ACTIONS, 'Publisher qualification runs explicitly outside CI');
+const publisherSource = sourceCommit();
 const inventory = read(join(selected.release, 'pack-inventory.json'));
 assert.equal(inventory.name, selected.manifest.name);
 assert.equal(inventory.version, selected.manifest.version);
@@ -115,7 +118,7 @@ const consumer = { appDir, cli, artifactIntegrity: integrity };
 const prepared = {
   schemaVersion: 1, vendor: selected.vendor, package: inventory.name, version: inventory.version,
   archive, integrity, work, packDir, release: selected.release,
-  sourceCommit: process.env.GITHUB_SHA ?? null, tools, clientDependencyChoices, clientSdkLocks, consumer, consumerFixture,
+  sourceCommit: publisherSource, tools, clientDependencyChoices, clientSdkLocks, consumer, consumerFixture,
   executionEnvironment: { imageOS: process.env.ImageOS ?? null, imageVersion: process.env.ImageVersion ?? null, postgresTools: process.env.VOLTER_WORLD_POSTGRES_BIN ?? null },
   consumerDependencyLockSha512: hash(readFileSync(appLockFile)),
   dependencyLockSha512: hash(readFileSync(join(work, 'package-lock.json'))),
