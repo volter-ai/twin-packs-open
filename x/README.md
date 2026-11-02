@@ -47,15 +47,9 @@ bunx @volter/twin-x serve --root /tmp/world
 | auth | An OAuth 2.0 access token the token endpoint issued (or `/_twin/tokens` recorded) and its scope set, held to every scope the operation's spec names (its `security`), or an **OAuth 1.0a User Context** signature (HMAC-SHA1, the kernel's RFC 5849 library) over an access token the three legs issued — a Read-only App's token reads and gets X's `oauth1-permissions` 403 on a write; X's `about:blank` 401 / `Forbidden` 403 problems. |
 | errors | `resource-not-found`, `invalid-request` (a query parameter the operation's spec does not have included), the 429 + legacy code 88 pair, `405` under `--read-only`. |
 | the gap | Every other operation of X's spec (DMs, lists, spaces, likes and bookmarks by the API, deletion, mentions and home timelines, search, streams, counts, …) is X's 404 problem from this twin, never a fabricated success and never forwarded to X: no application here calls them. |
-| no state system | The gap: a World's posts are not sent to X, and a real account's timelines are not observed. |
 | `/_twin/*` | The World's doors (`src/semantics/doors.ts`): seed an account (its profile — `description`, `location`, `url`, `profile_image_url`, `protected`, `verified` — and its long-post entitlement), a bearer (kept by its SHA-256), an outsider's post (a reply or a quote too), the audience's likes, reposts, bookmarks and views of a post (`/_twin/engagement`), or an armed rate refusal. |
 
-The spec is the denominator of the wire: 201 operations with the patched OAuth legs, 17 served by handlers, the rest the
-gap (the fetch's `owners()`). What is not modelled includes polls, hide-reply, `entities`, a user's `public_metrics`,
-the `user.fields` with no state behind them, search, likes and bookmarks through the API, stream rules, the
-filtered and sampled **streaming** connections, GIFs, alt text, a video's real poster frame and X's transcoded
-variants — not omitted. One CORE todo remains and says why in its own title: `x.rate_limit.published_figures`
-needs X's published per-endpoint posting limits, and this pack makes no X call to fetch them.
+The generated surface and manifest declare the served operations and explicit gaps. Unmodeled behavior includes hide-reply, `entities`, a user's `public_metrics`, the `user.fields` with no stored state, search, likes and bookmarks through the API, stream rules, filtered and sampled streaming connections, GIFs, alt text, a video's real poster frame and X's transcoded variants. Poll creation and its `attachments.poll_ids` expansion are served; voting is outside this surface.
 
 ## The authorization server: deliberately NON-OIDC, because the vendor is
 
@@ -122,13 +116,9 @@ also carries the OAuth 2.0 consent screen at `/i/oauth2/authorize` and the World
 never admits `i` or `_twin`, so a page is never mistaken for either. Replies under a post and x.com's logged-out chrome are manifest
 todos (`x.web.*`).
 
-## No mirror
+## Signed-in pages
 
-The pack serves no signed-in x.com over the twin's state: the manifest declares no screen for one. The x.com post and profile pages remain (`src/screens/post.ts`).
-
-**"Drafts in an outbox" is deliberately not here.** A draft sitting until someone approves it is an
-obligation on the posting *action* — org config — and building an outbox into a vendor pack would
-put behavior policy one layer further from where it belongs than putting it in platform code.
+The manifest declares x.com's sign-in at `/i/flow/login` and the signed-in home at `/home`. The home composer accepts text, photos or video and posts through the same stored API behavior. The public post and profile pages remain available. [The manifest](./src/manifest.ts) owns each screen's controls and limitations.
 
 ## Evidence boundary
 
