@@ -1,5 +1,6 @@
 import type { DerivedManifest } from '@volter/world-core';
 export const manifest: DerivedManifest = {
+  tenant: { field: '_world_account', storage: 'namespaced' },
   // the vendor's one store: a generated image's file is minted as the openai unit mints it (../../src/manifest.ts)
   vendor: 'openai', service: 'openai', ids: { template: '{prefix}-{ksuid:24}' }, time: 'unix',
   body: { json: 'always' }, error: { error: { message: '{message}', type: 'invalid_request_error', param: null, code: null } },

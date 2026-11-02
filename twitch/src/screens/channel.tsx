@@ -18,6 +18,7 @@ import { liveFragment, LiveRegion } from '@volter/world-ui';
 import { getChannelInformation } from '../semantics/channels.ts';
 import { sendChatMessage } from '../semantics/chat.ts';
 import { getStreams } from '../semantics/streams.ts';
+import { liveStreamOf } from '../semantics/shared.ts';
 import { getUsers } from '../semantics/users.ts';
 import { answered, asOperation, Avatar, ChatPanel, chatFragment, firstOf, linkTo, notFoundPage, personOn, Player, postChat, shownError, twitchPage, type Row } from './shared.tsx';
 
@@ -66,8 +67,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (chat) return chat;
   const info = liveFragment(ctx, 'info', {
     resources: ['stream', 'channel'],
-    cursor: () => { const c = ctx.rowsRaw('channel').find((r) => r.broadcaster_id === user.id) ?? {}; const s = ctx.rowsRaw('stream').find((r) => r.user_id === user.id && r.deleted !== true); return infoCursor(c, s); },
-    render: () => { const c = ctx.rowsRaw('channel').find((r) => r.broadcaster_id === user.id) ?? {}; const s = ctx.rowsRaw('stream').find((r) => r.user_id === user.id && r.deleted !== true); return <Info ctx={ctx} user={user} channel={c} stream={s} />; },
+    cursor: () => { const c = ctx.rowsRaw('channel').find((r) => r.broadcaster_id === user.id) ?? {}; const s = liveStreamOf(ctx, String(user.id)); return infoCursor(c, s); },
+    render: () => { const c = ctx.rowsRaw('channel').find((r) => r.broadcaster_id === user.id) ?? {}; const s = liveStreamOf(ctx, String(user.id)); return <Info ctx={ctx} user={user} channel={c} stream={s} />; },
   });
   if (info) return info;
   const here = linkTo('www.twitch.tv', `/${String(user.login)}`, ctx);

@@ -1,0 +1,45 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "Volter Harness (volter-ai/supercode)",
+      "commit": "62620578c014c4c0b1d4c34e1268e4112c9dd331",
+      "client": "Stock Grok CLI launched by the harness; its transport is not source-visible in this repository",
+      "backend": [],
+      "evidence": "crates/harness/src/harness_service.rs:6104",
+      "ruling": "generated/demand.json detects GROK_HOME in live probe scripts. Those probes are not application API demand. The runtime chat redirect below independently retains chat; do not infer an additional API from the closed CLI."
+    },
+    {
+      "name": "Twin (volter-ai/twin-world)",
+      "commit": "96ca4478bb39",
+      "client": "Grok CLI chat redirect",
+      "backend": [
+        {
+          "call": "GROK_CLI_CHAT_PROXY_BASE_URL is set to the twin /v1 by init",
+          "operation": "handle_generic_completion_request",
+          "evidence": "packages/world-runtime/src/init.ts:352"
+        }
+      ]
+    },
+    {
+      "commit": "1d561b8c73c9",
+      "client": "@ai-sdk/xai, createXai().responses(modelId)",
+      "backend": [
+        {
+          "call": "Workspace agents: text and streamed responses, structured output, function tools and provider-native web/X search",
+          "operation": "handle_generic_model_request",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/sdk-provider-factory.service.ts:177"
+        },
+        {
+          "call": "Optional provider-native webSearch/xSearch tools in the same Responses request; a scenario scripts their answer, no external search runs",
+          "operation": "handle_generic_model_request",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/ai-model-config.service.ts:82"
+        }
+      ],
+      "name": "twentyhq/twenty",
+      "gate": "The built-in catalog contains OpenAI, Google, Anthropic, xAI and Mistral; default tiers try them in that order according to available credentials, with no disabled models. This is automatic credential resolution, not an operator provider switch (packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/default-ai-catalog.service.ts:19-37; services/provider-config.service.ts:28-41; utils/load-default-model-preferences.util.ts:14-19,58)."
+    }
+  ],
+  "standIns": "World-issued Console keys, scripted model turns and faults; no model or live web/X search runs.",
+  "optional": []
+}

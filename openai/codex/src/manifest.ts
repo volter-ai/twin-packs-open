@@ -1,6 +1,7 @@
 import type { DerivedManifest } from '@volter/world-core';
 import { states } from './semantics/states.ts';
 export const manifest: DerivedManifest = {
+  tenant: { field: '_world_account', storage: 'namespaced' },
   vendor: 'openai', service: 'openai', body: {}, ids: { template: '{uuid}' }, time: 'unix',
   // The client selects Zstd only for enabled compression, Codex backend auth and the OpenAI provider; otherwise JSON is uncompressed.
   // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/core/src/client.rs "Compression::Zstd"
@@ -15,8 +16,8 @@ export const manifest: DerivedManifest = {
   readOnly: { status: 403, code: 'access_denied', message: 'This World is read only.' },
   deleted: {}, list: { style: 'envelope', envelope: { data: '{data}' }, limit: { param: 'limit', default: 20, max: 100 } },
   resources: { _codex_nonce: { storedAs: '_codex_nonce', idPrefix: 'nonce' }, _codex_account: { storedAs: '_codex_account', idPrefix: 'acct' },
-    _codex_code: { storedAs: '_codex_code', idPrefix: 'code', ...states._codex_code },
-    _codex_device: { storedAs: '_codex_device', idPrefix: 'device', ...states._codex_device },
+    _codex_code: { shared: true, storedAs: '_codex_code', idPrefix: 'code', ...states._codex_code },
+    _codex_device: { shared: true, storedAs: '_codex_device', idPrefix: 'device', ...states._codex_device },
     _codex_grant: { storedAs: '_codex_grant', idPrefix: 'grant', ...states._codex_grant },
     _codex_call: { storedAs: '_codex_call', idPrefix: 'resp' }, },
   rateBudget: { windowMs: 60_000, ceiling: 30, defaultWeight: 1, maxRetryAfterSeconds: 120, reason: 'The private subscription API publishes no request allowance; use the kernel fallback of 30 calls per minute.' },

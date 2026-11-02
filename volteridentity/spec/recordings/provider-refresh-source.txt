@@ -1,0 +1,2551 @@
+import { t as __exportAll } from "./rolldown-runtime-wcPFST8Q.mjs";
+import { A as collectExtensionAccessTokenClaims, C as storeToken, E as validateClientCredentials, F as getExtensionGrantHandler, L as getSupportedGrantTypes, M as collectExtensionUserInfoClaims, R as hasUserInfoClaimExtension, T as toResourceList, a as getClient, b as resolveSubjectIdentifier, c as getStoredToken, h as parseClientMetadata, i as extractClientCredentials, j as collectExtensionIdTokenClaims, l as isPKCERequired, n as decryptStoredClientSecret, o as getJwtPlugin, p as normalizeTimestampValue, r as destructureCredentials, t as clientAllowsGrant, w as toAudienceClaim, y as resolveSessionAuthTime } from "./utils-CWjOhEQb.mjs";
+import { APIError } from "better-auth/api";
+import { generateRandomString, symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
+import { APIError as APIError$1 } from "better-call";
+import { logger } from "@better-auth/core/env";
+import * as z from "zod";
+import { createDpopReplayStore, enforceDpopBinding, generateCodeChallenge, getConfirmationJkt, getDpopJktFromPayload, getJwks, isDpopBindingError, isDpopProofError, parseAccessTokenAuthorization, stripAccessTokenAuthorizationScheme, verifyDpopProof } from "better-auth/oauth2";
+import { SignJWT, base64url, createLocalJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
+import { resolveSigningKey, signJWT, toExpJWT } from "better-auth/plugins";
+import { SafeUrlSchema } from "@better-auth/core/utils/redirect-uri";
+//#region src/authentication-context.ts
+const RESERVED_ID_TOKEN_CLAIMS = new Set([
+	"iss",
+	"sub",
+	"aud",
+	"exp",
+	"nbf",
+	"iat",
+	"jti",
+	"auth_time",
+	"nonce",
+	"acr",
+	"amr",
+	"azp",
+	"sid",
+	"at_hash",
+	"c_hash",
+	"s_hash"
+]);
+/**
+* Removes provider-owned ID token claim names from custom claims.
+*
+* `customIdTokenClaims` is an extension point for additional claims. It must not
+* replace the issuer, subject, audience, lifetime, nonce, authorized party,
+* token-binding hashes, session binding, or authentication context that the
+* provider owns.
+*/
+function stripReservedIdTokenClaims(claims) {
+	if (!claims) return {};
+	const stripped = [];
+	const safeClaims = Object.create(null);
+	for (const [key, value] of Object.entries(claims)) {
+		if (RESERVED_ID_TOKEN_CLAIMS.has(key)) {
+			stripped.push(key);
+			continue;
+		}
+		safeClaims[key] = value;
+	}
+	if (stripped.length > 0) logger.warn(`oauth-provider: stripped reserved id-token claim name(s): ${stripped.join(", ")}. The AS owns these claim values.`);
+	return safeClaims;
+}
+//#endregion
+//#region src/claims-request.ts
+const claimRequestMemberSchema = z.record(z.string(), z.unknown()).nullable();
+const acrClaimRequestMemberSchema = z.looseObject({
+	essential: z.boolean().optional(),
+	value: z.string().optional(),
+	values: z.array(z.string()).optional()
+}).nullable();
+const idTokenClaimsRequestSchema = z.object({ acr: acrClaimRequestMemberSchema.optional() }).catchall(claimRequestMemberSchema);
+const oidcClaimsRequestObjectSchema = z.looseObject({
+	userinfo: z.record(z.string(), claimRequestMemberSchema).optional(),
+	id_token: idTokenClaimsRequestSchema.optional()
+});
+function parseClaimsRequestValue(value) {
+	if (typeof value === "string") try {
+		return JSON.parse(value);
+	} catch {
+		return;
+	}
+	return value;
+}
+function parseOidcClaimsRequestObject(value) {
+	const parsed = parseClaimsRequestValue(value);
+	const result = oidcClaimsRequestObjectSchema.safeParse(parsed);
+	return result.success ? result.data : void 0;
+}
+const claimsRequestParameterValueSchema = z.union([z.string(), z.record(z.string(), z.unknown())]);
+const claimsRequestInputSchema = claimsRequestParameterValueSchema;
+const claimsRequestParameterSchema = claimsRequestParameterValueSchema.refine((value) => parseOidcClaimsRequestObject(value) !== void 0, { error: "claims must be a valid Claims request object" });
+function isValidOidcClaimsRequest(value) {
+	return value === void 0 || parseOidcClaimsRequestObject(value) !== void 0;
+}
+function getRequestedUserInfoClaims(value, supportedClaims) {
+	const userInfoClaims = parseOidcClaimsRequestObject(value)?.userinfo;
+	if (!userInfoClaims) return [];
+	const names = Object.keys(userInfoClaims);
+	if (!supportedClaims) return names;
+	const allowed = new Set(supportedClaims);
+	return names.filter((name) => allowed.has(name));
+}
+function canSatisfyEssentialAcrRequest(value, currentAcr) {
+	const claimsRequest = parseOidcClaimsRequestObject(value);
+	if (!claimsRequest) return value === void 0;
+	const acrRequest = claimsRequest.id_token?.acr;
+	if (!acrRequest || acrRequest.essential !== true) return true;
+	const valueMatches = acrRequest.value === void 0 || acrRequest.value === currentAcr;
+	const valuesMatch = acrRequest.values === void 0 || acrRequest.values.includes(currentAcr);
+	return valueMatches && valuesMatch;
+}
+function filterClaimsRequestUserInfoClaims(value, allowedUserInfoClaims) {
+	const claimsRequest = parseOidcClaimsRequestObject(value);
+	if (!claimsRequest) return void 0;
+	const allowedClaimSet = new Set(allowedUserInfoClaims);
+	const userInfoClaims = Object.fromEntries(Object.entries(claimsRequest.userinfo ?? {}).filter(([claim]) => allowedClaimSet.has(claim)));
+	const filteredClaimsRequest = Object.keys(userInfoClaims).length ? {
+		...claimsRequest,
+		userinfo: userInfoClaims
+	} : Object.fromEntries(Object.entries(claimsRequest).filter(([key]) => key !== "userinfo"));
+	return Object.keys(filteredClaimsRequest).length ? filteredClaimsRequest : void 0;
+}
+//#endregion
+//#region src/standard-claims.ts
+function splitDisplayName(name) {
+	const parts = name.split(" ").filter((part) => part !== "");
+	if (parts.length <= 1) return {};
+	return {
+		given: parts.slice(0, -1).join(" "),
+		family: parts.at(-1)
+	};
+}
+/**
+* The OIDC Standard Claims (OIDC Core §5.1) that Better Auth resolves from its
+* own user model, each paired with the scope that requests it (§5.4).
+*
+* This is the single source for UserInfo scope-claim resolution, individual
+* `claims.userinfo` resolution, the discovery `claims_supported` advertisement,
+* and the bound on requested claim names. Adding a standard claim Better Auth
+* can resolve means adding one entry here, not editing UserInfo, the metadata,
+* and the plugin init separately.
+*
+* These claims are delivered only at the UserInfo endpoint, never the ID token:
+* the authorization code flow always issues an access token, so §5.4 routes
+* scope-requested claims to UserInfo. Deployments that support further standard
+* profile claims (such as `birthdate` or `zoneinfo`) supply them through
+* `customUserInfoClaims` and advertise them in `claims_supported`.
+*/
+const STANDARD_CLAIMS = {
+	name: {
+		scope: "profile",
+		resolve: (user) => user.name ?? void 0
+	},
+	picture: {
+		scope: "profile",
+		resolve: (user) => user.image ?? void 0
+	},
+	given_name: {
+		scope: "profile",
+		resolve: (user) => splitDisplayName(user.name).given
+	},
+	family_name: {
+		scope: "profile",
+		resolve: (user) => splitDisplayName(user.name).family
+	},
+	email: {
+		scope: "email",
+		resolve: (user) => user.email ?? void 0
+	},
+	email_verified: {
+		scope: "email",
+		resolve: (user) => user.emailVerified ?? false
+	}
+};
+const STANDARD_CLAIM_NAMES = Object.keys(STANDARD_CLAIMS);
+/**
+* The claim names this provider advertises it can supply (discovery
+* `claims_supported`): the operator's `advertisedMetadata.claims_supported`
+* override when set, otherwise the scope-derived standard set computed at plugin
+* init. Used both to advertise and to bound requested `claims.userinfo` names so
+* a client cannot pin arbitrary attacker-controlled strings onto stored tokens.
+*/
+function getSupportedClaims(opts) {
+	return opts.advertisedMetadata?.claims_supported ?? opts.claims ?? [];
+}
+//#endregion
+//#region src/claims.ts
+/**
+* Claim names the authorization server owns on a JWT access token, which no
+* claim source (the `customAccessTokenClaims` plugin option, an extension
+* contributor, or a resource row's `customClaims`) may override. The AS is the
+* only source of truth for issuer identity, subject, audience, lifetime, scope,
+* authentication context, the token's stable ID, and its sender-constraint
+* (`cnf`).
+*
+* @see RFC 9068 §2.2 (registered access-token claims)
+* @see RFC 7800 / RFC 9449 §6 (`cnf` confirmation — the token's bound key)
+*/
+const RESERVED_ACCESS_TOKEN_CLAIMS = new Set([
+	"iss",
+	"sub",
+	"aud",
+	"exp",
+	"iat",
+	"jti",
+	"client_id",
+	"scope",
+	"auth_time",
+	"acr",
+	"amr",
+	"cnf"
+]);
+/**
+* Returns a copy of `claims` with reserved AS-owned names removed. Emits a
+* `warn` naming the stripped keys when any were present (never silently
+* dropped: surfacing the override attempt matters more than minimizing log
+* noise). Stable iteration order (`Object.entries`) is preserved so token-debug
+* logs stay reproducible across runs.
+*/
+function stripReservedClaims(claims) {
+	if (!claims) return {};
+	const stripped = [];
+	const safe = {};
+	for (const [key, value] of Object.entries(claims)) {
+		if (RESERVED_ACCESS_TOKEN_CLAIMS.has(key)) {
+			stripped.push(key);
+			continue;
+		}
+		safe[key] = value;
+	}
+	if (stripped.length > 0) logger.warn(`oauth-provider: stripped reserved access-token claim name(s): ${stripped.join(", ")}. The AS owns these claim values.`);
+	return safe;
+}
+/**
+* The single authority for the enriched (non-AS-owned) claim set an access
+* token carries. Both the JWT mint and the opaque-token introspection
+* re-derive path call this function, so the two formats cannot drift, and
+* reserved RFC 9068 names are stripped unconditionally here so no caller can
+* forget to.
+*
+* Precedence, lowest to highest: extension contributors < per-issuance
+* `accessTokenClaims` < plugin `customAccessTokenClaims` < per-resource
+* `customClaims`. Reserved names are removed from the merged result.
+*
+* Returns only the enriched claims; the caller stamps the AS-owned claims
+* (`iss`/`sub`/`aud`/`exp`/`iat`/`jti`/`client_id`/`scope`/...) itself, so they
+* always win.
+*/
+async function resolveAccessTokenClaims(input) {
+	const { ctx, opts, user, client, scopes, resources, referenceId, metadata, grantType, sessionId, perRequestClaims, resourcePolicyClaims } = input;
+	const extensionClaims = await collectExtensionAccessTokenClaims(opts, {
+		ctx,
+		opts,
+		user,
+		client,
+		scopes,
+		grantType,
+		referenceId,
+		sessionId,
+		resources,
+		metadata
+	});
+	const pluginClaims = opts.customAccessTokenClaims ? await opts.customAccessTokenClaims({
+		user,
+		scopes,
+		resources,
+		referenceId,
+		metadata
+	}) : {};
+	return stripReservedClaims({
+		...extensionClaims,
+		...perRequestClaims ?? {},
+		...pluginClaims,
+		...resourcePolicyClaims
+	});
+}
+//#endregion
+//#region src/resources.ts
+/**
+* Source-of-truth list of asymmetric JWS algorithms supported by the JWT
+* plugin. Mirrors the {@link JWSAlgorithms} literal-union type from
+* `packages/better-auth/src/plugins/jwt/types.ts`. Kept as a runtime const
+* so the admin-CRUD zod schema AND the seed-config validator can reject
+* bad values up-front rather than surfacing opaque jose errors at issuance.
+*
+* MUST stay in sync with `JWSAlgorithms`. The type-level guard immediately
+* below fails the typecheck if the two drift.
+*/
+const JWS_ALGORITHMS = [
+	"EdDSA",
+	"ES256",
+	"ES512",
+	"PS256",
+	"RS256"
+];
+const JWS_ALGORITHM_SET = new Set(JWS_ALGORITHMS);
+/**
+* Upper bound on how many entries are accepted in a JWT's `aud` claim during
+* introspection / revocation validation. Without a cap, a hostile or replayed
+* token can supply hundreds of fake resource identifiers and amplify load on
+* the resource table (one DB lookup per unique unrecognized entry). Real-world
+* deployments use single-digit resource lists; 64 is a generous ceiling that
+* stays well clear of any legitimate use and bounds the per-request DB fan-out.
+*
+* RFC 7519 §4.1.3 does not specify a maximum, so this is a defensive limit,
+* not a spec one. Tokens that exceed it are treated as invalid (introspect →
+* `active: false`, revoke → no-op) rather than triggering the lookup path.
+*
+* @internal
+*/
+const MAX_AUD_VALUES = 64;
+/**
+* Validates a resource `identifier` per RFC 8707 §2 (absolute URI, no
+* fragment), honoring {@link OAuthOptions.identifierValidator} when provided.
+*
+* Returns a structured result so callers can decide whether to throw
+* (admin CRUD / DCR) or warn-and-skip (config seed path).
+*
+* @internal
+*/
+async function checkIdentifier(opts, identifier) {
+	const customValidator = opts.identifierValidator;
+	if (customValidator) {
+		if (!await customValidator(identifier)) return {
+			ok: false,
+			reason: `resource identifier ${identifier} failed validation`
+		};
+		return { ok: true };
+	}
+	let url;
+	try {
+		url = new URL(identifier);
+	} catch {
+		return {
+			ok: false,
+			reason: `resource identifier ${identifier} must be an absolute URI (RFC 8707 §2)`
+		};
+	}
+	if (url.hash) return {
+		ok: false,
+		reason: `resource identifier ${identifier} must not contain a URI fragment (RFC 8707 §2)`
+	};
+	return { ok: true };
+}
+/**
+* Variant of {@link checkIdentifier} that throws `invalid_target` on failure.
+* Used by admin CRUD endpoints where validation failure is a client error.
+*
+* @internal
+*/
+async function assertIdentifierValid(opts, identifier) {
+	const result = await checkIdentifier(opts, identifier);
+	if (!result.ok) throw new APIError("BAD_REQUEST", {
+		error: "invalid_target",
+		error_description: result.reason
+	});
+}
+/**
+* The OIDC userinfo endpoint's resource identifier. Always accepted as an
+* implicit `aud` value when `openid` is in scope — not looked up against
+* `oauthResource` rows.
+*/
+const userInfoResource = (baseURL) => `${baseURL}/oauth2/userinfo`;
+/**
+* Re-parses a request's raw `application/x-www-form-urlencoded` body to
+* recover every value of the repeated `resource` parameter (RFC 8707 §2).
+*
+* Workaround for better-call's form-body parser (better-call ≤1.3.5), which
+* collapses repeated form keys with last-write-wins. A client sending
+* `resource=https://a&resource=https://b` would otherwise arrive in the
+* handler as `{ resource: "https://b" }`, silently narrowing the issued
+* token's `aud` to a single resource.
+*
+* Returns the full ordered list when the body is form-encoded and contains
+* any `resource` entries; `undefined` otherwise. Caller MUST enable
+* `cloneRequest: true` on the endpoint — the body stream is read here a
+* second time, and that only works when better-call cloned the request
+* before its own parse.
+*
+* Note: the URL-encoded body path is the only one affected. The query-string
+* path (e.g. `/oauth2/authorize?resource=…&resource=…`) is parsed by the
+* router itself, which DOES array-promote duplicate keys correctly.
+*
+* @internal
+*/
+async function extractRepeatedResourceFromForm(request) {
+	if (!(request.headers.get("content-type")?.toLowerCase() ?? "").includes("application/x-www-form-urlencoded")) return;
+	let text;
+	try {
+		text = await request.clone().text();
+	} catch {
+		return;
+	}
+	if (!text) return void 0;
+	const values = new URLSearchParams(text).getAll("resource").filter((value) => value.length > 0);
+	return values.length > 0 ? values : void 0;
+}
+/**
+* Normalizes a `resource` parameter into an array. Accepts the RFC 8707
+* forms: a single string, a string[], or undefined.
+*
+* @internal
+*/
+function normalizeResourceParam(resource) {
+	if (resource === void 0 || resource === null) return void 0;
+	if (typeof resource === "string") return [resource];
+	if (Array.isArray(resource)) {
+		const result = resource.filter((r) => typeof r === "string" && r.length > 0);
+		return result.length > 0 ? result : void 0;
+	}
+}
+/**
+* Validates a JWT `aud` claim against the OAuth resource model.
+*
+* Every non-implicit audience value must resolve to an `oauthResource` row.
+* Disabled rows still pass because disabling blocks new issuance; deleting the
+* row is the operation that invalidates already-issued tokens.
+*
+* @internal
+*/
+async function isAudienceClaimAllowed(ctx, opts, audienceClaim, implicitAudiences = []) {
+	if (audienceClaim === void 0) return true;
+	const audienceValues = Array.isArray(audienceClaim) ? audienceClaim : [audienceClaim];
+	if (audienceValues.length > MAX_AUD_VALUES) return false;
+	const implicitAudienceSet = new Set(implicitAudiences);
+	const resourcesToLookup = /* @__PURE__ */ new Set();
+	for (const audienceValue of audienceValues) {
+		if (implicitAudienceSet.has(audienceValue)) continue;
+		resourcesToLookup.add(audienceValue);
+	}
+	if (resourcesToLookup.size === 0) return true;
+	return (await Promise.all(Array.from(resourcesToLookup, (resource) => getResource(ctx, opts, resource)))).every(Boolean);
+}
+/**
+* Resolves the resource policy for a request.
+*
+* Validation steps (RFC 8707 §3 + per-resource policy):
+*
+* 1. Resolve `resource` parameter to a list of identifiers.
+* 2. For each identifier, look up the {@link OAuthResource} row.
+*    - Missing → `invalid_target`.
+*    - `disabled` → `invalid_target` (no new issuance).
+* 3. If {@link OAuthOptions.enforcePerClientResources} resolves to true,
+*    confirm the client is linked to every requested resource via
+*    `oauthClientResource`. Unlinked → `invalid_target`.
+* 4. Intersect `requestedScopes` with each resource's `allowedScopes`.
+*    Empty intersection → `invalid_scope`.
+* 5. Pick the minimum `accessTokenTtl` across requested resources.
+* 6. Pick signing config — only honored for single-resource requests
+*    (a JWT can only have one signature).
+* 7. Merge per-resource `customClaims` (returned raw; reserved-claim
+*    stripping is owned by `resolveAccessTokenClaims`).
+*
+* When no `resource` param is present, returns an empty policy: no `aud`
+* claim and no resource-specific overrides.
+*
+* @internal
+*/
+async function resolveResourcePolicy(ctx, opts, params) {
+	const requestedResources = normalizeResourceParam(params.resource);
+	const includesOpenid = params.requestedScopes.includes("openid");
+	const userInfoResourceIdentifier = userInfoResource(ctx.context.baseURL ?? "");
+	if (!requestedResources) return {
+		audienceClaim: void 0,
+		accessTokenTtl: null,
+		refreshTokenTtl: null,
+		signingAlgorithm: null,
+		signingKeyId: null,
+		rawCustomClaims: {},
+		dpopBoundAccessTokensRequired: false,
+		effectiveScopes: [...params.requestedScopes]
+	};
+	const uniqueRequestedResources = [...new Set(requestedResources)];
+	const resolved = [];
+	for (const identifier of uniqueRequestedResources) {
+		if (identifier === userInfoResourceIdentifier) continue;
+		const row = await getResource(ctx, opts, identifier);
+		if (row) {
+			if (row.disabled) throw new APIError("BAD_REQUEST", {
+				error: "invalid_target",
+				error_description: `requested resource ${identifier} is disabled`
+			});
+			resolved.push(row);
+			continue;
+		}
+		throw new APIError("BAD_REQUEST", {
+			error: "invalid_target",
+			error_description: `requested resource ${identifier} is not configured`
+		});
+	}
+	const { value: enforcePerClient } = resolveEnforcePerClientResources(opts);
+	if (enforcePerClient && resolved.length > 0) await assertClientLinkedToResources(ctx, opts, params.clientId, resolved);
+	let effectiveScopes = [...params.requestedScopes];
+	for (const row of resolved) {
+		if (row.allowedScopes === null || row.allowedScopes === void 0) continue;
+		const allowed = new Set(row.allowedScopes);
+		const intersection = effectiveScopes.filter((s) => allowed.has(s));
+		if (intersection.length === 0) throw new APIError("BAD_REQUEST", {
+			error: "invalid_scope",
+			error_description: `none of the requested scopes are allowed for resource ${row.identifier}`
+		});
+		effectiveScopes = intersection;
+	}
+	let accessTokenTtl = null;
+	let refreshTokenTtl = null;
+	for (const row of resolved) {
+		if (row.accessTokenTtl != null) accessTokenTtl = accessTokenTtl === null ? row.accessTokenTtl : Math.min(accessTokenTtl, row.accessTokenTtl);
+		if (row.refreshTokenTtl != null) refreshTokenTtl = refreshTokenTtl === null ? row.refreshTokenTtl : Math.min(refreshTokenTtl, row.refreshTokenTtl);
+	}
+	const uniqueSigningAlgs = /* @__PURE__ */ new Set();
+	const uniqueSigningKids = /* @__PURE__ */ new Set();
+	for (const row of resolved) {
+		if (row.signingAlgorithm) uniqueSigningAlgs.add(row.signingAlgorithm);
+		if (row.signingKeyId) uniqueSigningKids.add(row.signingKeyId);
+	}
+	if (uniqueSigningAlgs.size > 1) throw new APIError("BAD_REQUEST", {
+		error: "invalid_request",
+		error_description: "multi-resource request has conflicting signingAlgorithm pins; a single JWS signature cannot satisfy multiple algorithms"
+	});
+	if (uniqueSigningKids.size > 1) throw new APIError("BAD_REQUEST", {
+		error: "invalid_request",
+		error_description: "multi-resource request has conflicting signingKeyId pins; a single JWS signature cannot satisfy multiple key ids"
+	});
+	const signingAlgorithm = uniqueSigningAlgs.values().next().value ?? null;
+	const signingKeyId = uniqueSigningKids.values().next().value ?? null;
+	const mergedClaims = {};
+	for (const row of resolved) if (row.customClaims && typeof row.customClaims === "object") Object.assign(mergedClaims, row.customClaims);
+	const dpopBoundAccessTokensRequired = resolved.some((row) => row.dpopBoundAccessTokensRequired === true);
+	const audienceIdentifiers = includesOpenid ? [...uniqueRequestedResources, userInfoResourceIdentifier] : uniqueRequestedResources;
+	const audClaim = [...new Set(audienceIdentifiers)];
+	return {
+		audienceClaim: audClaim.length === 1 ? audClaim[0] : audClaim,
+		accessTokenTtl,
+		refreshTokenTtl,
+		signingAlgorithm,
+		signingKeyId,
+		rawCustomClaims: mergedClaims,
+		dpopBoundAccessTokensRequired,
+		effectiveScopes
+	};
+}
+/**
+* Throws `invalid_target` if the client isn't linked to every resource via
+* the `oauthClientResource` join table. Issues one `findMany` per call.
+*
+* @internal
+*/
+async function assertClientLinkedToResources(ctx, opts, clientId, resources) {
+	if (resources.length === 0) return;
+	const modelName = opts.schema?.oauthClientResource?.modelName ?? "oauthClientResource";
+	const links = await ctx.context.adapter.findMany({
+		model: modelName,
+		where: [{
+			field: "clientId",
+			value: clientId
+		}]
+	});
+	const linkedSet = new Set(links?.map((l) => l.resourceId) ?? []);
+	const unlinked = resources.filter((resource) => !linkedSet.has(resource.identifier));
+	if (unlinked.length > 0) throw new APIError("BAD_REQUEST", {
+		error: "invalid_target",
+		error_description: `client ${clientId} is not linked to resource(s) ${unlinked.map((resource) => resource.identifier).join(", ")}`
+	});
+}
+/**
+* Returns `true` when `clientId` is linked, via the `oauthClientResource` join
+* table, to at least one of `resourceIdentifiers`. Authorizes cross-client token
+* introspection (RFC 7662 §2.1/§4): a resource server may introspect a token
+* whose audience it serves, even when a different client issued the token.
+*
+* @internal
+*/
+async function isClientLinkedToAnyResource(ctx, opts, clientId, resourceIdentifiers) {
+	if (resourceIdentifiers.length === 0) return false;
+	const modelName = opts.schema?.oauthClientResource?.modelName ?? "oauthClientResource";
+	return ((await ctx.context.adapter.findMany({
+		model: modelName,
+		where: [{
+			field: "clientId",
+			value: clientId
+		}, {
+			field: "resourceId",
+			operator: "in",
+			value: resourceIdentifiers
+		}],
+		limit: 1
+	}))?.length ?? 0) > 0;
+}
+/**
+* Merges `customClaims` from the existing rows of `resourceIdentifiers` in
+* order (later resources win on collision). Missing rows are skipped; disabled
+* rows are included, since an already-issued token keeps its claims until it
+* expires. Returned raw; `resolveAccessTokenClaims` strips reserved names.
+*
+* Unlike {@link resolveResourcePolicy}, this applies none of the new-issuance
+* gates (disabled, scope allowlist, client linkage), so it is the right way to
+* re-derive claims for an already-issued token at introspection.
+*
+* @internal
+*/
+async function getResourceCustomClaims(ctx, opts, resourceIdentifiers) {
+	if (resourceIdentifiers.length === 0) return {};
+	const rows = await ctx.context.adapter.findMany({
+		model: opts.schema?.oauthResource?.modelName ?? "oauthResource",
+		where: [{
+			field: "identifier",
+			operator: "in",
+			value: resourceIdentifiers
+		}]
+	});
+	const rowByIdentifier = new Map(rows.map((row) => [row.identifier, row]));
+	const merged = {};
+	for (const identifier of resourceIdentifiers) {
+		const row = rowByIdentifier.get(identifier);
+		if (row?.customClaims && typeof row.customClaims === "object") Object.assign(merged, row.customClaims);
+	}
+	return merged;
+}
+/**
+* Resolves the effective {@link OAuthOptions.enforcePerClientResources} value.
+*
+* - Explicit `true | false` always wins (`source: "explicit"`).
+* - Otherwise resolve to `true` (`source: "default"`). RFC 8707 §3 per-client
+*   validation is the secure default.
+*
+* Deterministic and pure — safe to call on every validation pass.
+*/
+function resolveEnforcePerClientResources(opts) {
+	if (opts.enforcePerClientResources !== void 0) return {
+		value: opts.enforcePerClientResources,
+		source: "explicit"
+	};
+	return {
+		value: true,
+		source: "default"
+	};
+}
+/**
+* In-process cache of {@link OAuthResource} rows, keyed by `identifier`.
+*
+* Opt-in via {@link OAuthOptions.cachedResources} (same membership-Set pattern
+* as `cachedTrustedClients`). Resources outside the set are looked up from the
+* DB on every request — the safe default for deployments that edit rows
+* through external tooling.
+*
+* Module-scoped so admin CRUD handlers can invalidate from anywhere via
+* {@link invalidateResourceCache}.
+*/
+const resourceCache = /* @__PURE__ */ new Map();
+/**
+* Removes an entry from the resource cache. Called by admin CRUD handlers
+* after every write. Pass no argument to clear the entire cache.
+*
+* @internal
+*/
+function invalidateResourceCache(identifier) {
+	if (identifier === void 0) {
+		resourceCache.clear();
+		return;
+	}
+	resourceCache.delete(identifier);
+}
+/**
+* Looks up an {@link OAuthResource} by `identifier`, consulting the in-process
+* cache when the identifier is in {@link OAuthOptions.cachedResources}.
+*
+* Triggers the lazy seed via {@link seedResourcesOnce} on first call — this
+* is the safety net for deployments where migrations run after plugin init
+* (so seeding at init couldn't see the table yet). The seed is idempotent
+* and coalesced, so the cost is paid only once per process.
+*
+* Returns a defensive copy so callers can't mutate cached state.
+*
+* @internal
+*/
+async function getResource(ctx, opts, identifier) {
+	await seedResourcesOnce(ctx.context, opts);
+	if (opts.cachedResources?.has(identifier)) {
+		const cached = resourceCache.get(identifier);
+		if (cached) return Object.assign({}, cached);
+	}
+	const dbResource = await ctx.context.adapter.findOne({
+		model: opts.schema?.oauthResource?.modelName ?? "oauthResource",
+		where: [{
+			field: "identifier",
+			value: identifier
+		}]
+	});
+	if (dbResource && opts.cachedResources?.has(identifier)) resourceCache.set(identifier, Object.assign({}, dbResource));
+	return dbResource;
+}
+/**
+* Default `name` value when an input doesn't provide one. Mirrors what most
+* admin UIs would show.
+*/
+function defaultName(input) {
+	return input.name ?? input.identifier;
+}
+/**
+* Coerces seed-config `resources` entries — string or object form — into a
+* normalized list of {@link OAuthResourceInput}.
+*
+* @internal
+*/
+function collectResourceInputs(opts) {
+	const inputs = [];
+	if (opts.resources?.length) for (const entry of opts.resources) inputs.push(typeof entry === "string" ? { identifier: entry } : entry);
+	return inputs;
+}
+/**
+* Builds the row payload sent to the adapter for a seed insert. All policy
+* columns default to `null` (= inherit plugin default at issuance time)
+* when the input doesn't specify a value.
+*/
+function buildSeedRow(input, now) {
+	return {
+		identifier: input.identifier,
+		name: defaultName(input),
+		accessTokenTtl: input.accessTokenTtl ?? null,
+		refreshTokenTtl: input.refreshTokenTtl ?? null,
+		signingAlgorithm: input.signingAlgorithm ?? null,
+		signingKeyId: input.signingKeyId ?? null,
+		allowedScopes: input.allowedScopes ?? null,
+		customClaims: input.customClaims ?? null,
+		dpopBoundAccessTokensRequired: input.dpopBoundAccessTokensRequired ?? false,
+		disabled: input.disabled ?? false,
+		policyVersion: 1,
+		metadata: input.metadata ?? null,
+		createdAt: now,
+		updatedAt: now
+	};
+}
+/**
+* Builds the partial update payload when re-seeding an existing row.
+*
+* - `overwrite` mode replaces every policy column with the input value
+*   (omitted fields fall back to `null` to clear stale state).
+* - `merge` mode updates only fields present in the input — admin edits to
+*   other fields are preserved.
+*/
+function buildSeedUpdate(input, mode, now) {
+	if (mode === "overwrite") {
+		const { identifier: _identifier, createdAt: _createdAt, ...rest } = buildSeedRow(input, now);
+		return rest;
+	}
+	const update = { updatedAt: now };
+	if (input.name !== void 0) update.name = input.name;
+	if (input.accessTokenTtl !== void 0) update.accessTokenTtl = input.accessTokenTtl;
+	if (input.refreshTokenTtl !== void 0) update.refreshTokenTtl = input.refreshTokenTtl;
+	if (input.signingAlgorithm !== void 0) update.signingAlgorithm = input.signingAlgorithm;
+	if (input.signingKeyId !== void 0) update.signingKeyId = input.signingKeyId;
+	if (input.allowedScopes !== void 0) update.allowedScopes = input.allowedScopes;
+	if (input.customClaims !== void 0) update.customClaims = input.customClaims;
+	if (input.dpopBoundAccessTokensRequired !== void 0) update.dpopBoundAccessTokensRequired = input.dpopBoundAccessTokensRequired;
+	if (input.disabled !== void 0) update.disabled = input.disabled;
+	if (input.metadata !== void 0) update.metadata = input.metadata;
+	return update;
+}
+/**
+* Pattern matched against adapter errors to detect the "table not yet
+* created" case — i.e. migrations haven't been run. When matched, the
+* caller treats the seed as deferred (will retry on first resource access).
+*
+* Covers SQLite ("no such table"), Postgres ("relation X does not exist"),
+* and MySQL ("Table X does not exist" / contracted form).
+*/
+const MISSING_TABLE_PATTERN = /no such table|relation.*does not exist|table.*does(?: not|n[''']?t) exist/i;
+/**
+* Per-adapter state for the lazy-seed path. A module-level boolean would let
+* one Better Auth instance suppress seeding for every later instance in the same
+* process. Endpoint `AuthContext` objects are not guaranteed to be stable across
+* requests, so keying by the adapter keeps one seed state per backing store.
+*/
+let seedStates = /* @__PURE__ */ new WeakMap();
+function getSeedState(ctx) {
+	const key = ctx.adapter;
+	const existing = seedStates.get(key);
+	if (existing) return existing;
+	const created = {
+		completed: false,
+		promise: null
+	};
+	seedStates.set(key, created);
+	return created;
+}
+/**
+* Seeds `oauthResource` rows from plugin config.
+*
+* Behavior is controlled by {@link OAuthOptions.resourceSeedMode}:
+*
+* - `"insertOnly"` (default, safe): inserts rows whose `identifier` is not
+*   already present. Existing rows are untouched — admin edits via CRUD
+*   are never reverted on restart.
+* - `"merge"`: inserts missing rows; updates only specified fields for
+*   existing rows. Useful when config holds the "preferred defaults" but
+*   admins customize per-row.
+* - `"overwrite"`: inserts missing rows; replaces every policy column on
+*   existing rows with the config value (omitted fields → null). Use only
+*   when config is the single source of truth.
+*
+* Race-safety: the `identifier` column carries a UNIQUE constraint, so two
+* processes booting simultaneously can each attempt the insert — one wins,
+* the other catches the constraint error and treats it as a no-op.
+*
+* Migration ordering: at plugin `init` time, tables may not exist yet
+* (Better Auth's test harness, and many deployment setups, run migrations
+* after auth construction). Seeding tolerates "no such table" errors and
+* defers — the lazy {@link seedResourcesOnce} path picks up the work on
+* the first resource access.
+*
+* Idempotent: safe to call multiple times.
+*
+* @internal
+*/
+async function seedResources(ctx, opts) {
+	const inputs = collectResourceInputs(opts);
+	if (inputs.length === 0) return;
+	const mode = opts.resourceSeedMode ?? "insertOnly";
+	const modelName = opts.schema?.oauthResource?.modelName ?? "oauthResource";
+	for (const rawInput of inputs) {
+		const check = await checkIdentifier(opts, rawInput.identifier);
+		if (!check.ok) {
+			logger.warn(`oauth-provider: skipping resource seed for ${rawInput.identifier} — ${check.reason}`);
+			continue;
+		}
+		let input = rawInput;
+		if (input.signingAlgorithm != null && !JWS_ALGORITHM_SET.has(input.signingAlgorithm)) {
+			logger.warn(`oauth-provider: dropping unsupported signingAlgorithm "${input.signingAlgorithm}" for resource ${input.identifier} — must be one of ${JWS_ALGORITHMS.join(", ")}. Continuing without an algorithm override.`);
+			const { signingAlgorithm: _, ...rest } = input;
+			input = rest;
+		}
+		let existing;
+		try {
+			existing = await ctx.adapter.findOne({
+				model: modelName,
+				where: [{
+					field: "identifier",
+					value: input.identifier
+				}]
+			});
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			if (MISSING_TABLE_PATTERN.test(message)) {
+				logger.debug("oauth-provider: oauthResource table not yet created; deferring resource seed to first access.");
+				return;
+			}
+			throw err;
+		}
+		const now = /* @__PURE__ */ new Date();
+		if (!existing) {
+			try {
+				await ctx.adapter.create({
+					model: modelName,
+					data: buildSeedRow(input, now)
+				});
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				if (/unique|duplicate|UNIQUE/i.test(message)) {
+					logger.debug(`oauth-provider: resource ${input.identifier} already inserted by a concurrent process — skipping.`);
+					continue;
+				}
+				if (MISSING_TABLE_PATTERN.test(message)) {
+					logger.debug("oauth-provider: oauthResource table not yet created; deferring resource seed to first access.");
+					return;
+				}
+				throw err;
+			}
+			continue;
+		}
+		if (mode === "insertOnly") continue;
+		await ctx.adapter.update({
+			model: modelName,
+			where: [{
+				field: "identifier",
+				value: input.identifier
+			}],
+			update: buildSeedUpdate(input, mode, now)
+		});
+	}
+}
+/**
+* Idempotent, coalesced wrapper around {@link seedResources} for the
+* lazy-seed path. Safe to call from every resource lookup — the first call
+* runs the seed, concurrent calls await the same promise, and subsequent
+* calls become no-ops.
+*
+* The endpoint context shape (`{ context: AuthContext }`) is what
+* `getResource` receives, so this is a convenience overload that unwraps
+* for callers.
+*
+* @internal
+*/
+async function seedResourcesOnce(ctx, opts) {
+	const state = getSeedState(ctx);
+	if (state.completed === true) return;
+	if (state.promise !== null) return state.promise;
+	state.promise = seedResources(ctx, opts).then(() => {
+		state.completed = true;
+	}).catch((err) => {
+		state.promise = null;
+		throw err;
+	});
+	return state.promise;
+}
+/**
+* Logs the resolved value of {@link OAuthOptions.enforcePerClientResources}
+* so deployment admins see which default applied at init. Separated from
+* {@link resolveEnforcePerClientResources} so the latter stays pure and
+* cheap to call from validation flow.
+*
+* @internal
+*/
+function logEnforcePerClientResourcesResolution(opts) {
+	const resolved = resolveEnforcePerClientResources(opts);
+	logger.info(`oauth-provider: enforcePerClientResources resolved to ${resolved.value} (${resolved.source})`);
+}
+//#endregion
+//#region src/dpop.ts
+function getDpopProofJwt(ctx) {
+	return ctx.headers?.get("dpop") ?? void 0;
+}
+function getEndpointUrl(ctx, path) {
+	return ctx.request?.url ?? `${ctx.context.baseURL}${path}`;
+}
+//#endregion
+//#region src/oauthClient/client-credentials.ts
+const USER_DELEGATED_SCOPES = new Set([
+	"openid",
+	"profile",
+	"email",
+	"offline_access"
+]);
+function isUserDelegatedScope(scope) {
+	return USER_DELEGATED_SCOPES.has(scope);
+}
+function normalizeClientCredentialsScopes(scopes) {
+	return [...new Set(scopes.map((scope) => scope.trim()).filter(Boolean))];
+}
+function validateClientCredentialsScopes(scopes, grantTypes, tokenEndpointAuthMethod, opts) {
+	if (scopes.length === 0) return;
+	if (!grantTypes.includes("client_credentials")) throw new APIError("BAD_REQUEST", {
+		error: "invalid_client_metadata",
+		error_description: "client_credentials_scopes requires the client_credentials grant"
+	});
+	if (tokenEndpointAuthMethod === "none") throw new APIError("BAD_REQUEST", {
+		error: "invalid_client_metadata",
+		error_description: "public clients cannot be assigned client_credentials scopes"
+	});
+	const providerScopes = new Set(opts.scopes ?? []);
+	const invalidScopes = scopes.filter((scope) => !providerScopes.has(scope) || isUserDelegatedScope(scope));
+	if (invalidScopes.length > 0) throw new APIError("BAD_REQUEST", {
+		error: "invalid_scope",
+		error_description: `The following client_credentials scopes are invalid: ${invalidScopes.join(", ")}`
+	});
+}
+//#endregion
+//#region src/types/zod.ts
+const DANGEROUS_SCHEMES = [
+	"javascript:",
+	"data:",
+	"vbscript:"
+];
+/**
+* Validates an RFC 8707 resource indicator. The value must be an absolute URI
+* with no fragment (RFC 8707 §2). Unlike a redirect URI it is not restricted to
+* HTTPS, because a resource server identifier may use any absolute URI scheme;
+* configured OAuth resources are the authoritative control over
+* which resources a token may target.
+*/
+const ResourceUriSchema = z.string().superRefine((val, ctx) => {
+	if (!URL.canParse(val)) {
+		ctx.addIssue({
+			code: "custom",
+			message: "resource must be an absolute URI",
+			fatal: true
+		});
+		return z.NEVER;
+	}
+	if (val.includes("#")) {
+		ctx.addIssue({
+			code: "custom",
+			message: "resource must not contain a fragment"
+		});
+		return;
+	}
+	if (DANGEROUS_SCHEMES.includes(new URL(val).protocol)) ctx.addIssue({
+		code: "custom",
+		message: "resource cannot use javascript:, data:, or vbscript: scheme"
+	});
+});
+const authorizationPromptTokenSchema = z.enum([
+	"none",
+	"consent",
+	"login",
+	"create",
+	"select_account"
+]);
+const authorizationPromptSchema = z.string().superRefine((value, ctx) => {
+	const promptTokens = value.split(" ").map((token) => token.trim()).filter(Boolean);
+	const promptSet = /* @__PURE__ */ new Set();
+	if (!promptTokens.length) {
+		ctx.addIssue({
+			code: "custom",
+			message: "prompt must include at least one value"
+		});
+		return;
+	}
+	for (const token of promptTokens) {
+		const result = authorizationPromptTokenSchema.safeParse(token);
+		if (!result.success) {
+			ctx.addIssue({
+				code: "custom",
+				message: `unsupported prompt value: ${token}`
+			});
+			continue;
+		}
+		promptSet.add(result.data);
+	}
+	if (promptSet.has("none") && promptSet.size > 1) ctx.addIssue({
+		code: "custom",
+		message: "prompt=none cannot be combined with other prompt values"
+	});
+});
+/** Canonical RFC 7517 JWK Set metadata for an OAuth client. */
+const clientJwksSchema = z.object({ keys: z.array(z.record(z.string(), z.unknown())).min(1) });
+const maxAgeSchema = z.union([z.number(), z.string().trim().min(1)]).transform((value, ctx) => {
+	const maxAge = typeof value === "number" ? value : Number(value);
+	if (!Number.isInteger(maxAge) || maxAge < 0) {
+		ctx.addIssue({
+			code: "custom",
+			message: "max_age must be a non-negative integer"
+		});
+		return z.NEVER;
+	}
+	return maxAge;
+});
+const dpopJktSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/, "dpop_jkt must be a base64url-encoded SHA-256 JWK thumbprint");
+/**
+* Runtime schema for OAuthAuthorizationQuery.
+* Uses passthrough to tolerate fields added by future extensions (PAR, FPA, etc.)
+*/
+const authorizationQuerySchema = z.object({
+	response_type: z.string().pipe(z.enum(["code"])).optional(),
+	request: z.string().optional(),
+	request_uri: z.string().optional(),
+	redirect_uri: SafeUrlSchema.optional(),
+	scope: z.string().optional(),
+	state: z.string().optional(),
+	client_id: z.string().min(1, "client_id is required"),
+	prompt: authorizationPromptSchema.optional(),
+	display: z.string().optional(),
+	ui_locales: z.string().optional(),
+	max_age: maxAgeSchema.optional(),
+	acr_values: z.string().optional(),
+	login_hint: z.string().optional(),
+	id_token_hint: z.string().optional(),
+	code_challenge: z.string().optional(),
+	code_challenge_method: z.string().pipe(z.enum(["S256"])).optional(),
+	nonce: z.string().optional(),
+	claims: claimsRequestInputSchema.optional(),
+	dpop_jkt: dpopJktSchema.optional(),
+	resource: z.union([ResourceUriSchema, z.array(ResourceUriSchema).min(1)]).optional()
+}).passthrough();
+const storedAuthorizationQuerySchema = authorizationQuerySchema.extend({
+	redirect_uri: SafeUrlSchema.optional(),
+	claims: claimsRequestParameterSchema.optional()
+});
+/**
+* Runtime schema for the authorization code verification value.
+* Validates structure on deserialization from the JSON blob stored in the DB.
+* Uses passthrough so future fields (e.g. from authorization challenge) don't break parsing.
+*/
+const verificationValueSchema = z.object({
+	type: z.literal("authorization_code"),
+	query: storedAuthorizationQuerySchema,
+	sessionId: z.string(),
+	userId: z.string(),
+	referenceId: z.string().optional(),
+	authTime: z.number().optional(),
+	resource: z.array(z.string()).optional()
+}).passthrough();
+/**
+* Request body accepted at `POST /oauth2/register` (RFC 7591 §2 client
+* metadata). This is the single source of truth for the registration contract:
+* the endpoint validates against it and {@link ClientRegistrationRequest} is
+* inferred from it, so the type a `validateInitialAccessToken` callback receives
+* always matches what is actually validated. `grant_types` and
+* `token_endpoint_auth_method` are open strings because extensions can register
+* custom values. Server-assigned fields (`client_id`, `client_secret`, the
+* issued/expiry timestamps) and internal state (`disabled`, `reference_id`) are
+* never part of a registration request.
+*
+* @see https://datatracker.ietf.org/doc/html/rfc7591#section-2
+*/
+const clientRegistrationRequestSchema = z.object({
+	redirect_uris: z.array(SafeUrlSchema).min(1).optional(),
+	scope: z.string().optional(),
+	client_name: z.string().refine((value) => value.trim().length > 0, "client_name cannot be empty").optional(),
+	client_uri: z.string().optional(),
+	logo_uri: z.string().optional(),
+	contacts: z.array(z.string().min(1)).min(1).optional(),
+	tos_uri: z.string().optional(),
+	policy_uri: z.string().optional(),
+	software_id: z.string().optional(),
+	software_version: z.string().optional(),
+	software_statement: z.string().optional(),
+	post_logout_redirect_uris: z.array(SafeUrlSchema).min(1).optional(),
+	backchannel_logout_uri: SafeUrlSchema.optional(),
+	backchannel_logout_session_required: z.boolean().optional(),
+	token_endpoint_auth_method: z.string().trim().min(1).optional(),
+	jwks: clientJwksSchema.optional(),
+	jwks_uri: z.string().optional(),
+	grant_types: z.array(z.string().trim().min(1)).min(1).optional(),
+	response_types: z.array(z.enum(["code"])).optional(),
+	application_type: z.enum(["web", "native"]).optional(),
+	subject_type: z.enum(["public", "pairwise"]).optional(),
+	dpop_bound_access_tokens: z.boolean().optional(),
+	resources: z.array(ResourceUriSchema).optional(),
+	skip_consent: z.never({ error: "skip_consent cannot be set during dynamic client registration" }).optional()
+});
+/**
+* Complete OAuth client metadata document schema shared by registration and
+* verified client-discovery integrations.
+*
+* Unlike {@link clientRegistrationRequestSchema}, a metadata document carries
+* its own identifier and may contain the server-assigned secret fields that a
+* discovery profile must explicitly prohibit. Keeping those fields in the
+* parsed shape lets profile validation distinguish a forbidden value from an
+* unknown extension without unsafe casts or ad-hoc allowlists.
+*/
+const oauthClientMetadataSchema = clientRegistrationRequestSchema.omit({ skip_consent: true }).extend({
+	client_id: z.string().refine((value) => value.trim().length > 0, "client_id cannot be empty"),
+	client_secret: z.string().optional(),
+	client_secret_expires_at: z.number().int().nonnegative().optional(),
+	client_id_issued_at: z.number().int().nonnegative().optional()
+}).loose();
+//#endregion
+//#region src/userinfo.ts
+/**
+* Builds the standard OIDC claims (OIDC Core §5.1) for the UserInfo response.
+*
+* A claim is included when its backing scope was granted, or when it was named
+* individually through the `claims.userinfo` request parameter (§5.4, §5.5).
+* `sub` is always present. Values come from the one claim registry, so the
+* advertisement, the scope mapping, and the resolution cannot drift apart.
+*
+* @see https://openid.net/specs/openid-connect-core-1_0.html#NormalClaims
+*/
+function userNormalClaims(user, scopes, requestedClaims = []) {
+	const requested = new Set(requestedClaims);
+	const claims = { sub: user.id ?? void 0 };
+	for (const [name, definition] of Object.entries(STANDARD_CLAIMS)) if (scopes.includes(definition.scope) || requested.has(name)) claims[name] = definition.resolve(user);
+	return claims;
+}
+/**
+* Returns the defined-valued entries of `claims`, dropping any key already
+* present in `base` when given.
+*
+* This is the two-tier claim authority shared by the /userinfo response and the
+* ID token:
+* - Called WITH `base` (the provider's own claims): the additive rule for
+*   third-party extension claims. A contributor may add new keys but never
+*   replace a claim the provider already owns.
+* - Called WITHOUT `base`: the deliberate first-party override path for the
+*   operator's own `customUserInfoClaims` / `customIdTokenClaims`, which is
+*   trusted to override identity claims (for example a formatted `name`). The
+*   caller re-pins `sub` afterwards, so subject integrity holds either way
+*   (OIDC Core §5.3.2: UserInfo `sub` MUST match the ID Token `sub`).
+*/
+function pickClaims(claims, base) {
+	const next = {};
+	for (const [key, value] of Object.entries(claims ?? {})) {
+		if (value === void 0) continue;
+		if (base && key in base) continue;
+		next[key] = value;
+	}
+	return next;
+}
+function getUserInfoAccessToken(ctx) {
+	const authorization = ctx.headers?.get("authorization");
+	const headerAccessTokenAuthorization = parseAccessTokenAuthorization(authorization);
+	const bodyToken = ctx.request?.method === "POST" ? ctx.body?.access_token ?? void 0 : void 0;
+	if (headerAccessTokenAuthorization && bodyToken) throw new APIError("BAD_REQUEST", {
+		error_description: "Multiple access token transport methods are not allowed",
+		error: "invalid_request"
+	});
+	const accessTokenAuthorization = headerAccessTokenAuthorization ?? (bodyToken ? {
+		scheme: "Bearer",
+		token: bodyToken
+	} : void 0);
+	return {
+		authorization: accessTokenAuthorization,
+		token: accessTokenAuthorization?.token
+	};
+}
+/**
+* Handles the /oauth2/userinfo endpoint
+*/
+async function userInfoEndpoint(ctx, opts) {
+	const { authorization: accessTokenAuthorization } = getUserInfoAccessToken(ctx);
+	if (!accessTokenAuthorization?.token) throw new APIError("UNAUTHORIZED", {
+		error_description: "access token not found",
+		error: "invalid_request"
+	});
+	const { payload: jwt, requestedUserInfoClaims: requestedClaims } = await requireActiveAccessTokenWithClaims(ctx, opts, accessTokenAuthorization.token);
+	if (getDpopJktFromPayload(jwt) && !ctx.request) throw new APIError("UNAUTHORIZED", {
+		error_description: "DPoP-bound access token requires an HTTP request context",
+		error: "invalid_token"
+	});
+	try {
+		await enforceDpopBinding({
+			payload: jwt,
+			authorization: accessTokenAuthorization,
+			proofJwt: getDpopProofJwt(ctx),
+			method: ctx.request?.method ?? "GET",
+			url: getEndpointUrl(ctx, "/oauth2/userinfo"),
+			proofMaxAgeSeconds: opts.dpop?.proofMaxAgeSeconds,
+			signingAlgorithms: opts.dpop?.signingAlgorithms,
+			replayStore: createDpopReplayStore(ctx.context.internalAdapter)
+		});
+	} catch (error) {
+		if (isDpopBindingError(error)) throw new APIError("UNAUTHORIZED", {
+			error_description: error.message,
+			error: error.code
+		});
+		throw error;
+	}
+	const scopes = jwt.scope?.split(" ");
+	if (!scopes?.includes("openid")) throw new APIError("BAD_REQUEST", {
+		error_description: "Missing required scope",
+		error: "invalid_scope"
+	});
+	if (!jwt.sub) throw new APIError("BAD_REQUEST", {
+		error_description: "user not found",
+		error: "invalid_request"
+	});
+	const user = await ctx.context.internalAdapter.findUserById(jwt.sub);
+	if (!user) throw new APIError("BAD_REQUEST", {
+		error_description: "user not found",
+		error: "invalid_request"
+	});
+	const baseUserClaims = userNormalClaims(user, scopes ?? [], requestedClaims);
+	const clientId = jwt.client_id ?? jwt.azp;
+	const client = clientId && (opts.pairwiseSecret || hasUserInfoClaimExtension(opts)) ? await getClient(ctx, opts, clientId) : void 0;
+	if (opts.pairwiseSecret && client) baseUserClaims.sub = await resolveSubjectIdentifier(user.id, client, opts);
+	const extensionUserClaims = scopes?.length ? await collectExtensionUserInfoClaims(opts, {
+		ctx,
+		opts,
+		user,
+		scopes,
+		jwt,
+		client: client ?? void 0,
+		requestedClaims
+	}) : {};
+	const additionalInfoUserClaims = opts.customUserInfoClaims && scopes?.length ? await opts.customUserInfoClaims({
+		user,
+		scopes,
+		jwt,
+		requestedClaims
+	}) : {};
+	return {
+		...baseUserClaims,
+		...pickClaims(extensionUserClaims, baseUserClaims),
+		...pickClaims(additionalInfoUserClaims),
+		sub: baseUserClaims.sub
+	};
+}
+//#endregion
+//#region src/token.ts
+const ID_TOKEN_SCOPE_CLAIM_GUARDS = Object.fromEntries(STANDARD_CLAIM_NAMES.map((name) => [name, void 0]));
+/**
+* Token presentation scheme implied by a confirmation: a DPoP key thumbprint
+* (`jkt`) yields `"DPoP"`; any other confirmation (including mTLS `x5t#S256`)
+* keeps `"Bearer"`, since that constraint lives at the TLS layer.
+*/
+function confirmationTokenType(confirmation) {
+	return getConfirmationJkt(confirmation) ? "DPoP" : "Bearer";
+}
+const JWT_ACCESS_TOKEN_TYPE = "at+jwt";
+/**
+* Handles the /oauth2/token endpoint by delegating
+* the grant types
+*/
+async function tokenEndpoint(ctx, opts) {
+	const grantType = ctx.body.grant_type;
+	if (!getSupportedGrantTypes(opts).includes(grantType)) throw new APIError("BAD_REQUEST", {
+		error_description: `unsupported grant_type ${grantType}`,
+		error: "unsupported_grant_type"
+	});
+	switch (grantType) {
+		case "authorization_code": return handleAuthorizationCodeGrant(ctx, opts);
+		case "client_credentials": return handleClientCredentialsGrant(ctx, opts);
+		case "refresh_token": return handleRefreshTokenGrant(ctx, opts);
+		default: {
+			const handler = getExtensionGrantHandler(opts, grantType);
+			if (handler) return handler({
+				ctx,
+				opts,
+				grantType,
+				provider: getOAuthProviderApi(ctx, opts, grantType)
+			});
+			throw new APIError("BAD_REQUEST", {
+				error_description: `unsupported grant_type ${grantType}`,
+				error: "unsupported_grant_type"
+			});
+		}
+	}
+}
+/**
+* Returns the OAuth Provider's server-side capability surface bound to `ctx`.
+* The token endpoint passes one (pre-bound to the dispatched grant) to each
+* extension grant handler; a companion plugin's own endpoint calls this directly
+* with its grant type. `grantType` is bound here, not per issuance, so a handler
+* cannot mislabel the grant; omit it for capabilities that do not issue tokens
+* (`getClient`, `validateAccessToken`, `requireActiveAccessToken`), and
+* `issueTokens` then throws.
+*/
+function getOAuthProviderApi(ctx, opts, grantType) {
+	return {
+		getClient: (clientId) => getClient(ctx, opts, clientId),
+		authenticateClient: async (request) => {
+			const { clientId, clientSecret, preVerified, authMethod, confirmation } = destructureCredentials(await extractClientCredentials(ctx, opts, `${ctx.context.baseURL}${ctx.path ?? "/oauth2/token"}`));
+			if (!clientId) throw new APIError("BAD_REQUEST", {
+				error_description: "Missing required client_id",
+				error: "invalid_request"
+			});
+			if (request?.requireCredentials !== false && !clientSecret && !preVerified) throw new APIError("BAD_REQUEST", {
+				error_description: "Missing required client credentials",
+				error: "invalid_client"
+			});
+			return {
+				clientId,
+				client: await validateClientCredentials(ctx, opts, clientId, clientSecret, request?.scopes, preVerified, grantType, authMethod),
+				method: authMethod,
+				confirmation
+			};
+		},
+		issueTokens: (params) => {
+			if (!grantType) throw new APIError("INTERNAL_SERVER_ERROR", {
+				error_description: "issueTokens requires a grant type; pass it to getOAuthProviderApi(ctx, opts, grantType).",
+				error: "server_error"
+			});
+			return createUserTokens(ctx, opts, {
+				...params,
+				grantType
+			});
+		},
+		hashToken: (token, type) => storeToken(opts.storeTokens, token, type),
+		validateAccessToken: async (token, clientId) => {
+			const { validateAccessToken } = await Promise.resolve().then(() => introspect_exports);
+			return validateAccessToken(ctx, opts, token, clientId);
+		},
+		requireActiveAccessToken: async (token, clientId) => {
+			const { requireActiveAccessToken } = await Promise.resolve().then(() => introspect_exports);
+			return requireActiveAccessToken(ctx, opts, token, clientId);
+		}
+	};
+}
+async function createJwtAccessToken(ctx, opts, user, client, audienceClaim, scopes, overrides) {
+	const iat = overrides?.iat ?? Math.floor(Date.now() / 1e3);
+	const exp = overrides?.exp ?? iat + (opts.accessTokenExpiresIn ?? 3600);
+	const jwtPluginOptions = getJwtPlugin(ctx.context).options;
+	const subject = user?.id ?? client.clientId;
+	return signJWT(ctx, {
+		options: jwtPluginOptions,
+		header: { typ: JWT_ACCESS_TOKEN_TYPE },
+		signingKeyId: overrides?.signingKeyId ?? void 0,
+		signingAlgorithm: overrides?.signingAlgorithm ?? void 0,
+		payload: {
+			...overrides?.accessTokenClaims ?? {},
+			sub: subject,
+			aud: toAudienceClaim(audienceClaim),
+			client_id: client.clientId,
+			azp: client.clientId,
+			scope: scopes.join(" "),
+			sid: overrides?.sid,
+			iss: jwtPluginOptions?.jwt?.issuer ?? ctx.context.baseURL,
+			iat,
+			exp,
+			jti: generateRandomString(32),
+			...overrides?.confirmation ? { cnf: overrides.confirmation } : {}
+		}
+	});
+}
+/**
+* Computes an OIDC hash (at_hash, c_hash) per OIDC Core §3.1.3.6.
+* Hashes the token, takes the left half, and base64url-encodes it.
+*/
+async function computeOidcHash(token, signingAlg) {
+	let hashAlg;
+	if (signingAlg === "EdDSA") hashAlg = "SHA-512";
+	else if (signingAlg.endsWith("384")) hashAlg = "SHA-384";
+	else if (signingAlg.endsWith("512")) hashAlg = "SHA-512";
+	else hashAlg = "SHA-256";
+	const digest = new Uint8Array(await crypto.subtle.digest(hashAlg, new TextEncoder().encode(token)));
+	return base64url.encode(digest.slice(0, digest.length / 2));
+}
+/**
+* Creates a user id token in code_authorization with scope of 'openid'
+* and hybrid/implicit (not yet implemented) flows
+*/
+async function createIdToken(ctx, opts, user, client, scopes, nonce, sessionId, authTime, accessToken, extraClaims) {
+	const iat = Math.floor(Date.now() / 1e3);
+	const exp = iat + (opts.idTokenExpiresIn ?? 36e3);
+	const resolvedSub = await resolveSubjectIdentifier(user.id, client, opts);
+	const authTimeSec = authTime != null ? Math.floor(authTime.getTime() / 1e3) : void 0;
+	const customClaims = stripReservedIdTokenClaims(opts.customIdTokenClaims ? await opts.customIdTokenClaims({
+		user,
+		scopes,
+		metadata: parseClientMetadata(client.metadata)
+	}) : void 0);
+	const jwtPluginOptions = opts.disableJwtPlugin ? void 0 : getJwtPlugin(ctx.context).options;
+	const resolvedKey = !opts.disableJwtPlugin && !jwtPluginOptions?.jwt?.sign ? await resolveSigningKey(ctx, jwtPluginOptions) : void 0;
+	const signingAlg = opts.disableJwtPlugin ? "HS256" : resolvedKey?.alg ?? jwtPluginOptions?.jwks?.keyPairConfig?.alg;
+	const atHash = accessToken ? await computeOidcHash(accessToken, signingAlg) : void 0;
+	const emitSid = Boolean(client.enableEndSession || client.backchannelLogoutUri);
+	const payload = {
+		...ID_TOKEN_SCOPE_CLAIM_GUARDS,
+		auth_time: authTimeSec,
+		acr: "0",
+		...customClaims,
+		at_hash: atHash,
+		iss: jwtPluginOptions?.jwt?.issuer ?? ctx.context.baseURL,
+		sub: resolvedSub,
+		aud: client.clientId,
+		nonce,
+		iat,
+		exp,
+		sid: emitSid ? sessionId : void 0
+	};
+	const additiveClaims = stripReservedIdTokenClaims(extraClaims);
+	Object.assign(payload, pickClaims(additiveClaims, payload));
+	if (opts.disableJwtPlugin && !client.clientSecret) return;
+	const idToken = opts.disableJwtPlugin ? await new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).sign(new TextEncoder().encode(await decryptStoredClientSecret(ctx, opts.storeClientSecret, client.clientSecret))) : await signJWT(ctx, {
+		options: jwtPluginOptions,
+		payload,
+		resolvedKey: resolvedKey ?? void 0
+	});
+	if (idToken && atHash && jwtPluginOptions?.jwt?.sign) {
+		const header = decodeProtectedHeader(idToken);
+		if (header.alg !== signingAlg) throw new APIError("INTERNAL_SERVER_ERROR", {
+			error_description: `ID token signed with "${header.alg}" but at_hash was computed for "${signingAlg}". Ensure jwt.sign uses the algorithm declared in keyPairConfig.alg.`,
+			error: "server_error"
+		});
+	}
+	return idToken;
+}
+/**
+* Encodes a refresh token for a client
+*/
+async function encodeRefreshToken(opts, token, sessionId) {
+	return (opts.prefix?.refreshToken ?? "") + (opts.formatRefreshToken?.encrypt ? opts.formatRefreshToken.encrypt(token, sessionId) : token);
+}
+/**
+* Decodes a refresh token for a client
+*
+* @internal
+*/
+async function decodeRefreshToken(opts, token) {
+	if (opts.prefix?.refreshToken) if (token.startsWith(opts.prefix.refreshToken)) token = token.replace(opts.prefix.refreshToken, "");
+	else throw new APIError("BAD_REQUEST", {
+		error_description: "refresh token not found",
+		error: "invalid_token"
+	});
+	return opts.formatRefreshToken?.decrypt ? opts.formatRefreshToken?.decrypt(token) : { token };
+}
+async function createOpaqueAccessToken(ctx, opts, user, client, scopes, payload, resources, referenceId, authorizationCodeId, refreshId, confirmation, requestedUserInfoClaims) {
+	const iat = payload.iat ?? Math.floor(Date.now() / 1e3);
+	const exp = payload?.exp ?? iat + (opts.accessTokenExpiresIn ?? 3600);
+	const token = opts.generateOpaqueAccessToken ? await opts.generateOpaqueAccessToken() : generateRandomString(32, "A-Z", "a-z");
+	await ctx.context.adapter.create({
+		model: "oauthAccessToken",
+		data: {
+			token: await storeToken(opts.storeTokens, token, "access_token"),
+			clientId: client.clientId,
+			sessionId: payload?.sid,
+			userId: user?.id,
+			referenceId,
+			authorizationCodeId,
+			resources,
+			refreshId,
+			confirmation,
+			requestedUserInfoClaims: requestedUserInfoClaims?.length ? requestedUserInfoClaims : void 0,
+			scopes,
+			createdAt: /* @__PURE__ */ new Date(iat * 1e3),
+			expiresAt: /* @__PURE__ */ new Date(exp * 1e3)
+		}
+	});
+	return (opts.prefix?.opaqueAccessToken ?? "") + token;
+}
+/**
+* Tear down the entire refresh-token family for a (client, user) pair, plus
+* any access tokens that reference those refresh rows, per RFC 9700 §4.14.
+* Access tokens are deleted first so the parent rows' foreign-key children
+* do not block the refresh-row delete.
+*
+* TODO(invalidate-family-race): the two `deleteMany` calls are not atomic
+* with respect to each other. Between them, a concurrent rotation in a
+* different worker can `create` a fresh refresh row (and, immediately after,
+* an access-token row referencing it) for the same (client, user) pair,
+* leaving the family partially rebuilt and the new refresh row orphaned of
+* any deletion. Closing this window requires the same transactional adapter
+* contract tracked under FIXME(strict-family-invalidation) in
+* `createRefreshToken`.
+*
+* @internal
+*/
+async function invalidateRefreshFamily(ctx, clientId, userId) {
+	const refreshTokens = await ctx.context.adapter.findMany({
+		model: "oauthRefreshToken",
+		where: [{
+			field: "clientId",
+			value: clientId
+		}, {
+			field: "userId",
+			value: userId
+		}]
+	});
+	if (refreshTokens.length) await ctx.context.adapter.deleteMany({
+		model: "oauthAccessToken",
+		where: [{
+			field: "refreshId",
+			operator: "in",
+			value: refreshTokens.map((r) => r.id)
+		}]
+	});
+	await ctx.context.adapter.deleteMany({
+		model: "oauthRefreshToken",
+		where: [{
+			field: "clientId",
+			value: clientId
+		}, {
+			field: "userId",
+			value: userId
+		}]
+	});
+}
+async function revokeTokensIssuedForAuthorizationCode(ctx, authorizationCodeId) {
+	const deleteIssuedTokens = async (model) => {
+		try {
+			await ctx.context.adapter.deleteMany({
+				model,
+				where: [{
+					field: "authorizationCodeId",
+					value: authorizationCodeId
+				}]
+			});
+		} catch (error) {
+			ctx.context.logger.error("authorization code replay cleanup failed", error);
+		}
+	};
+	await deleteIssuedTokens("oauthAccessToken");
+	await deleteIssuedTokens("oauthRefreshToken");
+}
+async function createRefreshToken(ctx, opts, user, referenceId, authorizationCodeId, client, scopes, payload, originalRefresh, authTime, resources, confirmation, requestedUserInfoClaims) {
+	const iat = payload.iat ?? Math.floor(Date.now() / 1e3);
+	const exp = payload?.exp ?? iat + (opts.refreshTokenExpiresIn ?? 2592e3);
+	const token = opts.generateRefreshToken ? await opts.generateRefreshToken() : generateRandomString(32, "A-Z", "a-z");
+	const sessionId = payload?.sid;
+	const newRow = {
+		token: await storeToken(opts.storeTokens, token, "refresh_token"),
+		clientId: client.clientId,
+		sessionId,
+		userId: user.id,
+		referenceId,
+		authorizationCodeId,
+		authTime,
+		confirmation,
+		requestedUserInfoClaims: requestedUserInfoClaims?.length ? requestedUserInfoClaims : void 0,
+		scopes,
+		resources,
+		createdAt: /* @__PURE__ */ new Date(iat * 1e3),
+		expiresAt: /* @__PURE__ */ new Date(exp * 1e3)
+	};
+	if (!originalRefresh?.id) return {
+		id: (await ctx.context.adapter.create({
+			model: "oauthRefreshToken",
+			data: newRow
+		})).id,
+		token: await encodeRefreshToken(opts, token, sessionId)
+	};
+	const rotatedAt = /* @__PURE__ */ new Date(iat * 1e3);
+	const rotationUpdate = {
+		revoked: rotatedAt,
+		rotatedAt
+	};
+	const reuseInterval = opts.refreshTokenReuseInterval ?? 0;
+	if (reuseInterval > 0) rotationUpdate.rotationReplayExpiresAt = /* @__PURE__ */ new Date((iat + reuseInterval) * 1e3);
+	if (!await ctx.context.adapter.incrementOne({
+		model: "oauthRefreshToken",
+		where: [{
+			field: "id",
+			value: originalRefresh.id
+		}, {
+			field: "revoked",
+			operator: "eq",
+			value: null
+		}],
+		increment: {},
+		set: rotationUpdate
+	})) throw new APIError("BAD_REQUEST", {
+		error_description: "invalid refresh token",
+		error: "invalid_grant"
+	});
+	return {
+		id: (await ctx.context.adapter.create({
+			model: "oauthRefreshToken",
+			data: newRow
+		})).id,
+		token: await encodeRefreshToken(opts, token, sessionId)
+	};
+}
+async function resolveResourceGrantIssuance(ctx, opts, params) {
+	const resourcePolicy = await resolveResourcePolicy(ctx, opts, {
+		resource: params.resources,
+		clientId: params.clientId,
+		requestedScopes: params.requestedScopes
+	});
+	const resourceExpiresAtSeconds = resourcePolicy.accessTokenTtl !== null ? params.iat + resourcePolicy.accessTokenTtl : params.scopeExpiresAtSeconds;
+	const refreshTokenDefaultTtl = opts.refreshTokenExpiresIn ?? 2592e3;
+	const refreshTokenTtl = resourcePolicy.refreshTokenTtl !== null ? Math.min(resourcePolicy.refreshTokenTtl, refreshTokenDefaultTtl) : refreshTokenDefaultTtl;
+	return {
+		audienceClaim: resourcePolicy.audienceClaim,
+		effectiveScopes: resourcePolicy.effectiveScopes,
+		accessTokenExpiresAtSeconds: Math.min(params.scopeExpiresAtSeconds, resourceExpiresAtSeconds),
+		refreshTokenExpiresAtSeconds: params.iat + refreshTokenTtl,
+		refreshResources: params.refreshToken?.resources ?? params.originalResources ?? params.resources,
+		signingAlgorithm: resourcePolicy.signingAlgorithm,
+		signingKeyId: resourcePolicy.signingKeyId,
+		resourceCustomClaims: resourcePolicy.rawCustomClaims,
+		dpopBoundAccessTokensRequired: resourcePolicy.dpopBoundAccessTokensRequired
+	};
+}
+function throwInvalidDpopProof(errorDescription) {
+	throw new APIError("BAD_REQUEST", {
+		error: "invalid_dpop_proof",
+		error_description: errorDescription
+	});
+}
+function clientRequiresDpopBoundAccessTokens(client) {
+	const metadata = parseClientMetadata(client.metadata) ?? {};
+	return client.dpopBoundAccessTokens === true || metadata.dpop_bound_access_tokens === true;
+}
+async function resolveDpopTokenBinding(ctx, opts, params) {
+	const authCodeDpopJkt = params.verificationValue?.query.dpop_jkt;
+	const refreshJkt = getConfirmationJkt(params.refreshToken?.confirmation);
+	const expectedJkt = refreshJkt ?? authCodeDpopJkt;
+	const dpopProofJwt = getDpopProofJwt(ctx);
+	const dpopRequired = clientRequiresDpopBoundAccessTokens(params.client) || params.grantIssuance.dpopBoundAccessTokensRequired || !!authCodeDpopJkt || !!refreshJkt;
+	if (!dpopProofJwt) {
+		if (dpopRequired) throwInvalidDpopProof("DPoP proof header is required");
+		return;
+	}
+	try {
+		return { jkt: (await verifyDpopProof({
+			proofJwt: dpopProofJwt,
+			method: "POST",
+			url: getEndpointUrl(ctx, "/oauth2/token"),
+			expectedJkt,
+			proofMaxAgeSeconds: opts.dpop?.proofMaxAgeSeconds,
+			signingAlgorithms: opts.dpop?.signingAlgorithms,
+			replayStore: createDpopReplayStore(ctx.context.internalAdapter)
+		})).jkt };
+	} catch (error) {
+		if (isDpopProofError(error)) throwInvalidDpopProof(error.message);
+		throw error;
+	}
+}
+function normalizeReplayValues(values) {
+	return values ? [...new Set(values)].sort() : void 0;
+}
+function sameReplayValues(left, right) {
+	const normalizedLeft = normalizeReplayValues(left);
+	const normalizedRight = normalizeReplayValues(right);
+	if (normalizedLeft === void 0 || normalizedRight === void 0) return normalizedLeft === normalizedRight;
+	if (normalizedLeft.length !== normalizedRight.length) return false;
+	return normalizedLeft.every((value, index) => value === normalizedRight[index]);
+}
+function confirmationReplayKey(confirmation) {
+	if (!confirmation) return;
+	if ("jkt" in confirmation) return `jkt:${confirmation.jkt}`;
+	return `x5t#S256:${confirmation["x5t#S256"]}`;
+}
+function sameConfirmation(left, right) {
+	return confirmationReplayKey(left) === confirmationReplayKey(right);
+}
+function isConfirmation(value) {
+	if (!value || typeof value !== "object") return false;
+	const confirmation = value;
+	return typeof confirmation.jkt === "string" && confirmation["x5t#S256"] === void 0 || typeof confirmation["x5t#S256"] === "string" && confirmation.jkt === void 0;
+}
+function isTokenType(value) {
+	return value === "Bearer" || value === "DPoP";
+}
+function isOAuthTokenResponse(value) {
+	if (!value || typeof value !== "object") return false;
+	const response = value;
+	return typeof response.access_token === "string" && typeof response.expires_in === "number" && typeof response.expires_at === "number" && isTokenType(response.token_type) && typeof response.scope === "string" && (response.refresh_token === void 0 || typeof response.refresh_token === "string") && (response.id_token === void 0 || typeof response.id_token === "string");
+}
+function isRefreshTokenRotationReplay(value) {
+	if (!value || typeof value !== "object") return false;
+	const replay = value;
+	const request = replay.request;
+	return !!request && Array.isArray(request.effectiveScopes) && request.effectiveScopes.every((scope) => typeof scope === "string") && (request.requestedResources === void 0 || Array.isArray(request.requestedResources) && request.requestedResources.every((resource) => typeof resource === "string")) && (request.confirmation === void 0 || isConfirmation(request.confirmation)) && isOAuthTokenResponse(replay.response);
+}
+function buildRefreshTokenRotationReplayRequest(params) {
+	const requestedResources = normalizeReplayValues(params.requestedResources);
+	return {
+		effectiveScopes: normalizeReplayValues(params.effectiveScopes) ?? [],
+		...requestedResources ? { requestedResources } : {},
+		...params.confirmation ? { confirmation: params.confirmation } : {}
+	};
+}
+function sameRefreshTokenRotationReplayRequest(left, right) {
+	return sameReplayValues(left.effectiveScopes, right.effectiveScopes) && sameReplayValues(left.requestedResources, right.requestedResources) && sameConfirmation(left.confirmation, right.confirmation);
+}
+async function encryptRefreshTokenRotationReplay(ctx, replay) {
+	return symmetricEncrypt({
+		key: ctx.context.secretConfig,
+		data: JSON.stringify(replay)
+	});
+}
+async function decryptRefreshTokenRotationReplay(ctx, value) {
+	const decrypted = await symmetricDecrypt({
+		key: ctx.context.secretConfig,
+		data: value
+	});
+	const parsed = JSON.parse(decrypted);
+	if (!isRefreshTokenRotationReplay(parsed)) return;
+	return parsed;
+}
+function isWithinRefreshTokenReuseInterval(refreshToken) {
+	return !!refreshToken.rotatedAt && !!refreshToken.rotationReplayExpiresAt && refreshToken.rotationReplayExpiresAt >= /* @__PURE__ */ new Date();
+}
+async function storeRefreshTokenRotationReplay(ctx, opts, refreshToken, request, response) {
+	if ((opts.refreshTokenReuseInterval ?? 0) <= 0) return;
+	await ctx.context.adapter.update({
+		model: "oauthRefreshToken",
+		where: [{
+			field: "id",
+			value: refreshToken.id
+		}],
+		update: { rotationReplayResponse: await encryptRefreshTokenRotationReplay(ctx, {
+			request,
+			response
+		}) }
+	});
+}
+async function getRefreshTokenRotationReplay(ctx, refreshToken, request) {
+	if (!isWithinRefreshTokenReuseInterval(refreshToken)) return;
+	if (!refreshToken.rotationReplayResponse) return;
+	try {
+		const replay = await decryptRefreshTokenRotationReplay(ctx, refreshToken.rotationReplayResponse);
+		if (!replay || !sameRefreshTokenRotationReplayRequest(replay.request, request)) return;
+		return replay.response;
+	} catch (error) {
+		ctx.context.logger.error("refresh token rotation replay failed", error);
+		return;
+	}
+}
+async function resolveRefreshTokenRotationReplayRequest(ctx, opts, params) {
+	const iat = Math.floor(Date.now() / 1e3);
+	const grantIssuance = await resolveResourceGrantIssuance(ctx, opts, {
+		clientId: params.client.clientId,
+		requestedScopes: params.scopes,
+		resources: params.resources,
+		refreshToken: params.refreshToken,
+		iat,
+		scopeExpiresAtSeconds: iat + (opts.accessTokenExpiresIn ?? 3600)
+	});
+	const confirmation = await resolveDpopTokenBinding(ctx, opts, {
+		client: params.client,
+		grantIssuance,
+		refreshToken: params.refreshToken
+	});
+	return buildRefreshTokenRotationReplayRequest({
+		effectiveScopes: grantIssuance.effectiveScopes,
+		requestedResources: params.resources,
+		confirmation
+	});
+}
+function replayRefreshTokenRotationResponse(ctx, response) {
+	const now = Math.floor(Date.now() / 1e3);
+	return ctx.json({
+		...response,
+		expires_in: Math.max(0, response.expires_at - now)
+	});
+}
+async function createUserTokens(ctx, opts, params) {
+	const { client, scopes, user, grantType, referenceId, sessionId, nonce, refreshToken: existingRefreshToken, authTime, verificationValue } = params;
+	const iat = Math.floor(Date.now() / 1e3);
+	const defaultExp = iat + (user ? opts.accessTokenExpiresIn ?? 3600 : opts.m2mAccessTokenExpiresIn ?? 3600);
+	const scopeExp = opts.scopeExpirations ? scopes.map((sc) => opts.scopeExpirations?.[sc] ? toExpJWT(opts.scopeExpirations[sc], iat) : defaultExp).reduce((prev, curr) => {
+		return prev < curr ? prev : curr;
+	}, defaultExp) : defaultExp;
+	const grantIssuance = await resolveResourceGrantIssuance(ctx, opts, {
+		clientId: client.clientId,
+		requestedScopes: scopes,
+		resources: params.resources,
+		originalResources: params.originalResources,
+		refreshToken: params.refreshToken,
+		iat,
+		scopeExpiresAtSeconds: scopeExp
+	});
+	const audienceClaim = grantIssuance.audienceClaim;
+	const effectiveScopes = grantIssuance.effectiveScopes;
+	const exp = grantIssuance.accessTokenExpiresAtSeconds;
+	const refreshTokenExp = grantIssuance.refreshTokenExpiresAtSeconds;
+	const isRefreshToken = user && clientAllowsGrant(client, "refresh_token") && (existingRefreshToken?.scopes?.includes("offline_access") || scopes.includes("offline_access"));
+	const isJwtAccessToken = audienceClaim && !opts.disableJwtPlugin;
+	const isIdToken = user && effectiveScopes.includes("openid");
+	const metadata = parseClientMetadata(client.metadata);
+	const additionalIdTokenClaims = isIdToken && user ? {
+		...await collectExtensionIdTokenClaims(opts, {
+			ctx,
+			opts,
+			user,
+			client,
+			scopes: effectiveScopes,
+			grantType,
+			referenceId,
+			sessionId,
+			resources: params.resources,
+			metadata
+		}),
+		...params.idTokenClaims ?? {}
+	} : void 0;
+	const customFields = opts.customTokenResponseFields ? await opts.customTokenResponseFields({
+		grantType,
+		user,
+		scopes: effectiveScopes,
+		metadata,
+		verificationValue
+	}) : void 0;
+	const refreshResources = grantIssuance.refreshResources;
+	const confirmation = params.confirmation ?? await resolveDpopTokenBinding(ctx, opts, {
+		client,
+		grantIssuance,
+		verificationValue,
+		refreshToken: existingRefreshToken
+	});
+	const requestedUserInfoClaims = params.requestedUserInfoClaims ?? existingRefreshToken?.requestedUserInfoClaims ?? [];
+	const earlyRefreshToken = isRefreshToken && user && !isJwtAccessToken ? await createRefreshToken(ctx, opts, user, referenceId, params.authorizationCodeId, client, effectiveScopes, {
+		iat,
+		exp: refreshTokenExp,
+		sid: sessionId
+	}, existingRefreshToken, authTime, refreshResources, confirmation, requestedUserInfoClaims) : void 0;
+	const accessTokenClaims = isJwtAccessToken ? await resolveAccessTokenClaims({
+		ctx,
+		opts,
+		user,
+		client,
+		scopes: effectiveScopes,
+		grantType,
+		sessionId,
+		resources: params.resources,
+		referenceId,
+		metadata,
+		perRequestClaims: params.accessTokenClaims,
+		resourcePolicyClaims: grantIssuance.resourceCustomClaims
+	}) : void 0;
+	const [accessToken, refreshToken] = await Promise.all([isJwtAccessToken ? createJwtAccessToken(ctx, opts, user, client, audienceClaim, effectiveScopes, {
+		iat,
+		exp,
+		sid: sessionId,
+		signingAlgorithm: grantIssuance.signingAlgorithm,
+		signingKeyId: grantIssuance.signingKeyId,
+		accessTokenClaims,
+		confirmation
+	}) : createOpaqueAccessToken(ctx, opts, user, client, effectiveScopes, {
+		iat,
+		exp,
+		sid: sessionId
+	}, params?.resources, referenceId, params.authorizationCodeId, earlyRefreshToken?.id, confirmation, requestedUserInfoClaims), earlyRefreshToken ? earlyRefreshToken : isRefreshToken && user ? createRefreshToken(ctx, opts, user, referenceId, params.authorizationCodeId, client, effectiveScopes, {
+		iat,
+		exp: refreshTokenExp,
+		sid: sessionId
+	}, existingRefreshToken, authTime, refreshResources, confirmation, requestedUserInfoClaims) : void 0]);
+	const idToken = isIdToken ? await createIdToken(ctx, opts, user, client, effectiveScopes, nonce, sessionId, authTime, accessToken, additionalIdTokenClaims) : void 0;
+	const responseBody = {
+		...customFields,
+		...params.tokenResponse ?? {},
+		access_token: accessToken,
+		expires_in: exp - iat,
+		expires_at: exp,
+		token_type: confirmationTokenType(confirmation),
+		refresh_token: refreshToken?.token,
+		scope: effectiveScopes.join(" "),
+		id_token: idToken
+	};
+	if (existingRefreshToken?.id && refreshToken?.id) try {
+		await storeRefreshTokenRotationReplay(ctx, opts, existingRefreshToken, buildRefreshTokenRotationReplayRequest({
+			effectiveScopes,
+			requestedResources: params.resources,
+			confirmation
+		}), responseBody);
+	} catch (error) {
+		ctx.context.logger.error("failed to store refresh token rotation replay", error);
+	}
+	return ctx.json(responseBody);
+}
+/** Checks verification value */
+async function checkVerificationValue(ctx, opts, code, client_id, redirect_uri, resource) {
+	const authorizationCodeId = await storeToken(opts.storeTokens, code, "authorization_code");
+	const verification = await ctx.context.internalAdapter.consumeVerificationValue(authorizationCodeId);
+	if (!verification) {
+		await revokeTokensIssuedForAuthorizationCode(ctx, authorizationCodeId);
+		throw new APIError("BAD_REQUEST", {
+			error_description: "invalid code",
+			error: "invalid_grant"
+		});
+	}
+	let rawValue;
+	try {
+		rawValue = JSON.parse(verification.value);
+	} catch {
+		throw new APIError("BAD_REQUEST", {
+			error_description: "malformed verification value",
+			error: "invalid_grant"
+		});
+	}
+	const parsed = verificationValueSchema.safeParse(rawValue);
+	if (!parsed.success) throw new APIError("BAD_REQUEST", {
+		error_description: "malformed verification value",
+		error: "invalid_grant"
+	});
+	const verificationValue = parsed.data;
+	if (verificationValue.query.client_id !== client_id) throw new APIError("BAD_REQUEST", {
+		error_description: "invalid client_id",
+		error: "invalid_grant"
+	});
+	const boundRedirectUri = verificationValue.query.redirect_uri;
+	if (boundRedirectUri) {
+		if (!redirect_uri) throw new APIError("BAD_REQUEST", {
+			error_description: "redirect_uri is required",
+			error: "invalid_request"
+		});
+		if (boundRedirectUri !== redirect_uri) throw new APIError("BAD_REQUEST", {
+			error_description: "redirect_uri mismatch",
+			error: "invalid_grant"
+		});
+	} else if (redirect_uri) throw new APIError("BAD_REQUEST", {
+		error_description: "redirect_uri mismatch",
+		error: "invalid_grant"
+	});
+	const storedResources = toResourceList(verificationValue.resource) ?? toResourceList(verificationValue.query.resource);
+	const effectiveResources = resource ?? storedResources;
+	if (resource && storedResources) {
+		const requestedSet = new Set(resource);
+		const authorizedSet = new Set(storedResources);
+		for (const r of requestedSet) if (!authorizedSet.has(r)) throw new APIError("BAD_REQUEST", {
+			error_description: "requested resource not authorized",
+			error: "invalid_target"
+		});
+	}
+	return {
+		verificationValue,
+		effectiveResources,
+		authorizedResources: storedResources,
+		authorizationCodeId
+	};
+}
+/**
+* Obtains new Session Jwt and Refresh Tokens using a code
+*/
+async function handleAuthorizationCodeGrant(ctx, opts) {
+	const { clientId: client_id, clientSecret: client_secret, preVerified, authMethod } = destructureCredentials(await extractClientCredentials(ctx, opts, `${ctx.context.baseURL}/oauth2/token`));
+	const { code, code_verifier, redirect_uri, resource } = ctx.body;
+	const resources = toResourceList(resource);
+	if (!client_id) throw new APIError("BAD_REQUEST", {
+		error_description: "client_id is required",
+		error: "invalid_request"
+	});
+	if (!code) throw new APIError("BAD_REQUEST", {
+		error_description: "code is required",
+		error: "invalid_request"
+	});
+	const isAuthCodeWithSecret = client_id && client_secret;
+	const isAuthCodeWithPkce = client_id && code && code_verifier;
+	if (!isAuthCodeWithSecret && !isAuthCodeWithPkce && !preVerified) throw new APIError("BAD_REQUEST", {
+		error_description: "Either code_verifier or client_secret is required",
+		error: "invalid_request"
+	});
+	/** Get and check Verification Value */
+	const { verificationValue, effectiveResources, authorizedResources, authorizationCodeId } = await checkVerificationValue(ctx, opts, code, client_id, redirect_uri, resources);
+	const scopes = verificationValue.query.scope?.split(" ");
+	if (!scopes) throw new APIError("INTERNAL_SERVER_ERROR", {
+		error_description: "verification scope unset",
+		error: "invalid_scope"
+	});
+	/** Verify Client */
+	const client = await validateClientCredentials(ctx, opts, client_id, client_secret, scopes, preVerified, "authorization_code", authMethod);
+	if (isPKCERequired(client, {
+		scopes: (verificationValue.query?.scope)?.split(" ") || [],
+		nonce: verificationValue.query?.nonce
+	})) {
+		if (!isAuthCodeWithPkce) throw new APIError("BAD_REQUEST", {
+			error_description: "PKCE is required for this client",
+			error: "invalid_request"
+		});
+	} else if (!(isAuthCodeWithPkce || isAuthCodeWithSecret || preVerified)) throw new APIError("BAD_REQUEST", {
+		error_description: "Either PKCE (code_verifier) or client authentication (client_secret or client_assertion) is required",
+		error: "invalid_request"
+	});
+	/** Check PKCE challenge if verifier is provided */
+	const pkceUsedInAuth = !!verificationValue.query?.code_challenge;
+	const pkceUsedInToken = !!code_verifier;
+	if (pkceUsedInAuth || pkceUsedInToken) {
+		if (pkceUsedInAuth && !pkceUsedInToken) throw new APIError("UNAUTHORIZED", {
+			error_description: "code_verifier required because PKCE was used in authorization",
+			error: "invalid_request"
+		});
+		if (!pkceUsedInAuth && pkceUsedInToken) throw new APIError("UNAUTHORIZED", {
+			error_description: "code_verifier provided but PKCE was not used in authorization",
+			error: "invalid_request"
+		});
+		if ((verificationValue.query?.code_challenge_method === "S256" ? await generateCodeChallenge(code_verifier) : void 0) !== verificationValue.query?.code_challenge) throw new APIError("UNAUTHORIZED", {
+			error_description: "code verification failed",
+			error: "invalid_request"
+		});
+	}
+	/** Get user */
+	if (!verificationValue.userId) throw new APIError("BAD_REQUEST", {
+		error_description: "missing user, user may have been deleted",
+		error: "invalid_user"
+	});
+	const user = await ctx.context.internalAdapter.findUserById(verificationValue.userId);
+	if (!user) throw new APIError("BAD_REQUEST", {
+		error_description: "missing user, user may have been deleted",
+		error: "invalid_user"
+	});
+	const session = await ctx.context.adapter.findOne({
+		model: "session",
+		where: [{
+			field: "id",
+			value: verificationValue.sessionId
+		}]
+	});
+	if (!session || session.expiresAt < /* @__PURE__ */ new Date()) throw new APIError("BAD_REQUEST", {
+		error_description: "session no longer exists",
+		error: "invalid_request"
+	});
+	const authTime = verificationValue.authTime != null ? normalizeTimestampValue(verificationValue.authTime) : resolveSessionAuthTime(session);
+	const requestedUserInfoClaims = getRequestedUserInfoClaims(verificationValue.query.claims, getSupportedClaims(opts));
+	return createUserTokens(ctx, opts, {
+		client,
+		scopes: verificationValue.query.scope?.split(" ") ?? [],
+		user,
+		grantType: "authorization_code",
+		referenceId: verificationValue.referenceId,
+		sessionId: session.id,
+		nonce: verificationValue.query?.nonce,
+		authTime,
+		verificationValue,
+		authorizationCodeId,
+		requestedUserInfoClaims,
+		resources: effectiveResources,
+		originalResources: authorizedResources
+	});
+}
+/**
+* Grant that allows direct access to an API using the application's credentials
+* This grant is for M2M so the concept of a user id does not exist on the token.
+*
+* MUST follow https://datatracker.ietf.org/doc/html/rfc6749#section-4.4
+*/
+async function handleClientCredentialsGrant(ctx, opts) {
+	const { clientId: client_id, clientSecret: client_secret, preVerified, authMethod } = destructureCredentials(await extractClientCredentials(ctx, opts, `${ctx.context.baseURL}/oauth2/token`));
+	const { scope, resource } = ctx.body;
+	const resources = toResourceList(resource);
+	if (!client_id) throw new APIError("BAD_REQUEST", {
+		error_description: "Missing required client_id",
+		error: "invalid_request"
+	});
+	const client = await validateClientCredentials(ctx, opts, client_id, client_secret, void 0, preVerified, "client_credentials", authMethod);
+	if (client.tokenEndpointAuthMethod === "none") throw new APIError("BAD_REQUEST", {
+		error_description: "public clients cannot use the client_credentials grant",
+		error: "unauthorized_client"
+	});
+	const clientCredentialsScopes = client.clientCredentialsScopes;
+	if (!clientCredentialsScopes?.length) throw new APIError("BAD_REQUEST", {
+		error_description: "client has no authorized client_credentials scopes",
+		error: "unauthorized_client"
+	});
+	let requestedScopes = scope?.split(" ");
+	if (requestedScopes) {
+		const validScopes = new Set(clientCredentialsScopes);
+		const invalidScopes = requestedScopes.filter((scope) => {
+			return !validScopes.has(scope) || isUserDelegatedScope(scope);
+		});
+		if (invalidScopes.length) throw new APIError("BAD_REQUEST", {
+			error_description: `The following scopes are invalid: ${invalidScopes.join(", ")}`,
+			error: "invalid_scope"
+		});
+	}
+	if (!requestedScopes) requestedScopes = [...clientCredentialsScopes];
+	return createUserTokens(ctx, opts, {
+		client,
+		scopes: requestedScopes,
+		grantType: "client_credentials",
+		resources
+	});
+}
+/**
+* Obtains new Session Jwt and Refresh Tokens using a refresh token
+*
+* Refresh tokens will only allow the same or lesser scopes as the initial authorize request.
+* To add scopes, you must restart the authorize process again.
+*/
+async function handleRefreshTokenGrant(ctx, opts) {
+	const { clientId: client_id, clientSecret: client_secret, preVerified, authMethod } = destructureCredentials(await extractClientCredentials(ctx, opts, `${ctx.context.baseURL}/oauth2/token`));
+	const { refresh_token, scope, resource } = ctx.body;
+	const resources = toResourceList(resource);
+	if (!client_id) throw new APIError("BAD_REQUEST", {
+		error_description: "Missing required client_id",
+		error: "invalid_request"
+	});
+	if (!refresh_token) throw new APIError("BAD_REQUEST", {
+		error_description: "Missing a required refresh_token for refresh_token grant",
+		error: "invalid_request"
+	});
+	const decodedRefresh = await decodeRefreshToken(opts, refresh_token);
+	const refreshToken = await ctx.context.adapter.findOne({
+		model: "oauthRefreshToken",
+		where: [{
+			field: "token",
+			value: await getStoredToken(opts.storeTokens, decodedRefresh.token, "refresh_token")
+		}]
+	});
+	if (!refreshToken) throw new APIError("BAD_REQUEST", {
+		error_description: "session not found",
+		error: "invalid_grant"
+	});
+	if (refreshToken.clientId !== client_id) throw new APIError("BAD_REQUEST", {
+		error_description: "invalid refresh token",
+		error: "invalid_grant"
+	});
+	if (refreshToken.expiresAt < /* @__PURE__ */ new Date()) throw new APIError("BAD_REQUEST", {
+		error_description: "invalid refresh token",
+		error: "invalid_grant"
+	});
+	if (resources && refreshToken.resources && !resources.every((v) => refreshToken.resources?.includes(v))) throw new APIError("BAD_REQUEST", {
+		error_description: "requested resource invalid",
+		error: "invalid_target"
+	});
+	const scopes = refreshToken?.scopes;
+	const requestedScopes = scope?.split(" ");
+	if (requestedScopes) {
+		const validScopes = new Set(scopes);
+		for (const requestedScope of requestedScopes) if (!validScopes.has(requestedScope)) throw new APIError("BAD_REQUEST", {
+			error_description: `unable to issue scope ${requestedScope}`,
+			error: "invalid_scope"
+		});
+	}
+	const client = await validateClientCredentials(ctx, opts, client_id, client_secret, requestedScopes ?? scopes, preVerified, "refresh_token", authMethod);
+	if (refreshToken.revoked) {
+		if (isWithinRefreshTokenReuseInterval(refreshToken)) {
+			const replay = await getRefreshTokenRotationReplay(ctx, refreshToken, await resolveRefreshTokenRotationReplayRequest(ctx, opts, {
+				client,
+				refreshToken,
+				scopes: requestedScopes ?? scopes,
+				resources: resources ?? refreshToken.resources
+			}));
+			if (replay) return replayRefreshTokenRotationResponse(ctx, replay);
+			throw new APIError("BAD_REQUEST", {
+				error_description: "invalid refresh token",
+				error: "invalid_grant"
+			});
+		}
+		await invalidateRefreshFamily(ctx, client_id, refreshToken.userId);
+		throw new APIError("BAD_REQUEST", {
+			error_description: "invalid refresh token",
+			error: "invalid_grant"
+		});
+	}
+	const user = await ctx.context.internalAdapter.findUserById(refreshToken.userId);
+	if (!user) throw new APIError("BAD_REQUEST", {
+		error_description: "user not found",
+		error: "invalid_request"
+	});
+	const authTime = refreshToken.authTime != null ? normalizeTimestampValue(refreshToken.authTime) : void 0;
+	return createUserTokens(ctx, opts, {
+		client,
+		scopes: requestedScopes ?? scopes,
+		user,
+		grantType: "refresh_token",
+		referenceId: refreshToken.referenceId,
+		authorizationCodeId: refreshToken.authorizationCodeId,
+		sessionId: refreshToken.sessionId,
+		refreshToken,
+		resources: resources ?? refreshToken.resources,
+		authTime,
+		requestedUserInfoClaims: refreshToken.requestedUserInfoClaims
+	});
+}
+//#endregion
+//#region src/introspect.ts
+var introspect_exports = /* @__PURE__ */ __exportAll({
+	introspectEndpoint: () => introspectEndpoint,
+	requireActiveAccessToken: () => requireActiveAccessToken,
+	requireActiveAccessTokenWithClaims: () => requireActiveAccessTokenWithClaims,
+	validateAccessToken: () => validateAccessToken
+});
+const INVALID_ACCESS_TOKEN_ERROR_DESCRIPTION = "Invalid access token";
+const INVALID_ACCESS_TOKEN_WWW_AUTHENTICATE = `Bearer error="invalid_token", error_description="${INVALID_ACCESS_TOKEN_ERROR_DESCRIPTION}"`;
+function inactiveAccessToken() {
+	return {
+		payload: { active: false },
+		requestedUserInfoClaims: []
+	};
+}
+/**
+* IMPORTANT NOTES:
+* Introspection follows RFC7662
+* https://datatracker.ietf.org/doc/html/rfc7662
+* - APIError: Continue catches (returnable to client)
+* - Error: Should immediately stop catches (internal error)
+*/
+/**
+* Resource identifiers in a token's audience, excluding the implicit
+* `/oauth2/userinfo` audience (which is not a configured resource server).
+*/
+function audienceResourceIdentifiers(aud, userInfoAud) {
+	if (aud == null) return [];
+	return (Array.isArray(aud) ? aud : [aud]).filter((value) => typeof value === "string" && value !== userInfoAud);
+}
+/**
+* Authorizes an introspection request (RFC 7662 §2.1/§4). The caller is already
+* authenticated as a registered client; it may introspect the token when it
+* issued the token, or when it is a resource server linked to one of the token's
+* audience resources. Tokens with no resource audience stay issuer-only. An
+* unauthorized caller receives `{active:false}` (indistinguishable from an
+* expired or unknown token), preserving the §4 anti-scanning property.
+*/
+async function isIntrospectionAuthorized(ctx, opts, params) {
+	const { introspectingClientId, issuerClientId, audienceResources } = params;
+	if (!introspectingClientId) return true;
+	if (introspectingClientId === issuerClientId) return true;
+	if (audienceResources.length === 0) return false;
+	return isClientLinkedToAnyResource(ctx, opts, introspectingClientId, audienceResources);
+}
+/**
+* Validates a JWT access token against the configured JWKs.
+*
+* @returns RFC7662 introspection format
+*/
+async function validateJwtAccessToken(ctx, opts, token, clientId) {
+	const jwtPlugin = opts.disableJwtPlugin ? void 0 : getJwtPlugin(ctx.context);
+	const jwtPluginOptions = jwtPlugin?.options;
+	const userInfoAud = `${ctx.context.baseURL ?? ""}/oauth2/userinfo`;
+	const expectedIssuer = jwtPluginOptions?.jwt?.issuer ?? ctx.context.baseURL;
+	let jwtPayload;
+	try {
+		jwtPayload = (await jwtVerify(token, createLocalJWKSet(await getJwks(token, {
+			jwksFetch: jwtPluginOptions?.jwks?.remoteUrl ? jwtPluginOptions.jwks.remoteUrl : async () => {
+				return (await jwtPlugin?.endpoints.getJwks(ctx))?.response;
+			},
+			jwksCacheKey: jwtPlugin
+		})), { issuer: expectedIssuer })).payload;
+	} catch (error) {
+		if (error instanceof Error) {
+			if (error.name === "TypeError" || error.name === "JWSInvalid") throw new APIError$1("BAD_REQUEST", {
+				error_description: "invalid JWT signature",
+				error: "invalid_request"
+			});
+			else if (error.name === "JWTExpired") return { active: false };
+			else if (error.name === "JWTInvalid") return { active: false };
+			throw error;
+		}
+		throw new Error(error);
+	}
+	const rawAud = jwtPayload.aud;
+	if (!await isAudienceClaimAllowed(ctx, opts, rawAud, [userInfoAud])) return { active: false };
+	if (!jwtPayload.azp) return { active: false };
+	const client = await getClient(ctx, opts, jwtPayload.azp);
+	if (!client || client?.disabled) return { active: false };
+	if (!await isIntrospectionAuthorized(ctx, opts, {
+		introspectingClientId: clientId,
+		issuerClientId: jwtPayload.azp,
+		audienceResources: audienceResourceIdentifiers(rawAud, userInfoAud)
+	})) return { active: false };
+	const sessionId = jwtPayload.sid;
+	if (sessionId) {
+		const session = await ctx.context.adapter.findOne({
+			model: "session",
+			where: [{
+				field: "id",
+				value: sessionId
+			}]
+		});
+		if (!session || session.expiresAt < /* @__PURE__ */ new Date()) return { active: false };
+	}
+	jwtPayload.client_id = jwtPayload.azp;
+	jwtPayload.active = true;
+	jwtPayload.token_type = confirmationTokenType(jwtPayload.cnf);
+	return jwtPayload;
+}
+/**
+* Searches for an opaque access token in the database and validates it
+*
+* @returns RFC7662 introspection format
+*/
+async function validateOpaqueAccessToken(ctx, opts, token, clientId) {
+	let tokenValue = token;
+	if (opts.prefix?.opaqueAccessToken) if (tokenValue.startsWith(opts.prefix.opaqueAccessToken)) tokenValue = tokenValue.replace(opts.prefix.opaqueAccessToken, "");
+	else throw new APIError$1("BAD_REQUEST", {
+		error_description: "opaque access token not found",
+		error: "invalid_request"
+	});
+	const accessToken = await ctx.context.adapter.findOne({
+		model: "oauthAccessToken",
+		where: [{
+			field: "token",
+			value: await getStoredToken(opts.storeTokens, tokenValue, "access_token")
+		}]
+	});
+	if (!accessToken) throw new APIError$1("BAD_REQUEST", {
+		error_description: "opaque access token not found",
+		error: "invalid_token"
+	});
+	if (!accessToken.expiresAt || accessToken.expiresAt < /* @__PURE__ */ new Date()) return inactiveAccessToken();
+	if (accessToken.revoked) return inactiveAccessToken();
+	const resources = Array.isArray(accessToken.resources) ? accessToken.resources : void 0;
+	let client;
+	if (accessToken.clientId) {
+		client = await getClient(ctx, opts, accessToken.clientId);
+		if (!client || client?.disabled) return inactiveAccessToken();
+		if (!await isIntrospectionAuthorized(ctx, opts, {
+			introspectingClientId: clientId,
+			issuerClientId: accessToken.clientId,
+			audienceResources: resources ?? []
+		})) return inactiveAccessToken();
+	}
+	const sessionId = accessToken.sessionId ?? void 0;
+	if (sessionId) {
+		const session = await ctx.context.adapter.findOne({
+			model: "session",
+			where: [{
+				field: "id",
+				value: sessionId
+			}]
+		});
+		if (!session || session.expiresAt < /* @__PURE__ */ new Date()) return inactiveAccessToken();
+	}
+	let user;
+	if (accessToken.userId) user = await ctx.context.internalAdapter.findUserById(accessToken?.userId);
+	const userInfoEndpoint = `${ctx.context.baseURL}/oauth2/userinfo`;
+	if (resources?.length && !await isAudienceClaimAllowed(ctx, opts, resources, [userInfoEndpoint])) return inactiveAccessToken();
+	const audienceClaim = resources ? [...resources] : void 0;
+	if (audienceClaim?.length && accessToken.scopes?.includes("openid")) {
+		if (!audienceClaim.includes(userInfoEndpoint)) audienceClaim.push(userInfoEndpoint);
+	}
+	const resourcePolicyClaims = resources?.length ? await getResourceCustomClaims(ctx, opts, resources) : {};
+	const accessTokenClaims = client ? await resolveAccessTokenClaims({
+		ctx,
+		opts,
+		user,
+		client,
+		scopes: accessToken.scopes ?? [],
+		grantType: void 0,
+		sessionId: void 0,
+		resources,
+		referenceId: accessToken.referenceId,
+		metadata: parseClientMetadata(client.metadata),
+		perRequestClaims: void 0,
+		resourcePolicyClaims
+	}) : {};
+	const jwtPluginOptions = (opts.disableJwtPlugin ? void 0 : getJwtPlugin(ctx.context))?.options;
+	return {
+		payload: {
+			...accessTokenClaims,
+			active: true,
+			iss: jwtPluginOptions?.jwt?.issuer ?? ctx.context.baseURL,
+			aud: toAudienceClaim(audienceClaim),
+			client_id: accessToken.clientId,
+			azp: accessToken.clientId,
+			sub: user?.id,
+			sid: sessionId,
+			exp: Math.floor(new Date(accessToken.expiresAt).getTime() / 1e3),
+			iat: Math.floor(new Date(accessToken.createdAt).getTime() / 1e3),
+			scope: accessToken.scopes?.join(" "),
+			token_type: confirmationTokenType(accessToken.confirmation),
+			...accessToken.confirmation ? { cnf: accessToken.confirmation } : {}
+		},
+		requestedUserInfoClaims: accessToken.requestedUserInfoClaims ?? []
+	};
+}
+/**
+* Validates a refresh token in the session store.
+*
+* @returns payload in RFC7662 introspection format
+*/
+async function validateRefreshToken(ctx, opts, token, clientId) {
+	const refreshToken = await ctx.context.adapter.findOne({
+		model: "oauthRefreshToken",
+		where: [{
+			field: "token",
+			value: await getStoredToken(opts.storeTokens, token, "refresh_token")
+		}]
+	});
+	if (!refreshToken) throw new APIError$1("BAD_REQUEST", {
+		error_description: "token not found",
+		error: "invalid_token"
+	});
+	if (!refreshToken.clientId || refreshToken.clientId !== clientId) return { active: false };
+	if (!refreshToken.expiresAt || refreshToken.expiresAt < /* @__PURE__ */ new Date()) return { active: false };
+	if (refreshToken.revoked) return { active: false };
+	let sessionId = refreshToken.sessionId ?? void 0;
+	if (sessionId) {
+		const session = await ctx.context.adapter.findOne({
+			model: "session",
+			where: [{
+				field: "id",
+				value: sessionId
+			}]
+		});
+		if (!session || session.expiresAt < /* @__PURE__ */ new Date()) sessionId = void 0;
+	}
+	let user = void 0;
+	if (refreshToken.userId) user = await ctx.context.internalAdapter.findUserById(refreshToken?.userId) ?? void 0;
+	return {
+		active: true,
+		client_id: clientId,
+		iss: ((opts.disableJwtPlugin ? void 0 : getJwtPlugin(ctx.context))?.options)?.jwt?.issuer ?? ctx.context.baseURL,
+		sub: user?.id,
+		sid: sessionId,
+		exp: Math.floor(new Date(refreshToken.expiresAt).getTime() / 1e3),
+		iat: Math.floor(new Date(refreshToken.createdAt).getTime() / 1e3),
+		scope: refreshToken.scopes?.join(" "),
+		token_type: confirmationTokenType(refreshToken.confirmation),
+		...refreshToken.confirmation ? { cnf: refreshToken.confirmation } : {}
+	};
+}
+function createInvalidAccessTokenError() {
+	return new APIError$1("UNAUTHORIZED", {
+		error_description: INVALID_ACCESS_TOKEN_ERROR_DESCRIPTION,
+		error: "invalid_token"
+	}, { "WWW-Authenticate": INVALID_ACCESS_TOKEN_WWW_AUTHENTICATE });
+}
+function isInactiveTokenError(error) {
+	return error.status === "BAD_REQUEST" || error.body?.error === "invalid_token";
+}
+/**
+* We don't know the access token format so we try to validate it as a JWT
+* first, then as an opaque token. Returns the RFC 7662 introspection payload
+* alongside the per-issuance UserInfo claims the opaque row persisted (empty for
+* a JWT access token, which resolves UserInfo claims by scope).
+*/
+async function resolveAccessTokenValidation(ctx, opts, token, clientId) {
+	try {
+		return {
+			payload: await validateJwtAccessToken(ctx, opts, token, clientId),
+			requestedUserInfoClaims: []
+		};
+	} catch (err) {
+		if (err instanceof APIError$1) {} else if (err instanceof Error) throw err;
+		else throw new Error(err);
+	}
+	try {
+		return await validateOpaqueAccessToken(ctx, opts, token, clientId);
+	} catch (err) {
+		if (err instanceof APIError$1) {} else if (err instanceof Error) throw err;
+		else throw new Error("Unknown error validating access token");
+	}
+	throw createInvalidAccessTokenError();
+}
+/**
+* Validates an access token (JWT or opaque) and returns its RFC 7662
+* introspection-format payload.
+*
+* @internal
+*/
+async function validateAccessToken(ctx, opts, token, clientId) {
+	return (await resolveAccessTokenValidation(ctx, opts, token, clientId)).payload;
+}
+async function requireActiveAccessToken(ctx, opts, token, clientId) {
+	const payload = await validateAccessToken(ctx, opts, token, clientId);
+	if (payload.active) return payload;
+	throw createInvalidAccessTokenError();
+}
+/**
+* UserInfo entry point: validates the access token, requires it active, and
+* returns the introspection payload together with the OIDC `claims.userinfo`
+* names persisted for the token. Opaque tokens carry the names on their row;
+* JWT access tokens return an empty list and resolve UserInfo claims by scope.
+*/
+async function requireActiveAccessTokenWithClaims(ctx, opts, token, clientId) {
+	const { payload, requestedUserInfoClaims } = await resolveAccessTokenValidation(ctx, opts, token, clientId);
+	if (payload.active) return {
+		payload,
+		requestedUserInfoClaims
+	};
+	throw createInvalidAccessTokenError();
+}
+/**
+* Resolves pairwise sub on an introspection payload.
+* Applied at the presentation layer so internal validation functions
+* keep real user.id (needed for user lookup in /userinfo).
+*/
+async function resolveIntrospectionSub(ctx, opts, payload, introspectingClient) {
+	if (!payload.active || !payload.sub) return payload;
+	const issuerClientId = payload.client_id ?? payload.azp;
+	if (!issuerClientId) return payload;
+	const issuingClient = issuerClientId === introspectingClient.clientId ? introspectingClient : await getClient(ctx, opts, issuerClientId);
+	if (!issuingClient) return payload;
+	const resolvedSub = await resolveSubjectIdentifier(payload.sub, issuingClient, opts);
+	return {
+		...payload,
+		sub: resolvedSub
+	};
+}
+async function introspectEndpoint(ctx, opts) {
+	let { token, token_type_hint } = ctx.body;
+	if (token_type_hint !== "access_token" && token_type_hint !== "refresh_token") token_type_hint = void 0;
+	const { clientId: client_id, clientSecret: client_secret, preVerified, authMethod } = destructureCredentials(await extractClientCredentials(ctx, opts, `${ctx.context.baseURL}/oauth2/introspect`));
+	if (!client_id || !client_secret && !preVerified) throw new APIError$1("UNAUTHORIZED", {
+		error_description: "missing required credentials",
+		error: "invalid_client"
+	});
+	if (token && typeof token === "string") token = stripAccessTokenAuthorizationScheme(token);
+	if (!token?.length) throw new APIError$1("BAD_REQUEST", {
+		error_description: "missing a required token for introspection",
+		error: "invalid_request"
+	});
+	const client = await validateClientCredentials(ctx, opts, client_id, client_secret, void 0, preVerified, void 0, authMethod);
+	try {
+		if (token_type_hint === void 0 || token_type_hint === "access_token") try {
+			return resolveIntrospectionSub(ctx, opts, await validateAccessToken(ctx, opts, token, client.clientId), client);
+		} catch (error) {
+			if (error instanceof APIError$1) {
+				if (token_type_hint === "access_token") throw error;
+			} else if (error instanceof Error) throw error;
+			else throw new Error(error);
+		}
+		if (token_type_hint === void 0 || token_type_hint === "refresh_token") try {
+			return resolveIntrospectionSub(ctx, opts, await validateRefreshToken(ctx, opts, (await decodeRefreshToken(opts, token)).token, client.clientId), client);
+		} catch (error) {
+			if (error instanceof APIError$1) {
+				if (token_type_hint === "refresh_token") throw error;
+			} else if (error instanceof Error) throw error;
+			else throw new Error(error);
+		}
+		throw new APIError$1("BAD_REQUEST", {
+			error_description: "token not found",
+			error: "invalid_request"
+		});
+	} catch (error) {
+		if (error instanceof APIError$1) {
+			if (isInactiveTokenError(error)) return { active: false };
+			throw error;
+		} else if (error instanceof Error) {
+			logger.error("Introspection error:", error.message, error.stack);
+			throw new APIError$1("INTERNAL_SERVER_ERROR");
+		} else {
+			logger.error("Introspection error:", error);
+			throw new APIError$1("INTERNAL_SERVER_ERROR");
+		}
+	}
+}
+//#endregion
+export { filterClaimsRequestUserInfoClaims as A, resolveResourcePolicy as C, getSupportedClaims as D, STANDARD_CLAIM_NAMES as E, isValidOidcClaimsRequest as M, canSatisfyEssentialAcrRequest as O, logEnforcePerClientResourcesResolution as S, STANDARD_CLAIMS as T, assertIdentifierValid as _, invalidateRefreshFamily as a, invalidateResourceCache as b, ResourceUriSchema as c, clientJwksSchema as d, clientRegistrationRequestSchema as f, JWS_ALGORITHMS as g, validateClientCredentialsScopes as h, getOAuthProviderApi as i, getRequestedUserInfoClaims as j, claimsRequestParameterSchema as k, SafeUrlSchema as l, normalizeClientCredentialsScopes as m, introspect_exports as n, tokenEndpoint as o, oauthClientMetadataSchema as p, decodeRefreshToken as r, userInfoEndpoint as s, introspectEndpoint as t, authorizationQuerySchema as u, extractRepeatedResourceFromForm as v, seedResources as w, isAudienceClaimAllowed as x, getResource as y };

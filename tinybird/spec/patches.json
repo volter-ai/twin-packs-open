@@ -1,0 +1,189 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/calls/2/query/scope",
+      "value": "string",
+      "why": "The client builds a new token's scopes into the URL as a raw string (`params`), so the table names no `scope`; the Token API page (https://www.tinybird.co/docs/api-reference/token-api) takes one `scope` per scope: `-d \"name=test&scope=DATASOURCES:APPEND:table_name&scope=DATASOURCES:READ:table_name\"`.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/token-api",
+        "quote": "Scope(s) to set. Format is SCOPE:TYPE[:arg][:filter]. This is only used for the Static Tokens"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/2/query/description",
+      "value": "string",
+      "why": "A token's description, which the Token API page (https://www.tinybird.co/docs/api-reference/token-api) lists beside its name when creating one.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/token-api",
+        "quote": "Optional. Markdown text with a description of the token."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/3/query",
+      "value": {
+        "scope": "string",
+        "name": "string",
+        "description": "string"
+      },
+      "why": "The client passes `scopes_url`, a raw string of the new scopes, so the table names none of PUT /v0/tokens/{name}'s parameters; the Token API page (https://www.tinybird.co/docs/api-reference/token-api) lists `name`, `description` and `scope` for it.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/token-api",
+        "quote": "Optional. Scope(s) to set. Format is SCOPE:TYPE[:arg][:filter]. New scope(s) will override existing ones."
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/20/body/fields",
+      "value": {
+        "name": "string",
+        "schema": "string",
+        "mode": "string",
+        "format": "string",
+        "description": "string",
+        "url": "string",
+        "engine": "string",
+        "engine_sorting_key": "string",
+        "engine_partition_key": "string",
+        "engine_ttl": "string",
+        "engine_ver": "string",
+        "engine_is_deleted": "string"
+      },
+      "why": "The client posts a `parameter_definition` dict built elsewhere, so the table names no keys of POST /v0/datasources; the Data Sources API page (https://www.tinybird.co/docs/api-reference/datasource-api) lists them: mode, name, url, schema, engine and its engine_* options, format, and the description a datafile's DESCRIPTION sends.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/datasource-api",
+        "quote": "Engine for the underlying data. Requires the schema parameter."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/-",
+      "value": {
+        "client": "pipe_create",
+        "line": 0,
+        "method": "POST",
+        "url": "/v0/pipes",
+        "query": {
+          "from": "string",
+          "force": "string",
+          "description": "string"
+        },
+        "body": {
+          "encoding": "json",
+          "fields": {
+            "name": "string",
+            "description": "string",
+            "nodes": "array"
+          }
+        }
+      },
+      "why": "The client's own create sends a name and one SQL in the URL; the Pipes API page (https://www.tinybird.co/docs/api-reference/pipe-api) also creates a Pipe from a JSON body of its name, description and nodes (the form `tb push` sends a datafile's nodes in), or as a copy of another Pipe with `from`.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/pipe-api",
+        "quote": "Creating a Pipe providing full JSON"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/36/query/wait",
+      "value": "string",
+      "why": "The client builds the Events API's URL with `name` alone; the Events API page (https://www.tinybird.co/docs/api-reference/events-api) lists `wait` beside it, which Dub sends on every append (`wait=true`) and which decides 200 or 202: a write recorded without it would be performed without it.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/events-api",
+        "quote": "wait Bool false by default. Set to true to wait until the database acknowledges the write."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/36/query/format",
+      "value": "string",
+      "why": "The Events API page (https://www.tinybird.co/docs/api-reference/events-api) sends a single JSON message with `format=json` in its query, which the client's table does not name.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/events-api",
+        "quote": "The following example shows how to push single JSON messages using the Events API"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/26/body/fields/delete_condition",
+      "value": "string",
+      "why": "The client posts the condition in a dict its table does not read, so POST /v0/datasources/{name}/delete names no `delete_condition`; the Data Sources API page (https://www.tinybird.co/docs/api-reference/datasource-api) makes it mandatory, and Dub's reattribute-customer workflow sends it (apps/web/lib/tinybird/delete-customer-events.ts:23). A write recorded without it would be performed as a delete with no condition.",
+      "source": {
+        "url": "https://www.tinybird.co/docs/api-reference/datasource-api",
+        "quote": "Mandatory. A string representing the WHERE SQL clause"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/63/url",
+      "value": "/v0/user/workspaces/?with_environments=false",
+      "why": "The client's user_workspaces fills its URL's version from a parameter it never passes otherwise, defaulting to v0, so the table's `{version}` is always `v0`: the path the client requests, which the twin serves and a deploy's read names.",
+      "source": {
+        "url": "archive:https://files.pythonhosted.org/packages/c3/60/ce9543ef4e645c2afb1884019176022f5a2ba19f0b1e7d797185694a762e/tinybird_cli-6.5.5-py3-none-any.whl#sha256=58333030758962f1ef9e74a9ba034f2e88800be68d7af13670fd588b253cdb39!/tinybird/client.py",
+        "quote": "async def user_workspaces(self, version: str = \"v0\"):"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/64/url",
+      "value": "/v0/user/workspaces/?with_environments=true",
+      "why": "The client's user_workspaces_and_branches fills its URL's version from a parameter it never passes otherwise, defaulting to v0, so the table's `{version}` is always `v0`: the path the client requests, which the twin serves and a deploy's read names.",
+      "source": {
+        "url": "archive:https://files.pythonhosted.org/packages/c3/60/ce9543ef4e645c2afb1884019176022f5a2ba19f0b1e7d797185694a762e/tinybird_cli-6.5.5-py3-none-any.whl#sha256=58333030758962f1ef9e74a9ba034f2e88800be68d7af13670fd588b253cdb39!/tinybird/client.py",
+        "quote": "async def user_workspaces_and_branches(self, version: str = \"v0\"):"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/65/url",
+      "value": "/v0/user/workspaces/?with_environments=false&with_organization=true&with_members_and_owner=false",
+      "why": "The client's user_workspaces_with_organization fills its URL's version from a parameter it never passes otherwise, defaulting to v0, so the table's `{version}` is always `v0`: the path the client requests, which the twin serves and a deploy's read names.",
+      "source": {
+        "url": "archive:https://files.pythonhosted.org/packages/c3/60/ce9543ef4e645c2afb1884019176022f5a2ba19f0b1e7d797185694a762e/tinybird_cli-6.5.5-py3-none-any.whl#sha256=58333030758962f1ef9e74a9ba034f2e88800be68d7af13670fd588b253cdb39!/tinybird/client.py",
+        "quote": "async def user_workspaces_with_organization(self, version: str = \"v0\"):"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/66/url",
+      "value": "/v0/user/workspaces/?with_environments=true&only_environments=true",
+      "why": "The client's user_workspace_branches fills its URL's version from a parameter it never passes otherwise, defaulting to v0, so the table's `{version}` is always `v0`: the path the client requests, which the twin serves and a deploy's read names.",
+      "source": {
+        "url": "archive:https://files.pythonhosted.org/packages/c3/60/ce9543ef4e645c2afb1884019176022f5a2ba19f0b1e7d797185694a762e/tinybird_cli-6.5.5-py3-none-any.whl#sha256=58333030758962f1ef9e74a9ba034f2e88800be68d7af13670fd588b253cdb39!/tinybird/client.py",
+        "quote": "async def user_workspace_branches(self, version: str = \"v0\"):"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/69/url",
+      "value": "/v0/workspaces?name={name}",
+      "why": "The client's create_workspace fills its URL's version from a parameter it never passes otherwise, defaulting to v0, so the table's `{version}` is always `v0`: the path the client requests, which the twin serves and a deploy's read names.",
+      "source": {
+        "url": "archive:https://files.pythonhosted.org/packages/c3/60/ce9543ef4e645c2afb1884019176022f5a2ba19f0b1e7d797185694a762e/tinybird_cli-6.5.5-py3-none-any.whl#sha256=58333030758962f1ef9e74a9ba034f2e88800be68d7af13670fd588b253cdb39!/tinybird/client.py",
+        "quote": "version: str = \"v0\","
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/74/url",
+      "value": "/v0/workspaces/{id}",
+      "why": "The client's delete_workspace fills its URL's version from a parameter it never passes otherwise, defaulting to v0, so the table's `{version}` is always `v0`: the path the client requests, which the twin serves and a deploy's read names.",
+      "source": {
+        "url": "archive:https://files.pythonhosted.org/packages/c3/60/ce9543ef4e645c2afb1884019176022f5a2ba19f0b1e7d797185694a762e/tinybird_cli-6.5.5-py3-none-any.whl#sha256=58333030758962f1ef9e74a9ba034f2e88800be68d7af13670fd588b253cdb39!/tinybird/client.py",
+        "quote": "async def delete_workspace(self, id: str, hard_delete_confirmation: Optional[str], version: str = \"v0\"):"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/80/url",
+      "value": "/v0/workspace",
+      "why": "The client's workspace_info fills its URL's version from a parameter it never passes otherwise, defaulting to v0, so the table's `{version}` is always `v0`: the path the client requests, which the twin serves and a deploy's read names.",
+      "source": {
+        "url": "archive:https://files.pythonhosted.org/packages/c3/60/ce9543ef4e645c2afb1884019176022f5a2ba19f0b1e7d797185694a762e/tinybird_cli-6.5.5-py3-none-any.whl#sha256=58333030758962f1ef9e74a9ba034f2e88800be68d7af13670fd588b253cdb39!/tinybird/client.py",
+        "quote": "async def workspace_info(self, version: str = \"v0\") -> Dict[str, Any]:"
+      }
+    }
+  ]
+}

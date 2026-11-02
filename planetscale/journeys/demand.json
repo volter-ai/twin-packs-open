@@ -1,0 +1,81 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/browser-substrate (Substrate)",
+      "commit": "3116b2e3f713",
+      "client": "@prisma/adapter-planetscale 6.19.1 over @planetscale/database 1.19.0 (package.json:110-111, resolved in package-lock.json), loaded from the project in the tab by Substrate's Prisma client stand-in",
+      "backend": [
+        {
+          "call": "Prisma's client-engine build in a tab, its adapter @prisma/adapter-planetscale over @planetscale/database's Client({ url, fetch }) at PLANETSCALE_DATABASE_URL: every query of the project's Prisma client (reads, writes, interactive and batch transactions) sent as SQL",
+          "operation": "Execute",
+          "evidence": "packages/node/src/prisma-client-stand-in.ts:126; packages/node/src/prisma-client-stand-in.ts:417; package.json:110; package.json:111; @prisma/adapter-planetscale@6.19.1:dist/index.mjs:312; @prisma/adapter-planetscale@6.19.1:dist/index.mjs:422; @planetscale/database@1.19.0:dist/index.js:78; @planetscale/database@1.19.0:dist/index.js:125"
+        }
+      ],
+      "frontend": [],
+      "webhooks": [],
+      "ci": []
+    },
+    {
+      "name": "dubinc/dub (Dub)",
+      "commit": "7e0101363b2a",
+      "client": "@planetscale/database 1.19.0 (connect().execute) and @prisma/adapter-planetscale 6.19.1 over it (apps/web/package.json:42-43, pnpm-lock.yaml)",
+      "backend": [
+        {
+          "call": "@planetscale/database's connect({ url }).execute(sql, args) at PLANETSCALE_DATABASE_URL: the redirect middleware's link lookup and the API routes' and crons' SQL (SELECT, INSERT, UPDATE, DELETE over Dub's tables)",
+          "operation": "Execute",
+          "evidence": "apps/web/lib/planetscale/connection.ts:3; apps/web/lib/planetscale/get-link-via-edge.ts:26; apps/web/lib/middleware/link.ts:101; @planetscale/database@1.19.0:dist/index.js:78; @planetscale/database@1.19.0:dist/index.js:81"
+        },
+        {
+          "call": "Prisma's edge client through @prisma/adapter-planetscale over @planetscale/database's Client: every edge Prisma query (reads, writes, transactions) sent as SQL",
+          "operation": "Execute",
+          "evidence": "apps/web/lib/prisma/edge.ts:5; apps/web/lib/prisma/edge.ts:9; apps/web/lib/prisma/edge.ts:11; @prisma/adapter-planetscale@6.19.1:dist/index.mjs:312; @prisma/adapter-planetscale@6.19.1:dist/index.mjs:422; @planetscale/database@1.19.0:dist/index.js:64; @planetscale/database@1.19.0:dist/index.js:66; @planetscale/database@1.19.0:dist/index.js:70"
+        },
+        {
+          "call": "Dub's Prisma client (`new PrismaClient()`, no adapter of its own), given @prisma/adapter-planetscale by the World's injector: every server query and $transaction, from the first at boot",
+          "operation": "Execute",
+          "evidence": "apps/web/lib/prisma/index.ts:4; apps/web/package.json:43; @prisma/adapter-planetscale@6.19.1:dist/index.mjs:312; @planetscale/database@1.19.0:dist/index.js:78"
+        }
+      ],
+      "frontend": [],
+      "webhooks": [],
+      "ci": [
+        {
+          "call": ".env.example: PLANETSCALE_DATABASE_URL",
+          "reaches": [
+            "the dashboard: a branch password's host and credentials (the credentialDoor fills PLANETSCALE_DATABASE_URL)"
+          ],
+          "evidence": "apps/web/.env.example:23"
+        }
+      ]
+    },
+    {
+      "name": "Twin (twin-world's own callers)",
+      "commit": "96ca4478bb39",
+      "client": "the runtime's boot (packages/world-runtime), posting the descriptor's credentialDoor",
+      "backend": [
+        {
+          "call": "the runtime asks a World's planetscale twin for the application's connection string at boot (the descriptor's credentialDoor: POST /_twin/app-credentials), filling PLANETSCALE_DATABASE_URL",
+          "operation": "door:appCredentials",
+          "evidence": "packages/world-runtime/src/init.ts:839"
+        }
+      ],
+      "frontend": [],
+      "webhooks": [],
+      "ci": []
+    },
+    {
+      "commit": "7e0101363b2a",
+      "backend": [
+        {
+          "call": "the trigger-backup cron (vercel.json, four times a day): POST https://api.planetscale.com/v1/organizations/dub/databases/dub/branches/main/backups { name, retention_value: 7, retention_unit: 'day' } with a service token (Authorization: <id>:<token>), failing on any answer but 2xx",
+          "operation": "create_backup",
+          "evidence": "apps/web/app/(ee)/api/cron/trigger-backup/route.ts:19; apps/web/vercel.json:64"
+        }
+      ],
+      "name": "dubinc/dub",
+      "gate": "The shipped scheduled backup cron calls PlanetScale and rejects missing credentials; this is not an opt-in switch (apps/web/app/(ee)/api/cron/trigger-backup/route.ts:7-22)."
+    }
+  ],
+  "optional": []
+}

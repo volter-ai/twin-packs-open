@@ -1,0 +1,203 @@
+{
+  "about": "volteridentity's decision table (the P3 procedure): Volter Identity's OpenID Connect provider, device grant, social sign-in and product organizations API as the in-scope products call them (journeys/demand.json). Every served operation is a handler; the derived core serves none (no operation of the spec is plain CRUD on a resource the pack declares). Every other operation answers the gap.",
+  "decisions": [
+    {
+      "operation": "openidConfiguration",
+      "demand": "Twin, Volter Harness, Substrate, Open Autonomy and RH2: each reads the discovery document first",
+      "mechanism": "handler",
+      "why": "computed: the captured discovery document's fields (spec/recordings), EdDSA as the vendor advertises"
+    },
+    {
+      "operation": "get_api_auth_oauth2_authorize",
+      "demand": "every product's browser sign-in (Twin, Volter Harness, Substrate, Open Autonomy, RH2)",
+      "mechanism": "handler",
+      "why": "an action over a session: the client and its redirect checked (loopback on any port), PKCE required of a public client, prompt=login and no session to the sign-in page, else a code kept by its SHA-256 and the redirect with code, state and iss"
+    },
+    {
+      "operation": "post_api_auth_oauth2_token",
+      "demand": "every product's code exchange; Twin's client_credentials token; Volter Harness's and Substrate's refresh for a resource; Volter Harness's and RH2's device polling; shared-client predecessor reuse and ordinary device recovery",
+      "mechanism": "handler",
+      "why": "an action: client authentication (basic, post, or a public client by id), the authorization_code (PKCE S256), refresh_token and client_credentials grants and the device code; held-resource and scope checks precede revoked reuse, current resource linkage is checked only for active issuance; signed tokens; only actual refresh successor issuance rotates a predecessor, while a grant without offline scope remains reusable; apply the pinned provider's zero-grace same-client/person reuse invalidation, then allow a normal fresh device grant; no thirty-second replay claim"
+    },
+    {
+      "operation": "get_api_auth_oauth2_userinfo",
+      "demand": "Twin, Volter Harness, Substrate and RH2 read the email and name the ID token keeps out",
+      "mechanism": "handler",
+      "why": "computed from the access token: the person's claims for its scopes and their linked GitHub account"
+    },
+    {
+      "operation": "getJSONWebKeySet",
+      "demand": "Twin, Volter Harness's Teams server, Substrate, Open Autonomy and RH2 verify tokens against the issuer's keys",
+      "mechanism": "handler",
+      "why": "computed: the World's signing key as a JWKS"
+    },
+    {
+      "operation": "post_api_auth_device_code",
+      "demand": "Volter Harness (the shared public client) and RH2's desktop widget (confidential, with its secret)",
+      "mechanism": "handler",
+      "why": "an action: the client authenticated, a device code and a user code kept until approved or expired"
+    },
+    {
+      "operation": "get_api_auth_device",
+      "demand": "RH2's iOS app claims the console's device code with its session",
+      "mechanism": "handler",
+      "why": "an action over a session: a pending, unclaimed code claimed by the signed-in person; its status, and its client and scope for the claimant"
+    },
+    {
+      "operation": "post_api_auth_device_approve",
+      "demand": "RH2's iOS app approves the code it claimed",
+      "mechanism": "handler",
+      "why": "an action over a session: only the claimant approves a pending code; refusals in Better Auth's device errors"
+    },
+    {
+      "operation": "socialSignIn",
+      "demand": "RH2 iOS Apple ID-token request (apps/rh2-mobile/apple.ts:41); hosted GitHub/Google sign-in (identity worker/ui/identity.ts:126)",
+      "mechanism": "handler",
+      "why": "an action: the provider's ID token verified against its keys at the World's twin of the provider (issuer, audience, age, nonce raw or SHA-256), the person found, linked or made, a session cookie; without an ID token the provider's authorize URL"
+    },
+    {
+      "operation": "get_api_auth_callback_id",
+      "demand": "The hosted identity page uses configured GitHub/Google sign-in; their callbacks exchange codes through the provider twins and link the account before product authorization",
+      "mechanism": "handler",
+      "why": "an action: the provider's code traded at the World's twin of the provider, the person found or linked, the session set, back to the authorization request"
+    },
+    {
+      "operation": "productPeopleByEmail",
+      "demand": "Twin's directory finds a person by email",
+      "mechanism": "handler",
+      "why": "a gated read: the product's organizations token; the person by email or 404"
+    },
+    {
+      "operation": "productPersonById",
+      "demand": "Twin's directory reads a person",
+      "mechanism": "handler",
+      "why": "a gated read: the person by id or 404"
+    },
+    {
+      "operation": "productPersonOrganizations",
+      "demand": "Twin's directory reads a person's organizations of this product",
+      "mechanism": "handler",
+      "why": "a gated read: the person's memberships in the product's organizations, each with the role"
+    },
+    {
+      "operation": "productCreateOrganization",
+      "demand": "Twin creates an organization",
+      "mechanism": "handler",
+      "why": "a gated action: the slug checked and unique, the organization owned by the product, its creator the owner member"
+    },
+    {
+      "operation": "productGetOrganization",
+      "demand": "Twin reads an organization by id or slug",
+      "mechanism": "handler",
+      "why": "a gated read: only the product's own organizations"
+    },
+    {
+      "operation": "productRenameOrganization",
+      "demand": "Twin renames an organization",
+      "mechanism": "handler",
+      "why": "a gated write: the name only, the slug kept"
+    },
+    {
+      "operation": "productDeleteOrganization",
+      "demand": "Twin deletes an organization",
+      "mechanism": "handler",
+      "why": "a gated delete: its members removed with it"
+    },
+    {
+      "operation": "productListMembers",
+      "demand": "Twin lists an organization's members",
+      "mechanism": "handler",
+      "why": "a gated read: members with the person's email and name"
+    },
+    {
+      "operation": "productAddMember",
+      "demand": "Twin adds a member",
+      "mechanism": "handler",
+      "why": "a gated action: a Volter identity, admin or member, not twice"
+    },
+    {
+      "operation": "productChangeMemberRole",
+      "demand": "Twin changes a member's role",
+      "mechanism": "handler",
+      "why": "a gated write: owner, admin or member",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/volter-ai/identity/daa98e9a5f6409ce7fc6483a1e03b7de69d8dcc2/worker/src/product.ts",
+          "means": "role is owner, admin or member"
+        }
+      ]
+    },
+    {
+      "operation": "productRemoveMember",
+      "demand": "Twin removes a member",
+      "mechanism": "handler",
+      "why": "a gated delete"
+    },
+    {
+      "operation": "productCreateInvitation",
+      "demand": "Twin invites by email",
+      "mechanism": "handler",
+      "why": "a gated action: an invitation for a week, admin or member, from a Volter identity"
+    },
+    {
+      "operation": "productListInvitations",
+      "demand": "Twin lists pending invitations",
+      "mechanism": "handler",
+      "why": "a gated read: pending and unexpired"
+    },
+    {
+      "operation": "productCancelInvitation",
+      "demand": "Twin revokes a pending invitation",
+      "mechanism": "handler",
+      "why": "a gated state move: pending to canceled"
+    },
+    {
+      "operation": "door:users",
+      "demand": "every product's people",
+      "mechanism": "door",
+      "why": "Existing emailed-code or passkey identities are created outside the served API; linked social accounts are made only by social sign-in and its provider callback."
+    },
+    {
+      "operation": "door:social",
+      "demand": "the sign-in page's GitHub and Google; RH2's iOS app's Apple",
+      "mechanism": "door",
+      "why": "the service's OAuth apps at the providers and the iOS apps Apple signs in are the operator's configuration (GITHUB_CLIENT_ID, GOOGLE_CLIENT_ID, APPLE_APP_IDS)"
+    },
+    {
+      "operation": "adminCreateClient",
+      "demand": "the operator registers Open Autonomy's giving page and Twin's console (world.ts:68, rehearsal.ts:32), and every product the life signs in",
+      "mechanism": "handler",
+      "why": "an action behind a signed-in session and the admin token: Better Auth's client metadata checked and defaulted, a client id and (confidential) secret minted from the World's secrets, the secret answered once and kept by its SHA-256"
+    },
+    {
+      "operation": "adminCreateResource",
+      "demand": "the resources Substrate's gateway and Volter Harness's tokenFor name (volter.ts:240, shared.js:359) exist once the operator registers them",
+      "mechanism": "handler",
+      "why": "an action behind the session and the admin token: an https origin or the organizations door, once"
+    },
+    {
+      "operation": "adminLinkClientResource",
+      "demand": "Twin's console linked to <issuer>/organizations (rehearsal.ts:38); the gateway and the shared client linked to theirs",
+      "mechanism": "handler",
+      "why": "an action behind the session and the admin token: the token endpoint answers a resource only for a client linked to it"
+    },
+    {
+      "operation": "door:sharedClient",
+      "demand": "Volter Harness's @volter/identity signs in with the shared client its package names",
+      "mechanism": "door",
+      "why": "the operator's API mints a client's id; only a door makes the client under the id @volter/identity publishes (SHARED_CLIENTS)"
+    },
+    {
+      "operation": "door:appCredentials",
+      "demand": "the operator's admin token for the World's application that registers products",
+      "mechanism": "door",
+      "why": "IDENTITY_ADMIN_TOKEN is the operator's setting, which no API reads; the descriptor's credentialDoor hands it to the application under that name"
+    },
+    {
+      "operation": "door:settings",
+      "demand": "the World's own door, POST /_twin/settings: the service's permanent ISSUER binding, configured before OAuth account setup; defaults to its declared id.volter.ai host",
+      "mechanism": "door",
+      "why": "The service's permanent ISSUER binding, configured before OAuth account setup; defaults to its declared id.volter.ai host, which no vendor API makes."
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/paths/~1v1~1edge-config~1{edgeConfigId}~1items",
+      "value": {},
+      "why": "Vercel still serves Edge Config item updates at /v1/edge-config/{edgeConfigId}/items, the path the document now names /v1/global-config/{edgeConfigId}/items. This rests on client code, not on Vercel's reference, which documents only the global-config path: Dub updates its Edge Config items at the edge-config path in production.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/dubinc/dub/303f3f8b6774002d7096a40db5ca46336399c778/apps/web/lib/edge-config/update.ts",
+        "quote": "https://api.vercel.com/v1/edge-config/"
+      }
+    },
+    {
+      "op": "copy",
+      "from": "/paths/~1v1~1global-config~1{edgeConfigId}~1items/patch",
+      "path": "/paths/~1v1~1edge-config~1{edgeConfigId}~1items/patch",
+      "why": "The edge-config path's PATCH is the global-config path's (the same items body and answer), as Dub's call through it shows (client code, not Vercel's reference).",
+      "source": {
+        "url": "https://raw.githubusercontent.com/dubinc/dub/303f3f8b6774002d7096a40db5ca46336399c778/apps/web/lib/edge-config/update.ts",
+        "quote": "method: \"PATCH\""
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1v1~1edge-config~1{edgeConfigId}~1items/patch/operationId",
+      "value": "patchEdgeConfigItemsAtEdgeConfigPath",
+      "why": "The copied operation needs its own id beside patchEdgeConfigItems (the twin's name; client code, not Vercel's reference).",
+      "source": {
+        "url": "https://raw.githubusercontent.com/dubinc/dub/303f3f8b6774002d7096a40db5ca46336399c778/apps/web/lib/edge-config/update.ts",
+        "quote": "https://api.vercel.com/v1/edge-config/"
+      }
+    },
+    {
+      "op": "copy",
+      "from": "/paths/~1v1~1global-config/get/responses/200/content/application~1json/schema",
+      "path": "/components/schemas/GlobalConfigListed",
+      "why": "The one Global Config the 200 schema types is what each entry of the list is: the operation \"Returns all Global Configs.\" and its 200 is \"List of all global configs.\" (the page), so the list's item schema is kept as a component.",
+      "source": {
+        "url": "https://vercel.com/docs/rest-api/global-config/get-global-configs.md",
+        "quote": "Returns all Global Configs."
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1v1~1global-config/get/responses/200/content/application~1json/schema",
+      "value": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GlobalConfigListed"
+        }
+      },
+      "why": "The 200 of Get Global Configs is a list: \"Returns all Global Configs.\", \"List of all global configs.\" (the page); the document types one config.",
+      "source": {
+        "url": "https://vercel.com/docs/rest-api/global-config/get-global-configs.md",
+        "quote": "List of all global configs."
+      }
+    }
+  ]
+}

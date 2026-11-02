@@ -19,7 +19,7 @@ export async function accounts(ctx: HandlerContext): Promise<Response> {
   // source: https://developers.openai.com/api/reference/resources/organization/subresources/users/methods/list "user-abc"
   // source: https://raw.githubusercontent.com/openai/openai-cookbook/0eac1447d4e24d06e47c459ca5e98f248b9413cf/examples/dalle/Image_generations_edits_and_variations_with_DALL-E.ipynb "user-8OA8IvMYkfdAcUZXgzAXHS7d"
   const user = { id: `user-${ctx.crypto.base62From(`account:${email}`, 24)}`, object: 'organization.user', name, email, role, added_at: epoch(ctx) };
-  await recordPerson(ctx, email, password, { user_id: user.id, name, role, added_at: user.added_at });
+  await recordPerson(ctx, email, password, { user_id: user.id, name, role, added_at: user.added_at, _world_account: await ctx.account() });
   return Response.json(user, { status: 201 });
 }
 
@@ -27,10 +27,11 @@ export async function accounts(ctx: HandlerContext): Promise<Response> {
  *  made first when the organization has none), shown once. The runtime issues it to a World's applications (the
  *  descriptor's credentialDoor). */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  let project = ctx.rowsRaw('project').find((p) => p.name === 'Default project' && p.deleted !== true);
+  const account = await ctx.account();
+  let project = ctx.rowsRaw('project').find((p) => p.name === 'Default project' && (p._world_account ?? 'default') === account && p.deleted !== true);
   if (!project) {
     const id = ctx.mint('Project');
-    await ctx.write('Project', id, { object: 'organization.project', name: 'Default project', created_at: epoch(ctx), archived_at: null, status: 'active' }, 'project.create');
+    await ctx.write('Project', id, { _world_account: account, object: 'organization.project', name: 'Default project', created_at: epoch(ctx), archived_at: null, status: 'active' }, 'project.create');
     project = ctx.rowsRaw('project').find((p) => p.id === id)!;
   }
   // the application's key, made the first time the runtime asks and the same at every boot after (its value is its id's)
@@ -38,11 +39,11 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   // the key reached it derives another value, so it issues a new key rather than one that is refused)
   const held = ctx.rowsRaw(PROJECT_KEY).find((k) => k.name === 'world' && k._project_id === project!.id && k.deleted !== true);
   const again = held ? await mintProjectKey(ctx, String(held.id)) : undefined;
-  if (held && again && held._sha256 === sha256(again)) return Response.json({ api_key: again, project_id: project.id, ...await codexCredentials(ctx) }, { status: 201 });
+  if (held && again && held._sha256 === sha256(again)) return Response.json({ api_key: again, project_id: project.id, ...await codexCredentials(ctx, account) }, { status: 201 });
   const id = ctx.mint(PROJECT_KEY);
   const secret = await mintProjectKey(ctx, id);
-  await ctx.write(PROJECT_KEY, id, { object: 'organization.project.api_key', name: 'world', redacted_value: `sk-proj-****${secret.slice(-4)}`, created_at: epoch(ctx), last_used_at: null, _sha256: sha256(secret), _project_id: project.id, owner: { type: 'user', user: null }, owner_project_access: 'active', _permissions: 'all' }, 'api_key.create');
-  return Response.json({ api_key: secret, project_id: project.id, ...await codexCredentials(ctx) }, { status: 201 });
+  await ctx.write(PROJECT_KEY, id, { _world_account: account, object: 'organization.project.api_key', name: 'world', redacted_value: `sk-proj-****${secret.slice(-4)}`, created_at: epoch(ctx), last_used_at: null, _sha256: sha256(secret), _project_id: project.id, owner: { type: 'user', user: null }, owner_project_access: 'active', _permissions: 'all' }, 'api_key.create');
+  return Response.json({ api_key: secret, project_id: project.id, ...await codexCredentials(ctx, account) }, { status: 201 });
 }
 
 function invalidDoorRequest(message: string): Response {

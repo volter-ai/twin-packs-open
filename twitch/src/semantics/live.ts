@@ -20,16 +20,16 @@ function channelOfKey(ctx: HandlerContext, key: string): Row | undefined {
 }
 
 export const ingest: LiveEngine<HandlerContext> = {
-  publish(ctx, ask) {
+  async publish(ctx, ask) {
     // source: https://dev.twitch.tv/docs/video-broadcast/ "uniquely identifies this stream. Stream keys are assigned by Twitch."
     const user = channelOfKey(ctx, ask.key);
     if (!user) return { refused: 'NetStream.Publish.BadName', description: 'Invalid stream key' };
     // source: https://dev.twitch.tv/docs/video-broadcast/ "is an optional query-string parameter that disables live viewing of the stream."
     if (ask.query.bandwidthtest === 'true') return { stream: `bandwidthtest-${String(user.id)}-${Date.parse(ctx.occurredAt)}` };
-    // an encoder that reconnects while its stream is live goes on with the same broadcast; else a new broadcast, its
-    // stream's id the next Twitch gives one
-    const live = liveStreamOf(ctx, String(user.id));
-    return { stream: live ? String(live.id) : ctx.mint('GetStreamsResponseData') };
+    // Reserve one broadcast per channel before playable media exists. Allocation and channel uniqueness share
+    // the kernel's action lock; the hidden subject is not a live Helix stream until started writes its fields.
+    const { row } = await ctx.createUnique('GetStreamsResponseData', { user_id: user.id }, 'live:reserve');
+    return { stream: String(row.id) };
   },
   async started(ctx, recording) {
     if (TEST.test(recording.stream)) return;
@@ -52,10 +52,11 @@ export const ingest: LiveEngine<HandlerContext> = {
   },
   async ended(ctx, recording: LiveRecording) {
     if (TEST.test(recording.stream)) return;
-    const user = channelOfKey(ctx, recording.key);
-    const live = user ? liveStreamOf(ctx, String(user.id)) : undefined;
+    // Internal exact-id cleanup must see a reservation that never became readable. The admitted recording owns
+    // this subject even if its stream key was changed after admission.
+    const held = ctx.row('stream', recording.stream);
     // the channel is offline: Get Streams answers only the streams of those users that are broadcasting
     // source: spec:/paths/~1streams/get/parameters/1/description "Returns only the streams of those users that are broadcasting."
-    if (live && String(live.id) === recording.stream) await ctx.remove('GetStreamsResponseData', recording.stream, 'live:ingest');
+    if (held) await ctx.remove('GetStreamsResponseData', recording.stream, 'live:ingest');
   },
 };

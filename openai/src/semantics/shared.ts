@@ -2279,17 +2279,17 @@ export async function codexTokens(ctx: HandlerContext, account: Row, client = CO
   // Where source stops: signing and one-hour access/thirty-day refresh lifetime are synthetic World policy.
   const access_token = ctx.crypto.jwtSign({ ...claims, aud: 'https://api.openai.com/v1' }, { alg: 'RS256', ...signing }, { now: epoch(ctx), expiresInSeconds: 3600 });
   const id_token = ctx.crypto.jwtSign({ ...claims, aud: client }, { alg: 'RS256', ...signing }, { now: epoch(ctx), expiresInSeconds: 3600 });
-  await ctx.write('_codex_grant', id, { status: 'active', _account: account.id, _client: client, _family: family ?? id, _access: access_token, _id_token: id_token, _refresh: refresh, _refresh_hash: sha256(refresh), _expires: epoch(ctx) + 3600, _refresh_expires: epoch(ctx) + 30 * 86400 }, 'codex.issue');
+  await ctx.write('_codex_grant', id, { status: 'active', _world_account: account._world_account ?? 'default', _account: account.id, _client: client, _family: family ?? id, _access: access_token, _id_token: id_token, _refresh: refresh, _refresh_hash: sha256(refresh), _expires: epoch(ctx) + 3600, _refresh_expires: epoch(ctx) + 30 * 86400 }, 'codex.issue');
   return { access_token, id_token, refresh_token: refresh, token_type: 'Bearer', expires_in: 3600 };
 }
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/auth/storage.rs "OPENAI_API_KEY"
-export async function codexCredentials(ctx: HandlerContext): Promise<Row> {
-  let account = ctx.rowsRaw('_codex_account')[0];
-  const password = await ctx.secret('codex:account:password');
+export async function codexCredentials(ctx: HandlerContext, worldAccount = 'default'): Promise<Row> {
+  let account = ctx.rowsRaw('_codex_account').find(a => (a._world_account ?? 'default') === worldAccount);
+  const password = await ctx.secret(worldAccount === 'default' ? 'codex:account:password' : `codex:account:password:${worldAccount}`);
   if (!account) {
-    const email = 'codex@example.test';
-    await codexRecordPerson(ctx, email, password, { name: 'World Codex account' });
-    account = await ctx.create('_codex_account', { email }, 'codex.account');
+    const email = worldAccount === 'default' ? 'codex@example.test' : `codex+${sha256(worldAccount).slice(0, 24)}@example.test`;
+    await codexRecordPerson(ctx, email, password, { name: 'World Codex account', _world_account: worldAccount });
+    account = await ctx.create('_codex_account', { email, _world_account: worldAccount }, 'codex.account');
   }
   const held = ctx.rowsRaw('_codex_grant').find(g => g._account === account!.id && g.status === 'active' && Number(g._expires) > epoch(ctx));
   const tokens = held ? { access_token: held._access, id_token: held._id_token, refresh_token: held._refresh } : await codexTokens(ctx, account);
@@ -2310,7 +2310,8 @@ export function codexGrant(ctx: HandlerContext): Row | Response {
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/server.rs "code_challenge_method"
 export async function codexCode(ctx: HandlerContext, fields: Row): Promise<string> {
   const code = await codexOpaque(ctx, 'code');
-  await ctx.write('_codex_code', sha256(code), { status: 'fresh', ...fields, _expires: epoch(ctx) + 600 }, 'codex.code');
+  const owner = ctx.row('_codex_account', String(fields._account));
+  await ctx.write('_codex_code', sha256(code), { status: 'fresh', ...fields, _world_account: owner?._world_account ?? 'default', _expires: epoch(ctx) + 600 }, 'codex.code');
   return code;
 }
 // The screen's form fields and collapsed consent are a twin UI; OpenAI documents only the round trip.
@@ -2328,7 +2329,7 @@ export async function codexConsent(ctx: HandlerContext, device: boolean): Promis
     const verifier = await codexOpaque(ctx, 'verifier');
     const challenge = ctx.crypto.digest('sha256', verifier, 'base64url');
     const code = await codexCode(ctx, { _account: account.id, _client: request._client, _redirect: 'https://auth.openai.com/deviceauth/callback', _challenge: challenge });
-    await ctx.write('_codex_device', String(request.id), { status: 'approved', _code: code, _verifier: verifier, _challenge: challenge }, 'codex.consent');
+    await ctx.write('_codex_device', String(request.id), { status: 'approved', _world_account: account._world_account ?? 'default', _code: code, _verifier: verifier, _challenge: challenge }, 'codex.consent');
     return { notice: 'Device authorized. Return to Codex.' };
   }
   const q = new URLSearchParams(form.query ?? '');

@@ -15,7 +15,7 @@
 //   Categories. Every other operation answers Twitch's 404, the gap.
 //
 // THE STATE: users (`user`, in Get Users' shape), their channels (`channel`, Get Channel Information's), a live
-// broadcast's stream (`stream`, Get Streams', present only while the channel is live), chat messages (`chat_message`),
+// broadcast's stream (`stream`, reserved at admission and readable only while live), chat messages (`chat_message`),
 // and the developer console's applications (`application`). A CREDENTIAL IS BOOKKEEPING, kept by its SHA-256: an
 // application's client secret (`_client_secret`), the tokens id.twitch.tv issues (`_token`) and its authorization codes
 // (`_authorization_code`, the lane's), and a channel's stream key (`_stream_key`). A broadcast's recording is the
@@ -65,10 +65,16 @@ export const manifest: DerivedManifest = {
     // a user's channel, made with the account (every account has one), keyed by the broadcaster's id
     // source: spec:getChannelInformation "Gets information about one or more channels."
     GetChannelInformationResponseData: { storedAs: 'channel', idPrefix: '', ...states.GetChannelInformationResponseData, parent: { resource: 'GetUsersResponseData', field: 'broadcaster_id', param: 'broadcaster_id' }, refresh: { list: 'getChannelInformation', items: 'data' } },
-    // a live broadcast: made when the channel goes live and gone when it is offline (./semantics/live.ts)
+    // A broadcast identity is reserved at admission; only a playable broadcast is readable (./semantics/live.ts).
     // source: spec:getStreams "Gets a list of all streams."
     // A stream id is a decimal string (the reference's example: "40952121085"), eleven digits.
-    GetStreamsResponseData: { storedAs: 'stream', idPrefix: '', ids: '{digits:11}', ...states.GetStreamsResponseData, refresh: { list: 'getStreams', items: 'data', next: 'pagination.cursor', cursor: 'after' } },
+    GetStreamsResponseData: {
+      storedAs: 'stream', idPrefix: '', ids: '{digits:11}', ...states.GetStreamsResponseData,
+      readableWhen: { type: 'live' },
+      // The reservation is idempotent; the kernel's RTMP admission owns a duplicate encoder's wire refusal.
+      unique: [{ fields: ['user_id'], refusal: { status: 409, message: 'A broadcast is already reserved for this channel.' } }],
+      refresh: { list: 'getStreams', items: 'data', next: 'pagination.cursor', cursor: 'after' },
+    },
     // a message sent to a channel's chat room; the API reads none back (chat delivers it as it is sent)
     // source: https://dev.twitch.tv/docs/chat/irc/ "An ID that uniquely identifies the message."
     chat_message: { idPrefix: '', ids: '{uuid}', refresh: { none: "Twitch's API reads no chat message back: chat delivers each message as it is sent (IRC, EventSub)" } },

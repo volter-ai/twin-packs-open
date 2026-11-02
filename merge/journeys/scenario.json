@@ -1,0 +1,69 @@
+{
+  "handlers": [
+    {
+      "id": "ledger-summary",
+      "on": {
+        "userTextIncludes": "Summarise the ledger"
+      },
+      "respond": {
+        "text": "The ledger holds three funded tasks and one refund."
+      }
+    },
+    {
+      "id": "provider-outage",
+      "on": {
+        "userTextIncludes": "Reconcile the ledger"
+      },
+      "fault": {
+        "kind": "status",
+        "status": 503,
+        "message": "The provider is unavailable."
+      },
+      "once": true
+    },
+    {
+      "id": "balance-tool",
+      "on": {
+        "hasTool": "get_balance",
+        "lastMessageIsToolResult": false
+      },
+      "respond": {
+        "toolCalls": [
+          {
+            "name": "get_balance",
+            "arguments": {
+              "account": "operating"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-list-tool",
+      "on": {
+        "hasTool": "ls",
+        "lastMessageIsToolResult": false
+      },
+      "respond": {
+        "toolCalls": [
+          {
+            "name": "ls",
+            "arguments": {
+              "path": "."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "inconclusive-comparison",
+      "on": {
+        "userTextIncludes": "Compare the operating account balance against this ledger summary:",
+        "lastMessageIsToolResult": true
+      },
+      "respond": {
+        "text": "The operating account balance is 10 USD. The ledger summary reports three funded tasks and one refund; their amounts are absent, so the cash cannot yet be reconciled."
+      }
+    }
+  ]
+}

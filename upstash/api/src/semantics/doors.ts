@@ -22,7 +22,9 @@ export async function users(ctx: HandlerContext): Promise<Response> {
  *  The runtime issues these to a World's applications (the descriptor's credentialDoor). */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const b = bodyOf(ctx);
-  const owner = (typeof b.owner === 'string' ? b.owner : 'owner@world.test').toLowerCase();
+  const account = await ctx.account();
+  const baseOwner = (typeof b.owner === 'string' ? b.owner : 'owner@world.test').toLowerCase();
+  const owner = account === 'default' ? baseOwner : `owner+${ctx.crypto.sha256(account).slice(0, 24)}@world.test`;
   // the application's database, made the first time the runtime asks and the same at every boot after
   const name = typeof b.name === 'string' ? b.name : 'world';
   const d = ctx.rowsRaw(DATABASE).find((x) => x.customer_id === owner && x.database_name === name && x.deleted !== true) ?? await makeDatabase(ctx, { owner, name, region: 'us-east-1' });

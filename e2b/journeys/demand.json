@@ -1,0 +1,99 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/runhuman-2 (RH2)",
+      "commit": "34fdc9377306ff66e074b77a6c7fe4df487f9b1f",
+      "client": "fetch, x-api-key E2B_API_KEY",
+      "backend": [
+        {
+          "call": "a Task's machine started from the task-agent template (templateID, envVars, timeout 3600)",
+          "operation": "post_sandboxes",
+          "evidence": "bots/runhuman-model/machine.ts:20"
+        },
+        {
+          "call": "the Task agent host started in it at 49983-<sandboxID>.<domain>: bash -l -c 'curl … && nohup node host.mjs &' (Connect, application/connect+json, one enveloped message), read until its start event names a pid",
+          "operation": "Process.Start",
+          "evidence": "bots/runhuman-model/machine.ts:32"
+        },
+        {
+          "call": "the machine killed when the run ends (a 404 is a machine already gone)",
+          "operation": "delete_sandboxes_sandboxid",
+          "evidence": "bots/runhuman-model/machine.ts:53"
+        }
+      ]
+    }
+  ],
+  "optional": [
+    {
+      "commit": "1d561b8c73c984058a5121ec229f4805a2424a91",
+      "client": "@e2b/code-interpreter 2.7.1, e2b 2.45.0 (yarn.lock), CODE_INTERPRETER_TYPE=E2B",
+      "backend": [
+        {
+          "call": "Sandbox.create",
+          "operation": "post_sandboxes",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:87"
+        },
+        {
+          "call": "Sandbox.list session lookup, release and abandoned-session sweep",
+          "operation": "get_v2_sandboxes",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/utils/get-or-create-session-sandbox.util.ts:25"
+        },
+        {
+          "call": "Sandbox.connect reuses or resumes a session",
+          "operation": "post_sandboxes_sandboxid_connect",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/utils/get-or-create-session-sandbox.util.ts:53"
+        },
+        {
+          "call": "sandbox.setTimeout refreshes idle timeout",
+          "operation": "post_sandboxes_sandboxid_timeout",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/utils/get-or-create-session-sandbox.util.ts:61"
+        },
+        {
+          "call": "Sandbox.kill cleanup",
+          "operation": "delete_sandboxes_sandboxid",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:181"
+        },
+        {
+          "call": "sandbox.files.write scripts and input bytes",
+          "operation": "post_files",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:49"
+        },
+        {
+          "call": "sandbox.files.read output bytes",
+          "operation": "get_files",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:153"
+        },
+        {
+          "call": "sandbox.files.list output directory",
+          "operation": "Filesystem.ListDir",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:149"
+        },
+        {
+          "call": "sandbox.files.exists output directory",
+          "operation": "Filesystem.Stat",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:190"
+        },
+        {
+          "call": "sandbox.files.remove stale output directory",
+          "operation": "Filesystem.Remove",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:191"
+        },
+        {
+          "call": "sandbox.files.makeDir clean output directory",
+          "operation": "Filesystem.MakeDir",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:194"
+        },
+        {
+          "call": "sandbox.runCode with streaming callbacks and persistent context",
+          "operation": "execute",
+          "evidence": "packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:131"
+        }
+      ],
+      "application": "twentyhq/twenty",
+      "what": "@e2b/code-interpreter 2.7.1, e2b 2.45.0 (yarn.lock), CODE_INTERPRETER_TYPE=E2B",
+      "setting": "Configuration (1): CODE_INTERPRETER_TYPE=E_2_B replaces LOCAL in development or DISABLED otherwise (packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:843-846).",
+      "evidence": "packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:843-857"
+    }
+  ]
+}

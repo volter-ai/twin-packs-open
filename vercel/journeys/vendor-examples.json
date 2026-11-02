@@ -1,0 +1,600 @@
+{
+  "vendor": "vercel",
+  "author": "Contributor 76",
+  "host": "api.vercel.com",
+  "about": "Published examples for the selected REST operations. Setup uses the declared dashboard/Git-import credential door and the domain owner's DNS; every example's decided fields and write effects are asserted. Expanded to the vendor's canonical item mutation after blind adoption found that documented path missing.",
+  "steps": [
+    {
+      "name": "The dashboard has issued this team its project, token and Edge Config",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "team": "examples",
+        "project": "example-project"
+      },
+      "capture": {
+        "token": "token",
+        "team": "team_id",
+        "project": "project_id",
+        "config": "edge_config_id",
+        "connection": "edge_config"
+      }
+    },
+    {
+      "name": "The project list for the imported repository",
+      "method": "GET",
+      "path": "/v10/projects",
+      "status": 200,
+      "expect": [
+        {
+          "path": "projects.0.id",
+          "equals": "{project}"
+        },
+        {
+          "path": "projects.0.name",
+          "equals": "example-project"
+        },
+        {
+          "path": "projects.0.accountId",
+          "equals": "{team}"
+        },
+        {
+          "path": "pagination.count",
+          "equals": 1
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "getProjects#doc example",
+      "exampleDiffers": {
+        "(the answer)": "The page renders the first (bare-array) alternative of the getProjects 200 oneOf. This request uses the documented paginated {projects,pagination} alternative of the same vendored schema (spec: getProjects responses/200); the stored project is asserted in that envelope."
+      }
+    },
+    {
+      "name": "The authenticated team list",
+      "method": "GET",
+      "path": "/v2/teams",
+      "status": 200,
+      "capture": {
+        "creator": "teams.0.creatorId"
+      },
+      "expect": [
+        {
+          "path": "teams.0.id",
+          "equals": "{team}"
+        },
+        {
+          "path": "teams.0.slug",
+          "equals": "examples"
+        },
+        {
+          "path": "teams.0.name",
+          "equals": "examples"
+        },
+        {
+          "path": "pagination.count",
+          "equals": 1
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "getTeams#doc example",
+      "undecided": {
+        "teams.0.stagingPrefix": "Vercel assigns the alias staging prefix; this setup specifies a team slug, not its staging prefix (spec: Team.stagingPrefix)."
+      }
+    },
+    {
+      "name": "The team Edge Config list",
+      "method": "GET",
+      "path": "/v1/global-config",
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{config}"
+        },
+        {
+          "path": "0.ownerId",
+          "equals": "{team}"
+        },
+        {
+          "path": "0.slug",
+          "equals": "world"
+        },
+        {
+          "path": "0.itemCount",
+          "equals": 0
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "getEdgeConfigs#doc example",
+      "exampleDiffers": {
+        "(the answer)": "The page renders one object, but its text says Returns all Global Configs and List of all global configs (https://vercel.com/docs/rest-api/global-config/get-global-configs.md). spec/patches.json corrects the answer to an array; its sole member and the empty item count are asserted."
+      }
+    },
+    {
+      "name": "Write the canonical item example",
+      "example": "patchEdgeConfigItems#doc example",
+      "method": "PATCH",
+      "path": "/v1/global-config/{config}/items",
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "items": [
+          {
+            "operation": "create",
+            "key": "string",
+            "value": "value",
+            "description": "string"
+          }
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "status",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Read back the canonical mutation through the item list",
+      "method": "GET",
+      "path": "/v1/global-config/{config}/items",
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.key",
+          "equals": "string"
+        },
+        {
+          "path": "0.value",
+          "equals": "value"
+        },
+        {
+          "path": "0.description",
+          "equals": "string"
+        },
+        {
+          "path": "0.edgeConfigId",
+          "equals": "{config}"
+        },
+        {
+          "path": "1",
+          "exists": false
+        }
+      ],
+      "example": "getEdgeConfigItems#doc example"
+    },
+    {
+      "name": "The example apex is held by another account, so the attach must return its verification challenge",
+      "method": "POST",
+      "path": "/_twin/claimed",
+      "status": 204,
+      "body": {
+        "domain": "example.com"
+      }
+    },
+    {
+      "name": "Add a domain with the published redirect",
+      "method": "POST",
+      "path": "/v10/projects/{project}/domains",
+      "status": 200,
+      "body": {
+        "name": "www.example.com",
+        "gitBranch": null,
+        "redirect": "foobar.com",
+        "redirectStatusCode": 307
+      },
+      "capture": {
+        "txt_name": "verification.0.domain",
+        "txt_value": "verification.0.value"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "www.example.com"
+        },
+        {
+          "path": "apexName",
+          "equals": "example.com"
+        },
+        {
+          "path": "projectId",
+          "equals": "{project}"
+        },
+        {
+          "path": "redirect",
+          "equals": "foobar.com"
+        },
+        {
+          "path": "redirectStatusCode",
+          "equals": 307
+        },
+        {
+          "path": "gitBranch",
+          "equals": null
+        },
+        {
+          "path": "verified",
+          "equals": false
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "addProjectDomain#doc example",
+      "unsent": {
+        "customEnvironmentId": "The rendered example_id references a custom environment this project does not have; the addProjectDomain request schema makes it optional."
+      }
+    },
+    {
+      "name": "Read the attached project domain",
+      "method": "GET",
+      "path": "/v9/projects/{project}/domains/www.example.com",
+      "status": 200,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "www.example.com"
+        },
+        {
+          "path": "apexName",
+          "equals": "example.com"
+        },
+        {
+          "path": "projectId",
+          "equals": "{project}"
+        },
+        {
+          "path": "redirect",
+          "equals": "foobar.com"
+        },
+        {
+          "path": "redirectStatusCode",
+          "equals": 307
+        },
+        {
+          "path": "gitBranch",
+          "equals": null
+        },
+        {
+          "path": "verified",
+          "equals": false
+        },
+        {
+          "path": "verification.0.domain",
+          "equals": "{txt_name}"
+        },
+        {
+          "path": "verification.0.value",
+          "equals": "{txt_value}"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "getProjectDomain#doc example"
+    },
+    {
+      "name": "List the project domains under the imported project",
+      "method": "GET",
+      "path": "/v9/projects/{project}/domains",
+      "status": 200,
+      "expect": [
+        {
+          "path": "domains.0.name",
+          "equals": "www.example.com"
+        },
+        {
+          "path": "domains.0.apexName",
+          "equals": "example.com"
+        },
+        {
+          "path": "domains.0.projectId",
+          "equals": "{project}"
+        },
+        {
+          "path": "domains.0.redirect",
+          "equals": "foobar.com"
+        },
+        {
+          "path": "domains.0.redirectStatusCode",
+          "equals": 307
+        },
+        {
+          "path": "domains.0.gitBranch",
+          "equals": null
+        },
+        {
+          "path": "domains.0.verified",
+          "equals": false
+        },
+        {
+          "path": "domains.0.verification.0.domain",
+          "equals": "{txt_name}"
+        },
+        {
+          "path": "domains.0.verification.0.value",
+          "equals": "{txt_value}"
+        },
+        {
+          "path": "pagination.count",
+          "equals": 1
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "getProjectDomains#doc example"
+    },
+    {
+      "name": "List the team apex and its creator",
+      "method": "GET",
+      "path": "/v5/domains",
+      "status": 200,
+      "capture": {
+        "domain": "domains.0.id"
+      },
+      "expect": [
+        {
+          "path": "domains.0.name",
+          "equals": "example.com"
+        },
+        {
+          "path": "domains.0.teamId",
+          "equals": "{team}"
+        },
+        {
+          "path": "domains.0.userId",
+          "equals": "{creator}"
+        },
+        {
+          "path": "domains.0.creator.id",
+          "equals": "{creator}"
+        },
+        {
+          "path": "domains.0.creator.email",
+          "equals": "owner@world.test"
+        },
+        {
+          "path": "domains.0.creator.username",
+          "equals": "owner"
+        },
+        {
+          "path": "pagination.count",
+          "equals": 1
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "getDomains#doc example"
+    },
+    {
+      "name": "Read the unconfigured apex as the page requests",
+      "method": "GET",
+      "path": "/v6/domains/example.com/config",
+      "status": 200,
+      "expect": [
+        {
+          "path": "configuredBy",
+          "equals": null
+        },
+        {
+          "path": "misconfigured",
+          "equals": true
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "getDomainConfig#doc example"
+    },
+    {
+      "name": "Update the apex zone using the published update body",
+      "method": "PATCH",
+      "path": "/v3/domains/example.com",
+      "status": 200,
+      "body": {
+        "op": "update",
+        "renew": true,
+        "customNameservers": [],
+        "zone": true,
+        "echMode": "auto"
+      },
+      "expect": [
+        {
+          "path": "zone",
+          "equals": true
+        },
+        {
+          "path": "echMode",
+          "equals": "auto"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "patchDomain#doc example",
+      "exampleDiffers": {
+        "moved": "The page renders the move-out response alternative although its request is op:update. The vendored patchDomain responses/200 oneOf also documents the update alternative (echMode, zone, renew, customNameservers). This update answers that alternative, with zone and echMode asserted."
+      }
+    },
+    {
+      "name": "Read back the changed domain service",
+      "method": "GET",
+      "path": "/v5/domains",
+      "status": 200,
+      "expect": [
+        {
+          "path": "domains.0.name",
+          "equals": "example.com"
+        },
+        {
+          "path": "domains.0.serviceType",
+          "equals": "zeit.world"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "The domain owner satisfies the returned challenge at their DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "status": 204,
+      "body": {
+        "name": "{txt_name}",
+        "type": "TXT",
+        "value": "{txt_value}"
+      }
+    },
+    {
+      "name": "Verify the project domain after its challenge is satisfied",
+      "method": "POST",
+      "path": "/v9/projects/{project}/domains/www.example.com/verify",
+      "status": 200,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "www.example.com"
+        },
+        {
+          "path": "apexName",
+          "equals": "example.com"
+        },
+        {
+          "path": "projectId",
+          "equals": "{project}"
+        },
+        {
+          "path": "redirect",
+          "equals": "foobar.com"
+        },
+        {
+          "path": "redirectStatusCode",
+          "equals": 307
+        },
+        {
+          "path": "gitBranch",
+          "equals": null
+        },
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "verifyProjectDomain#doc example"
+    },
+    {
+      "name": "Read back the now-verified domain",
+      "method": "GET",
+      "path": "/v9/projects/{project}/domains/www.example.com",
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        },
+        {
+          "path": "name",
+          "equals": "www.example.com"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "Remove the domain from its project",
+      "method": "DELETE",
+      "path": "/v9/projects/{project}/domains/www.example.com",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "removeProjectDomain#doc example"
+    },
+    {
+      "name": "The removed project domain cannot be read",
+      "method": "GET",
+      "path": "/v9/projects/{project}/domains/www.example.com",
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "not_found"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      }
+    },
+    {
+      "name": "Remove the team apex",
+      "method": "DELETE",
+      "path": "/v6/domains/example.com",
+      "status": 200,
+      "expect": [
+        {
+          "path": "uid",
+          "equals": "{domain}"
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      },
+      "example": "deleteDomain#doc example"
+    },
+    {
+      "name": "The removed apex is absent from the team list",
+      "method": "GET",
+      "path": "/v5/domains",
+      "status": 200,
+      "expect": [
+        {
+          "path": "domains",
+          "equals": []
+        },
+        {
+          "path": "pagination.count",
+          "equals": 0
+        }
+      ],
+      "headers": {
+        "authorization": "Bearer {token}",
+        "content-type": "application/json"
+      }
+    }
+  ]
+}

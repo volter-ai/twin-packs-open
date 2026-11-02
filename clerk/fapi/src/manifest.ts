@@ -25,6 +25,7 @@ import { states } from './semantics/states.ts';
 export const manifest: DerivedManifest = {
   vendor: 'clerk',
   service: 'clerk',
+  tenant: { field: '_world_account', storage: 'namespaced' },
   // "This is a Form Based API and all the data must be sent and formatted according to the
   // `application/x-www-form-urlencoded` content type." (spec:/info/description)
   body: { form: { coerce: true } },

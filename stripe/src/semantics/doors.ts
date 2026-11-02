@@ -49,6 +49,7 @@ export async function drain(ctx: HandlerContext): Promise<Response> {
  *  stops: the keys' length and alphabet after the prefix. */
 // source: https://docs.stripe.com/keys "Publishable keys"
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
+  await ctx.account();
   const secretKey = `sk_test_51${(await ctx.secret('stripe-platform-key:app')).replace(/[^A-Za-z0-9]/g, '').slice(0, 96)}`;
   const publishableKey = `pk_test_51${(await ctx.secret('stripe-publishable-key:app')).replace(/[^A-Za-z0-9]/g, '').slice(0, 96)}`;
   if (!ctx.rowsRaw('_platform_key').some((k) => k.id === 'secret:app' && k._sha256 === ctx.crypto.sha256(secretKey))) {

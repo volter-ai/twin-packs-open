@@ -109,6 +109,8 @@ const appWebhookSecret = async (ctx: HandlerContext): Promise<string> => `whsec_
  *  tokens with networklessly (`CLERK_JWT_KEY`, the API Keys page's "JWT public key"), and the signing secret of a
  *  webhook endpoint made for it (the Webhooks door with `app: true`). */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
+  const worldAccount = await ctx.account();
+  if (worldAccount !== 'default' && !instanceRow(ctx)) await ctx.write('_instance', INSTANCE_SUBJECT, { object: 'instance', _auth: { frontend_api: `world-${sha256(worldAccount).slice(0, 24)}.clerk.accounts.dev` } }, '_instance.create');
   const mode = instanceEnvironment(ctx) === 'production' ? 'live' : 'test';
   const secret = `sk_${mode}_${sha256(await ctx.secret('clerk-app-secret-key')).slice(0, 40)}`;
   if (!ctx.rowsRaw('_secret_key', { withDeleted: true }).some((k) => k.id === '_sk_app' && k.sha256 === sha256(secret))) await ctx.record('_secret_key', { name: 'world', sha256: sha256(secret), created_at: ms(ctx) }, '_sk_app');

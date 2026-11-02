@@ -14,7 +14,7 @@ export async function getStreams(ctx: HandlerContext): Promise<Response> {
   const games = queryValues(ctx, 'game_id');
   const languages = queryValues(ctx, 'language');
   // source: spec:/paths/~1streams/get/parameters/1/description "Returns only the streams of those users that are broadcasting."
-  const streams = ctx.rowsRaw('stream').filter((s) => s.deleted !== true)
+  const streams = ctx.rows('GetStreamsResponseData')
     .filter((s) => !filtered || userIds.has(String(s.user_id)))
     .filter((s) => !games.length || games.includes(String(s.game_id)))
     .filter((s) => !languages.length || languages.includes(String(s.language)))

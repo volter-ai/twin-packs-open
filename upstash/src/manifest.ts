@@ -60,7 +60,7 @@ export const manifest: DerivedManifest = {
     },
     hosts: [{ suffix: '.upstash.io' }, { suffix: '-vector.upstash.io', exclude: true }, { host: 'console.upstash.com' }, { host: 'api.upstash.com' }],
     // a World's applications hold the database and QStash credentials the console made, never fixtures
-    credentialDoor: {
+    credentialDoor: { account: { field: 'account' },
       path: '/_twin/app-credentials', body: { owner: 'owner@world.test' },
       fill: { UPSTASH_REDIS_REST_URL: 'redis_url', UPSTASH_REDIS_REST_TOKEN: 'redis_token', KV_REST_API_URL: 'redis_url', KV_REST_API_TOKEN: 'redis_token', QSTASH_TOKEN: 'qstash_token', QSTASH_CURRENT_SIGNING_KEY: 'qstash_current_signing_key', QSTASH_NEXT_SIGNING_KEY: 'qstash_next_signing_key' },
     },
