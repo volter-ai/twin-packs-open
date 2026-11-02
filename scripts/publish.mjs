@@ -23,7 +23,7 @@ if (upload) {
   assert.equal(process.env.GITHUB_WORKFLOW_REF, publicationWorkflow, 'Uploads require the registered workflow on publish');
   assert.match(process.env.GITHUB_SHA ?? '', /^[a-f0-9]{40}$/);
   assert.equal(process.env.GITHUB_WORKFLOW_SHA, process.env.GITHUB_SHA, 'Publication source and workflow revision must agree');
-  assert.match(process.env.PACK_PREPARATION_TAG ?? '', /^prepared-[a-z0-9.-]+-[a-f0-9]{16}$/);
+  assert.match(process.env.PACK_PREPARATION_TAG ?? '', /^prepared-[a-z0-9.-]+$/);
   directory = mkdtempSync(join(process.env.RUNNER_TEMP ?? tmpdir(), 'prepared-pack-'));
   const downloaded = spawnSync('gh', ['release', 'download', process.env.PACK_PREPARATION_TAG,
     '--repo', process.env.GITHUB_REPOSITORY, '--dir', directory], { stdio: 'inherit', timeout: 12000 });
@@ -39,7 +39,7 @@ if (upload) {
 const preparation = verifyPreparation(directory, preparationDigest, expectedSource);
 assert.equal(preparation.vendor, vendor);
 if (upload) assert.equal(process.env.PACK_PREPARATION_TAG,
-  `prepared-${preparation.vendor}-${preparation.version}-${preparationDigest.slice(0, 16)}`, 'Use the canonical release for this exact preparation');
+  `prepared-${preparation.vendor}-${preparation.version}`, 'Use the single preparation release for this immutable vendor/version');
 const archive = resolve(directory, preparation.archive);
 const receipt = {
   schemaVersion: 1, package: preparation.package, version: preparation.version, integrity: preparation.integrity,

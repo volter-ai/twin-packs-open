@@ -14,7 +14,7 @@ const publishedSource = spawnSync('gh', ['api', `repos/${preparation.repository}
 assert.equal(publishedSource.status, 0, 'Read the remote publish branch before recording preparation');
 assert.equal(publishedSource.stdout.trim(), preparation.sourceCommit, 'The publish branch must point to the exact reviewed prepared source');
 const managerAuthorization = process.env.PACK_MANAGER_AUTHORIZATION ?? null;
-const tag = `prepared-${preparation.vendor}-${preparation.version}-${digest.slice(0, 16)}`;
+const tag = `prepared-${preparation.vendor}-${preparation.version}`;
 const assets = ['preparation.json', ...preparation.files.map(file => file.name)].map(name => join(selected.release, name));
 const result = spawnSync('gh', ['release', 'create', tag, ...assets, '--repo', preparation.repository,
   '--target', preparation.sourceCommit, '--prerelease', '--title', `Prepared ${preparation.package}@${preparation.version}`,
