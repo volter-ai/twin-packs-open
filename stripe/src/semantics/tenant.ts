@@ -1,11 +1,11 @@
 // Stripe platform keys select an independent merchant account. Connect remains inside that merchant's namespace.
-import type { HandlerContext } from '@volter/world-core';
+import { isWorldAccountName, type HandlerContext } from '@volter/world-core';
 import { requestKey } from '../engine/oauth.ts';
 export function tenant(ctx: HandlerContext): string | undefined {
   const path = new URL(ctx.call.request.url).pathname;
   if (path.startsWith('/_twin/')) {
     const name = (ctx.body as Record<string, unknown> | undefined)?.account ?? 'default';
-    return typeof name === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name) ? name : undefined;
+    return isWorldAccountName(name) ? name : undefined;
   }
   const key = requestKey(ctx.call.request);
   if (key) return ctx.rowsRaw('_platform_key').find(row => row.deleted !== true && row._sha256 === ctx.crypto.sha256(key))?._world_account as string | undefined;

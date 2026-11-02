@@ -1,7 +1,7 @@
 // One OpenAI account owns its project keys, API state, Codex subscription and media. The kernel
 // provides an aggregate read context only for resolving this credential boundary; the request then
 // runs against that account's namespace in the same logical log. Unknown credentials get no default.
-import { browserSessionToken, passwordHash, sha256, type HandlerContext } from '@volter/world-core';
+import { browserSessionToken, isWorldAccountName, passwordHash, sha256, type HandlerContext } from '@volter/world-core';
 
 type Row = Record<string, unknown>;
 const owner = (row: Row | undefined): string | undefined => row ? String(row._world_account ?? 'default') : undefined;
@@ -16,7 +16,7 @@ export async function tenant(ctx: HandlerContext): Promise<string | undefined> {
   if (path.startsWith('/_twin/')) {
     // The door validates/registers through ctx.account(); authority selection itself never writes.
     const selected = body.account ?? 'default';
-    return typeof selected === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(selected) ? selected : invalid;
+    return isWorldAccountName(selected) ? selected : invalid;
   }
 
   const header = request.headers.get('authorization');
