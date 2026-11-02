@@ -14,7 +14,7 @@ const confirmation = process.argv.includes('--confirm-only');
 assert.ok(upload !== confirmation, 'Choose --upload-only in the registered workflow or --confirm-only outside CI');
 const vendor = process.env.PACK_VENDOR ?? 'tavily';
 assert.match(vendor, /^[a-z][a-z0-9-]*$/);
-let directory, preparationDigest, expectedSource;
+let directory, preparationDigest, expectedSource, selected;
 if (upload) {
   assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Uploads require the registered provenance workflow');
   assert.equal(process.env.GITHUB_EVENT_NAME, 'workflow_dispatch');
@@ -23,7 +23,9 @@ if (upload) {
   assert.equal(process.env.GITHUB_WORKFLOW_REF, publicationWorkflow, 'Uploads require the registered workflow on publish');
   assert.match(process.env.GITHUB_SHA ?? '', /^[a-f0-9]{40}$/);
   assert.equal(process.env.GITHUB_WORKFLOW_SHA, process.env.GITHUB_SHA, 'Publication source and workflow revision must agree');
-  assert.match(process.env.PACK_PREPARATION_TAG ?? '', /^prepared-[a-z0-9.-]+$/);
+  selected = selectedPack();
+  assert.equal(process.env.PACK_PREPARATION_TAG, `prepared-${vendor}-${selected.manifest.version}`,
+    'Use the single preparation release for this immutable vendor/version');
   directory = mkdtempSync(join(process.env.RUNNER_TEMP ?? tmpdir(), 'prepared-pack-'));
   const downloaded = spawnSync('gh', ['release', 'download', process.env.PACK_PREPARATION_TAG,
     '--repo', process.env.GITHUB_REPOSITORY, '--dir', directory], { stdio: 'inherit', timeout: 12000 });
@@ -32,14 +34,15 @@ if (upload) {
   expectedSource = process.env.GITHUB_SHA;
 } else {
   assert.ok(!process.env.GITHUB_ACTIONS, 'Registry propagation confirmation runs outside CI');
-  directory = selectedPack().release;
+  selected = selectedPack();
+  directory = selected.release;
   preparationDigest = process.argv[process.argv.indexOf('--confirm-only') + 1];
   expectedSource = readJson(join(directory, 'preparation.json')).sourceCommit;
 }
 const preparation = verifyPreparation(directory, preparationDigest, expectedSource);
 assert.equal(preparation.vendor, vendor);
-if (upload) assert.equal(process.env.PACK_PREPARATION_TAG,
-  `prepared-${preparation.vendor}-${preparation.version}`, 'Use the single preparation release for this immutable vendor/version');
+assert.equal(preparation.package, selected.manifest.name, 'Prepared package differs from the selected source');
+assert.equal(preparation.version, selected.manifest.version, 'Prepared version differs from the selected source');
 const archive = resolve(directory, preparation.archive);
 const receipt = {
   schemaVersion: 1, package: preparation.package, version: preparation.version, integrity: preparation.integrity,
