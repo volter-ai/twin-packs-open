@@ -127,7 +127,7 @@ export const userByLogin = (ctx: Pick<HandlerContext, 'rowsRaw'>, login: string)
 export const userById = (ctx: Pick<HandlerContext, 'rowsRaw'>, id: string): Row | undefined => usersOf(ctx).find((u) => u.id === id);
 export const channelOf = (ctx: Pick<HandlerContext, 'rowsRaw'>, id: string): Row | undefined => live(ctx.rowsRaw('channel')).find((c) => c.broadcaster_id === id);
 /** The channel's live stream: present only while it is broadcasting. */
-export const liveStreamOf = (ctx: Pick<HandlerContext, 'rowsRaw'>, userId: string): Row | undefined => live(ctx.rowsRaw('stream')).find((s) => s.user_id === userId);
+export const liveStreamOf = (ctx: Pick<HandlerContext, 'rows'>, userId: string): Row | undefined => ctx.rows('GetStreamsResponseData').find((s) => s.user_id === userId);
 
 /** A channel's broadcasts as the World recorded them, oldest first, by their stream ids (a bandwidth test is none). */
 export function broadcastsOf(ctx: Pick<HandlerContext, 'live' | 'row' | 'crypto'>, userId: string): string[] {
