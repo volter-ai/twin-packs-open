@@ -137,6 +137,6 @@ export const manifest: DerivedManifest = {
     hosts: [{ host: 'api.resend.com' }, { host: 'inbound-cdn.resend.com' }, { host: 'resend.com', pathPattern: '^/emails(?:/|$)' }],
     // the World's applications hold a key the API Keys page made (the keys door), never a fixture: the twin refuses any
     // key it did not issue
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { RESEND_API_KEY: 'token' } },
+    credentialDoor: { account: { field: 'account' }, path: '/_twin/app-credentials', body: {}, fill: { RESEND_API_KEY: 'token' } },
   },
 };

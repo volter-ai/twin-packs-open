@@ -4,6 +4,7 @@ import { createPackFetch, type DerivedFetch, type DerivedSurface, type PackFetch
 import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
 import { around } from './semantics/around.ts';
+import { tenant } from './semantics/tenant.ts';
 import { scenario } from './semantics/scenario.ts';
 import * as sockets from './semantics/sockets.ts';
 import { codexSemantics } from './semantics/index.ts';
@@ -16,6 +17,7 @@ export function createCodexLaneFetch(options: PackFetchOptions = {}): DerivedFet
     surface: surface as DerivedSurface,
     handlers: codexSemantics,
     around,
+    tenant,
     scenario,
     sockets,
     screens: { "authorize": screen_authorize, "device": screen_device },

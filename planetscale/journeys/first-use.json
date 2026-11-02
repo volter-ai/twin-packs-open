@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://www.npmjs.com/package/@planetscale/database/v/1.19.0",
+  "about": "Dub's edge link lookup (apps/web/lib/planetscale/connection.ts and get-link-via-edge.ts at 7e0101363b2a) with the unchanged @planetscale/database 1.19.0 its lockfile pins, connect({ url }) on the World-issued PLANETSCALE_DATABASE_URL: a Link table made as its migration does, a short link inserted, a duplicate refused with MySQL's errno 1062, a click counted in a committed transaction and a draft rolled back in a failed one, the link then found by domain and key. Readback after resume finds the same link and count, and no draft, without writing.",
+  "files": {
+    "package.json": "{\n  \"name\": \"planetscale-link-lookup-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@planetscale/database\": \"1.19.0\"\n  }\n}\n",
+    ".env.example": "PLANETSCALE_DATABASE_URL=\nDATABASE_URL=\n",
+    "links.mjs": "// Dub's edge link lookup (apps/web/lib/planetscale/connection.ts and get-link-via-edge.ts at 7e0101363b2a): the\n// unchanged @planetscale/database connect({ url }) on PLANETSCALE_DATABASE_URL, SQL with ? parameters.\nimport assert from 'node:assert/strict';\nimport { connect } from '@planetscale/database';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst conn = connect({ url: process.env.PLANETSCALE_DATABASE_URL || process.env.DATABASE_URL });\nconst getLinkViaEdge = async ({ domain, key }) => {\n  const { rows } = (await conn.execute('SELECT * FROM Link WHERE domain = ? AND `key` = ?', [domain, key])) || {};\n  if (!rows || !Array.isArray(rows) || rows.length === 0) return null;\n  return rows[0];\n};\n\nif (process.argv[2] === 'readback') {\n  const link = await getLinkViaEdge({ domain: 'dub.sh', key: 'launch' });\n  assert.equal(link?.url, 'https://kiln.media/launch');\n  assert.equal(link.clicks, 1);\n  assert.equal(await getLinkViaEdge({ domain: 'dub.sh', key: 'draft' }), null);\n  console.log(JSON.stringify({ retained: true, id: link.id, url: link.url, clicks: link.clicks }));\n} else {\n  // the schema Dub's migration makes (a subset of its Link model)\n  await conn.execute('CREATE TABLE Link (id VARCHAR(191) NOT NULL, domain VARCHAR(190) NOT NULL, `key` VARCHAR(190) NOT NULL, url TEXT NOT NULL, clicks INT NOT NULL DEFAULT 0, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE KEY Link_domain_key_key (domain, `key`))');\n  const inserted = await conn.execute('INSERT INTO Link (id, domain, `key`, url) VALUES (?, ?, ?, ?)', ['link_1', 'dub.sh', 'launch', 'https://kiln.media/launch']);\n  assert.equal(inserted.rowsAffected, 1);\n  // a duplicate short link is MySQL's unique-key violation, as Prisma's adapter reads it\n  const duplicate = await conn.execute('INSERT INTO Link (id, domain, `key`, url) VALUES (?, ?, ?, ?)', ['link_2', 'dub.sh', 'launch', 'https://example.com']).then(() => null, (e) => e);\n  assert.match(String(duplicate?.message), /errno 1062/);\n  // a click counted and a draft link abandoned, each in its own transaction\n  await conn.transaction(async (tx) => { await tx.execute('UPDATE Link SET clicks = clicks + 1 WHERE id = ?', ['link_1']); });\n  await conn.transaction(async (tx) => {\n    await tx.execute('INSERT INTO Link (id, domain, `key`, url) VALUES (?, ?, ?, ?)', ['link_3', 'dub.sh', 'draft', 'https://kiln.media/draft']);\n    throw new Error('the draft was abandoned');\n  }).catch((e) => assert.equal(e.message, 'the draft was abandoned'));\n  const link = await getLinkViaEdge({ domain: 'dub.sh', key: 'launch' });\n  assert.equal(link?.id, 'link_1');\n  assert.equal(link.url, 'https://kiln.media/launch');\n  assert.equal(link.clicks, 1);\n  assert.equal(await getLinkViaEdge({ domain: 'dub.sh', key: 'draft' }), null);\n  console.log(JSON.stringify({ id: link.id, url: link.url, clicks: link.clicks }));\n}\n"
+  },
+  "run": [
+    "node",
+    "links.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "links.mjs",
+      "readback"
+    ]
+  }
+}

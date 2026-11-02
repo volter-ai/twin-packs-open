@@ -1,0 +1,92 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/commands/-",
+      "value": {
+        "id": "AUTH",
+        "intermediate": [
+          334
+        ],
+        "success": [
+          235
+        ],
+        "error": [
+          432,
+          454,
+          500,
+          501,
+          503,
+          504,
+          530,
+          534,
+          535,
+          538
+        ],
+        "then": {
+          "intermediate": [
+            334
+          ],
+          "success": [
+            235
+          ],
+          "error": [
+            432,
+            454,
+            500,
+            501,
+            534,
+            535,
+            538
+          ]
+        }
+      },
+      "why": "RFC 5321's table predates the SMTP AUTH extension this twin advertises; RFC 4954 adds the command, answers a challenge with 334 and a mechanism the server lacks with 504, and lists its status codes (\u00a76) https://www.rfc-editor.org/rfc/rfc4954",
+      "source": {
+        "url": "https://www.rfc-editor.org/rfc/rfc4954",
+        "quote": "the server rejects the AUTH command with a 504 reply"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/commands/-",
+      "value": {
+        "id": "STARTTLS",
+        "intermediate": [],
+        "success": [
+          220
+        ],
+        "error": [
+          454,
+          501,
+          502
+        ]
+      },
+      "why": "RFC 3207 adds STARTTLS and its replies (220, 501, 454). This relay has no certificate, so it does not advertise the extension and answers the command as Postfix does without TLS: 454 TLS not available https://www.rfc-editor.org/rfc/rfc3207",
+      "source": {
+        "url": "https://www.rfc-editor.org/rfc/rfc3207",
+        "quote": "454 TLS not available due to temporary reason"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/commands/3/error/-",
+      "value": 530,
+      "why": "RFC 4954 \u00a76: a server whose policy requires authentication answers 530 to MAIL until the client authenticates https://www.rfc-editor.org/rfc/rfc4954",
+      "source": {
+        "url": "https://www.rfc-editor.org/rfc/rfc4954",
+        "quote": "This response SHOULD be returned by any command other than AUTH, EHLO, HELO, NOOP, RSET, or QUIT when server policy requires authentication"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/commands/4/error/-",
+      "value": 554,
+      "why": "The relay this twin stands in for (Postfix) refuses a recipient outside the domains it relays for with 554, where RFC 5321's table lists 550 https://www.postfix.org/postconf.5.html",
+      "source": {
+        "url": "https://www.postfix.org/postconf.5.html",
+        "quote": "The numerical Postfix SMTP server response code when a client request is rejected by the reject_unauth_destination recipient restriction."
+      }
+    }
+  ]
+}

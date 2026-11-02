@@ -1,0 +1,3561 @@
+{
+ "vendor": "tinybird",
+ "author": "Contributor 89",
+ "host": "api.tinybird.co",
+ "about": "Tinybird's published examples (its API reference pages, spec/doc-examples.json), each sent as its page sends it, with only the setup its precondition needs. URL import examples use a reader-supplied CSV held by the World application stand-in at the published placeholder URL; the example states no specific source bytes. Every read-back asserts those supplied bytes. Client library render computations have no served HTTP operation and remain unserved published examples.",
+ "steps": [
+  {
+   "name": "Setup: an account on Tinybird's console",
+   "method": "POST",
+   "path": "https://cloud.tinybird.co/signup",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=examples%40example.com&password=examples-2026&next=%2Forganizations%2Fnew",
+   "capture": {
+    "session": "header:set-cookie:tinybird_twin_session=([^;]+)"
+   }
+  },
+  {
+   "name": "Setup: its Organization",
+   "method": "POST",
+   "path": "https://cloud.tinybird.co/organizations/new",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "tinybird_twin_session={session}"
+   },
+   "body": "name=Examples&region=gcp%2Feurope-west3"
+  },
+  {
+   "name": "Setup: the Create Workspace page",
+   "method": "GET",
+   "path": "https://cloud.tinybird.co/workspaces/new",
+   "status": 200,
+   "headers": {
+    "cookie": "tinybird_twin_session={session}"
+   },
+   "capture": {
+    "org": "text:<option value=\"([0-9a-f-]{36})\">Examples"
+   }
+  },
+  {
+   "name": "Setup: a Classic Workspace",
+   "method": "POST",
+   "path": "https://cloud.tinybird.co/workspaces/new",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "tinybird_twin_session={session}"
+   },
+   "body": "name=examples&organization={org}&version=classic"
+  },
+  {
+   "name": "Setup: its Tokens page, the admin token",
+   "method": "GET",
+   "path": "https://cloud.tinybird.co/gcp/europe-west3/examples/tokens",
+   "status": 200,
+   "headers": {
+    "cookie": "tinybird_twin_session={session}"
+   },
+   "capture": {
+    "admin": "text:>admin token<[\\s\\S]*?(p\\.[0-9a-f]{64})"
+   }
+  },
+  {
+   "name": "Create the stocks Data Source from its schema, as the page does",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "example": "datasource_create_from_definition#doc Creating a CSV Data Source from a schema",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=stocks&schema=symbol String, date Date, close Float32",
+   "expect": [
+    {
+     "path": "name",
+     "equals": "stocks"
+    },
+    {
+     "path": "columns.0.name",
+     "equals": "symbol"
+    },
+    {
+     "path": "columns.2.type",
+     "equals": "Float32"
+    }
+   ]
+  },
+  {
+   "name": "Create test123 with a ReplacingMergeTree engine, as the page does",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "example": "datasource_create_from_definition#doc Creating an empty Data Source with a ReplacingMergeTree engine and custom engine settings",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "schema=pk UInt64, insert_date Date, close Float32&engine=ReplacingMergeTree&engine_sorting_key=pk&engine_ver=insert_date&name=test123&engine_settings=index_granularity=2048, ttl_only_drop_parts=false",
+   "expect": [
+    {
+     "path": "name",
+     "equals": "test123"
+    },
+    {
+     "path": "engine.engine",
+     "equals": "ReplacingMergeTree"
+    },
+    {
+     "path": "engine.engine_sorting_key",
+     "equals": "pk"
+    },
+    {
+     "path": "engine.engine_ver",
+     "equals": "insert_date"
+    },
+    {
+     "path": "engine.engine_settings",
+     "equals": "index_granularity=2048, ttl_only_drop_parts=false"
+    }
+   ]
+  },
+  {
+   "name": "List the Workspace's Data Sources",
+   "method": "GET",
+   "path": "/v0/datasources",
+   "example": "datasources#doc getting a list of your Data Sources",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "datasources.0.name",
+     "equals": "stocks"
+    },
+    {
+     "path": "datasources.1.name",
+     "equals": "test123"
+    },
+    {
+     "path": "datasources.1.engine.engine",
+     "equals": "ReplacingMergeTree"
+    },
+    {
+     "path": "datasources.1.engine.engine_ver",
+     "equals": "insert_date"
+    },
+    {
+     "path": "datasources.1.columns.1.name",
+     "equals": "insert_date"
+    },
+    {
+     "path": "datasources.1.columns.1.normalized_name",
+     "equals": "insert_date"
+    },
+    {
+     "path": "datasources.1.engine.engine_settings",
+     "equals": "index_granularity=2048, ttl_only_drop_parts=false"
+    }
+   ],
+   "exampleDiffers": {
+    "datasources[].shared_with": "The page's Data Source is shared with one other Workspace; this Workspace shares none (the Data Sources API shares one only through its share call, which no step makes).",
+    "datasources[].columns": "The page's Data Source has two columns; this Workspace's stocks and test123 were made from schemas of three (their own creation steps)."
+   }
+  },
+  {
+   "name": "Setup: pipe_using_datasource_name, a Pipe reading stocks, as the next example's answer shows one",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "pipe_using_datasource_name",
+    "nodes": [
+     {
+      "name": "reads_stocks",
+      "sql": "select symbol from stocks"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Read the stocks Data Source (the page names its own datasource_name)",
+   "method": "GET",
+   "path": "/v0/datasources/stocks",
+   "example": "get_datasource#doc Getting information about a particular Data Source",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "stocks"
+    },
+    {
+     "path": "statistics.row_count",
+     "equals": 0
+    },
+    {
+     "path": "used_by.0.name",
+     "equals": "pipe_using_datasource_name"
+    }
+   ]
+  },
+  {
+   "name": "Setup: drop pipe_using_datasource_name, which stood only to read stocks",
+   "method": "DELETE",
+   "path": "/v0/pipes/pipe_using_datasource_name",
+   "status": 204,
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: three events into shopping_data, the Data Source the delete page names",
+   "method": "POST",
+   "path": "/v0/events?name=shopping_data&wait=true",
+   "body": "{\"date\": \"2023-04-11 10:00:00\", \"event\": \"search\", \"country\": \"ES\"}\n{\"date\": \"2023-04-11 10:05:00\", \"event\": \"buy\", \"country\": \"ES\"}\n{\"date\": \"2023-04-11 10:07:00\", \"event\": \"search\", \"country\": \"PT\"}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 3
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Delete shopping_data's rows from Spain (the page's :name is its own)",
+   "method": "POST",
+   "path": "/v0/datasources/shopping_data/delete",
+   "example": "datasource_delete_rows#doc Deleting rows from a Data Source given a SQL condition",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "delete_condition=(country='ES')",
+   "capture": {
+    "delete_job": "job_id"
+   },
+   "expect": [
+    {
+     "path": "job.kind",
+     "equals": "delete_data"
+    },
+    {
+     "path": "job.datasource.name",
+     "equals": "shopping_data"
+    },
+    {
+     "path": "job.delete_condition",
+     "equals": "(country='ES')"
+    }
+   ],
+   "exampleDiffers": {
+    "job.started_at": "The twin deletes the rows at once, so the job it answers is already done and started (src/semantics/datasources.ts); the page's job is still waiting, not started."
+   }
+  },
+  {
+   "name": "Poll the delete job",
+   "method": "GET",
+   "path": "/v0/jobs/{delete_job}",
+   "example": "job#doc checking the status of the delete job",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "job_id",
+     "equals": "{delete_job}"
+    },
+    {
+     "path": "kind",
+     "equals": "delete_data"
+    },
+    {
+     "path": "status",
+     "equals": "done"
+    },
+    {
+     "path": "rows_affected",
+     "equals": 2
+    },
+    {
+     "path": "datasource.name",
+     "equals": "shopping_data"
+    },
+    {
+     "path": "delete_condition",
+     "equals": "(country='ES')"
+    },
+    {
+     "path": "id",
+     "equals": "{delete_job}"
+    }
+   ]
+  },
+  {
+   "name": "List the Workspace's jobs",
+   "method": "GET",
+   "path": "/v0/jobs",
+   "example": "jobs#doc Getting the latest jobs",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "jobs.0.id",
+     "equals": "{delete_job}"
+    },
+    {
+     "path": "jobs.0.job_id",
+     "equals": "{delete_job}"
+    },
+    {
+     "path": "jobs.0.delete_condition",
+     "equals": "(country='ES')"
+    }
+   ]
+  },
+  {
+   "name": "Setup: append two rows to events from a local NDJSON file: an import job",
+   "method": "POST",
+   "path": "/v0/datasources?name=events&mode=append&format=ndjson",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "multipart/form-data; boundary=b3f1c0a9e7d24f6e8a5c2b1d0e9f8a7c"
+   },
+   "body": "--b3f1c0a9e7d24f6e8a5c2b1d0e9f8a7c\r\nContent-Disposition: form-data; name=\"ndjson\"; filename=\"events.ndjson\"\r\n\r\n{\"date\": \"2024-07-22\", \"user_id\": 1, \"event\": \"open\"}\n{\"date\": \"2024-07-22\", \"user_id\": 2, \"event\": \"open\"}\r\n--b3f1c0a9e7d24f6e8a5c2b1d0e9f8a7c--\r\n",
+   "capture": {
+    "import_job": "import_id"
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "events"
+    }
+   ]
+  },
+  {
+   "name": "Read the import job (the page's :job_id)",
+   "method": "GET",
+   "path": "/v0/jobs/{import_job}",
+   "example": "job#doc Get the details of a Job",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{import_job}"
+    },
+    {
+     "path": "kind",
+     "equals": "import"
+    },
+    {
+     "path": "mode",
+     "equals": "append"
+    },
+    {
+     "path": "datasource.name",
+     "equals": "events"
+    },
+    {
+     "path": "statistics.row_count",
+     "equals": 2
+    },
+    {
+     "path": "status",
+     "equals": "done"
+    },
+    {
+     "path": "job_id",
+     "equals": "{import_job}"
+    },
+    {
+     "path": "import_id",
+     "equals": "{import_job}"
+    }
+   ],
+   "exampleDiffers": {
+    "url": "The page's job imported a remote file by its URL; this one imported a local file, which has none, and answers url null.",
+    "datasource.headers.cached_delimiter": "The page's job imported a CSV, whose delimiter the Data Source keeps; this import is NDJSON, which has none."
+   }
+  },
+  {
+   "name": "Setup: a row into a Data Source named name, the page's own name for the one it truncates",
+   "method": "POST",
+   "path": "/v0/events?name=name&wait=true",
+   "body": "{\"date\": \"2023-04-11 10:00:00\", \"value\": 1}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 1
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Truncate it",
+   "method": "POST",
+   "path": "/v0/datasources/name/truncate",
+   "example": "datasource_truncate#doc Truncating a Data Source",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: it holds no rows",
+   "method": "GET",
+   "path": "/v0/datasources/name",
+   "expect": [
+    {
+     "path": "statistics.row_count",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: a row its schema cannot hold, which Tinybird quarantines",
+   "method": "POST",
+   "path": "/v0/events?name=name&wait=true",
+   "body": "{\"date\": \"not a date\", \"value\": \"x\"}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 0
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 1
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Truncate its quarantine table (the page's :name_quarantine)",
+   "method": "POST",
+   "path": "/v0/datasources/name_quarantine/truncate",
+   "example": "datasource_truncate#doc Truncating the quarantine table from a Data Source",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: the quarantine table holds no rows",
+   "method": "GET",
+   "path": "/v0/datasources/name_quarantine",
+   "expect": [
+    {
+     "path": "statistics.row_count",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Rule: append names its Data Source (\"for the append and replace modes to work, the name parameter must be provided\", Data Sources API page)",
+   "method": "POST",
+   "path": "/v0/datasources?mode=append",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "multipart/form-data; boundary=b3f1c0a9e7d24f6e8a5c2b1d0e9f8a7c"
+   },
+   "body": "--b3f1c0a9e7d24f6e8a5c2b1d0e9f8a7c\r\nContent-Disposition: form-data; name=\"csv\"; filename=\"local_file.csv\"\r\n\r\ncity,visits\nFaro,1\n\r\n--b3f1c0a9e7d24f6e8a5c2b1d0e9f8a7c--\r\n"
+  },
+  {
+   "name": "Rule: a reserved word names no Data Source (\"You can't use them to name Data Sources, Pipes, nodes or Workspaces. Case is ignored.\", API overview, Reserved words)",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=Select&schema=a%20String"
+  },
+  {
+   "name": "Send one NDJSON event to events_test",
+   "method": "POST",
+   "path": "/v0/events?name=events_test",
+   "example": "datasource_events#doc Send individual NDJSON messages",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": {
+    "date": "2020-04-05 00:05:38",
+    "city": "Chicago"
+   },
+   "status": 202,
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 1
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Send two NDJSON events",
+   "method": "POST",
+   "path": "/v0/events?name=events_test",
+   "example": "datasource_events#doc Send many NDJSON events.",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"date\": \"2020-04-05 00:05:38\", \"city\": \"Chicago\"}\n{\"date\": \"2020-04-05 00:07:22\", \"city\": \"Madrid\"}\n",
+   "status": 202,
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 2
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Setup: events_test holds the three events",
+   "method": "GET",
+   "path": "/v0/datasources/events_test",
+   "expect": [
+    {
+     "path": "statistics.row_count",
+     "equals": 3
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Send an individual JSON event",
+   "method": "POST",
+   "path": "/v0/events?name=events_test&format=json",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "date": "2020-04-05 00:05:38",
+    "city": "Chicago"
+   },
+   "status": 202,
+   "example": "datasource_events#doc Send individual JSON messages",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 1
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Read the JSON event’s stored effect",
+   "method": "GET",
+   "path": "/v0/datasources/events_test",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "statistics.row_count",
+     "equals": 4
+    }
+   ]
+  },
+  {
+   "name": "Send a gzip'd batch of two NDJSON events to events_example",
+   "method": "POST",
+   "path": "/v0/events?name=events_example",
+   "example": "datasource_events#doc Send a Gzip compressed payload.",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-encoding": "gzip"
+   },
+   "bodyBase64": "H4sIAAAAAAACE6tWSkksSVWyUlAyMjAy0DUw0TUwVTAwsDIwtTK2UNJRUErOLKkESTtnZCYnpucr1XJV49JibmVkhKzFNzGlKDMFqAMATCnBuWUAAAA=",
+   "status": 202,
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 2
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Send the same batch compressed with Zstandard",
+   "method": "POST",
+   "path": "/v0/events?name=events_example",
+   "example": "datasource_events#doc Send a ZSTD compressed payload.",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-encoding": "zstd"
+   },
+   "bodyBase64": "KLUv/SBlRQIAxAN7ImRhdGUiOiAiMjAyMC0wNC0wNSAwMDowNTozOCIsICJjaXR5Q2hpY2FnbyJ9Cjc6MjJNYWRyaWQifQoDAIAjVi2qCNQT",
+   "status": 202,
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 2
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Setup: events_example holds the four events, their cities as sent",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+city,+count()+n+FROM+events_example+GROUP+BY+city+ORDER+BY+city",
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "data.0.city",
+     "equals": "Chicago"
+    },
+    {
+     "path": "data.0.n",
+     "equals": 2
+    },
+    {
+     "path": "data.1.city",
+     "equals": "Madrid"
+    },
+    {
+     "path": "data.1.n",
+     "equals": 2
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: two events into app_events, the Data Source the page's Pipe reads",
+   "method": "POST",
+   "path": "/v0/events?name=app_events&wait=true",
+   "body": "{\"timestamp\": \"2019-06-14 09:00:00\", \"date\": \"2019-06-14\", \"event\": \"view\"}\n{\"timestamp\": \"2019-06-14 09:30:00\", \"date\": \"2019-06-14\", \"event\": \"click\"}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 2
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Create events_per_day from one SQL, as the page does",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=events_per_day&sql=select * from app_events",
+   "capture": {
+    "epd_node": "nodes.0.id"
+   },
+   "example": "pipe_create#doc creating a Pipe from a Data Source",
+   "expect": [
+    {
+     "path": "name",
+     "equals": "events_per_day"
+    },
+    {
+     "path": "nodes.0.sql",
+     "equals": "select * from app_events"
+    },
+    {
+     "path": "nodes.0.name",
+     "equals": "events_per_day_0"
+    }
+   ]
+  },
+  {
+   "name": "Make a READ token for it",
+   "method": "POST",
+   "path": "/v0/tokens/?name=events_per_day_token&scope=PIPES:READ:events_per_day",
+   "example": "create_token#doc Adding a READ Token to an API Endpoint Pipe",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "capture": {
+    "epd_token": "token"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "events_per_day_token"
+    },
+    {
+     "path": "scopes.0.type",
+     "equals": "PIPES:READ"
+    },
+    {
+     "path": "scopes.0.resource",
+     "equals": "events_per_day"
+    }
+   ]
+  },
+  {
+   "name": "Read its data as JSON (the page's :name.format)",
+   "method": "GET",
+   "path": "/v0/pipes/events_per_day.json",
+   "example": "pipe_data#doc Getting data for a pipe",
+   "headers": {
+    "authorization": "Bearer {epd_token}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "Setup: a view today (the World's 2026-01-01), after yesterday",
+   "method": "POST",
+   "path": "/v0/events?name=app_events&wait=true",
+   "body": "{\"timestamp\": \"2026-01-01 08:00:00\", \"date\": \"2026-01-01\", \"event\": \"view\"}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 1
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: a row into my_datasource, the page's own name",
+   "method": "POST",
+   "path": "/v0/events?name=my_datasource&wait=true",
+   "body": "{\"col_a\": 1, \"col_b\": \"x\"}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 1
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Create pipe_name from full JSON",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "example": "pipe_create#doc Creating a Pipe providing full JSON",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "pipe_name",
+    "description": "my first pipe",
+    "nodes": [
+     {
+      "sql": "select * from my_datasource limit 10",
+      "name": "node_00",
+      "description": "sampled data"
+     },
+     {
+      "sql": "select count() from node_00",
+      "name": "node_01"
+     }
+    ]
+   },
+   "capture": {
+    "p_node01": "nodes.1.id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pipe_name"
+    },
+    {
+     "path": "description",
+     "equals": "my first pipe"
+    },
+    {
+     "path": "nodes.0.name",
+     "equals": "node_00"
+    },
+    {
+     "path": "nodes.1.name",
+     "equals": "node_01"
+    },
+    {
+     "path": "nodes.0.sql",
+     "equals": "select * from my_datasource limit 10"
+    },
+    {
+     "path": "nodes.1.sql",
+     "equals": "select count() from node_00"
+    },
+    {
+     "path": "nodes.0.description",
+     "equals": "sampled data"
+    },
+    {
+     "path": "nodes.1.dependencies.0",
+     "equals": "node_00"
+    }
+   ]
+  },
+  {
+   "name": "Setup: a third row into events, the page's own name for the Data Source it reads",
+   "method": "POST",
+   "path": "/v0/events?name=events&wait=true",
+   "body": "{\"date\": \"2019-06-14\", \"user_id\": 3, \"event\": \"view\"}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 1
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Create pipename from one SQL in its query",
+   "method": "POST",
+   "path": "/v0/pipes?name=pipename&sql=select%20*%20from%20events",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "example": "pipe_create#doc Creating a pipe with a name and a SQL query",
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pipename"
+    },
+    {
+     "path": "nodes.0.sql",
+     "equals": "select * from events"
+    }
+   ]
+  },
+  {
+   "name": "List the Workspace's Pipes",
+   "method": "GET",
+   "path": "/v0/pipes",
+   "example": "pipes#doc getting a list of your pipes",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "pipes.0.name",
+     "equals": "events_per_day"
+    },
+    {
+     "path": "pipes.1.name",
+     "equals": "pipe_name"
+    },
+    {
+     "path": "pipes.2.name",
+     "equals": "pipename"
+    },
+    {
+     "path": "pipes.0.endpoint",
+     "equals": "{epd_node}"
+    },
+    {
+     "path": "pipes.0.nodes.0.id",
+     "equals": "{epd_node}"
+    },
+    {
+     "path": "pipes.0.nodes.0.sql",
+     "equals": "select * from app_events"
+    },
+    {
+     "path": "pipes.0.published_version",
+     "equals": "{epd_node}"
+    },
+    {
+     "path": "pipes.1.description",
+     "equals": "my first pipe"
+    },
+    {
+     "path": "pipes.1.nodes.0.name",
+     "equals": "node_00"
+    },
+    {
+     "path": "pipes.1.nodes.0.sql",
+     "equals": "select * from my_datasource limit 10"
+    },
+    {
+     "path": "pipes.1.nodes.0.description",
+     "equals": "sampled data"
+    },
+    {
+     "path": "pipes.1.nodes.1.name",
+     "equals": "node_01"
+    },
+    {
+     "path": "pipes.1.nodes.1.sql",
+     "equals": "select count() from node_00"
+    },
+    {
+     "path": "pipes.1.nodes.1.dependencies.0",
+     "equals": "node_00"
+    },
+    {
+     "path": "pipes.1.nodes.1.id",
+     "equals": "{p_node01}"
+    },
+    {
+     "path": "pipes.0.nodes.0.name",
+     "equals": "events_per_day_0"
+    },
+    {
+     "path": "pipes.0.nodes.0.node_type",
+     "equals": "endpoint"
+    },
+    {
+     "path": "pipes.2.nodes.0.name",
+     "equals": "pipename_0"
+    },
+    {
+     "path": "pipes.2.nodes.0.sql",
+     "equals": "select * from events"
+    },
+    {
+     "path": "pipes.2.nodes.0.node_type",
+     "equals": "endpoint"
+    }
+   ],
+   "exampleDiffers": {
+    "pipes[].endpoint": "pipe_name is published as an endpoint two steps later; at this listing it has none.",
+    "pipes[].url": "A Pipe is listed with its url once it has an endpoint; pipe_name has none yet.",
+    "pipes[].nodes": "pipe_name has two nodes, node_00 and node_01; the page's pipe has one."
+   }
+  },
+  {
+   "name": "Read pipe_name",
+   "method": "GET",
+   "path": "/v0/pipes/pipe_name",
+   "example": "pipe#doc Getting information about a particular pipe",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pipe_name"
+    },
+    {
+     "path": "description",
+     "equals": "my first pipe"
+    },
+    {
+     "path": "nodes.0.name",
+     "equals": "node_00"
+    },
+    {
+     "path": "nodes.0.sql",
+     "equals": "select * from my_datasource limit 10"
+    },
+    {
+     "path": "nodes.0.description",
+     "equals": "sampled data"
+    },
+    {
+     "path": "nodes.1.name",
+     "equals": "node_01"
+    },
+    {
+     "path": "nodes.1.sql",
+     "equals": "select count() from node_00"
+    },
+    {
+     "path": "nodes.1.dependencies.0",
+     "equals": "node_00"
+    },
+    {
+     "path": "nodes.1.id",
+     "equals": "{p_node01}"
+    }
+   ],
+   "exampleDiffers": {
+    "pipeline": "The page's answer here holds the nodes under pipeline.nodes; the same page's create and list answers, and its publish answer, hold them under nodes, as the twin does."
+   }
+  },
+  {
+   "name": "Drop pipename",
+   "method": "DELETE",
+   "path": "/v0/pipes/pipename",
+   "example": "pipe_delete#doc Dropping a pipe",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "status": 204
+  },
+  {
+   "name": "Setup: pipename is gone",
+   "method": "GET",
+   "path": "/v0/pipes/pipename",
+   "status": 404,
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: src_pipe, whose published node a copy preserves",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "src_pipe",
+    "nodes": [
+     {
+      "name": "src_node",
+      "sql": "select count() c from events",
+      "type": "endpoint"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Create pipename as a copy of src_pipe",
+   "method": "POST",
+   "path": "/v0/pipes?name=pipename&from=src_pipe",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "example": "pipe_create#doc Creating a pipe from another pipe",
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pipename"
+    },
+    {
+     "path": "nodes.0.name",
+     "equals": "src_node"
+    },
+    {
+     "path": "nodes.0.sql",
+     "equals": "select count() c from events"
+    },
+    {
+     "path": "nodes.0.node_type",
+     "equals": "endpoint"
+    }
+   ]
+  },
+  {
+   "name": "Read pipename again",
+   "method": "GET",
+   "path": "/v0/pipes/pipename",
+   "example": "pipe#doc Getting information about a particular pipe (2)",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pipename"
+    },
+    {
+     "path": "nodes.0.name",
+     "equals": "src_node"
+    },
+    {
+     "path": "nodes.0.sql",
+     "equals": "select count() c from events"
+    },
+    {
+     "path": "nodes.0.node_type",
+     "equals": "endpoint"
+    }
+   ],
+   "exampleDiffers": {
+    "pipeline": "The page's answer here holds the nodes under pipeline.nodes; the same page's create and list answers, and its publish answer, hold them under nodes, as the twin does."
+   }
+  },
+  {
+   "name": "Drop the copy",
+   "method": "DELETE",
+   "path": "/v0/pipes/pipename",
+   "example": "pipe_delete#doc Dropping a pipe (2)",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "status": 204
+  },
+  {
+   "name": "Publish node_01 of pipe_name as its endpoint",
+   "method": "POST",
+   "path": "/v0/pipes/pipe_name/nodes/node_01/endpoint",
+   "example": "pipe_set_endpoint#doc Publishing an endpoint",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pipe_name"
+    },
+    {
+     "path": "description",
+     "equals": "my first pipe"
+    },
+    {
+     "path": "nodes.0.name",
+     "equals": "node_00"
+    },
+    {
+     "path": "nodes.0.sql",
+     "equals": "select * from my_datasource limit 10"
+    },
+    {
+     "path": "nodes.0.description",
+     "equals": "sampled data"
+    },
+    {
+     "path": "nodes.1.name",
+     "equals": "node_01"
+    },
+    {
+     "path": "nodes.1.sql",
+     "equals": "select count() from node_00"
+    },
+    {
+     "path": "nodes.1.dependencies.0",
+     "equals": "node_00"
+    },
+    {
+     "path": "nodes.1.node_type",
+     "equals": "endpoint"
+    },
+    {
+     "path": "endpoint",
+     "equals": "{p_node01}"
+    },
+    {
+     "path": "nodes.1.id",
+     "equals": "{p_node01}"
+    },
+    {
+     "path": "published_version",
+     "equals": "{p_node01}"
+    }
+   ],
+   "exampleDiffers": {
+    "nodes": "pipe_name has two nodes; the page's pipe has one.",
+    "nodes[].description": "node_01 was appended without a description; the page's node has one."
+   }
+  },
+  {
+   "name": "Rule: publishing a node the Pipe does not have (\"400 Wrong node id\", API Endpoints page)",
+   "method": "POST",
+   "path": "/v0/pipes/pipe_name/nodes/node_99/endpoint",
+   "status": 400,
+   "expect": [
+    {
+     "path": "error",
+     "contains": "Wrong node id"
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: publish node_01 again",
+   "method": "POST",
+   "path": "/v0/pipes/pipe_name/nodes/node_01/endpoint",
+   "expect": [
+    {
+     "path": "endpoint",
+     "equals": "{p_node01}"
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Setup: overwrite pipe_name with force=true, node_01 kept by name (\"the endpoint will only be maintained if the node name is the same\", Pipes API page)",
+   "method": "POST",
+   "path": "/v0/pipes?force=true",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "capture": {
+    "kept_node": "nodes.1.id"
+   },
+   "body": {
+    "name": "pipe_name",
+    "description": "my first pipe",
+    "nodes": [
+     {
+      "sql": "select * from my_datasource limit 10",
+      "name": "node_00",
+      "description": "sampled data"
+     },
+     {
+      "sql": "select count() from node_00",
+      "name": "node_01"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pipe_name"
+    },
+    {
+     "path": "nodes.1.name",
+     "equals": "node_01"
+    }
+   ]
+  },
+  {
+   "name": "Setup: its endpoint is still node_01",
+   "method": "GET",
+   "path": "/v0/pipes/pipe_name",
+   "expect": [
+    {
+     "path": "endpoint",
+     "equals": "{kept_node}"
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Rule: a Pipe named as a Data Source (\"Pipe, Data Source and node names are globally unique\", API overview)",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "status": 409,
+   "expect": [
+    {
+     "path": "error",
+     "contains": "names must be unique"
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "my_datasource",
+    "nodes": [
+     {
+      "name": "n0",
+      "sql": "select 1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Setup: a row into table_name, the page's own name",
+   "method": "POST",
+   "path": "/v0/events?name=table_name&wait=true",
+   "body": "{\"department\":1,\"value\":\"a\",\"column\":0}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 1
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {admin}"
+   }
+  },
+  {
+   "name": "Create the token test, appending to and reading table_name",
+   "method": "POST",
+   "path": "/v0/tokens/",
+   "example": "create_token#doc Creating a new Static Token",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=test&scope=DATASOURCES:APPEND:table_name&scope=DATASOURCES:READ:table_name",
+   "capture": {
+    "test_token": "token"
+   },
+   "exampleDiffers": {
+    "scopes[].filter": "The page's answer gives the READ scope a filter, department = 1, that its request does not send: a scope is `SCOPE:TYPE[:arg][:filter]` (the page's parameter table), and the request's `scope=DATASOURCES:READ:table_name` carries no filter; the twin answers the scopes as sent (a filtered scope is the page's next example)."
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "test"
+    },
+    {
+     "path": "scopes.0.type",
+     "equals": "DATASOURCES:APPEND"
+    },
+    {
+     "path": "scopes.0.resource",
+     "equals": "table_name"
+    },
+    {
+     "path": "scopes.1.type",
+     "equals": "DATASOURCES:READ"
+    },
+    {
+     "path": "scopes.1.resource",
+     "equals": "table_name"
+    }
+   ]
+  },
+  {
+   "name": "List the Workspace's tokens (https://www.tinybird.co/docs/api-reference/token-api: \"A list of your Static Tokens and their scopes will be sent in the response.\")",
+   "method": "GET",
+   "path": "/v0/tokens",
+   "example": "tokens#doc Get all tokens",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "tokens.0.name",
+     "equals": "admin token"
+    },
+    {
+     "path": "tokens.3.scopes.0.resource",
+     "equals": "events_per_day"
+    },
+    {
+     "path": "tokens.3.token",
+     "equals": "{epd_token}"
+    },
+    {
+     "path": "tokens.4.token",
+     "equals": "{test_token}"
+    },
+    {
+     "path": "tokens.0.token",
+     "equals": "{admin}"
+    }
+   ]
+  },
+  {
+   "name": "Read the token test",
+   "method": "GET",
+   "path": "/v0/tokens/test",
+   "example": "token_get#doc Getting token info",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "test"
+    },
+    {
+     "path": "token",
+     "equals": "{test_token}"
+    },
+    {
+     "path": "scopes.0.type",
+     "equals": "DATASOURCES:APPEND"
+    },
+    {
+     "path": "scopes.0.resource",
+     "equals": "table_name"
+    },
+    {
+     "path": "scopes.1.type",
+     "equals": "DATASOURCES:READ"
+    },
+    {
+     "path": "scopes.1.resource",
+     "equals": "table_name"
+    },
+    {
+     "path": "scopes.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Refresh it: a new value, the same name and scopes",
+   "method": "POST",
+   "path": "/v0/tokens/test/refresh",
+   "example": "token_refresh#doc Refreshing a Static Token",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "capture": {
+    "test_token_new": "token"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "test"
+    },
+    {
+     "path": "scopes.0.type",
+     "equals": "DATASOURCES:APPEND"
+    },
+    {
+     "path": "scopes.0.resource",
+     "equals": "table_name"
+    },
+    {
+     "path": "scopes.1.type",
+     "equals": "DATASOURCES:READ"
+    },
+    {
+     "path": "scopes.1.resource",
+     "equals": "table_name"
+    },
+    {
+     "path": "scopes.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Setup: the refreshed-away value no longer authenticates",
+   "method": "GET",
+   "path": "/v0/datasources/table_name",
+   "headers": {
+    "authorization": "Bearer {test_token}"
+   },
+   "status": 403
+  },
+  {
+   "name": "Setup: the new value reads table_name, as the scopes give it",
+   "method": "GET",
+   "path": "/v0/datasources/table_name",
+   "headers": {
+    "authorization": "Bearer {test_token_new}"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "table_name"
+    }
+   ]
+  },
+  {
+   "name": "Query events_per_day with the Query API, the token in the Authorization header (the page's <pipe>)",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+*+FROM+events_per_day",
+   "example": "query#doc Authorization header Authenticated request",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 3
+    },
+    {
+     "path": "meta.0.name",
+     "equals": "timestamp"
+    }
+   ]
+  },
+  {
+   "name": "The same query, the token as the token parameter",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+*+FROM+events_per_day&token={admin}",
+   "example": "query#doc URL parameter authenticated request",
+   "headers": {},
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 3
+    }
+   ]
+  },
+  {
+   "name": "The same query, asking for a gzip-compressed answer (\"add Accept-Encoding: gzip to your requests\")",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+*+FROM+events_per_day",
+   "example": "query#doc Request with compressed response",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "accept-encoding": "gzip"
+   },
+   "expect": [
+    {
+     "header": "content-encoding",
+     "equals": "gzip"
+    }
+   ]
+  },
+  {
+   "name": "Query events_per_day by POST, the SQL as the body (the pipe-api page's yesterday filter: only the World's 2026-01-01 view)",
+   "method": "POST",
+   "path": "/v0/sql",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "Bearer {admin}"
+   },
+   "body": "SELECT * FROM events_per_day where date > yesterday()",
+   "example": "query_2#doc Querying a Pipe using SQL",
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0.date",
+     "equals": "2026-01-01"
+    },
+    {
+     "path": "data.0.event",
+     "equals": "view"
+    }
+   ]
+  },
+  {
+   "name": "Query events_per_day by POST, the SQL as the form's q (the page's <pipe>)",
+   "method": "POST",
+   "path": "/v0/sql",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "Bearer {admin}"
+   },
+   "body": "q=SELECT * FROM events_per_day FORMAT JSON",
+   "example": "query_2#doc Using the Query API",
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 3
+    },
+    {
+     "path": "meta.0.name",
+     "equals": "timestamp"
+    }
+   ]
+  },
+  {
+   "name": "Setup: two taxi trips into nyc_taxi, the rows the query-api page's answer shows",
+   "method": "POST",
+   "path": "/v0/events?name=nyc_taxi&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"VendorID\": 2, \"tpep_pickup_datetime\": \"2001-01-05 11:45:23\", \"tpep_dropoff_datetime\": \"2001-01-05 11:52:05\", \"passenger_count\": 5, \"trip_distance\": 1.53, \"RatecodeID\": 1, \"store_and_fwd_flag\": \"N\", \"PULocationID\": 71, \"DOLocationID\": 89, \"payment_type\": 2, \"fare_amount\": 7.5, \"extra\": 0.5, \"mta_tax\": 0.5, \"tip_amount\": 0, \"tolls_amount\": 0, \"improvement_surcharge\": 0.3, \"total_amount\": 8.8}\n{\"VendorID\": 2, \"tpep_pickup_datetime\": \"2002-12-31 23:01:55\", \"tpep_dropoff_datetime\": \"2003-01-01 14:59:11\", \"passenger_count\": 5, \"trip_distance\": 1.53, \"RatecodeID\": 1, \"store_and_fwd_flag\": \"N\", \"PULocationID\": 71, \"DOLocationID\": 89, \"payment_type\": 2, \"fare_amount\": 7.5, \"extra\": 0.5, \"mta_tax\": 0.5, \"tip_amount\": 0, \"tolls_amount\": 0, \"improvement_surcharge\": 0.3, \"total_amount\": 8.8}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 2
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Query nyc_taxi by POST, the form's q (the page's <pipe>)",
+   "method": "POST",
+   "path": "/v0/sql",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "Bearer {admin}"
+   },
+   "body": "q=SELECT * FROM nyc_taxi FORMAT JSON",
+   "example": "query_2#doc Running sql queries against your data",
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "data.0.VendorID",
+     "equals": 2
+    },
+    {
+     "path": "data.0.tpep_pickup_datetime",
+     "equals": "2001-01-05 11:45:23"
+    },
+    {
+     "path": "data.1.tpep_dropoff_datetime",
+     "equals": "2003-01-01 14:59:11"
+    }
+   ],
+   "exampleDiffers": {
+    "meta": "The page's answer lists the meta of two columns while its first data row holds seventeen; a JSON-format answer names every column the query selects (https://www.tinybird.co/docs/api-reference/query-api, \"Data can be fetched in different formats\"), so the twin's meta holds all seventeen.",
+    "rows_before_limit_at_least": "The page's answer counts rows before a LIMIT its SELECT does not have (rows 3 of at least 4, with two rows shown); the twin, sent the page's own SELECT * with no LIMIT, answers every row and no count before a limit."
+   }
+  },
+  {
+   "name": "Setup: page_rows, a Data Source with the page's column_name, one row holding its column_name_value and one another value",
+   "method": "POST",
+   "path": "/v0/events?name=page_rows&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"column_name\": \"column_name_value\"}\n{\"column_name\": \"new_column_name_value\"}",
+   "expect": [
+    {
+     "path": "successful_rows",
+     "equals": 2
+    },
+    {
+     "path": "quarantined_rows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Query page_rows by POST with a template, its column_name parameter in the same form (the page's <pipe>)",
+   "method": "POST",
+   "path": "/v0/sql",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "Bearer {admin}"
+   },
+   "body": "q=%25 SELECT * FROM page_rows where column_name = {{String(column_name)}}&column_name=column_name_value",
+   "example": "query_2#doc Running sql queries against your data (2)",
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0.column_name",
+     "equals": "column_name_value"
+    }
+   ]
+  },
+  {
+   "name": "Query nyc_taxi by POST, the form's q alone",
+   "method": "POST",
+   "path": "/v0/sql",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "Bearer {admin}"
+   },
+   "body": "q=SELECT * FROM nyc_taxi",
+   "example": "query_2#doc POST /v0/sql (2)",
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "Query nyc_taxi by POST, the SQL as the body",
+   "method": "POST",
+   "path": "/v0/sql",
+   "headers": {
+    "content-type": "text/plain",
+    "authorization": "Bearer {admin}"
+   },
+   "body": "SELECT * FROM nyc_taxi",
+   "example": "query_2#doc POST /v0/sql (3)",
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "meta.0.name",
+     "equals": "VendorID"
+    },
+    {
+     "path": "data.0.total_amount",
+     "equals": 8.8
+    }
+   ],
+   "exampleDiffers": {
+    "meta": "The page's answer lists the meta of two columns while its first data row holds seventeen; a JSON-format answer names every column the query selects (https://www.tinybird.co/docs/api-reference/query-api, \"Data can be fetched in different formats\"), so the twin's meta holds all seventeen.",
+    "rows_before_limit_at_least": "The page's answer counts rows before a LIMIT its SELECT does not have (rows 3 of at least 4, with two rows shown); the twin, sent the page's own SELECT * with no LIMIT, answers every row and no count before a limit."
+   }
+  },
+  {
+   "name": "Setup: cursor-export rows at two instants",
+   "method": "POST",
+   "path": "/v0/events?name=export_events&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"ts\":\"2026-01-01 01:00:00\",\"hash\":\"a\"}\n{\"ts\":\"2026-01-01 02:00:00\",\"hash\":\"b\"}"
+  },
+  {
+   "name": "Setup: the export Pipe filters on its own cursor parameters",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "your_pipe_name",
+    "nodes": [
+     {
+      "name": "export_node",
+      "type": "endpoint",
+      "sql": "%\nSELECT ts, hash FROM export_events\n{% if defined(cursor_ts) %}\nWHERE ts > {{String(cursor_ts)}} OR (ts = {{String(cursor_ts)}} AND hash > {{String(cursor_hash)}})\n{% end %}\nORDER BY ts, hash LIMIT {{Int32(page_size, 1000)}}"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Setup: read the first row’s cursor",
+   "method": "GET",
+   "path": "/v0/pipes/your_pipe_name.json?page_size=1",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "capture": {
+    "last_ts": "data.0.ts",
+    "last_hash": "data.0.hash"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Export CSV with the header",
+   "method": "GET",
+   "path": "/v0/pipes/your_pipe_name.csv?page_size=1000&token={admin}",
+   "example": "pipe_data#doc Page 1: keep the header",
+   "expect": [
+    {
+     "path": "",
+     "equals": "\"ts\",\"hash\"\n\"2026-01-01 01:00:00\",\"a\"\n\"2026-01-01 02:00:00\",\"b\"\n"
+    }
+   ]
+  },
+  {
+   "name": "Resume CSV after the captured cursor, omitting the header",
+   "method": "GET",
+   "path": "/v0/pipes/your_pipe_name.csv?page_size=1000&cursor_ts={last_ts}&cursor_hash={last_hash}&__tb__csv_header=false&token={admin}",
+   "example": "pipe_data#doc Page 2: omit the header, resume from the last row",
+   "expect": [
+    {
+     "path": "",
+     "equals": "\"2026-01-01 02:00:00\",\"b\"\n"
+    }
+   ]
+  },
+  {
+   "name": "Setup: the CSV append target, as its file schema requires",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=data_source_name&schema=symbol String, date Date, close Float32"
+  },
+  {
+   "name": "Append a local CSV file",
+   "method": "POST",
+   "path": "/v0/datasources?name=data_source_name&mode=append",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "example": "datasource_create_from_definition#doc Appending data to a Data Source from a local CSV file",
+   "form": {
+    "parts": [
+     {
+      "name": "csv",
+      "filename": "local_file.csv",
+      "type": "text/csv",
+      "base64": "c3ltYm9sLGRhdGUsY2xvc2UKQUFQTCwyMDI2LTAxLTAxLDEyLjUKQU1aTiwyMDI2LTAxLTAyLDIwLjUK"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "data_source_name"
+    }
+   ]
+  },
+  {
+   "name": "Read the CSV append’s rows",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+symbol,date,close+FROM+data_source_name+ORDER+BY+symbol",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "AAPL",
+       "date": "2026-01-01",
+       "close": 12.5
+      },
+      {
+       "symbol": "AMZN",
+       "date": "2026-01-02",
+       "close": 20.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Replace data with a local CSV file",
+   "method": "POST",
+   "path": "/v0/datasources?name=data_source_name&mode=replace",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "example": "datasource_create_from_definition#doc Replacing data with a local file",
+   "form": {
+    "parts": [
+     {
+      "name": "csv",
+      "filename": "local_file.csv",
+      "type": "text/csv",
+      "base64": "c3ltYm9sLGRhdGUsY2xvc2UKTVNGVCwyMDI2LTAxLTAzLDMwLjUK"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "data_source_name"
+    }
+   ]
+  },
+  {
+   "name": "Read only the replacement file’s row",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+symbol,date,close+FROM+data_source_name",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "MSFT",
+       "date": "2026-01-03",
+       "close": 30.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Import a local log as NDJSON",
+   "method": "POST",
+   "path": "/v0/datasources?name=logs&format=ndjson",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "example": "datasource_create_from_definition#doc Importing a .log local file as NDJSON",
+   "form": {
+    "parts": [
+     {
+      "name": "ndjson",
+      "filename": "local_file.log",
+      "type": "application/x-ndjson",
+      "base64": "eyJsZXZlbCI6ImluZm8iLCJtZXNzYWdlIjoicmVhZHkifQo="
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "logs"
+    }
+   ]
+  },
+  {
+   "name": "Read the imported log",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+level,message+FROM+logs",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "level": "info",
+       "message": "ready"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Rule: an unavailable import source yields a failed import job",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "mode=append&name=data_source_name&url=https://unavailable.example/data.csv",
+   "example": "datasource_create_from_definition#doc An import whose URL cannot be fetched finishes with an error",
+   "capture": {
+    "failed_import": "job_id"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": true
+    },
+    {
+     "path": "datasource.name",
+     "equals": "data_source_name"
+    }
+   ]
+  },
+  {
+   "name": "Read the failed import job",
+   "method": "GET",
+   "path": "/v0/jobs/{failed_import}",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "error"
+    },
+    {
+     "path": "kind",
+     "equals": "import"
+    },
+    {
+     "path": "statistics.row_count",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Verify the refused import changed no rows",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+symbol,date,close+FROM+data_source_name",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "MSFT",
+       "date": "2026-01-03",
+       "close": 30.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Edit and rename the token as the page requests",
+   "method": "PUT",
+   "path": "/v0/tokens/test?",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=test_new_name&description=this is a test token&scope=PIPES:READ:test_pipe&scope=DATASOURCES:CREATE",
+   "example": "alter_tokens#doc editing a token",
+   "exampleDiffers": {
+    "name": "The request explicitly sends name=test_new_name while the sample echoes name=test. The Tokens parameter table names this field Name of the token; the request’s supplied name is retained. Both are on https://www.tinybird.co/docs/api-reference/token-api."
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "test_new_name"
+    },
+    {
+     "path": "description",
+     "equals": "this is a test token"
+    },
+    {
+     "path": "scopes.0.resource",
+     "equals": "test_pipe"
+    }
+   ]
+  },
+  {
+   "name": "Read the renamed token by its new name",
+   "method": "GET",
+   "path": "/v0/tokens/test_new_name",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "test_new_name"
+    },
+    {
+     "path": "description",
+     "equals": "this is a test token"
+    }
+   ]
+  },
+  {
+   "name": "Setup: one permitted and one filtered-out row in table_name",
+   "method": "POST",
+   "path": "/v0/events?name=table_name&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"column\":1}\n{\"column\":2}"
+  },
+  {
+   "name": "Create the page’s filtered static token",
+   "method": "POST",
+   "path": "/v0/tokens/",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=test&scope=DATASOURCES:READ:table_name:column==1",
+   "example": "create_token#doc Creating a new token with filter",
+   "capture": {
+    "filtered_token": "token"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "test"
+    },
+    {
+     "path": "scopes.0.resource",
+     "equals": "table_name"
+    },
+    {
+     "path": "scopes.0.filter",
+     "equals": "column==1"
+    }
+   ]
+  },
+  {
+   "name": "Read through the token’s row filter",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+column+FROM+table_name",
+   "headers": {
+    "authorization": "Bearer {filtered_token}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "column": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Appending data to a Data Source from a remote CSV file from the World-held reader file",
+   "example": "datasource_create_from_definition#doc Appending data to a Data Source from a remote CSV file",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "mode=append&name=data_source_name&url=https://.../data.csv",
+   "capture": {
+    "url_import": "job_id"
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "data_source_name"
+    },
+    {
+     "path": "error",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Read back Appending data to a Data Source from a remote CSV file",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+symbol,date,close+FROM+data_source_name",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "MSFT",
+       "date": "2026-01-03",
+       "close": 30.5
+      },
+      {
+       "symbol": "AAPL",
+       "date": "2026-01-01",
+       "close": 12.5
+      },
+      {
+       "symbol": "AMZN",
+       "date": "2026-01-02",
+       "close": 20.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Read the completed job for Appending data to a Data Source from a remote CSV file",
+   "method": "GET",
+   "path": "/v0/jobs/{url_import}",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "done"
+    }
+   ]
+  },
+  {
+   "name": "Replacing data with a remote file from a URL from the World-held reader file",
+   "example": "datasource_create_from_definition#doc Replacing data with a remote file from a URL",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "mode=replace&name=data_source_name&url=http%3A%2F%2Fexample.com%2Ffile.csv",
+   "capture": {
+    "url_import": "job_id"
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "data_source_name"
+    },
+    {
+     "path": "error",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Read back Replacing data with a remote file from a URL",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+symbol,date,close+FROM+data_source_name",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "MSFT",
+       "date": "2026-01-03",
+       "close": 30.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Read the completed job for Replacing data with a remote file from a URL",
+   "method": "GET",
+   "path": "/v0/jobs/{url_import}",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "done"
+    }
+   ]
+  },
+  {
+   "name": "Setup: a fresh Workspace for Creating a Data Source from a schema",
+   "method": "POST",
+   "path": "https://cloud.tinybird.co/workspaces/new",
+   "status": 302,
+   "headers": {
+    "cookie": "tinybird_twin_session={session}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=schema_copy&organization={org}&version=classic"
+  },
+  {
+   "name": "Setup: its Workspace token for Creating a Data Source from a schema",
+   "method": "GET",
+   "path": "https://cloud.tinybird.co/gcp/europe-west3/schema_copy/tokens",
+   "headers": {
+    "cookie": "tinybird_twin_session={session}"
+   },
+   "capture": {
+    "import_admin": "text:>admin token<[\\s\\S]*?(p\\.[0-9a-f]{64})"
+   }
+  },
+  {
+   "name": "Creating a Data Source from a schema in its fresh Workspace",
+   "example": "datasource_create_from_definition#doc Creating a Data Source from a schema",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {import_admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "stocks"
+    },
+    {
+     "path": "columns.0.name",
+     "equals": "symbol"
+    },
+    {
+     "path": "columns.2.type",
+     "equals": "Float32"
+    }
+   ],
+   "body": "name=stocks&schema=symbol String, date Date, close Float32"
+  },
+  {
+   "name": "Setup: a fresh Workspace for Creating a CSV Data Source from a local CSV file with schema inference",
+   "method": "POST",
+   "path": "https://cloud.tinybird.co/workspaces/new",
+   "status": 302,
+   "headers": {
+    "cookie": "tinybird_twin_session={session}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=local_file&organization={org}&version=classic"
+  },
+  {
+   "name": "Setup: its Workspace token for Creating a CSV Data Source from a local CSV file with schema inference",
+   "method": "GET",
+   "path": "https://cloud.tinybird.co/gcp/europe-west3/local_file/tokens",
+   "headers": {
+    "cookie": "tinybird_twin_session={session}"
+   },
+   "capture": {
+    "import_admin": "text:>admin token<[\\s\\S]*?(p\\.[0-9a-f]{64})"
+   }
+  },
+  {
+   "name": "Creating a CSV Data Source from a local CSV file with schema inference in its fresh Workspace",
+   "example": "datasource_create_from_definition#doc Creating a CSV Data Source from a local CSV file with schema inference",
+   "method": "POST",
+   "path": "/v0/datasources?name=stocks",
+   "headers": {
+    "authorization": "Bearer {import_admin}"
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "stocks"
+    }
+   ],
+   "form": {
+    "parts": [
+     {
+      "name": "csv",
+      "filename": "local_file.csv",
+      "type": "text/csv",
+      "value": "symbol,date,close\nAAPL,2026-01-01,12.5\nAMZN,2026-01-02,20.5\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Read inferred rows for Creating a CSV Data Source from a local CSV file with schema inference",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+symbol,date,close+FROM+stocks",
+   "headers": {
+    "authorization": "Bearer {import_admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "AAPL",
+       "date": "2026-01-01",
+       "close": 12.5
+      },
+      {
+       "symbol": "AMZN",
+       "date": "2026-01-02",
+       "close": 20.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: a fresh Workspace for Creating a CSV Data Source from a remote CSV file with schema inference",
+   "method": "POST",
+   "path": "https://cloud.tinybird.co/workspaces/new",
+   "status": 302,
+   "headers": {
+    "cookie": "tinybird_twin_session={session}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=url_file&organization={org}&version=classic"
+  },
+  {
+   "name": "Setup: its Workspace token for Creating a CSV Data Source from a remote CSV file with schema inference",
+   "method": "GET",
+   "path": "https://cloud.tinybird.co/gcp/europe-west3/url_file/tokens",
+   "headers": {
+    "cookie": "tinybird_twin_session={session}"
+   },
+   "capture": {
+    "import_admin": "text:>admin token<[\\s\\S]*?(p\\.[0-9a-f]{64})"
+   }
+  },
+  {
+   "name": "Creating a CSV Data Source from a remote CSV file with schema inference in its fresh Workspace",
+   "example": "datasource_create_from_definition#doc Creating a CSV Data Source from a remote CSV file with schema inference",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {import_admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "expect": [
+    {
+     "path": "datasource.name",
+     "equals": "stocks"
+    }
+   ],
+   "body": "name=stocks&url=https://.../data.csv"
+  },
+  {
+   "name": "Read inferred rows for Creating a CSV Data Source from a remote CSV file with schema inference",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+symbol,date,close+FROM+stocks",
+   "headers": {
+    "authorization": "Bearer {import_admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "AAPL",
+       "date": "2026-01-01",
+       "close": 12.5
+      },
+      {
+       "symbol": "AMZN",
+       "date": "2026-01-02",
+       "close": 20.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: the published template’s TR",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=TR&schema=timestamp+String%2C+access_type+Int32"
+  },
+  {
+   "name": "Setup: reader-supplied rows in TR",
+   "method": "POST",
+   "path": "/v0/events?name=TR&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"timestamp\": \"2026-01-01 00:00:00\", \"access_type\": 101}\n{\"timestamp\": \"2026-01-02 00:00:00\", \"access_type\": 102}\n{\"timestamp\": \"2026-01-03 00:00:00\", \"access_type\": 200}"
+  },
+  {
+   "name": "Setup: the published template’s my_table",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=my_table&schema=name+String%2C+age+Int32%2C+address+String%2C+amount+Int32%2C+date+Date%2C+param+Int32%2C+param2+String%2C+attr+Int32%2C+a+Int32%2C+b+Int32"
+  },
+  {
+   "name": "Setup: reader-supplied rows in my_table",
+   "method": "POST",
+   "path": "/v0/events?name=my_table&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"name\": \"A\", \"age\": 21, \"address\": \"Street A\", \"amount\": 10, \"date\": \"2026-01-01\", \"param\": 1, \"param2\": \"ok\", \"attr\": 30, \"a\": 20, \"b\": 1}\n{\"name\": \"B\", \"age\": 31, \"address\": \"Street B\", \"amount\": 20, \"date\": \"2026-01-02\", \"param\": 2, \"param2\": \"ab\", \"attr\": 5, \"a\": 5, \"b\": 2}"
+  },
+  {
+   "name": "Setup: the published template’s stock_prices_1m",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=stock_prices_1m&schema=symbol+String%2C+date+Date%2C+high+Float64"
+  },
+  {
+   "name": "Setup: reader-supplied rows in stock_prices_1m",
+   "method": "POST",
+   "path": "/v0/events?name=stock_prices_1m&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"symbol\": \"AAPL\", \"date\": \"2018-01-02\", \"high\": 101.0}\n{\"symbol\": \"AMZN\", \"date\": \"2018-01-02\", \"high\": 90.0}\n{\"symbol\": \"MSFT\", \"date\": \"2018-01-02\", \"high\": 150.0}"
+  },
+  {
+   "name": "Setup: publish Simple select clause using dynamic parameters",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_0&sql=%25%0ASELECT+%2A+FROM+TR+LIMIT+%7B%7BInt32%28lim%2C+10%2C+description%3D%22Limit+the+number+of+rows+in+the+response%22%2C+required%3DFalse%29%7D%7D"
+  },
+  {
+   "name": "Replay Simple select clause using dynamic parameters",
+   "example": "pipe_data#doc Simple select clause using dynamic parameters",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_0.json?lim=20",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 3
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "timestamp": "2026-01-01 00:00:00",
+       "access_type": 101
+      },
+      {
+       "timestamp": "2026-01-02 00:00:00",
+       "access_type": 102
+      },
+      {
+       "timestamp": "2026-01-03 00:00:00",
+       "access_type": 200
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish Using column dynamic parameters",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_1&sql=%25%0ASELECT+%2A+FROM+TR%0AORDER+BY+%7B%7Bcolumn%28order_by%2C+%27timestamp%27%29%7D%7D%0ALIMIT+%7B%7BInt32%28lim%2C+10%29%7D%7D"
+  },
+  {
+   "name": "Replay Using column dynamic parameters",
+   "example": "pipe_data#doc Using column dynamic parameters",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_1.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 3
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "timestamp": "2026-01-01 00:00:00",
+       "access_type": 101
+      },
+      {
+       "timestamp": "2026-01-02 00:00:00",
+       "access_type": 102
+      },
+      {
+       "timestamp": "2026-01-03 00:00:00",
+       "access_type": 200
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish Validate the column parameter when not defining a default value",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_2&sql=%25%0ASELECT+%2A+FROM+TR%0A%7B%25+if+defined%28order_by%29+%25%7D%0AORDER+BY+%7B%7Bcolumn%28order_by%29%7D%7D%0A%7B%25+end+%25%7D"
+  },
+  {
+   "name": "Replay Validate the column parameter when not defining a default value",
+   "example": "pipe_data#doc Validate the column parameter when not defining a default value",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_2.json?order_by=timestamp",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 3
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "timestamp": "2026-01-01 00:00:00",
+       "access_type": 101
+      },
+      {
+       "timestamp": "2026-01-02 00:00:00",
+       "access_type": 102
+      },
+      {
+       "timestamp": "2026-01-03 00:00:00",
+       "access_type": 200
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish Passing arrays as dynamic parameters",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_3&sql=%25%0ASELECT+%2A+FROM+TR+WHERE%0Aaccess_type+IN+%7B%7BArray%28access_numbers%2C+%27Int32%27%2C+default%3D%27101%2C102%2C110%27%29%7D%7D"
+  },
+  {
+   "name": "Replay Passing arrays as dynamic parameters",
+   "example": "pipe_data#doc Passing arrays as dynamic parameters",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_3.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "timestamp": "2026-01-01 00:00:00",
+       "access_type": 101
+      },
+      {
+       "timestamp": "2026-01-02 00:00:00",
+       "access_type": 102
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish Paging results using dynamic parameters",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_4&sql=%25%0ASELECT+%2A+FROM+TR%0ALIMIT+%7B%7BInt32%28page_size%2C+100%29%7D%7D%0AOFFSET+%7B%7BInt32%28page%2C+0%29+%2A+Int32%28page_size%2C+100%29%7D%7D"
+  },
+  {
+   "name": "Replay Paging results using dynamic parameters",
+   "example": "pipe_data#doc Paging results using dynamic parameters",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_4.json?page_size=1&page=1",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "timestamp": "2026-01-02 00:00:00",
+       "access_type": 102
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish column function",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_5&sql=%25%0A%7B%25+set+var_1+%3D+%27name%27+%25%7D%0ASELECT%0A%7B%7Bcolumn%28var_1%29%7D%7D%0AFROM+my_table"
+  },
+  {
+   "name": "Replay column function",
+   "example": "pipe_data#doc column function",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_5.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "name": "A"
+      },
+      {
+       "name": "B"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish columns function",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_6&sql=%25%0A%7B%25+set+var_1+%3D+%27name%2Cage%2Caddress%27+%25%7D%0ASELECT%0A%7B%7Bcolumns%28var_1%29%7D%7D%0AFROM+my_table"
+  },
+  {
+   "name": "Replay columns function",
+   "example": "pipe_data#doc columns function",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_6.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "name": "A",
+       "age": 21,
+       "address": "Street A"
+      },
+      {
+       "name": "B",
+       "age": 31,
+       "address": "Street B"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish split_to_array with a custom separator function",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_7&sql=%25%0ASELECT%0A%7B%7Bsplit_to_array%28String%28param%2C+%27hi%2C+how+are+you%7Cfine+thanks%27%29%2C+separator%3D%27%7C%27%29%7D%7D"
+  },
+  {
+   "name": "Replay split_to_array with a custom separator function",
+   "example": "pipe_data#doc split_to_array with a custom separator function",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_7.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0",
+     "contains": "[\"hi, how are you\",\"fine thanks\"]"
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish enumerate_with_last function",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_8&sql=%25%0ASELECT%0A%7B%25+for+_last%2C+_x+in+enumerate_with_last%28split_to_array%28attr%2C+%27amount%27%29%29+%25%7D%0Asum%28%7B%7Bsymbol%28_x%29%7D%7D%29+as+%7B%7Bsymbol%28_x%29%7D%7D%0A%7B%25+if+not+_last+%25%7D%2C+%7B%25+end+%25%7D%0A%7B%25+end+%25%7D%0AFROM+my_table"
+  },
+  {
+   "name": "Replay enumerate_with_last function",
+   "example": "pipe_data#doc enumerate_with_last function",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_8.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "amount": 30
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish sql_and function",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_9&sql=%25%0ASELECT+%2A%0AFROM+my_table%0AWHERE+1%0A%7B%25+if+defined%28param%29+or+defined%28param2_not_in%29+%25%7D%0AAND+%7B%7Bsql_and%28%0Aparam__in%3DArray%28param%2C+%27Int32%27%2C+defined%3DFalse%29%2C%0Aparam2__not_in%3DArray%28param2_not_in%2C+%27String%27%2C+defined%3DFalse%29%29%7D%7D%0A%7B%25+end+%25%7D"
+  },
+  {
+   "name": "Replay sql_and function",
+   "example": "pipe_data#doc sql_and function",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_9.json?param=1%2C2&param2_not_in=ab%2Cbc%2Ccd",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "name": "A",
+       "age": 21,
+       "address": "Street A",
+       "amount": 10,
+       "date": "2026-01-01",
+       "param": 1,
+       "param2": "ok",
+       "attr": 30,
+       "a": 20,
+       "b": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish sql_and function - param missing",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_10&sql=%25%0ASELECT+%2A%0AFROM+my_table%0AWHERE+1%0A%7B%25+if+defined%28param%29+or+defined%28param2_not_in%29+%25%7D%0AAND+%7B%7Bsql_and%28%0Aparam__in%3DArray%28param%2C+%27Int32%27%2C+defined%3DFalse%29%2C%0Aparam2__not_in%3DArray%28param2_not_in%2C+%27String%27%2C+defined%3DFalse%29%29%7D%7D%0A%7B%25+end+%25%7D"
+  },
+  {
+   "name": "Replay sql_and function - param missing",
+   "example": "pipe_data#doc sql_and function - param missing",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_10.json?param=1%2C2",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "name": "A",
+       "age": 21,
+       "address": "Street A",
+       "amount": 10,
+       "date": "2026-01-01",
+       "param": 1,
+       "param2": "ok",
+       "attr": 30,
+       "a": 20,
+       "b": 1
+      },
+      {
+       "name": "B",
+       "age": 31,
+       "address": "Street B",
+       "amount": 20,
+       "date": "2026-01-02",
+       "param": 2,
+       "param2": "ab",
+       "attr": 5,
+       "a": 5,
+       "b": 2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish Send stringified JSON as parameter",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_template_11&sql=%25%0ASELECT+symbol%2C+date%2C+high%0AFROM+stock_prices_1m%0AWHERE%0A1%0A%7B%25+if+defined%28filters%29+%25%7D%0A%7B%25+for+item+in+JSON%28filters%2C+%27%5B%5D%27%29+%25%7D%0A%7B%25+if+item.get%28%27operator%27%2C+%27%27%29+%3D%3D+%27equals%27+%25%7D%0AAND+%7B%7B+column%28item.get%28%27operand%27%2C+%27%27%29%29+%7D%7D+%3D%3D+%7B%7B+item.get%28%27value%27%2C+%27%27%29+%7D%7D%0A%7B%25+elif+item.get%28%27operator%27%29+%3D%3D+%27greater_than%27+%25%7D%0AAND+%7B%7B+column%28item.get%28%27operand%27%2C+%27%27%29%29+%7D%7D+%3E+%7B%7B+item.get%28%27value%27%2C+%27%27%29+%7D%7D%0A%7B%25+elif+item.get%28%27operator%27%29+%3D%3D+%27in_list%27+%25%7D%0AAND+%7B%7B+column%28item.get%28%27operand%27%2C+%27%27%29%29+%7D%7D+IN+splitByChar%28%27%2C%27%2C%7B%7B+item.get%28%27value%27%2C+%27%27%29+%7D%7D%29%0A%7B%25+end+%25%7D%0A%7B%25+end+%25%7D%0A%7B%25+end+%25%7D"
+  },
+  {
+   "name": "Replay Send stringified JSON as parameter",
+   "example": "pipe_data#doc Send stringified JSON as parameter",
+   "method": "GET",
+   "path": "/v0/pipes/published_template_11.json?filters=%5B%7B%22operand%22%3A+%22date%22%2C+%22operator%22%3A+%22equals%22%2C+%22value%22%3A+%222018-01-02%22%7D%2C+%7B%22operand%22%3A+%22high%22%2C+%22operator%22%3A+%22greater_than%22%2C+%22value%22%3A+%22100%22%7D%2C+%7B%22operand%22%3A+%22symbol%22%2C+%22operator%22%3A+%22in_list%22%2C+%22value%22%3A+%22AAPL%2CAMZN%22%7D%5D",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data",
+     "equals": [
+      {
+       "symbol": "AAPL",
+       "date": "2018-01-02",
+       "high": 101.0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish the Throw errors when a required parameter is absent example",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_required_error&sql=%25%0A%7B%25+if+not+defined%28my_filter%29+%25%7D%0A%7B%7B+error%28%27my_filter+%28int32%29+query+param+is+required%27%29+%7D%7D%0A%7B%25+end+%25%7D%0Aselect+%2A+from+my_table%0Awhere+attr+%3E+%7B%7BInt32%28my_filter%29%7D%7D"
+  },
+  {
+   "name": "Throw errors when a required parameter is absent",
+   "example": "pipe_data#doc Throw errors when a required parameter is absent",
+   "method": "GET",
+   "path": "/v0/pipes/published_required_error.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "error",
+     "contains": "my_filter (int32) query param is required"
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish the Return the custom_error JSON object example",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_custom_error&sql=%25%0A%7B%25+if+not+defined%28my_filter%29+%25%7D%0A%7B%7B+custom_error%28%7B%27error_id%27%3A+10001%2C+%27error%27%3A+%27my_filter+%28int32%29+query+param+is+required%27%7D%29+%7D%7D%0A%7B%25+end+%25%7D%0Aselect+%2A+from+my_table%0Awhere+attr+%3E+%7B%7BInt32%28my_filter%29%7D%7D"
+  },
+  {
+   "name": "Return the custom_error JSON object",
+   "example": "pipe_data#doc Return the custom_error JSON object",
+   "method": "GET",
+   "path": "/v0/pipes/published_custom_error.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "",
+     "equals": {
+      "error_id": 10001,
+      "error": "my_filter (int32) query param is required"
+     }
+    }
+   ]
+  },
+  {
+   "name": "Only Data Sources accessible to the querying token are listed",
+   "example": "datasources#doc Only Data Sources accessible to the querying token are listed",
+   "method": "GET",
+   "path": "/v0/datasources?attrs=name",
+   "headers": {
+    "authorization": "Bearer {filtered_token}"
+   },
+   "expect": [
+    {
+     "path": "datasources",
+     "equals": [
+      {
+       "name": "table_name"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish date_diff_in_days absolute difference",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_date_rule_0&sql=%25%0ASELECT+%7B%7Bdate_diff_in_days%28%272022-12-19%27%2C+%272022-12-20%27%29%7D%7D+AS+delta"
+  },
+  {
+   "name": "Replay date_diff_in_days absolute difference",
+   "example": "pipe_data#doc date_diff_in_days absolute difference",
+   "method": "GET",
+   "path": "/v0/pipes/published_date_rule_0.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "delta": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish date_diff_in_seconds absolute difference",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_date_rule_1&sql=%25%0ASELECT+%7B%7Bdate_diff_in_seconds%28%272022-12-19+18%3A42%3A22%27%2C+%272022-12-19+18%3A42%3A23%27%29%7D%7D+AS+delta"
+  },
+  {
+   "name": "Replay date_diff_in_seconds absolute difference",
+   "example": "pipe_data#doc date_diff_in_seconds absolute difference",
+   "method": "GET",
+   "path": "/v0/pipes/published_date_rule_1.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "delta": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish date_diff_in_minutes absolute difference",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_date_rule_2&sql=%25%0ASELECT+%7B%7Bdate_diff_in_minutes%28%272022-12-19+18%3A42%3A22%27%2C+%272022-12-19+18%3A43%3A22%27%29%7D%7D+AS+delta"
+  },
+  {
+   "name": "Replay date_diff_in_minutes absolute difference",
+   "example": "pipe_data#doc date_diff_in_minutes absolute difference",
+   "method": "GET",
+   "path": "/v0/pipes/published_date_rule_2.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "delta": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish date_diff_in_hours absolute difference",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_date_rule_3&sql=%25%0ASELECT+%7B%7Bdate_diff_in_hours%28%272022-12-19+18%3A42%3A22%27%2C+%272022-12-19+19%3A42%3A22%27%29%7D%7D+AS+delta"
+  },
+  {
+   "name": "Replay date_diff_in_hours absolute difference",
+   "example": "pipe_data#doc date_diff_in_hours absolute difference",
+   "method": "GET",
+   "path": "/v0/pipes/published_date_rule_3.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "delta": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish date_diff explicit date format",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_date_rule_4&sql=%25%0A%7B%25+if+date_diff_in_seconds%28%272022-12-19T18%3A42%3A23.521Z%27%2C+%272022-12-19T18%3A42%3A23.531Z%27%2C+date_format%3D%27%25Y-%25m-%25dT%25H%3A%25M%3A%25S.%25fz%27%29+%3C+1+%25%7D%0ASELECT+1+AS+delta%0A%7B%25+else+%25%7D%0ASELECT+0+AS+delta%0A%7B%25+end+%25%7D"
+  },
+  {
+   "name": "Replay date_diff explicit date format",
+   "example": "pipe_data#doc date_diff explicit date format",
+   "method": "GET",
+   "path": "/v0/pipes/published_date_rule_4.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "delta": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish date_diff backup date format",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_date_rule_5&sql=%25%0ASELECT+%7B%7Bdate_diff_in_seconds%28%272022-12-19+18%3A42%3A22%27%2C+%272022-12-19%27%2C+backup_date_format%3D%27%25Y-%25m-%25d%27%29%7D%7D+AS+delta"
+  },
+  {
+   "name": "Replay date_diff backup date format",
+   "example": "pipe_data#doc date_diff backup date format",
+   "method": "GET",
+   "path": "/v0/pipes/published_date_rule_5.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "delta": 67342
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: publish date_diff none_if_error permits alternate logic",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=published_date_none&sql=%25%0A%7B%25+set+delta+%3D+date_diff_in_seconds%28%27different+format%27%2C+%272022-12-19%27%2C+none_if_error%3DTrue%29+%25%7D%0A%7B%25+if+delta+is+None+%25%7D%0ASELECT+-1+AS+delta%0A%7B%25+else+%25%7D%0ASELECT+%7B%7Bdelta%7D%7D+AS+delta%0A%7B%25+end+%25%7D"
+  },
+  {
+   "name": "Replay date_diff none_if_error permits alternate logic",
+   "example": "pipe_data#doc date_diff none_if_error permits alternate logic",
+   "method": "GET",
+   "path": "/v0/pipes/published_date_none.json",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "delta": -1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Pipe creation refuses wrong SQL",
+   "example": "pipe_create#doc Pipe creation refuses wrong SQL",
+   "method": "POST",
+   "path": "/v0/pipes",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "invalid_sql_example",
+    "nodes": [
+     {
+      "name": "invalid_sql_node",
+      "sql": "SELECT",
+      "type": "endpoint"
+     }
+    ]
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "error",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Verify the invalid SQL created no Pipe",
+   "method": "GET",
+   "path": "/v0/pipes/invalid_sql_example",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "status": 404
+  },
+  {
+   "name": "Setup: characters partitioned by profession for the replace rule",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=characters&schema=id+Int32%2C+name+String%2C+profession+String&engine=MergeTree&engine_partition_key=profession"
+  },
+  {
+   "name": "Setup: reader characters in Jedi and other profession partitions",
+   "method": "POST",
+   "path": "/v0/events?name=characters&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"id\":10,\"name\":\"Leia\",\"profession\":\"politician\"}\n{\"id\":20,\"name\":\"Obi-Wan\",\"profession\":\"Jedi\"}"
+  },
+  {
+   "name": "Replay conditional replace incoming-row filter",
+   "example": "datasource_create_from_definition#doc replace_condition filters incoming rows",
+   "method": "POST",
+   "path": "/v0/datasources?name=characters&mode=replace&replace_condition=profession%3D%27Jedi%27",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "csv",
+      "filename": "jedi.csv",
+      "type": "application/octet-stream",
+      "value": "id,name,profession\n50,Mace Windu,Jedi\n51,Jar Jar,politician\n"
+     }
+    ]
+   },
+   "capture": {
+    "replace_job": "job_id"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "equals": false
+    },
+    {
+     "path": "datasource.name",
+     "equals": "characters"
+    }
+   ]
+  },
+  {
+   "name": "Read the conditional import job",
+   "method": "GET",
+   "path": "/v0/jobs/{replace_job}",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "done"
+    },
+    {
+     "path": "statistics.row_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Read back the published conditional-replace guarantee",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+id%2C+name%2C+profession+FROM+characters+ORDER+BY+id",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "id": 10,
+       "name": "Leia",
+       "profession": "politician"
+      },
+      {
+       "id": 50,
+       "name": "Mace Windu",
+       "profession": "Jedi"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: characters with profession partition key",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=characters_profession&schema=age+Int16%2C+name+String%2C+profession+String&engine=MergeTree&engine_sorting_key=age%2C+name%2C+profession&engine_partition_key=profession"
+  },
+  {
+   "name": "Setup: reader character rows for profession partition example",
+   "method": "POST",
+   "path": "/v0/events?name=characters_profession&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"age\": 10, \"name\": \"Leia\", \"profession\": \"politician\"}\n{\"age\": 20, \"name\": \"Obi-Wan\", \"profession\": \"Jedi\"}\n{\"age\": 30, \"name\": \"Luke\", \"profession\": \"Jedi\"}\n{\"age\": 40, \"name\": \"Mace Windu\", \"profession\": \"politician\"}"
+  },
+  {
+   "name": "Replay Selective replace partitioned by profession",
+   "example": "datasource_create_from_definition#doc Selective replace partitioned by profession",
+   "method": "POST",
+   "path": "/v0/datasources?name=characters_profession&mode=replace&replace_condition=profession%3D%27Jedi%27",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "csv",
+      "filename": "jedi.csv",
+      "type": "application/octet-stream",
+      "value": "age,name,profession\n50,Mace Windu,Jedi\n"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "error",
+     "equals": false
+    },
+    {
+     "path": "datasource.name",
+     "equals": "characters_profession"
+    }
+   ]
+  },
+  {
+   "name": "Read profession partition replacement effect",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+age%2C+name%2C+profession+FROM+characters_profession+ORDER+BY+age",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "age": 10,
+       "name": "Leia",
+       "profession": "politician"
+      },
+      {
+       "age": 40,
+       "name": "Mace Windu",
+       "profession": "politician"
+      },
+      {
+       "age": 50,
+       "name": "Mace Windu",
+       "profession": "Jedi"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Setup: characters with name partition key",
+   "method": "POST",
+   "path": "/v0/datasources",
+   "headers": {
+    "authorization": "Bearer {admin}",
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "name=characters_name&schema=age+Int16%2C+name+String%2C+profession+String&engine=MergeTree&engine_sorting_key=age%2C+name%2C+profession&engine_partition_key=name"
+  },
+  {
+   "name": "Setup: reader character rows for name partition example",
+   "method": "POST",
+   "path": "/v0/events?name=characters_name&wait=true",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "body": "{\"age\": 10, \"name\": \"Leia\", \"profession\": \"politician\"}\n{\"age\": 20, \"name\": \"Obi-Wan\", \"profession\": \"Jedi\"}\n{\"age\": 30, \"name\": \"Luke\", \"profession\": \"Jedi\"}\n{\"age\": 40, \"name\": \"Mace Windu\", \"profession\": \"politician\"}"
+  },
+  {
+   "name": "Replay Selective replace partitioned by name",
+   "example": "datasource_create_from_definition#doc Selective replace partitioned by name",
+   "method": "POST",
+   "path": "/v0/datasources?name=characters_name&mode=replace&replace_condition=profession%3D%27Jedi%27",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "csv",
+      "filename": "jedi.csv",
+      "type": "application/octet-stream",
+      "value": "age,name,profession\n50,Mace Windu,Jedi\n"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "error",
+     "equals": false
+    },
+    {
+     "path": "datasource.name",
+     "equals": "characters_name"
+    }
+   ]
+  },
+  {
+   "name": "Read name partition replacement effect",
+   "method": "GET",
+   "path": "/v0/sql?q=SELECT+age%2C+name%2C+profession+FROM+characters_name+ORDER+BY+age",
+   "headers": {
+    "authorization": "Bearer {admin}"
+   },
+   "expect": [
+    {
+     "path": "data",
+     "equals": [
+      {
+       "age": 10,
+       "name": "Leia",
+       "profession": "politician"
+      },
+      {
+       "age": 20,
+       "name": "Obi-Wan",
+       "profession": "Jedi"
+      },
+      {
+       "age": 30,
+       "name": "Luke",
+       "profession": "Jedi"
+      },
+      {
+       "age": 50,
+       "name": "Mace Windu",
+       "profession": "Jedi"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "notReplayed": {
+  "datasource_create_from_definition#doc Importing from a Google Cloud Storage bucket with time filters": "Managed connector ingestion is a separate flow (connection identity and connector credentials) behind the import path. Neither the demanded applications nor the life uses that flow; they send files, schemas and Events API data. Its published setup creates a connection with POST /v0/connectors, outside those flows. Sources: https://www.tinybird.co/docs/api-reference/datasource-api and https://www.tinybird.co/docs/api-reference/connections-api.",
+  "datasource_create_from_definition#doc Importing from an Amazon S3 bucket using access keys": "Managed connector ingestion is a separate flow (connection identity and connector credentials) behind the import path. Neither the demanded applications nor the life uses that flow; they send files, schemas and Events API data. Its published setup creates a connection with POST /v0/connectors, outside those flows. Sources: https://www.tinybird.co/docs/api-reference/datasource-api and https://www.tinybird.co/docs/api-reference/connections-api.",
+  "datasource_create_from_definition#doc Importing from an Amazon S3 bucket using an IAM Role": "Managed connector ingestion is a separate flow (connection identity and connector credentials) behind the import path. Neither the demanded applications nor the life uses that flow; they send files, schemas and Events API data. Its published setup creates a connection with POST /v0/connectors, outside those flows. Sources: https://www.tinybird.co/docs/api-reference/datasource-api and https://www.tinybird.co/docs/api-reference/connections-api.",
+  "datasource_create_from_definition#doc Importing from an Amazon DynamoDB table": "Managed connector ingestion is a separate flow (connection identity and connector credentials) behind the import path. Neither the demanded applications nor the life uses that flow; they send files, schemas and Events API data. Its published setup creates a connection with POST /v0/connectors, outside those flows. Sources: https://www.tinybird.co/docs/api-reference/datasource-api and https://www.tinybird.co/docs/api-reference/connections-api.",
+  "datasource_create_from_definition#doc Modifying the TTL of a Data Source (2)": "The example promises modification of an existing stocks Data Source but POSTs the collection /v0/datasources with mode=create (the default). The vendor’s Data Sources reference instead documents modifications at POST /v0/datasources/(.+)/alter: https://www.tinybird.co/docs/api-reference/datasource-api#post--v0-datasources-(.+)-alter. The vendor’s API overview states “Pipe, Data Source and node names are globally unique”: https://www.tinybird.co/docs/api-reference#naming. Thus creating another stocks cannot perform the promised in-place modification. Both vendor statements contradict the published request’s promised effect; the alteration flow has no demand or life call. The original request is preserved in spec/doc-examples.json.",
+  "datasource_create_from_definition#doc Modifying default values": "The example promises modification of an existing stocks Data Source but POSTs the collection /v0/datasources with mode=create (the default). The vendor’s Data Sources reference instead documents modifications at POST /v0/datasources/(.+)/alter: https://www.tinybird.co/docs/api-reference/datasource-api#post--v0-datasources-(.+)-alter. The vendor’s API overview states “Pipe, Data Source and node names are globally unique”: https://www.tinybird.co/docs/api-reference#naming. Thus creating another stocks cannot perform the promised in-place modification. Both vendor statements contradict the published request’s promised effect; the alteration flow has no demand or life call. The original request is preserved in spec/doc-examples.json.",
+  "datasource_create_from_definition#doc Modifying default values in a NDJSON Data Source": "The example promises modification of an existing stocks Data Source but POSTs the collection /v0/datasources with mode=create (the default). The vendor’s Data Sources reference instead documents modifications at POST /v0/datasources/(.+)/alter: https://www.tinybird.co/docs/api-reference/datasource-api#post--v0-datasources-(.+)-alter. The vendor’s API overview states “Pipe, Data Source and node names are globally unique”: https://www.tinybird.co/docs/api-reference#naming. Thus creating another stocks cannot perform the promised in-place modification. Both vendor statements contradict the published request’s promised effect; the alteration flow has no demand or life call. The original request is preserved in spec/doc-examples.json.",
+  "datasource_create_from_definition#doc Converting column “close” to Nullable": "The example promises modification of an existing stocks Data Source but POSTs the collection /v0/datasources with mode=create (the default). The vendor’s Data Sources reference instead documents modifications at POST /v0/datasources/(.+)/alter: https://www.tinybird.co/docs/api-reference/datasource-api#post--v0-datasources-(.+)-alter. The vendor’s API overview states “Pipe, Data Source and node names are globally unique”: https://www.tinybird.co/docs/api-reference#naming. Thus creating another stocks cannot perform the promised in-place modification. Both vendor statements contradict the published request’s promised effect; the alteration flow has no demand or life call. The original request is preserved in spec/doc-examples.json.",
+  "datasource_create_from_definition#doc Remove column “close” from the Data Source": "The example promises modification of an existing stocks Data Source but POSTs the collection /v0/datasources with mode=create (the default). The vendor’s Data Sources reference instead documents modifications at POST /v0/datasources/(.+)/alter: https://www.tinybird.co/docs/api-reference/datasource-api#post--v0-datasources-(.+)-alter. The vendor’s API overview states “Pipe, Data Source and node names are globally unique”: https://www.tinybird.co/docs/api-reference#naming. Thus creating another stocks cannot perform the promised in-place modification. Both vendor statements contradict the published request’s promised effect; the alteration flow has no demand or life call. The original request is preserved in spec/doc-examples.json.",
+  "create_token#doc Creating a new JWT Token": "JWT issuance with expiration_time is a separate authentication flow behind token creation. Neither demand nor life uses JWTs; both use static Workspace tokens. Source: https://www.tinybird.co/docs/api-reference/token-api.",
+  "query_2#doc POST /v0/sql": "The page's JSON body is not JSON: its q string holds the template's quotes unescaped ({{String(column_name, \"column_name_value\")}} inside \"q\":\"…\"), so the body ends its string early and no parser reads the fields the page means. Sent as published it is a malformed body, not the example's query; its form-encoded twin on the same page (Running sql queries against your data (2)) is replayed. Source: https://www.tinybird.co/docs/api-reference/query-api."
+ },
+ "application": [
+  {
+   "method": "GET",
+   "url": "https://.../data.csv",
+   "status": 200,
+   "body": "symbol,date,close\nAAPL,2026-01-01,12.5\nAMZN,2026-01-02,20.5\n"
+  },
+  {
+   "method": "GET",
+   "url": "http://example.com/file.csv",
+   "status": 200,
+   "body": "\"symbol\",\"date\",\"close\"\n\"MSFT\",\"2026-01-03\",30.5\n"
+  },
+  {
+   "method": "GET",
+   "url": "https://.../data.csv",
+   "status": 200,
+   "body": "symbol,date,close\nAAPL,2026-01-01,12.5\nAMZN,2026-01-02,20.5\n"
+  }
+ ]
+}

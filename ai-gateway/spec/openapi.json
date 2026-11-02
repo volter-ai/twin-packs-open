@@ -1,0 +1,890 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "Vercel AI Gateway",
+  "version": "2026-09-30",
+  "description": "Written from Vercel's AI Gateway documentation and the @ai-sdk/gateway 4.0.80 source (spec/SOURCE.md): Vercel publishes no OpenAPI document."
+ },
+ "servers": [
+  {
+   "url": "https://ai-gateway.vercel.sh"
+  }
+ ],
+ "security": [
+  {
+   "bearer": []
+  }
+ ],
+ "paths": {
+  "/v1/models": {
+   "get": {
+    "operationId": "listModels",
+    "summary": "List available models",
+    "description": "Retrieve a list of all available models that can be used with the AI Gateway.",
+    "externalDocs": {
+     "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions#list-models"
+    },
+    "responses": {
+     "200": {
+      "description": "The models",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "object": {
+           "type": "string",
+           "enum": [
+            "list"
+           ]
+          },
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Model"
+           }
+          }
+         },
+         "required": [
+          "object",
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/models/{model}": {
+   "get": {
+    "operationId": "retrieveModel",
+    "summary": "Retrieve a specific model",
+    "description": "Retrieve details about a specific model.",
+    "externalDocs": {
+     "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions#retrieve-model"
+    },
+    "parameters": [
+     {
+      "name": "model",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "The model ID to retrieve (e.g., `anthropic/claude-opus-5`)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "The model",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Model"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/chat/completions": {
+   "post": {
+    "operationId": "createChatCompletion",
+    "summary": "Create chat completions",
+    "description": "Create chat completions, with support for streaming, file attachments, tool calling, and structured outputs. The request and the answer are OpenAI's chat completions.",
+    "externalDocs": {
+     "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions/chat-completions"
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "model": {
+          "type": "string"
+         },
+         "messages": {
+          "type": "array",
+          "items": {
+           "type": "object"
+          }
+         },
+         "stream": {
+          "type": "boolean"
+         },
+         "tools": {
+          "type": "array",
+          "items": {
+           "type": "object"
+          }
+         },
+         "tool_choice": {},
+         "response_format": {
+          "type": "object"
+         },
+         "max_tokens": {
+          "type": "integer"
+         },
+         "max_completion_tokens": {
+          "type": "integer"
+         },
+         "temperature": {
+          "type": "number"
+         },
+         "providerOptions": {
+          "type": "object"
+         }
+        },
+        "required": [
+         "model",
+         "messages"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "A chat completion, or its chunks as Server-Sent Events",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       },
+       "text/event-stream": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/embeddings": {
+   "post": {
+    "operationId": "createEmbedding",
+    "summary": "Generate vector embeddings",
+    "description": "Generate vector embeddings.",
+    "externalDocs": {
+     "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions/embeddings"
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "model": {
+          "type": "string"
+         },
+         "input": {}
+        },
+        "required": [
+         "model",
+         "input"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "The embeddings",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v4/ai/language-model": {
+   "post": {
+    "operationId": "languageModel",
+    "summary": "A language model call (the AI SDK protocol)",
+    "description": "The AI SDK's language-model call, as @ai-sdk/gateway posts it to `${baseURL}/language-model` (baseURL `https://ai-gateway.vercel.sh/v4/ai`): the body is the call's LanguageModelV4 options, the model in the `ai-language-model-id` header, streaming in `ai-language-model-streaming`; the answer is a LanguageModelV4 generate result, or its stream parts as Server-Sent Events.",
+    "externalDocs": {
+     "url": "https://unpkg.com/@ai-sdk/gateway@4.0.80/dist/index.js"
+    },
+    "parameters": [
+     {
+      "name": "ai-language-model-id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "ai-language-model-streaming",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "true",
+        "false"
+       ]
+      }
+     },
+     {
+      "name": "ai-language-model-specification-version",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "ai-gateway-auth-method",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "api-key",
+        "oidc"
+       ]
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "prompt": {
+          "type": "array",
+          "items": {
+           "type": "object"
+          }
+         },
+         "tools": {
+          "type": "array",
+          "items": {
+           "type": "object"
+          }
+         },
+         "toolChoice": {
+          "type": "object"
+         },
+         "responseFormat": {
+          "type": "object"
+         },
+         "maxOutputTokens": {
+          "type": "integer"
+         },
+         "temperature": {
+          "type": "number"
+         },
+         "providerOptions": {
+          "type": "object"
+         }
+        },
+        "required": [
+         "prompt"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "A LanguageModelV4 generate result, or its stream parts as Server-Sent Events",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       },
+       "text/event-stream": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v4/ai/embedding-model": {
+   "post": {
+    "operationId": "embeddingModel",
+    "summary": "An embedding model call (the AI SDK protocol)",
+    "description": "The AI SDK's embedding-model call, as @ai-sdk/gateway posts it to `${baseURL}/embedding-model`, the model in the `ai-model-id` header.",
+    "externalDocs": {
+     "url": "https://unpkg.com/@ai-sdk/gateway@4.0.80/dist/index.js"
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "The embeddings",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v4/ai/config": {
+   "get": {
+    "operationId": "availableModels",
+    "summary": "The models available (the AI SDK protocol)",
+    "description": "The models @ai-sdk/gateway's getAvailableModels reads, at `${baseURL}/config`.",
+    "externalDocs": {
+     "url": "https://unpkg.com/@ai-sdk/gateway@4.0.80/dist/index.js"
+    },
+    "responses": {
+     "200": {
+      "description": "The models",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/credits": {
+   "get": {
+    "operationId": "credits",
+    "summary": "The team's credits",
+    "description": "The credits @ai-sdk/gateway's getCredits reads, at `${origin}/v1/credits`.",
+    "externalDocs": {
+     "url": "https://unpkg.com/@ai-sdk/gateway@4.0.80/dist/index.js"
+    },
+    "responses": {
+     "200": {
+      "description": "The credits",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Bad Request: invalid request parameters",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Unauthorized: invalid or missing authentication",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not Found: model or endpoint not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Too Many Requests: rate limit exceeded",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v4/ai/evaluation-model": {
+   "post": {
+    "operationId": "evaluationModel",
+    "summary": "Evaluate state against named questions",
+    "description": "Native EvaluationModelV4 protocol sent by @ai-sdk/gateway 4.0.87: ai-model-id selects the model; the JSON body carries state, questions and providerOptions. Answers are native boolean, choice or score values.",
+    "externalDocs": {
+     "url": "https://unpkg.com/@ai-sdk/gateway@4.0.87/dist/index.js"
+    },
+    "parameters": [
+     {
+      "in": "header",
+      "name": "ai-model-id",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "header",
+      "name": "ai-evaluation-model-specification-version",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "4"
+       ]
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "state",
+         "questions"
+        ],
+        "properties": {
+         "state": {},
+         "questions": {
+          "type": "object"
+         },
+         "providerOptions": {
+          "type": "object"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Native named answers with optional warnings, usage, rounding and providerMetadata",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "required": [
+          "answers"
+         ],
+         "properties": {
+          "answers": {
+           "type": "object"
+          },
+          "warnings": {
+           "type": "array",
+           "items": {
+            "type": "object"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "securitySchemes": {
+   "bearer": {
+    "type": "http",
+    "scheme": "bearer",
+    "description": "An AI Gateway API key, or a Vercel OIDC token"
+   }
+  },
+  "schemas": {
+   "Error": {
+    "type": "object",
+    "properties": {
+     "error": {
+      "type": "object",
+      "properties": {
+       "message": {
+        "type": "string"
+       },
+       "type": {
+        "type": "string"
+       },
+       "param": {},
+       "code": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "message",
+       "type"
+      ]
+     },
+     "generationId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "error"
+    ],
+    "description": "The error body: {\"error\": {\"message\", \"type\", \"param\", \"code\"}}."
+   },
+   "Model": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "object": {
+      "type": "string",
+      "enum": [
+       "model"
+      ]
+     },
+     "created": {
+      "type": "integer"
+     },
+     "owned_by": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     },
+     "context_window": {
+      "type": "integer"
+     },
+     "max_tokens": {
+      "type": "integer"
+     },
+     "type": {
+      "type": "string"
+     },
+     "tags": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "pricing": {
+      "type": "object"
+     }
+    },
+    "required": [
+     "id",
+     "object",
+     "created",
+     "owned_by"
+    ]
+   }
+  }
+ }
+}

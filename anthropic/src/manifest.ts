@@ -93,7 +93,7 @@ export const manifest: DerivedManifest = {
     adoption: { sdks: ['@anthropic-ai/sdk', '@ai-sdk/anthropic', '@anthropic-ai/vertex-sdk', '@anthropic-ai/bedrock-sdk', '@anthropic-ai/claude-agent-sdk'], scopes: ['@anthropic-ai/'], pypi: ['anthropic', 'claude-agent-sdk', 'claude-code-sdk'], envStems: ['ANTHROPIC'] },
     hosts: [{ host: 'api.anthropic.com' }, { host: 'platform.claude.com' }, { host: 'console.anthropic.com' }],
     // the World's applications hold a key the Console made (the keys door), never a fixture: the twin refuses any other
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { ANTHROPIC_API_KEY: 'key' } },
+    credentialDoor: { account: { field: 'account' }, path: '/_twin/app-credentials', body: {}, fill: { ANTHROPIC_API_KEY: 'key' } },
     endpointEnv: { name: 'ANTHROPIC_BASE_URL', note: "the SDKs' base URL (the TypeScript and Python SDKs and Claude Code read ANTHROPIC_BASE_URL)" },
   },
 };

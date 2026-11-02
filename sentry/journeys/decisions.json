@@ -1,0 +1,170 @@
+{
+  "about": "Demanded application SDK ingestion, release and source-map uploads, account setup and derived vendor-backed reads.",
+  "decisions": [
+    {
+      "operation": "listOrganizationProjects",
+      "mechanism": "core",
+      "demand": "Vendor-backed resource refresh.",
+      "why": "The spec names the stored resource and the derived core reads it; no application-specific read behavior is served."
+    },
+    {
+      "operation": "getProjectEvent",
+      "mechanism": "core",
+      "demand": "Vendor-backed resource refresh.",
+      "why": "The spec names the stored resource and the derived core reads it; no application-specific read behavior is served."
+    },
+    {
+      "operation": "createProjectRelease",
+      "mechanism": "handler",
+      "demand": "sentry-cli releases new for one project.",
+      "why": "sentry-cli releases new for one project.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/releases/endpoints/project_releases.py",
+          "means": "Create a new release and/or associate a project with a release. A new association is created even when the organization release already exists."
+        }
+      ]
+    },
+    {
+      "operation": "updateProjectRelease",
+      "mechanism": "handler",
+      "demand": "sentry-cli releases finalize for one project.",
+      "why": "sentry-cli releases finalize for one project."
+    },
+    {
+      "operation": "updateOrganizationRelease",
+      "mechanism": "handler",
+      "demand": "sentry-cli set-commits associates repository refs.",
+      "why": "sentry-cli set-commits associates repository refs."
+    },
+    {
+      "operation": "listOrganizationRepos",
+      "mechanism": "handler",
+      "demand": "sentry-cli set-commits --auto reads available repositories.",
+      "why": "sentry-cli set-commits --auto reads available repositories."
+    },
+    {
+      "operation": "getChunkUploadOptions",
+      "mechanism": "handler",
+      "demand": "sentry-cli discovers chunk uploads for source maps.",
+      "why": "sentry-cli discovers chunk uploads for source maps."
+    },
+    {
+      "operation": "uploadChunks",
+      "mechanism": "handler",
+      "demand": "sentry-cli uploads the source map bundle chunks.",
+      "why": "sentry-cli uploads the source map bundle chunks."
+    },
+    {
+      "operation": "assembleArtifactBundle",
+      "mechanism": "handler",
+      "demand": "sentry-cli polls artifact bundle assembly.",
+      "why": "sentry-cli polls artifact bundle assembly."
+    },
+    {
+      "operation": "sendEnvelope",
+      "mechanism": "handler",
+      "demand": "The pinned Sentry SDKs send envelopes from the demanded applications.",
+      "why": "Envelope authentication, parsing and item effects are vendor semantics."
+    },
+    {
+      "operation": "door:appCredentials",
+      "mechanism": "door",
+      "demand": "The World issues application credentials and the customer configures its account.",
+      "why": "The bootstrap creates the account, first credential and project/key named by application env.",
+      "lane": "api"
+    },
+    {
+      "operation": "door:organizations",
+      "mechanism": "door",
+      "demand": "The World issues application credentials and the customer configures its account.",
+      "why": "Account setup that no served customer operation reaches.",
+      "lane": "api"
+    },
+    {
+      "operation": "door:authTokens",
+      "mechanism": "door",
+      "demand": "The World issues application credentials and the customer configures its account.",
+      "why": "Account setup that no served customer operation reaches.",
+      "lane": "api"
+    },
+    {
+      "operation": "createOrganizationProject",
+      "mechanism": "handler",
+      "demand": "The customer creates additional account projects through the vendor API.",
+      "why": "The customer creates additional account projects through the vendor API."
+    },
+    {
+      "operation": "listProjectKeys",
+      "mechanism": "handler",
+      "demand": "The customer reads the created project client key and DSN through the vendor API.",
+      "why": "The customer reads the created project client key and DSN through the vendor API."
+    },
+    {
+      "operation": "listOrganizations",
+      "mechanism": "handler",
+      "demand": "Vendor-backed resource refresh.",
+      "why": "Read-back of stored vendor state through its documented API."
+    },
+    {
+      "operation": "listOrganizationReleases",
+      "mechanism": "handler",
+      "demand": "Vendor-backed resource refresh.",
+      "why": "Read-back of stored vendor state through its documented API."
+    },
+    {
+      "operation": "listOrganizationMonitors",
+      "mechanism": "core",
+      "demand": "Vendor-backed resource refresh.",
+      "why": "The spec names the stored resource and the derived core reads it; no application-specific read behavior is served.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/monitors/serializers.py",
+          "means": "MonitorSerializerResponse"
+        }
+      ]
+    },
+    {
+      "operation": "listProjectMonitorCheckins",
+      "mechanism": "core",
+      "demand": "Vendor-backed resource refresh.",
+      "why": "The spec names the stored resource and the derived core reads it; no application-specific read behavior is served.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/monitors/serializers.py",
+          "means": "MonitorCheckInSerializerResponse"
+        },
+        {
+          "source": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/monitors/endpoints/project_monitor_checkin_index.py",
+          "means": "404: RESPONSE_NOT_FOUND"
+        }
+      ]
+    },
+    {
+      "operation": "getPreviousReleaseWithCommits",
+      "mechanism": "handler",
+      "demand": "Cal set-commits local-git fallback (apps/web/scripts/create-sentry-release.js:22).",
+      "why": "sentry-cli reads the preceding release before choosing its commit range.",
+      "sourceRules": [
+        {
+          "source": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/issues/endpoints/organization_release_previous_commits.py",
+          "means": "raise ResourceDoesNotExist"
+        },
+        {
+          "source": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/issues/endpoints/organization_release_previous_commits.py",
+          "means": "return Response({})"
+        },
+        {
+          "source": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/issues/endpoints/organization_release_previous_commits.py",
+          "means": "projects__id__in=project_ids"
+        }
+      ]
+    },
+    {
+      "operation": "getOrganizationIssue",
+      "mechanism": "core",
+      "demand": "Known issue refresh.",
+      "why": "The vendored organization issue operation reads stored issues in a vendor-backed World."
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import { STRIPE_EVENTS } from './semantics/shared.ts';
 import { states } from './semantics/states.ts';
 
 export const manifest: DerivedManifest = {
+  tenant: { field: '_world_account', storage: 'namespaced' },
   vendor: 'stripe',
   service: 'stripe',
   body: { form: { coerce: true } },
@@ -360,7 +361,7 @@ export const manifest: DerivedManifest = {
     // to the real Stripe
     // a World's applications hold the platform's keys the dashboard shows (the credential door), never fixtures: the API
     // refuses a key Stripe did not issue
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { STRIPE_SECRET_KEY: 'secret_key', STRIPE_API_KEY: 'secret_key', STRIPE_PRIVATE_KEY: 'secret_key', BILLING_STRIPE_API_KEY: 'secret_key', STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLIC_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_KEY: 'publishable_key', STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SIGNING_SECRET: 'webhook_secret', STRIPE_ENDPOINT_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SECRET_KEY: 'webhook_secret', NEXT_PRIVATE_STRIPE_WEBHOOK_SECRET: 'webhook_secret', BILLING_STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_CONNECT_WEBHOOK_SECRET: 'connect_webhook_secret', STRIPE_WEBHOOK_SECRET_CONNECT: 'connect_webhook_secret', STRIPE_CONNECT_WEBHOOK_SIGNING_SECRET: 'connect_webhook_secret' } },
+    credentialDoor: { path: '/_twin/app-credentials', body: {}, account: { field: 'account' }, fill: { STRIPE_SECRET_KEY: 'secret_key', STRIPE_API_KEY: 'secret_key', STRIPE_PRIVATE_KEY: 'secret_key', BILLING_STRIPE_API_KEY: 'secret_key', STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLIC_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_KEY: 'publishable_key', STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SIGNING_SECRET: 'webhook_secret', STRIPE_ENDPOINT_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SECRET_KEY: 'webhook_secret', NEXT_PRIVATE_STRIPE_WEBHOOK_SECRET: 'webhook_secret', BILLING_STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_CONNECT_WEBHOOK_SECRET: 'connect_webhook_secret', STRIPE_WEBHOOK_SECRET_CONNECT: 'connect_webhook_secret', STRIPE_CONNECT_WEBHOOK_SIGNING_SECRET: 'connect_webhook_secret' } },
     hosts: [
       { host: 'api.stripe.com' }, { host: 'checkout.stripe.com', pathPattern: '^/c/pay/' }, { host: 'billing.stripe.com', pathPattern: '^/p/session/' },
       { host: 'connect.stripe.com', pathPattern: '^/setup/' },

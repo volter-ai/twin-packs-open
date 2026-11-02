@@ -221,7 +221,7 @@ export const manifest: DerivedManifest = {
     archetype: 'crud',
     bin: 'world-slack',
     resources: ['team', 'user', 'channel', 'message', 'file', 'usergroup', 'app'],
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { SLACK_BOT_TOKEN: 'bot_token', SLACK_TOKEN: 'bot_token', SLACK_APP_TOKEN: 'app_token', SLACK_SIGNING_SECRET: 'signing_secret', SLACK_CLIENT_ID: 'client_id', SLACK_CLIENT_SECRET: 'client_secret' } },
+    credentialDoor: { account: { field: 'account' }, path: '/_twin/app-credentials', body: {}, fill: { SLACK_BOT_TOKEN: 'bot_token', SLACK_TOKEN: 'bot_token', SLACK_APP_TOKEN: 'app_token', SLACK_SIGNING_SECRET: 'signing_secret', SLACK_CLIENT_ID: 'client_id', SLACK_CLIENT_SECRET: 'client_secret' } },
     specSource: "Slack's Web API OpenAPI document (spec/, provenance in spec/SOURCE.md)",
     description: "Slack Web API twin — an org and its workspaces, people, channels, messages and threads, files, apps and their OAuth install, and the pages people use.",
     // the Web API/OAuth SDKs and Bolt, in both languages, the whole `@slack/` scope, and the SLACK_* credential stems

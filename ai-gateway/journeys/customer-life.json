@@ -1,0 +1,932 @@
+{
+  "vendor": "ai-gateway",
+  "author": "Contributor 72",
+  "host": "ai-gateway.vercel.sh",
+  "about": "Mira connects a studio LibreChat endpoint, then an AI SDK planning assistant; their application key authorizes model calls. The World runs deterministic scripts or labeled stubs, with no claim about generated prose quality. She repairs a model setting, retries a transient failure and stops using the trial assistant. No served API supports key deletion.",
+  "scenario": "scenario.json",
+  "steps": [
+    {
+      "name": "Thursday 1 October, 09:00: Mira connects the studio to AI Gateway",
+      "wait": "393660m"
+    },
+    {
+      "name": "The new LibreChat endpoint has not yet been given its key",
+      "method": "GET",
+      "path": "/v1/models",
+      "status": 401,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "authentication_error"
+        }
+      ]
+    },
+    {
+      "name": "Mira creates the synthetic application key in the World dashboard stand-in",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "key": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "matches": "^vck_[A-Za-z0-9]{56}$"
+        }
+      ]
+    },
+    {
+      "name": "LibreChat discovers the catalogue for its newly configured endpoint",
+      "method": "GET",
+      "path": "/v1/models",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "list"
+        },
+        {
+          "path": "data.0.object",
+          "equals": "model"
+        }
+      ]
+    },
+    {
+      "name": "Mira asks LibreChat to draft a welcome for a new studio member",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "anthropic/claude-sonnet-5",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft a welcome for a new studio member."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "anthropic/claude-sonnet-5"
+        },
+        {
+          "path": "choices.0.message.content",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Friday 2 October, 09:00: prepare the weekly briefing",
+      "wait": "24h"
+    },
+    {
+      "name": "LibreChat streams the weekly briefing to Mira",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "anthropic/claude-sonnet-5",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Write the studio briefing for next week."
+          }
+        ],
+        "stream": true
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "\"content\":\"Next week: two classe\""
+        },
+        {
+          "path": "",
+          "contains": "\"content\":\"s and one new member.\""
+        },
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        }
+      ]
+    },
+    {
+      "name": "Monday 5 October, 09:00: a small AI SDK assistant helps plan classes",
+      "wait": "72h"
+    },
+    {
+      "name": "The World resumes the application deployment and retrieves its existing key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "body": {},
+      "status": 201,
+      "expect": [
+        {
+          "path": "api_key",
+          "equals": "{key}"
+        }
+      ]
+    },
+    {
+      "name": "The assistant summarizes the class planning request",
+      "method": "POST",
+      "path": "/v4/ai/language-model",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-language-model-id": "anthropic/claude-sonnet-5",
+        "ai-language-model-streaming": "false",
+        "ai-language-model-specification-version": "4"
+      },
+      "body": {
+        "prompt": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Summarize the plans for the studio classes."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "finishReason.unified",
+          "equals": "stop"
+        }
+      ]
+    },
+    {
+      "name": "The assistant turns the approved plan into structured data",
+      "method": "POST",
+      "path": "/v4/ai/language-model",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-language-model-id": "anthropic/claude-sonnet-5",
+        "ai-language-model-streaming": "false",
+        "ai-language-model-specification-version": "4"
+      },
+      "body": {
+        "prompt": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Return the class plan as structured JSON."
+              }
+            ]
+          }
+        ],
+        "responseFormat": {
+          "type": "json",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "classes": {
+                "type": "integer"
+              },
+              "welcome": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "classes",
+              "welcome"
+            ]
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "finishReason.unified",
+          "equals": "stop"
+        },
+        {
+          "path": "content.0.text",
+          "matches": "^\\{"
+        }
+      ]
+    },
+    {
+      "name": "To answer the booking question the assistant asks the studio calendar tool",
+      "method": "POST",
+      "path": "/v4/ai/language-model",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-language-model-id": "anthropic/claude-sonnet-5",
+        "ai-language-model-streaming": "false",
+        "ai-language-model-specification-version": "4"
+      },
+      "body": {
+        "prompt": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Find the next pottery class."
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "name": "find_class",
+            "description": "Find the next scheduled class",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "topic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "topic"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "tool-call"
+        },
+        {
+          "path": "content.0.toolName",
+          "equals": "find_class"
+        },
+        {
+          "path": "finishReason.unified",
+          "equals": "tool-calls"
+        }
+      ],
+      "capture": {
+        "toolId": "content.0.toolCallId",
+        "toolInput": "content.0.input"
+      }
+    },
+    {
+      "name": "The application returns the calendar result and the assistant finishes the answer",
+      "method": "POST",
+      "path": "/v4/ai/language-model",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-language-model-id": "anthropic/claude-sonnet-5",
+        "ai-language-model-streaming": "false",
+        "ai-language-model-specification-version": "4"
+      },
+      "body": {
+        "prompt": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Find the next pottery class."
+              }
+            ]
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool-call",
+                "toolCallId": "{toolId}",
+                "toolName": "find_class",
+                "input": "{toolInput}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": [
+              {
+                "type": "tool-result",
+                "toolCallId": "{toolId}",
+                "toolName": "find_class",
+                "output": {
+                  "type": "json",
+                  "value": {
+                    "date": "2026-10-08",
+                    "available": true
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "name": "find_class",
+            "description": "Find the next scheduled class",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "topic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "topic"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "finishReason.unified",
+          "equals": "stop"
+        }
+      ]
+    },
+    {
+      "name": "The assistant streams an invitation after Mira approves the date",
+      "method": "POST",
+      "path": "/v4/ai/language-model",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-language-model-id": "anthropic/claude-sonnet-5",
+        "ai-language-model-streaming": "true",
+        "ai-language-model-specification-version": "4"
+      },
+      "body": {
+        "prompt": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Draft an invitation for the pottery class on 8 October."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"text-delta\""
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"finish\""
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 6 October, 09:00: a model setting was mistyped during deployment",
+      "wait": "24h"
+    },
+    {
+      "name": "The assistant refuses the misspelled model identifier",
+      "method": "POST",
+      "path": "/v4/ai/language-model",
+      "status": 404,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-language-model-id": "acme/claude-sonet-5",
+        "ai-language-model-streaming": "false",
+        "ai-language-model-specification-version": "4"
+      },
+      "body": {
+        "prompt": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Prepare the class reminder."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "model_not_found"
+        },
+        {
+          "path": "error.param.modelId",
+          "equals": "acme/claude-sonet-5"
+        }
+      ]
+    },
+    {
+      "name": "Mira repairs the setting and the assistant prepares the reminder",
+      "method": "POST",
+      "path": "/v4/ai/language-model",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-language-model-id": "anthropic/claude-sonnet-5",
+        "ai-language-model-streaming": "false",
+        "ai-language-model-specification-version": "4"
+      },
+      "body": {
+        "prompt": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Prepare the class reminder."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "finishReason.unified",
+          "equals": "stop"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 7 October, 09:00: a scripted transient rate limit delays a draft",
+      "wait": "24h"
+    },
+    {
+      "name": "The next briefing hits the scripted rate limit",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 429,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "anthropic/claude-sonnet-5",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft the outage briefing."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "rate_limit_exceeded"
+        },
+        {
+          "path": "error.message",
+          "equals": "Rate limit reached"
+        }
+      ]
+    },
+    {
+      "name": "Mira waits one minute before retrying the draft",
+      "wait": "1m"
+    },
+    {
+      "name": "The retry produces a draft after the one-shot outage",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "anthropic/claude-sonnet-5",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft the outage briefing."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "anthropic/claude-sonnet-5"
+        },
+        {
+          "path": "choices.0.message.content",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Friday 9 October, 09:01: Mira retires the trial assistant and keeps its key in custody",
+      "wait": "48h"
+    },
+    {
+      "name": "Dub evaluates the studio booking destination using the native scripted judgment",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev",
+        "ai-evaluation-model-specification-version": "4"
+      },
+      "body": {
+        "state": {
+          "url": "https://studio.example.test/booking"
+        },
+        "questions": {
+          "isMalicious": {
+            "type": "boolean",
+            "instructions": "Check URL abuse",
+            "criteria": {
+              "true": "abusive",
+              "false": "ordinary"
+            }
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "answers.isMalicious.probability",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "Other evaluation questions receive native labeled deterministic stub answers",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev",
+        "ai-evaluation-model-specification-version": "4"
+      },
+      "body": {
+        "state": {},
+        "questions": {
+          "isMalicious": {
+            "type": "boolean",
+            "instructions": "Check URL abuse",
+            "criteria": {
+              "true": "abusive",
+              "false": "ordinary"
+            }
+          },
+          "category": {
+            "type": "choice",
+            "instructions": "Category",
+            "criteria": {
+              "ordinary": "ordinary site"
+            }
+          },
+          "rank": {
+            "type": "score",
+            "instructions": "Ranking",
+            "criteria": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "answers.isMalicious.probability",
+          "equals": 0.5
+        },
+        {
+          "path": "answers.category.choice",
+          "equals": "ordinary"
+        },
+        {
+          "path": "answers.rank.score",
+          "equals": 0
+        },
+        {
+          "path": "warnings.0.message",
+          "contains": "deterministic evaluation stub"
+        }
+      ]
+    },
+    {
+      "name": "The deployment omitted the native model header",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "state": {},
+        "questions": {
+          "isMalicious": {
+            "type": "boolean",
+            "instructions": "Check URL abuse",
+            "criteria": {
+              "true": "abusive",
+              "false": "ordinary"
+            }
+          }
+        }
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ]
+    },
+    {
+      "name": "Mira restores the native model header",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev",
+        "ai-evaluation-model-specification-version": "4"
+      },
+      "body": {
+        "state": {},
+        "questions": {
+          "isMalicious": {
+            "type": "boolean",
+            "instructions": "Check URL abuse",
+            "criteria": {
+              "true": "abusive",
+              "false": "ordinary"
+            }
+          },
+          "category": {
+            "type": "choice",
+            "instructions": "Category",
+            "criteria": {
+              "ordinary": "ordinary site"
+            }
+          },
+          "rank": {
+            "type": "score",
+            "instructions": "Ranking",
+            "criteria": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "answers.isMalicious.probability",
+          "equals": 0.5
+        },
+        {
+          "path": "answers.category.choice",
+          "equals": "ordinary"
+        },
+        {
+          "path": "answers.rank.score",
+          "equals": 0
+        },
+        {
+          "path": "warnings.0.message",
+          "contains": "deterministic evaluation stub"
+        }
+      ]
+    },
+    {
+      "name": "The deployment omitted its questions",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev",
+        "ai-evaluation-model-specification-version": "4"
+      },
+      "body": {
+        "state": {}
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ]
+    },
+    {
+      "name": "Mira restores the question settings",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev",
+        "ai-evaluation-model-specification-version": "4"
+      },
+      "body": {
+        "state": {},
+        "questions": {
+          "isMalicious": {
+            "type": "boolean",
+            "instructions": "Check URL abuse",
+            "criteria": {
+              "true": "abusive",
+              "false": "ordinary"
+            }
+          },
+          "category": {
+            "type": "choice",
+            "instructions": "Category",
+            "criteria": {
+              "ordinary": "ordinary site"
+            }
+          },
+          "rank": {
+            "type": "score",
+            "instructions": "Ranking",
+            "criteria": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "answers.isMalicious.probability",
+          "equals": 0.5
+        },
+        {
+          "path": "answers.category.choice",
+          "equals": "ordinary"
+        },
+        {
+          "path": "answers.rank.score",
+          "equals": 0
+        },
+        {
+          "path": "warnings.0.message",
+          "contains": "deterministic evaluation stub"
+        }
+      ]
+    },
+    {
+      "name": "A question has no supported type",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev",
+        "ai-evaluation-model-specification-version": "4"
+      },
+      "body": {
+        "state": {},
+        "questions": {
+          "invalid": {}
+        }
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ]
+    },
+    {
+      "name": "Mira restores the supported question types",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev",
+        "ai-evaluation-model-specification-version": "4"
+      },
+      "body": {
+        "state": {},
+        "questions": {
+          "isMalicious": {
+            "type": "boolean",
+            "instructions": "Check URL abuse",
+            "criteria": {
+              "true": "abusive",
+              "false": "ordinary"
+            }
+          },
+          "category": {
+            "type": "choice",
+            "instructions": "Category",
+            "criteria": {
+              "ordinary": "ordinary site"
+            }
+          },
+          "rank": {
+            "type": "score",
+            "instructions": "Ranking",
+            "criteria": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "answers.isMalicious.probability",
+          "equals": 0.5
+        },
+        {
+          "path": "answers.category.choice",
+          "equals": "ordinary"
+        },
+        {
+          "path": "answers.rank.score",
+          "equals": 0
+        },
+        {
+          "path": "warnings.0.message",
+          "contains": "deterministic evaluation stub"
+        }
+      ]
+    },
+    {
+      "name": "Mira ranks the studio link with native scripted choice and score answers",
+      "method": "POST",
+      "path": "/v4/ai/evaluation-model",
+      "headers": {
+        "authorization": "Bearer {key}",
+        "ai-model-id": "typesafe-ai/jev"
+      },
+      "body": {
+        "state": "rank-studio",
+        "questions": {
+          "category": {
+            "type": "choice",
+            "instructions": "Category",
+            "criteria": {
+              "ordinary": "ordinary site"
+            }
+          },
+          "rank": {
+            "type": "score",
+            "instructions": "Ranking",
+            "criteria": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "answers.category.choice",
+          "equals": "ordinary"
+        },
+        {
+          "path": "answers.rank.score",
+          "equals": 0
+        }
+      ]
+    }
+  ]
+}

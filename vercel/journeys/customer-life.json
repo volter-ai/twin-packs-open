@@ -1,0 +1,1379 @@
+{
+  "vendor": "vercel",
+  "author": "Contributor 76",
+  "about": "Pagecraft, a hosted page builder on one Vercel project, over its first quarter (journeys/customer-life.outline.md): its token and Edge Config made on the dashboard, its own zone by Vercel's nameservers, customers' domains attached, configured at their own DNS hosts, verified when another account held one, and removed from the project or the team, reserved slugs and blocked domains read from Edge Config and a ban written to it, the app's token rotated, and a nightly reconciliation that lists the team, its project, its Edge Config and its domains.",
+  "steps": [
+    {
+      "name": "The World: Inês Duarte's Vercel account, ines@pagecraft.site, and her Pro team pagecraft",
+      "method": "POST",
+      "path": "/_twin/users/ines@pagecraft.site",
+      "body": {
+        "team": "pagecraft",
+        "name": "Pagecraft"
+      },
+      "status": 201
+    },
+    {
+      "name": "The World: the project pagecraft-web, which Vercel made when Inês imported Pagecraft's repository",
+      "method": "POST",
+      "path": "/_twin/projects",
+      "body": {
+        "team": "pagecraft",
+        "name": "pagecraft-web"
+      },
+      "status": 201,
+      "capture": {
+        "project": "id"
+      }
+    },
+    {
+      "name": "Monday 2 February, 09:00: Inês makes the app its token and its Edge Config",
+      "wait": "46620m"
+    },
+    {
+      "name": "She opens the Account Tokens page; Vercel asks her to log in",
+      "method": "GET",
+      "path": "https://vercel.com/account/tokens",
+      "status": 302,
+      "capture": {
+        "login_page": "header:location"
+      }
+    },
+    {
+      "name": "The login page",
+      "method": "GET",
+      "path": "https://vercel.com{login_page}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to Vercel"
+        }
+      ]
+    },
+    {
+      "name": "She continues with her email",
+      "method": "POST",
+      "path": "https://vercel.com/login",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=ines%40pagecraft.site&next=%2Faccount%2Ftokens",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Enter the code we emailed you"
+        }
+      ]
+    },
+    {
+      "name": "Vercel emails her a one-time password",
+      "method": "GET",
+      "path": "/_twin/mailbox/ines@pagecraft.site",
+      "status": 200,
+      "capture": {
+        "otp": "text:verification code is ([0-9]{6})"
+      },
+      "expect": [
+        {
+          "path": "mail.0.subject",
+          "contains": "Vercel verification code"
+        }
+      ]
+    },
+    {
+      "name": "She enters it and is signed in",
+      "method": "POST",
+      "path": "https://vercel.com/login/verify",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=ines%40pagecraft.site&code={otp}&next=%2Faccount%2Ftokens",
+      "status": 302,
+      "capture": {
+        "session": "header:set-cookie:vercel_twin_session=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "location",
+          "equals": "/account/tokens"
+        }
+      ]
+    },
+    {
+      "name": "The Account Tokens page: no tokens yet",
+      "method": "GET",
+      "path": "https://vercel.com/account/tokens",
+      "headers": {
+        "cookie": "vercel_twin_session={session}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "No tokens yet."
+        }
+      ]
+    },
+    {
+      "name": "She creates pagecraft-app, scope pagecraft, 90 days, and copies its value for the application's following calls",
+      "method": "POST",
+      "path": "https://vercel.com/account/tokens?do=create",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "vercel_twin_session={session}"
+      },
+      "body": "name=pagecraft-app&scope=pagecraft&expiration=90+days",
+      "status": 201,
+      "capture": {
+        "app_token": "text:created: ([A-Za-z0-9]{24}) "
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Token pagecraft-app created"
+        }
+      ]
+    },
+    {
+      "name": "On the team's Storage page she creates the Edge Config pagecraft-config",
+      "method": "POST",
+      "path": "https://vercel.com/pagecraft/stores?do=create",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "vercel_twin_session={session}"
+      },
+      "body": "name=pagecraft-config",
+      "status": 201,
+      "capture": {
+        "ecfg": "text:(ecfg_[a-z]{24})"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Edge Config pagecraft-config created"
+        }
+      ]
+    },
+    {
+      "name": "and connects it to pagecraft-web, which gives the project its connection string EDGE_CONFIG",
+      "method": "POST",
+      "path": "https://vercel.com/pagecraft/stores?do=connect",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "vercel_twin_session={session}"
+      },
+      "body": "store={ecfg}&project=pagecraft-web",
+      "status": 200,
+      "capture": {
+        "edge_token": "text:EDGE_CONFIG=https://edge-config\\.vercel\\.com/ecfg_[a-z]+\\?token=([0-9a-f-]{36})"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Connected to pagecraft-web"
+        }
+      ]
+    },
+    {
+      "name": "The app writes the slugs Pagecraft reserves as the item reserved, and the domains it blocks as the item domains, as Dub keeps its blocklists",
+      "method": "PATCH",
+      "path": "https://api.vercel.com/v1/edge-config/{ecfg}/items",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "operation": "upsert",
+            "key": "reserved",
+            "value": [
+              "www",
+              "app",
+              "admin",
+              "api"
+            ]
+          },
+          {
+            "operation": "upsert",
+            "key": "domains",
+            "value": [
+              "phish-bank.com"
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 3 February, 10:00: Pagecraft's own addresses",
+      "wait": "1500m"
+    },
+    {
+      "name": "The app attaches pagecraft.site to the project",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "pagecraft.site"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "pagecraft.site"
+        },
+        {
+          "path": "verified",
+          "equals": true
+        },
+        {
+          "path": "apexName",
+          "equals": "pagecraft.site"
+        }
+      ]
+    },
+    {
+      "name": "and app.pagecraft.site",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "app.pagecraft.site"
+      },
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and *.pagecraft.site, which serves every customer's default page",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "*.pagecraft.site"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "*.pagecraft.site"
+        }
+      ]
+    },
+    {
+      "name": "A wildcard needs Vercel's nameservers, so the app makes pagecraft.site a Vercel DNS zone (Dub's configureVercelNameservers)",
+      "method": "PATCH",
+      "path": "https://api.vercel.com/v3/domains/pagecraft.site",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "op": "update",
+        "zone": true
+      },
+      "expect": [
+        {
+          "path": "zone",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Inês points pagecraft.site's nameservers at Vercel's at her registrar",
+      "method": "POST",
+      "path": "/_twin/registrar/nameservers",
+      "body": {
+        "domain": "pagecraft.site",
+        "nameservers": [
+          "ns1.vercel-dns.com",
+          "ns2.vercel-dns.com"
+        ]
+      },
+      "status": 204
+    },
+    {
+      "name": "16:00",
+      "wait": "360m"
+    },
+    {
+      "name": "The app reads pagecraft.site's configuration: Vercel serves it",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/pagecraft.site/config",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": false
+        },
+        {
+          "path": "configuredBy",
+          "equals": "A"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 4 February, 11:00: signups",
+      "wait": "1140m"
+    },
+    {
+      "name": "A signup asks for the slug admin; the app reads the reserved slugs from Edge Config (the SDK's get('reserved')) and refuses it",
+      "method": "GET",
+      "path": "https://edge-config.vercel.com/{ecfg}/item/reserved?version=1",
+      "headers": {
+        "authorization": "Bearer {edge_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "2",
+          "equals": "admin"
+        }
+      ]
+    },
+    {
+      "name": "The next signup asks for bakery; the same reserved list does not contain it",
+      "method": "GET",
+      "path": "https://edge-config.vercel.com/{ecfg}/item/reserved?version=1",
+      "headers": {
+        "authorization": "Bearer {edge_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "notContains": "bakery"
+        }
+      ]
+    },
+    {
+      "name": "Monday 9 February, 10:00: Alice brings www.alicebakes.com",
+      "wait": "7140m"
+    },
+    {
+      "name": "The app checks www.alicebakes.com against the domains Pagecraft blocks and the terms it refuses in one read (the SDK's getAll, as Dub's isBlacklistedDomain does): blocked domains, and no terms",
+      "method": "GET",
+      "path": "https://edge-config.vercel.com/{ecfg}/items?version=1&key=domains&key=terms",
+      "headers": {
+        "authorization": "Bearer {edge_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "domains.0",
+          "equals": "phish-bank.com"
+        },
+        {
+          "path": "terms",
+          "exists": false
+        },
+        {
+          "path": "reserved",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "For a subdomain the app first looks for the apex's wildcard on the project, as Dub does: *.alicebakes.com is not there",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/*.alicebakes.com",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "not_found"
+        }
+      ]
+    },
+    {
+      "name": "The app attaches www.alicebakes.com: verified, as no other account holds alicebakes.com",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "www.alicebakes.com"
+      },
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        },
+        {
+          "path": "apexName",
+          "equals": "alicebakes.com"
+        }
+      ]
+    },
+    {
+      "name": "Alice returns to the domain settings the next minute, unsure whether her save completed",
+      "wait": "1m"
+    },
+    {
+      "name": "Her retry is refused because www.alicebakes.com is already attached",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 400,
+      "body": {
+        "name": "www.alicebakes.com"
+      },
+      "expect": [
+        {
+          "path": "error.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "and reads its configuration: misconfigured until the record exists; it shows Alice the CNAME Vercel recommends",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/www.alicebakes.com/config",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": true
+        },
+        {
+          "path": "configuredBy",
+          "equals": null
+        },
+        {
+          "path": "recommendedCNAME.0.value",
+          "equals": "cname.vercel-dns-0.com."
+        }
+      ],
+      "capture": {
+        "alice_cname": "recommendedCNAME.0.value"
+      }
+    },
+    {
+      "name": "15:00",
+      "wait": "299m"
+    },
+    {
+      "name": "Alice sets the CNAME at her DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "body": {
+        "name": "www.alicebakes.com",
+        "type": "CNAME",
+        "value": "{alice_cname}"
+      },
+      "status": 204
+    },
+    {
+      "name": "16:00: the hourly domain check",
+      "wait": "60m"
+    },
+    {
+      "name": "It reads www.alicebakes.com on the project: verified",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/www.alicebakes.com",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and its configuration",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/www.alicebakes.com/config",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": false
+        },
+        {
+          "path": "configuredBy",
+          "equals": "CNAME"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 18 February, 18:00",
+      "wait": "13080m"
+    },
+    {
+      "name": "The World: brunolima.photo is still on Bruno's old portfolio, on another Vercel account",
+      "method": "POST",
+      "path": "/_twin/claimed",
+      "body": {
+        "domain": "brunolima.photo"
+      },
+      "status": 204
+    },
+    {
+      "name": "19:00: Bruno wants brunolima.photo itself",
+      "wait": "60m"
+    },
+    {
+      "name": "The app attaches brunolima.photo: unverified, with the TXT challenge Vercel asks for",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "brunolima.photo"
+      },
+      "expect": [
+        {
+          "path": "verified",
+          "equals": false
+        },
+        {
+          "path": "verification.0.type",
+          "equals": "TXT"
+        },
+        {
+          "path": "verification.0.domain",
+          "equals": "_vercel.brunolima.photo"
+        }
+      ],
+      "capture": {
+        "bruno_txt": "verification.0.value"
+      }
+    },
+    {
+      "name": "Bruno clicks Verify before he has set anything: the challenge does not hold",
+      "method": "POST",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/brunolima.photo/verify",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "missing_txt_record"
+        }
+      ]
+    },
+    {
+      "name": "Thursday 19 February, 09:00",
+      "wait": "840m"
+    },
+    {
+      "name": "Bruno sets the TXT record at his DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "body": {
+        "name": "_vercel.brunolima.photo",
+        "type": "TXT",
+        "value": "{bruno_txt}"
+      },
+      "status": 204
+    },
+    {
+      "name": "and the A record",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "body": {
+        "name": "brunolima.photo",
+        "type": "A",
+        "value": "76.76.21.21"
+      },
+      "status": 204
+    },
+    {
+      "name": "10:00: the hourly domain check, as Bruno opens his domain settings",
+      "wait": "60m"
+    },
+    {
+      "name": "The hourly check reads brunolima.photo on the project: still unverified, so it asks Vercel to verify it",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/brunolima.photo",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Bruno's domain settings, loading in the same minute, read it unverified too (Dub's verify route reads the domain first)",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/brunolima.photo",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "The hourly check verifies it: the TXT challenge holds",
+      "method": "POST",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/brunolima.photo/verify",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Bruno's page, acting on its own earlier read, asks Vercel to verify it as well: Vercel answers the domain verified",
+      "method": "POST",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/brunolima.photo/verify",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        },
+        {
+          "path": "name",
+          "equals": "brunolima.photo"
+        }
+      ]
+    },
+    {
+      "name": "and the hourly check reads its configuration",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/brunolima.photo/config",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": false
+        },
+        {
+          "path": "configuredBy",
+          "equals": "A"
+        }
+      ]
+    },
+    {
+      "name": "Monday 2 March, 11:00: Dmitri connects www.dmitribikes.com",
+      "wait": "15900m"
+    },
+    {
+      "name": "The app attaches www.dmitribikes.com",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "www.dmitribikes.com"
+      },
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "19:00",
+      "wait": "480m"
+    },
+    {
+      "name": "Dmitri sets the CNAME at his DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "body": {
+        "name": "www.dmitribikes.com",
+        "type": "CNAME",
+        "value": "cname.vercel-dns-0.com"
+      },
+      "status": 204
+    },
+    {
+      "name": "20:00: the hourly domain check",
+      "wait": "60m"
+    },
+    {
+      "name": "It reads www.dmitribikes.com: verified",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/www.dmitribikes.com",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and its configuration",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/www.dmitribikes.com/config",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": false
+        },
+        {
+          "path": "configuredBy",
+          "equals": "CNAME"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 3 March, 10:00: Carla enters carlayoga.pt",
+      "wait": "840m"
+    },
+    {
+      "name": "The app attaches carlayoga.pt and shows her the A record",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "carlayoga.pt"
+      },
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 4 March, 10:00: the hourly check reads Carla's domain again",
+      "wait": "1440m"
+    },
+    {
+      "name": "It reads carlayoga.pt: verified, but not resolving to Vercel",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/carlayoga.pt",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and its configuration",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/carlayoga.pt/config",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "11:00: a signup with an address at free-gift-cards.site, a phishing site",
+      "wait": "60m"
+    },
+    {
+      "name": "The app reads the domains Pagecraft blocks (the SDK's get('domains')): not among them",
+      "method": "GET",
+      "path": "https://edge-config.vercel.com/{ecfg}/item/domains?version=1",
+      "headers": {
+        "authorization": "Bearer {edge_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0",
+          "equals": "phish-bank.com"
+        },
+        {
+          "path": "1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Pagecraft bans it: the app writes the item back with the domain added, as Dub's updateConfig does",
+      "method": "PATCH",
+      "path": "https://api.vercel.com/v1/edge-config/{ecfg}/items",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "operation": "update",
+            "key": "domains",
+            "value": [
+              "phish-bank.com",
+              "free-gift-cards.site"
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "The next signup's check reads it",
+      "method": "GET",
+      "path": "https://edge-config.vercel.com/{ecfg}/item/domains?version=1",
+      "headers": {
+        "authorization": "Bearer {edge_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "1",
+          "equals": "free-gift-cards.site"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 17 March, 10:00: fourteen days, and Carla never set it",
+      "wait": "18660m"
+    },
+    {
+      "name": "No other domain is in use under carlayoga.pt, so the app removes it from the team, as Dub's removeDomainFromVercel does",
+      "method": "DELETE",
+      "path": "https://api.vercel.com/v6/domains/carlayoga.pt",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "uid",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Carla opens her domain settings; this request handler reads Vercel without the earlier deletion response",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/carlayoga.pt",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "not_found"
+        }
+      ]
+    },
+    {
+      "name": "Thursday 26 March, 14:00: a second address for Alice",
+      "wait": "13200m"
+    },
+    {
+      "name": "The app attaches order.alicebakes.com",
+      "method": "POST",
+      "path": "https://api.vercel.com/v10/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token}",
+        "content-type": "application/json"
+      },
+      "status": 200,
+      "body": {
+        "name": "order.alicebakes.com"
+      },
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Alice sets its CNAME at her DNS host",
+      "method": "POST",
+      "path": "/_twin/dns",
+      "body": {
+        "name": "order.alicebakes.com",
+        "type": "CNAME",
+        "value": "cname.vercel-dns-0.com"
+      },
+      "status": 204
+    },
+    {
+      "name": "15:00: the hourly domain check",
+      "wait": "60m"
+    },
+    {
+      "name": "It reads order.alicebakes.com: verified",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/order.alicebakes.com",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and its configuration",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/order.alicebakes.com/config",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": false
+        },
+        {
+          "path": "configuredBy",
+          "equals": "CNAME"
+        }
+      ]
+    },
+    {
+      "name": "Monday 20 April, 09:00: pagecraft-app expires on 3 May",
+      "wait": "35640m"
+    },
+    {
+      "name": "Inês opens the Account Tokens page again",
+      "method": "GET",
+      "path": "https://vercel.com/account/tokens",
+      "status": 302,
+      "capture": {
+        "login_page": "header:location"
+      }
+    },
+    {
+      "name": "She logs in with a new one-time password",
+      "method": "POST",
+      "path": "https://vercel.com/login",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=ines%40pagecraft.site&next=%2Faccount%2Ftokens",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Enter the code we emailed you"
+        }
+      ]
+    },
+    {
+      "name": "Vercel emails her a one-time password",
+      "method": "GET",
+      "path": "/_twin/mailbox/ines@pagecraft.site",
+      "status": 200,
+      "capture": {
+        "otp": "text:verification code is ([0-9]{6})"
+      },
+      "expect": [
+        {
+          "path": "mail.0.subject",
+          "contains": "Vercel verification code"
+        }
+      ]
+    },
+    {
+      "name": "She enters it and is signed in",
+      "method": "POST",
+      "path": "https://vercel.com/login/verify",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=ines%40pagecraft.site&code={otp}&next=%2Faccount%2Ftokens",
+      "status": 302,
+      "capture": {
+        "session": "header:set-cookie:vercel_twin_session=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "location",
+          "equals": "/account/tokens"
+        }
+      ]
+    },
+    {
+      "name": "She creates and copies pagecraft-app-2, scope pagecraft, 90 days, for the application's following calls",
+      "method": "POST",
+      "path": "https://vercel.com/account/tokens?do=create",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "vercel_twin_session={session}"
+      },
+      "body": "name=pagecraft-app-2&scope=pagecraft&expiration=90+days",
+      "status": 201,
+      "capture": {
+        "app_token2": "text:created: ([A-Za-z0-9]{24}) "
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Token pagecraft-app-2 created"
+        }
+      ]
+    },
+    {
+      "name": "10:00: the represented consumer switches to the replacement credential",
+      "wait": "60m"
+    },
+    {
+      "name": "She deletes pagecraft-app",
+      "method": "GET",
+      "path": "https://vercel.com/account/tokens",
+      "headers": {
+        "cookie": "vercel_twin_session={session}"
+      },
+      "status": 200,
+      "capture": {
+        "old_token_id": "text:name=\"token\" value=\"([a-z]+)\""
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "pagecraft-app-2"
+        }
+      ]
+    },
+    {
+      "name": "(its Delete)",
+      "method": "POST",
+      "path": "https://vercel.com/account/tokens?do=delete",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "vercel_twin_session={session}"
+      },
+      "body": "token={old_token_id}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "deleted."
+        }
+      ]
+    },
+    {
+      "name": "A consumer call still carrying the now-deleted token is refused",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/www.alicebakes.com",
+      "headers": {
+        "authorization": "Bearer {app_token}"
+      },
+      "status": 403,
+      "expect": [
+        {
+          "path": "error.invalidToken",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The application's connection check with the replacement token succeeds",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/www.alicebakes.com",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "verified",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Friday 24 April, 10:00: Alice closes her ordering page",
+      "wait": "5760m"
+    },
+    {
+      "name": "www.alicebakes.com is still in use under alicebakes.com, so the app removes order.alicebakes.com from the project alone, as Dub's removeDomainFromVercel does",
+      "method": "DELETE",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/order.alicebakes.com",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200
+    },
+    {
+      "name": "Alice refreshes her domain settings; this request handler reads Vercel without the earlier deletion response",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/order.alicebakes.com",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "not_found"
+        }
+      ]
+    },
+    {
+      "name": "and www.alicebakes.com still serves",
+      "method": "GET",
+      "path": "https://api.vercel.com/v6/domains/www.alicebakes.com/config",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "misconfigured",
+          "equals": false
+        },
+        {
+          "path": "configuredBy",
+          "equals": "CNAME"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 28 April, 11:00: Dmitri closes his Pagecraft account",
+      "wait": "5820m"
+    },
+    {
+      "name": "No other domain is in use under dmitribikes.com, so the app removes it from the team",
+      "method": "DELETE",
+      "path": "https://api.vercel.com/v6/domains/dmitribikes.com",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "uid",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Dmitri opens his domain settings; this request handler reads Vercel without the earlier deletion response",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains/www.dmitribikes.com",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "not_found"
+        }
+      ]
+    },
+    {
+      "name": "23:00: the nightly reconciliation",
+      "wait": "720m"
+    },
+    {
+      "name": "It checks the team its token acts in",
+      "method": "GET",
+      "path": "https://api.vercel.com/v2/teams",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "teams.0.slug",
+          "equals": "pagecraft"
+        },
+        {
+          "path": "pagination.count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "the project",
+      "method": "GET",
+      "path": "https://api.vercel.com/v10/projects",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "projects.0.name",
+          "equals": "pagecraft-web"
+        },
+        {
+          "path": "pagination.count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "and the Edge Config, with its two items",
+      "method": "GET",
+      "path": "https://api.vercel.com/v1/global-config",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{ecfg}"
+        },
+        {
+          "path": "0.slug",
+          "equals": "pagecraft-config"
+        },
+        {
+          "path": "0.itemCount",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "name": "It lists the project's domains against Pagecraft's own records: the five in use, newest first",
+      "method": "GET",
+      "path": "https://api.vercel.com/v9/projects/{project}/domains",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "pagination.count",
+          "equals": 5
+        },
+        {
+          "path": "domains.0.name",
+          "equals": "brunolima.photo"
+        },
+        {
+          "path": "domains",
+          "notContains": "carlayoga.pt"
+        },
+        {
+          "path": "domains",
+          "notContains": "order.alicebakes.com"
+        },
+        {
+          "path": "domains",
+          "notContains": "dmitribikes.com"
+        }
+      ]
+    },
+    {
+      "name": "and the team's domains: the three apexes in use",
+      "method": "GET",
+      "path": "https://api.vercel.com/v5/domains",
+      "headers": {
+        "authorization": "Bearer {app_token2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "pagination.count",
+          "equals": 3
+        },
+        {
+          "path": "domains.0.name",
+          "equals": "brunolima.photo"
+        },
+        {
+          "path": "domains.2.name",
+          "equals": "pagecraft.site"
+        },
+        {
+          "path": "domains",
+          "notContains": "dmitribikes.com"
+        }
+      ]
+    }
+  ]
+}

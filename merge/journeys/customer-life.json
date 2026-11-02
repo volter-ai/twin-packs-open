@@ -1,0 +1,839 @@
+{
+  "vendor": "merge",
+  "author": "Contributor 65",
+  "host": "api-gateway.merge.dev",
+  "about": "Open Autonomy keeps a Pro organization created before the Anthropic cutoff, then rolls out its ledger workers on 1 October. The rail forwards chat, native Responses and Anthropic-wire work; the application completes tool loops, retries a transient outage, and restores a lost deployment key. Editor later signs up and requests support access for Pi.",
+  "steps": [
+    {
+      "name": "The operator prepares the September rollout account",
+      "wait": "243d"
+    },
+    {
+      "name": "1 September: Open Autonomy buys Pro credit and keeps its operator key for the rollout",
+      "method": "POST",
+      "path": "/_twin/organizations",
+      "status": 201,
+      "body": {
+        "name": "Open Autonomy"
+      },
+      "capture": {
+        "key": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "matches": "^mg_[A-Za-z0-9]+$"
+        },
+        {
+          "path": "credit_usd",
+          "equals": 10
+        }
+      ]
+    },
+    {
+      "name": "1 October: the ledger worker rollout begins",
+      "wait": "30d"
+    },
+    {
+      "name": "The model picker loads its first page before the operator chooses the ledger worker model",
+      "method": "GET",
+      "path": "/v1/models?limit=1",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}"
+      },
+      "capture": {
+        "cursor": "next_cursor"
+      },
+      "expect": [
+        {
+          "path": "has_more",
+          "equals": true
+        },
+        {
+          "path": "next_cursor",
+          "equals": "anthropic/claude-haiku-4-5-20251001"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The picker follows the returned cursor to the next page of its choices",
+      "method": "GET",
+      "path": "/v1/models?limit=1&cursor={cursor}",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "data.0.model",
+          "equals": "anthropic/claude-sonnet-5-5"
+        },
+        {
+          "path": "has_more",
+          "equals": true
+        },
+        {
+          "path": "next_cursor",
+          "equals": "anthropic/claude-sonnet-5-5"
+        }
+      ],
+      "capture": {
+        "cursor2": "next_cursor"
+      }
+    },
+    {
+      "name": "The picker follows the next cursor to finish loading its choices",
+      "method": "GET",
+      "path": "/v1/models?limit=1&cursor={cursor2}",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "data.0.model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "next_cursor",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Hermes drafts a question for the ledger review",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "What does the ledger hold?"
+          }
+        ],
+        "max_tokens": 65536
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "chat.completion"
+        },
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "choices.0.message.content",
+          "contains": "What does the ledger hold?"
+        },
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "usage.cost",
+          "exists": true
+        },
+        {
+          "path": "service_tier",
+          "equals": "standard"
+        },
+        {
+          "path": "routing",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The operator asks Hermes for the ledger summary needed in the review",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarise the ledger for the review."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "choices.0.message.content",
+          "equals": "The ledger holds three funded tasks and one refund."
+        },
+        {
+          "path": "usage.cost",
+          "exists": true
+        }
+      ],
+      "capture": {
+        "ledgerSummary": "choices.0.message.content"
+      }
+    },
+    {
+      "name": "The reconciliation job meets a provider outage before it can get a reply",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 503,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reconcile the ledger with the bank."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "provider_error"
+        },
+        {
+          "path": "error.source",
+          "equals": "provider"
+        },
+        {
+          "path": "error.message",
+          "equals": "The provider is unavailable."
+        }
+      ]
+    },
+    {
+      "name": "The job backs off for an hour before retrying reconciliation",
+      "wait": "1h"
+    },
+    {
+      "name": "The reconciliation job retries after the provider recovers",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reconcile the ledger with the bank."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "choices.0.message.content",
+          "contains": "Reconcile the ledger"
+        },
+        {
+          "path": "usage.cost",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Hermes requests the account balance to compare it with the ledger",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Compare the operating account balance against this ledger summary: {ledgerSummary}."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "get_balance",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "account": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "account"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "tool_calls"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.function.name",
+          "equals": "get_balance"
+        }
+      ],
+      "capture": {
+        "balanceCall": "choices.0.message.tool_calls.0.id",
+        "balanceArgs": "choices.0.message.tool_calls.0.function.arguments"
+      }
+    },
+    {
+      "name": "The application returns the balance and receives a scripted inconclusive comparison",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Compare the operating account balance against this ledger summary: {ledgerSummary}."
+          },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "{balanceCall}",
+                "type": "function",
+                "function": {
+                  "name": "get_balance",
+                  "arguments": "{balanceArgs}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "{balanceCall}",
+            "content": "{\"balance_usd\": 10}"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "choices.0.message.tool_calls",
+          "exists": false
+        },
+        {
+          "path": "choices.0.message.content",
+          "equals": "The operating account balance is 10 USD. The ledger summary reports three funded tasks and one refund; their amounts are absent, so the cash cannot yet be reconciled."
+        }
+      ]
+    },
+    {
+      "name": "The operator requests a funded-task plan with routing costs for the monthly review",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Plan the next funded ledger review tasks."
+          }
+        ],
+        "include_routing_metadata": true
+      },
+      "expect": [
+        {
+          "path": "routing.model_used",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "routing.vendor_used",
+          "equals": "zai"
+        },
+        {
+          "path": "routing.credential_type",
+          "equals": "managed"
+        },
+        {
+          "path": "routing.cost_usd",
+          "exists": true
+        },
+        {
+          "path": "routing.merge_fee_usd",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "The rail forwards a native Responses request for an explanation of the retry bug",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "instructions": "Explain the reconciliation retry logic.",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "Explain why a provider outage should be retried with backoff."
+              }
+            ]
+          }
+        ],
+        "max_output_tokens": 65536
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "response"
+        },
+        {
+          "path": "vendor",
+          "equals": "zai"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        },
+        {
+          "path": "output.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "output.0.content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "usage.cost",
+          "exists": true
+        },
+        {
+          "path": "usage.total_tokens",
+          "exists": true
+        },
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        }
+      ]
+    },
+    {
+      "name": "The operator requests a streamed retry-function draft through the native adapter",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Draft a retryWithBackoff function for the reconciliation job."
+          }
+        ],
+        "stream": true
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"object\":\"response.stream\""
+        },
+        {
+          "path": "",
+          "contains": "\"object\":\"response.done\""
+        },
+        {
+          "path": "",
+          "notContains": "[DONE]"
+        }
+      ]
+    },
+    {
+      "name": "An Anthropic-wire reviewer asks the application to list the files before reviewing the retry change",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "List files."
+          }
+        ],
+        "tools": [
+          {
+            "name": "ls",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "stop_reason",
+          "equals": "tool_use"
+        },
+        {
+          "path": "content.0.name",
+          "equals": "ls"
+        }
+      ],
+      "capture": {
+        "lsCall": "content.0.id",
+        "lsInput": "content.0.input"
+      }
+    },
+    {
+      "name": "The application supplies the file list and receives a streamed reviewer continuation with routing costs",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "List files."
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{lsCall}",
+                "name": "ls",
+                "input": "{lsInput}"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{lsCall}",
+                "content": "proxy.ts\nledger.ts"
+              }
+            ]
+          }
+        ],
+        "stream": true,
+        "include_routing_metadata": true,
+        "tools": [
+          {
+            "name": "ls",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        },
+        {
+          "path": "",
+          "contains": "\"merge_fee_usd\""
+        },
+        {
+          "path": "",
+          "contains": "proxy.ts"
+        }
+      ]
+    },
+    {
+      "name": "The next day: a new deployment loses its Gateway key binding",
+      "wait": "1d"
+    },
+    {
+      "name": "The new worker deployment sends its ledger request without the missing key binding",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 401,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarise the ledger for the review."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        },
+        {
+          "path": "error.message",
+          "contains": "Missing API key"
+        }
+      ]
+    },
+    {
+      "name": "The operator restores the key binding and the worker can request its ledger summary",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "X-API-Key": "{key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarise the ledger for the review."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "chat.completion"
+        }
+      ]
+    },
+    {
+      "name": "Volter Editor creates its own Pro organization for Pi in Substrate",
+      "method": "POST",
+      "path": "/_twin/organizations",
+      "status": 201,
+      "body": {
+        "name": "Volter Editor"
+      },
+      "capture": {
+        "editor": "api_key",
+        "editorOrg": "organization_id"
+      }
+    },
+    {
+      "name": "The Editor model picker checks Anthropic availability for its newly created organization",
+      "method": "GET",
+      "path": "/v1/models?provider=anthropic",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {editor}"
+      },
+      "expect": [
+        {
+          "path": "data.0.model",
+          "equals": "anthropic/claude-haiku-4-5-20251001"
+        },
+        {
+          "path": "data.0.access_required",
+          "equals": true
+        },
+        {
+          "path": "data.0.access_reason",
+          "equals": "vendor_access_required"
+        }
+      ]
+    },
+    {
+      "name": "Pi asks for a bevel plan and is refused because Anthropic access has not been granted",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 403,
+      "headers": {
+        "Authorization": "Bearer {editor}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "anthropic/claude-haiku-4-5-20251001",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Add a bevel to the selected edges."
+          }
+        ],
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "blocked_by_policy"
+        },
+        {
+          "path": "error.code",
+          "equals": "vendor_access_required"
+        },
+        {
+          "path": "error.message",
+          "contains": "Anthropic models are not enabled for this organization"
+        }
+      ]
+    },
+    {
+      "name": "The team contacts support, which grants Anthropic to the Editor organization",
+      "method": "POST",
+      "path": "/_twin/access",
+      "status": 200,
+      "body": {
+        "organization_id": "{editorOrg}",
+        "provider": "anthropic"
+      },
+      "expect": [
+        {
+          "path": "access.0",
+          "equals": "anthropic"
+        }
+      ]
+    },
+    {
+      "name": "Pi retries the requested bevel plan after support grants access",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {editor}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "anthropic/claude-haiku-4-5-20251001",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Add a bevel to the selected edges."
+          }
+        ],
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"model\":\"anthropic/claude-haiku-4-5-20251001\""
+        },
+        {
+          "path": "",
+          "contains": "\"cost\":"
+        },
+        {
+          "path": "",
+          "contains": "[DONE]"
+        }
+      ]
+    },
+    {
+      "name": "The original operator summarizes the rollout using its grandfathered Anthropic access",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "anthropic/claude-haiku-4-5-20251001",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarize the week."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "anthropic/claude-haiku-4-5-20251001"
+        },
+        {
+          "path": "usage.cost",
+          "exists": true
+        }
+      ]
+    }
+  ],
+  "scenario": "scenario.json"
+}

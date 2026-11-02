@@ -5,6 +5,7 @@ import type { DerivedManifest } from '@volter/world-core';
 import { states } from './semantics/states.ts';
 
 export const manifest: DerivedManifest = {
+  tenant: { field: '_world_account', storage: 'namespaced' },
   vendor: 'openai',
   service: 'openai',
   body: {},
@@ -413,8 +414,8 @@ export const manifest: DerivedManifest = {
   resources: {
     _codex_nonce: { storedAs: '_codex_nonce', idPrefix: 'nonce' },
     _codex_account: { storedAs: '_codex_account', idPrefix: 'acct' },
-    _codex_code: { storedAs: '_codex_code', idPrefix: 'code' },
-    _codex_device: { storedAs: '_codex_device', idPrefix: 'device' },
+    _codex_code: { shared: true, storedAs: '_codex_code', idPrefix: 'code' },
+    _codex_device: { shared: true, storedAs: '_codex_device', idPrefix: 'device' },
     _codex_grant: { storedAs: '_codex_grant', idPrefix: 'grant' },
     _codex_call: { storedAs: '_codex_call', idPrefix: 'resp' },
     // The download URL remains opaque; its filename follows the published 24-base62 example.
@@ -519,7 +520,7 @@ export const manifest: DerivedManifest = {
     // The public API, the separately specified subscription wire, and the console each own their paths.
     // a World's applications hold a project key the dashboard made (the credential door); the API refuses any other
     // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/auth/storage.rs "Expected structure for $CODEX_HOME/auth.json."
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { OPENAI_API_KEY: 'api_key', OPENAI_KEY: 'api_key', CODEX_HOME: 'directory:codex_home' } },
+    credentialDoor: { account: { field: 'account' }, path: '/_twin/app-credentials', body: {}, fill: { OPENAI_API_KEY: 'api_key', OPENAI_KEY: 'api_key', CODEX_HOME: 'directory:codex_home' } },
     hosts: [{ host: 'chatgpt.com', pathPattern: '^/backend-api/(codex|wham)(/|$)' }, { host: 'auth.openai.com', pathPattern: '^/(oauth/(authorize|token|revoke)|api/accounts/deviceauth/(usercode|token)|codex/device)(/|$)' }, { host: 'api.openai.com' }, { host: 'platform.openai.com', pathPattern: '^/(settings/proj[-_][^/]+/api-keys|login$)' }],
     // The SDK calls the same-origin '/v1/…' and loads from api.openai.com — the dev proxy
     // forwards '/v1/' to the twin and strips the absolute host so calls come back same-origin.

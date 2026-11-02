@@ -1,0 +1,110 @@
+{
+ "measured": "the products volter.ai names and the open-source applications in scope, read in the demand scan's clones (~/.cache/twin-demand) at the commits below (twin-world generated/demand.json). Open Autonomy's backend is the one caller of Gateway's model surfaces: its model rail (packages/backend/src/proxy.ts) forwards each model call a stock OpenAI or Anthropic SDK makes to it, with its own key (MODEL_GATEWAY_API_KEY) as a bearer token and a bare model id mapped to openai/ or anthropic/; it reads usage (usage.cost on the OpenAI surfaces, routing.merge_fee_usd) to settle the account, streamed or not, and turns a 4xx into provider_rejected_request, a 401/403 into upstream_auth_failed, a 429 into provider_rate_limited; its /v1/catalog route pages Gateway's GET /v1/models by next_cursor (routes.ts:315). The request carries no originator or X-Merge-Wire-Format header, so /v1/responses answers Merge's native shape. RH2, Volter Harness and Substrate reach Gateway through that rail: each carries the Open Autonomy kit whose Hermes worker calls chat completions on zai/glm-5.3-flash through the host valve. Substrate's Volter Editor page (examples/volter-editor, the published @browser-substrate/volter-editor) also calls Gateway directly: Pi's provider is the page's loopback port, which adds the vault's key and relays each request to api-gateway.merge.dev (openai-completions, anthropic/claude-haiku-4-5-20251001). No other listed application names Gateway, MODEL_GATEWAY_URL or api-gateway.merge.dev; Open Autonomy's apps/platform/world.ts and test/env.ts are a World and a test, not demand.",
+ "applications": [
+  {
+   "name": "open-autonomy-org/open-autonomy (Open Autonomy)",
+   "commit": "0841076bed91",
+   "client": "fetch from the backend's model rail, Authorization: Bearer <MODEL_GATEWAY_API_KEY>",
+   "backend": [
+    {
+     "call": "an OpenAI chat completion (stream or not; a stream asks stream_options.include_usage), max_tokens bounded; usage and cost read to settle",
+     "operation": "chatCompletions_create",
+     "evidence": "packages/backend/src/proxy.ts:61"
+    },
+    {
+     "call": "a Responses call (Codex), max_output_tokens bounded, answered in Merge's native shape; usage and cost read",
+     "operation": "responses_create",
+     "evidence": "packages/backend/src/proxy.ts:61"
+    },
+    {
+     "call": "an Anthropic Messages turn (anthropic-version and anthropic-beta passed), max_tokens bounded; usage read (the surface carries no cost)",
+     "operation": "messages_create",
+     "evidence": "packages/backend/src/proxy.ts:61"
+    },
+    {
+     "call": "the catalog for an owner choosing a key's models: GET /v1/models, every page by cursor while has_more, each entry's model id",
+     "operation": "models_list",
+     "evidence": "packages/backend/src/routes.ts:315"
+    }
+   ]
+  },
+  {
+   "name": "volter-ai/runhuman-2 (RH2)",
+   "commit": "34fdc9377306",
+   "client": "its installed Open Autonomy kit (.open-autonomy/): the Hermes worker's provider is the platform's model rail through the host valve, which forwards the model routes and /v1/catalog to the platform, whose rail calls Merge's Gateway (open-autonomy packages/backend/src/proxy.ts:61, routes.ts:315)",
+   "backend": [
+    {
+     "call": "the worker's turn, a chat completion (api_mode chat_completions, model zai/glm-5.3-flash), forwarded by the valve to the platform's rail and from it to Gateway",
+     "operation": "chatCompletions_create",
+     "evidence": ".open-autonomy/agent.json:15"
+    },
+    {
+     "call": "the valve's forward of a model route to the platform (/v1/chat/completions among FORWARDED)",
+     "operation": "chatCompletions_create",
+     "evidence": ".open-autonomy/valve.ts:92"
+    },
+    {
+     "call": "the setup agent's GET /v1/catalog through the valve, which the platform answers by paging Gateway's GET /v1/models",
+     "operation": "models_list",
+     "evidence": ".open-autonomy/valve.ts:71"
+    }
+   ]
+  },
+  {
+   "name": "volter-ai/supercode (Volter Harness)",
+   "commit": "62620578c014",
+   "client": "its installed Open Autonomy kit (.open-autonomy/): the Hermes worker's provider is the platform's model rail through the host valve, which forwards the model routes and /v1/catalog to the platform, whose rail calls Merge's Gateway (open-autonomy packages/backend/src/proxy.ts:61, routes.ts:315)",
+   "backend": [
+    {
+     "call": "the worker's turn, a chat completion (api_mode chat_completions, model zai/glm-5.3-flash), forwarded by the valve to the platform's rail and from it to Gateway",
+     "operation": "chatCompletions_create",
+     "evidence": ".open-autonomy/agent.json:15"
+    },
+    {
+     "call": "the valve's forward of a model route to the platform (/v1/chat/completions among FORWARDED)",
+     "operation": "chatCompletions_create",
+     "evidence": ".open-autonomy/valve.ts:92"
+    },
+    {
+     "call": "the setup agent's GET /v1/catalog through the valve, which the platform answers by paging Gateway's GET /v1/models",
+     "operation": "models_list",
+     "evidence": ".open-autonomy/valve.ts:71"
+    }
+   ]
+  },
+  {
+   "name": "volter-ai/browser-substrate (Substrate)",
+   "commit": "3116b2e3f713",
+   "client": "its installed Open Autonomy kit (.open-autonomy/): the Hermes worker's provider is the platform's model rail through the host valve, which forwards the model routes and /v1/catalog to the platform, whose rail calls Merge's Gateway (open-autonomy packages/backend/src/proxy.ts:61, routes.ts:315)",
+   "backend": [
+    {
+     "call": "the worker's turn, a chat completion (api_mode chat_completions, model zai/glm-5.3-flash), forwarded by the valve to the platform's rail and from it to Gateway",
+     "operation": "chatCompletions_create",
+     "evidence": ".open-autonomy/agent.json:15"
+    },
+    {
+     "call": "the valve's forward of a model route to the platform (/v1/chat/completions among FORWARDED)",
+     "operation": "chatCompletions_create",
+     "evidence": ".open-autonomy/valve.ts:92"
+    },
+    {
+     "call": "the setup agent's GET /v1/catalog through the valve, which the platform answers by paging Gateway's GET /v1/models",
+     "operation": "models_list",
+     "evidence": ".open-autonomy/valve.ts:71"
+    }
+   ],
+   "frontend": [
+    {
+     "call": "Pi's model request in Volter Editor's tab: a chat completion (openai-completions, streamed) on anthropic/claude-haiku-4-5-20251001, the page's vault key added and relayed to api-gateway.merge.dev",
+     "operation": "chatCompletions_create",
+     "evidence": "examples/volter-editor/main.ts:214"
+    },
+    {
+     "call": "Pi's provider, written into the tab: the page's loopback port, api openai-completions, model anthropic/claude-haiku-4-5-20251001",
+     "operation": "chatCompletions_create",
+     "evidence": "examples/volter-editor/main.ts:228"
+    }
+   ]
+  }
+ ]
+}

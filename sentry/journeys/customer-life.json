@@ -1,0 +1,921 @@
+{
+  "vendor": "sentry",
+  "author": "Contributor 93",
+  "about": "Harbourline runs Rallly and Twenty, uses Scheduler for social channels and Cal.com for booking. Account setup uses the API after bootstrap; releases, source maps and ingestion follow the pinned application clients.",
+  "steps": [
+    {
+      "name": "Monday 5 January, 09:00: Harbourline puts Sentry on Rallly and Twenty",
+      "wait": "6300m"
+    },
+    {
+      "name": "Harbourline signs up: its first project rallly and CI credential",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "organization": "harbourline",
+        "name": "Harbourline",
+        "project": "rallly",
+        "platform": "javascript-nextjs"
+      },
+      "capture": {
+        "org": "org",
+        "ci": "auth_token",
+        "r_key": "text:https://([0-9a-f]{32})@",
+        "r_host": "text:@(o[0-9]+\\.ingest\\.us\\.sentry\\.io)",
+        "r_proj": "text:sentry\\.io/([0-9]+)",
+        "org_id": "org_id"
+      },
+      "evidence": "sentry/src/manifest.ts:credentialDoor"
+    },
+    {
+      "name": "Priya issues the CI token Cal reads as SENTRY_AUTH_TOKEN",
+      "method": "POST",
+      "path": "/_twin/auth-tokens",
+      "status": 201,
+      "body": {
+        "organization": "harbourline",
+        "name": "cal-build",
+        "kind": "org"
+      },
+      "capture": {
+        "cal_ci": "token"
+      },
+      "expect": [
+        {
+          "path": "token",
+          "contains": "sntrys_"
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:7"
+    },
+    {
+      "name": "Priya creates the twenty project through Sentry API",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/projects/",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {ci}"
+      },
+      "body": {
+        "name": "twenty",
+        "slug": "twenty",
+        "platform": "node"
+      },
+      "capture": {
+        "t_proj": "id"
+      },
+      "expect": [
+        {
+          "path": "slug",
+          "equals": "twenty"
+        },
+        {
+          "path": "name",
+          "equals": "twenty"
+        },
+        {
+          "path": "platform",
+          "equals": "node"
+        }
+      ],
+      "evidence": "spec:createOrganizationProject"
+    },
+    {
+      "name": "She reads the twenty DSN from its client key",
+      "method": "GET",
+      "path": "https://sentry.io/api/0/projects/harbourline/twenty/keys/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}"
+      },
+      "capture": {
+        "t_key": "0.public"
+      },
+      "expect": [
+        {
+          "path": "0.dsn.public",
+          "contains": "{t_key}"
+        },
+        {
+          "path": "0.projectId",
+          "equals": "{t_proj}"
+        }
+      ],
+      "evidence": "spec:listProjectKeys"
+    },
+    {
+      "name": "Priya creates the scheduler project through Sentry API",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/projects/",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {ci}"
+      },
+      "body": {
+        "name": "scheduler",
+        "slug": "scheduler",
+        "platform": "javascript-nextjs"
+      },
+      "capture": {
+        "p_proj": "id"
+      },
+      "expect": [
+        {
+          "path": "slug",
+          "equals": "scheduler"
+        },
+        {
+          "path": "name",
+          "equals": "scheduler"
+        },
+        {
+          "path": "platform",
+          "equals": "javascript-nextjs"
+        }
+      ],
+      "evidence": "spec:createOrganizationProject"
+    },
+    {
+      "name": "She reads the scheduler DSN from its client key",
+      "method": "GET",
+      "path": "https://sentry.io/api/0/projects/harbourline/scheduler/keys/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}"
+      },
+      "capture": {
+        "p_key": "0.public"
+      },
+      "expect": [
+        {
+          "path": "0.dsn.public",
+          "contains": "{p_key}"
+        },
+        {
+          "path": "0.projectId",
+          "equals": "{p_proj}"
+        }
+      ],
+      "evidence": "spec:listProjectKeys"
+    },
+    {
+      "name": "Priya creates Harbourline Cal project through the API",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/projects/",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {ci}"
+      },
+      "body": {
+        "name": "Cal",
+        "slug": "cal",
+        "platform": "javascript-nextjs"
+      },
+      "evidence": "spec:createOrganizationProject"
+    },
+    {
+      "name": "Tuesday 6 January, 10:00: Rallly's release build",
+      "wait": "1500m"
+    },
+    {
+      "name": "withSentryConfig's sentry-cli makes the release for the rallly project",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/projects/harbourline/rallly/releases/",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "version": "rallly@4.2.0",
+        "projects": [
+          "rallly"
+        ]
+      },
+      "expect": [
+        {
+          "path": "version",
+          "equals": "rallly@4.2.0"
+        },
+        {
+          "path": "projects.0.slug",
+          "equals": "rallly"
+        },
+        {
+          "path": "dateReleased",
+          "equals": null
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:682"
+    },
+    {
+      "name": "A retried build makes it again: the release as it was",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/projects/harbourline/rallly/releases/",
+      "status": 208,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "version": "rallly@4.2.0",
+        "projects": [
+          "rallly"
+        ]
+      },
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:682"
+    },
+    {
+      "name": "It reads the server's chunk upload options",
+      "method": "GET",
+      "path": "https://sentry.io/api/0/organizations/harbourline/chunk-upload/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://us.sentry.io/api/0/organizations/harbourline/chunk-upload/"
+        },
+        {
+          "path": "hashAlgorithm",
+          "equals": "sha1"
+        },
+        {
+          "path": "chunksPerRequest",
+          "equals": 64
+        },
+        {
+          "path": "compression",
+          "equals": [
+            "gzip"
+          ]
+        },
+        {
+          "path": "accept",
+          "contains": "artifact_bundles_v2"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:959"
+    },
+    {
+      "name": "It asks to assemble the artifact bundle: its chunk is missing",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/artifactbundle/assemble/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "checksum": "f9e25f253c2cf41a6338da83780eeb8197159b61",
+        "chunks": [
+          "f9e25f253c2cf41a6338da83780eeb8197159b61"
+        ],
+        "projects": [
+          "rallly"
+        ],
+        "version": "rallly@4.2.0"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "not_found"
+        },
+        {
+          "path": "missingChunks",
+          "equals": [
+            "f9e25f253c2cf41a6338da83780eeb8197159b61"
+          ]
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:1021"
+    },
+    {
+      "name": "It uploads the chunk, gzipped, named by its SHA-1, to the URL the options gave",
+      "method": "POST",
+      "path": "https://us.sentry.io/api/0/organizations/harbourline/chunk-upload/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4",
+        "content-type": "multipart/form-data; boundary=----sentrycli9f1c"
+      },
+      "bodyBase64": "LS0tLS0tc2VudHJ5Y2xpOWYxYw0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJmaWxlX2d6aXAiOyBmaWxlbmFtZT0iZjllMjVmMjUzYzJjZjQxYTYzMzhkYTgzNzgwZWViODE5NzE1OWI2MSINCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24vb2N0ZXQtc3RyZWFtDQoNCh+LCAAAAAAAAhOlU81OwkAQ5kc9kHgS77pGIwml/AkRw4F4ImjSmHgSQpZ2C5V227RbhRCMr+AT+BTefRGfw6uzWyjQxFDjbCbd3fnm55vpKp30TjYhRDnrqs7zIUsmElz34crC1NCJxwqPnk1nSDdM4qHGDPVlWJRMmOwxzAxVVkc+HXuyi03TnAKag3zXRA30sgWYR2zqEABaBuQyiNb3bN9VCRhGBGvEFbE0MvCHkqEB7mJQ0otqmUg1vYKlqlon0qVWwlJ5UFGr2gWp6fUiOAdRLOyAS5itwM/zeX47AYGMS0KAQyJB5n5w9w8OcxBlYzy1Ru9tDFuux6BbWag29WyTFEx7eL7oAspdZWT55EhU09aacUoRDgGtW+w4Bh3e3900N+hnNiulB5/fH7DlehqnUh5jhp6gVYZNUaOSFz/b+uzCmUIzH5bXzJugXmi4tikjlHH7OvPuAt1FOQ6m2BIxYGsFbOCEWiCQQrSl/4chKZ1kKpv+/Qkt5TWZiD6oqGt0vCvX92SMFkbDRWewCtdOxZyI0tnd4y5pWF/wbaX56QchaO2RNAQAAA0KLS0tLS0tc2VudHJ5Y2xpOWYxYy0tDQo=",
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:393"
+    },
+    {
+      "name": "and assembles the bundle: created",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/artifactbundle/assemble/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "checksum": "f9e25f253c2cf41a6338da83780eeb8197159b61",
+        "chunks": [
+          "f9e25f253c2cf41a6338da83780eeb8197159b61"
+        ],
+        "projects": [
+          "rallly"
+        ],
+        "version": "rallly@4.2.0"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "created"
+        },
+        {
+          "path": "missingChunks",
+          "equals": []
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:1021"
+    },
+    {
+      "name": "polling, it is ok",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/artifactbundle/assemble/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "checksum": "f9e25f253c2cf41a6338da83780eeb8197159b61",
+        "chunks": [
+          "f9e25f253c2cf41a6338da83780eeb8197159b61"
+        ],
+        "projects": [
+          "rallly"
+        ],
+        "version": "rallly@4.2.0"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "ok"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:1021"
+    },
+    {
+      "name": "sentry-cli finalizes the release",
+      "method": "PUT",
+      "path": "https://sentry.io/api/0/projects/harbourline/rallly/releases/rallly@4.2.0/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "projects": [
+          "rallly"
+        ],
+        "dateReleased": "2026-01-06T10:02:00Z"
+      },
+      "expect": [
+        {
+          "path": "dateReleased",
+          "equals": "2026-01-06T10:02:00Z"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/next.config.ts:194",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:701"
+    },
+    {
+      "name": "14:30: the release is live; what Rallly reported since 14:00 arrives",
+      "wait": "270m"
+    },
+    {
+      "name": "A visitor's browser starts a session",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.38.0, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-06T14:00:00.000Z\"}\n{\"type\":\"session\"}\n{\"sid\":\"a3b5c7d9e1f24a6b8c0d2e4f6a8b0c1d\",\"init\":true,\"started\":\"2026-01-06T14:00:00.000Z\",\"timestamp\":\"2026-01-06T14:00:00.000Z\",\"status\":\"ok\",\"errors\":0,\"attrs\":{\"release\":\"rallly@4.2.0\",\"environment\":\"production\",\"user_agent\":\"Mozilla/5.0\"}}\n",
+      "expect": [
+        {
+          "header": "access-control-allow-origin",
+          "equals": "*"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/instrumentation-client.ts:12",
+      "client": "@sentry/core@10.38.0:build/esm/client.js:504; build/esm/envelope.js:39"
+    },
+    {
+      "name": "The server catches an unhandled rejection: an error with its stack trace",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.38.0, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"event_id\":\"f1e2d3c4b5a697881726354453627181\",\"sent_at\":\"2026-01-06T14:05:00.000Z\",\"sdk\":{\"name\":\"sentry.javascript.nextjs\",\"version\":\"10.38.0\"},\"trace\":{\"trace_id\":\"4c8e1f0a2b3d4e5f6a7b8c9d0e1f2a3b\",\"public_key\":\"{r_key}\"}}\n{\"type\":\"event\"}\n{\"event_id\":\"f1e2d3c4b5a697881726354453627181\",\"timestamp\":\"2026-01-06T14:05:00.000Z\",\"platform\":\"node\",\"level\":\"error\",\"release\":\"rallly@4.2.0\",\"environment\":\"production\",\"server_name\":\"rallly-web-1\",\"transaction\":\"POST /api/trpc/[trpc]\",\"exception\":{\"values\":[{\"type\":\"TypeError\",\"value\":\"Cannot read properties of null (reading 'options')\",\"mechanism\":{\"type\":\"onunhandledrejection\",\"handled\":false},\"stacktrace\":{\"frames\":[{\"filename\":\"node:internal/process/task_queues\",\"function\":\"processTicksAndRejections\",\"in_app\":false,\"lineno\":95},{\"filename\":\"app:///_next/server/app/api/trpc/[trpc]/route.js\",\"abs_path\":\"app:///_next/server/app/api/trpc/[trpc]/route.js\",\"function\":\"getPollOptions\",\"in_app\":true,\"lineno\":412,\"colno\":27,\"context_line\":\"  return poll.options.map((o) => o.start);\",\"pre_context\":[\"async function getPollOptions(id) {\",\"  const poll = await prisma.poll.findUnique({ where: { id } });\"],\"post_context\":[\"}\"]}]}}]},\"user\":{\"id\":\"u_1182\",\"email\":\"u_1182@harbourline.test\"},\"tags\":{\"poll\":\"pz7q\"},\"request\":{\"url\":\"https://rallly.harbourline.test/api/trpc/polls.get\",\"method\":\"POST\"},\"breadcrumbs\":{\"values\":[{\"timestamp\":1767708000,\"category\":\"http\",\"type\":\"http\",\"data\":{\"method\":\"POST\",\"url\":\"/api/trpc/polls.get\",\"status_code\":500}}]},\"contexts\":{\"runtime\":{\"name\":\"node\",\"version\":\"v22.12.0\"},\"trace\":{\"trace_id\":\"4c8e1f0a2b3d4e5f6a7b8c9d0e1f2a3b\",\"span_id\":\"8f1e2d3c4b5a6978\"}}}\n",
+      "expect": [
+        {
+          "path": "id",
+          "equals": "f1e2d3c4b5a697881726354453627181"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/sentry.server.config.ts:9",
+      "client": "@sentry/core@10.38.0:build/esm/client.js:467; build/esm/envelope.js:61"
+    },
+    {
+      "name": "Another visitor hits it: the same stack trace, Node's transport gzipping the envelope",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.38.0, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope",
+        "content-encoding": "gzip"
+      },
+      "bodyBase64": "H4sIAAAAAAAC/6VUbW/bNhD+3l9B8EsdwJEo2bFsFS06DPvcYku/rAiEk3SKGVOkSlJOPEP/vUdJecUwYBsQOBT53N1zz72cOR5R+0LWPOcCkjKtVvUar5qNyJJtulvBuryqNnWG22bHl9wFMHgCpyLdXIrkUmyuk3WeilyISAjxZwDVB56fuYYWCRhM7Cm6gyO4ysrORxof/J0j4BGtk0YTKBHRahsJPiy5t1BhsB8PE7N1tcWkEZCWMzvIym21qwXdprAqyVfXl0pWxQFPhD/bcBj4MLwjP6cu8BgT5eHi36XsZYvOQ9v9c9KdAt8Y2xJKmxrpRlEcFQJbayx9W1QILlCxoJQ6fV5HKaW85KiP0hrdBn4576yp+8oHXYLelkQqZiknu8t7LC8TPiqlHUzQnH/98sc1i6GTsbddFX8PvzfB+0OF3YQ58yOoHh3Pvz/Jck3/fpsZjq909ytobTyzCDUjOh1aL9Ex0zDdK8UW4UHqW/bejI7d+wsybrHag5auHWs3OTe613RZK6wt3uFjVvMVzxtQDqnmpG91eCp8YyndiWQjFc7JB1VzqT1aDSomWhU6F3twh+JHjyGrJW96/SjHDLiW1cH9ouvfH8MHmNQFdN0cngolNWrD893VsHwVkkB5HMdFaNh4KgUJ3L0VObam9xiNLQ2lKzrw+/9m/YL/LfqvRqkv3VvS3vYvOK+TdMkro8I5zcKRFHrwRXgnL4yK6HurWUe+orlcUQvdYmEu2MdPzESkvfUXH0ILWyxmexKfgzvpij1SYq8JLWR9wc5kxBiZOD8GYB8Z3IOkD0t9ANEYtJG6/qYl1WhxZvd7tJizM5M1G9hAYW8ornH+ZeCB3ww3A/0teU+6hZYYh7UvUrHOQku3INXTxec92NL0NqQceZrVcYvArQuGgULohr+yH+HaIvEgBL2QAT3sve8clWkareitq+diBUcuIhHGVvd7U88zF9yWYSIq27eleztlz9sjyTZZJra0L6hM4PHW2NPMIAzzNDHzVw0egqfXkZYz6b9nRWF870hI2j75lRCTgrOuIy/b68DnxXKeV9XzIj6maZSk/2sTuw70BN42Cab1qqKFCptdtqV9PLz7CaEszPlzBgAA",
+      "expect": [
+        {
+          "path": "id",
+          "equals": "0a1b2c3d4e5f60718293a4b5c6d7e8f9"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/sentry.server.config.ts:9",
+      "client": "@sentry/core@10.38.0:build/esm/client.js:467; build/esm/envelope.js:61"
+    },
+    {
+      "name": "A slow poll page: a transaction",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.38.0, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"event_id\":\"7a6b5c4d3e2f10987a6b5c4d3e2f1098\",\"sent_at\":\"2026-01-06T14:30:00.000Z\"}\n{\"type\":\"transaction\"}\n{\"event_id\":\"7a6b5c4d3e2f10987a6b5c4d3e2f1098\",\"type\":\"transaction\",\"transaction\":\"/p/[urlId]\",\"start_timestamp\":1767709798.2,\"timestamp\":1767709800.9,\"release\":\"rallly@4.2.0\",\"environment\":\"production\",\"platform\":\"javascript\",\"contexts\":{\"trace\":{\"trace_id\":\"9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a\",\"span_id\":\"1a2b3c4d5e6f7a8b\",\"op\":\"pageload\",\"status\":\"ok\"}},\"spans\":[]}\n",
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/sentry.server.config.ts:9",
+      "client": "@sentry/core@10.38.0:build/esm/client.js:467; build/esm/envelope.js:61"
+    },
+    {
+      "name": "Session Replay of the visitor who hit the error: the replay event and its recording",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.38.0, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"event_id\":\"c0ffee00c0ffee00c0ffee00c0ffee00\",\"sent_at\":\"2026-01-06T14:06:00.000Z\"}\n{\"type\":\"replay_event\"}\n{\"type\":\"replay_event\",\"replay_id\":\"c0ffee00c0ffee00c0ffee00c0ffee00\",\"segment_id\":0,\"replay_type\":\"buffer\",\"error_ids\":[\"f1e2d3c4b5a697881726354453627181\"],\"trace_ids\":[],\"urls\":[\"https://rallly.harbourline.test/p/pz7q\"],\"timestamp\":1767708360}\n{\"type\":\"replay_recording\",\"length\":36}\n{\"segment_id\":0}\n[{\"type\":4,\"d\":{}}]\n",
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/instrumentation-client.ts:12",
+      "client": "@sentry-internal/replay@10.38.0:build/npm/esm/index.js:8039"
+    },
+    {
+      "name": "A Scheduler user sends feedback from its configured widget",
+      "method": "POST",
+      "path": "https://{r_host}/api/{p_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.56.0, sentry_key={p_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"event_id\":\"fb0000000000400080000000000000a1\",\"sent_at\":\"2026-01-06T14:08:00.000Z\",\"sdk\":{\"name\":\"sentry.javascript.nextjs\",\"version\":\"10.56.0\"}}\n{\"type\":\"feedback\"}\n{\"event_id\":\"fb0000000000400080000000000000a1\",\"timestamp\":\"2026-01-06T14:08:00.000Z\",\"level\":\"info\",\"platform\":\"javascript\",\"contexts\":{\"feedback\":{\"message\":\"The scheduling button is hard to find.\",\"contact_email\":\"u_1182@harbourline.test\",\"name\":\"Dana Ito\",\"url\":\"https://scheduler.harbourline.test/launches\"}},\"user\":{\"id\":\"u_1182\",\"email\":\"u_1182@harbourline.test\",\"username\":\"Dana Ito\"},\"sdk\":{\"name\":\"sentry.javascript.nextjs\",\"version\":\"10.56.0\"},\"type\":\"feedback\"}\n",
+      "expect": [
+        {
+          "path": "id",
+          "equals": "fb0000000000400080000000000000a1"
+        }
+      ],
+      "client": "@sentry/core@10.56.0:build/esm/feedback.js:6"
+    },
+    {
+      "name": "Harbourline schedules a Scheduler post and the service counts post_created",
+      "method": "POST",
+      "path": "https://{r_host}/api/{p_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_key={p_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-06T14:30:00.000Z\",\"sdk\":{\"name\":\"sentry.javascript.nestjs\",\"version\":\"10.56.0\"}}\n{\"type\":\"trace_metric\",\"item_count\":1,\"content_type\":\"application/vnd.sentry.items.trace-metric+json\"}\n{\"items\":[{\"timestamp\":1767709800,\"trace_id\":\"abcdef0123456789abcdef0123456789\",\"name\":\"post_created\",\"type\":\"counter\",\"unit\":\"none\",\"value\":1,\"attributes\":{\"sentry.environment\":{\"value\":\"production\",\"type\":\"string\"},\"service\":{\"value\":\"backend\",\"type\":\"string\"}}}],\"version\":2}\n",
+      "client": "@sentry/core@10.56.0:build/esm/metrics/envelope.js:12"
+    },
+    {
+      "name": "The server's logs, a batch",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.38.0, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-06T14:10:00.000Z\"}\n{\"type\":\"log\",\"item_count\":2,\"content_type\":\"application/vnd.sentry.items.log+json\"}\n{\"items\":[{\"timestamp\":1767708540.1,\"trace_id\":\"4c8e1f0a2b3d4e5f6a7b8c9d0e1f2a3b\",\"level\":\"warn\",\"body\":\"poll pz7q has no options\",\"attributes\":{}},{\"timestamp\":1767708541.4,\"trace_id\":\"4c8e1f0a2b3d4e5f6a7b8c9d0e1f2a3b\",\"level\":\"error\",\"body\":\"getPollOptions failed\",\"attributes\":{}}]}\n",
+      "expect": [
+        {
+          "path": "",
+          "equals": {}
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/sentry.server.config.ts:9",
+      "client": "@sentry/core@10.38.0:build/esm/logs/envelope.js:34"
+    },
+    {
+      "name": "Rallly reports sampled-out transactions in its client report",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nextjs/10.38.0, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-06T14:12:00.000Z\"}\n{\"type\":\"client_report\"}\n{\"timestamp\":1767708720,\"discarded_events\":[{\"reason\":\"sample_rate\",\"category\":\"transaction\",\"quantity\":4}]}\n",
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/instrumentation-client.ts:12",
+      "client": "@sentry/core@10.38.0:build/esm/client.js:936"
+    },
+    {
+      "name": "Rallly HTTP integration flushes its minute of request sessions",
+      "method": "POST",
+      "path": "https://{r_host}/api/{r_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_key={r_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-06T14:30:00.000Z\"}\n{\"type\":\"sessions\"}\n{\"attrs\":{\"release\":\"rallly@4.2.0\",\"environment\":\"production\"},\"aggregates\":[{\"started\":\"2026-01-06T14:00:00.000Z\",\"exited\":2,\"errored\":1}]}\n",
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/sentry.server.config.ts:9",
+      "client": "@sentry/node-core@10.38.0:build/esm/integrations/http/httpServerIntegration.js:224"
+    },
+    {
+      "name": "Wednesday 7 January, 03:00: Twenty's nightly cron",
+      "wait": "750m"
+    },
+    {
+      "name": "Twenty's cleanup job checks in, in progress, with its monitor's schedule",
+      "method": "POST",
+      "path": "https://{r_host}/api/{t_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nestjs/10.73.0, sentry_key={t_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-07T03:00:00.000Z\"}\n{\"type\":\"check_in\"}\n{\"check_in_id\":\"3f2e1d0c9b8a47968574635241302918\",\"monitor_slug\":\"cleanup-workspaces\",\"status\":\"in_progress\",\"environment\":\"production\",\"monitor_config\":{\"schedule\":{\"type\":\"crontab\",\"value\":\"0 3 * * *\"},\"checkin_margin\":1,\"max_runtime\":5,\"timezone\":\"UTC\"}}\n",
+      "evidence": "twentyhq/twenty@1d561b8c73c9:packages/twenty-server/src/engine/core-modules/cron/sentry-cron-monitor.decorator.ts:29",
+      "client": "@sentry/core@10.73.0:build/esm/server-runtime-client.js:69"
+    },
+    {
+      "name": "03:04: the job finishes",
+      "wait": "4m"
+    },
+    {
+      "name": "Twenty checks in ok with the same check-in id",
+      "method": "POST",
+      "path": "https://{r_host}/api/{t_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nestjs/10.73.0, sentry_key={t_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-07T03:04:00.000Z\"}\n{\"type\":\"check_in\"}\n{\"check_in_id\":\"3f2e1d0c9b8a47968574635241302918\",\"monitor_slug\":\"cleanup-workspaces\",\"status\":\"ok\",\"environment\":\"production\"}\n",
+      "evidence": "twentyhq/twenty@1d561b8c73c9:packages/twenty-server/src/engine/core-modules/cron/sentry-cron-monitor.decorator.ts:46",
+      "client": "@sentry/core@10.73.0:build/esm/server-runtime-client.js:69"
+    },
+    {
+      "name": "Twenty samples the nightly cleanup transaction and its CPU profile",
+      "method": "POST",
+      "path": "https://{r_host}/api/{t_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_key={t_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-07T03:04:00.000Z\",\"event_id\":\"7f7f7f7f7f7f4f7f8f7f7f7f7f7f7f7f\"}\n{\"type\":\"transaction\"}\n{\"event_id\":\"7f7f7f7f7f7f4f7f8f7f7f7f7f7f7f7f\",\"type\":\"transaction\",\"transaction\":\"cleanup-workspaces\",\"start_timestamp\":1767754800,\"timestamp\":1767755040,\"platform\":\"node\",\"environment\":\"production\",\"contexts\":{\"trace\":{\"trace_id\":\"1234567890abcdef1234567890abcdef\",\"span_id\":\"1234567890abcdef\",\"op\":\"cron\"},\"profile\":{\"profile_id\":\"6f6f6f6f6f6f4f6f8f6f6f6f6f6f6f6f\"}},\"spans\":[]}\n{\"type\":\"profile\"}\n{\"event_id\":\"6f6f6f6f6f6f4f6f8f6f6f6f6f6f6f6f\",\"timestamp\":\"2026-01-07T03:00:00.000Z\",\"platform\":\"node\",\"version\":\"1\",\"release\":\"twenty@1.0.0\",\"environment\":\"production\",\"measurements\":{},\"runtime\":{\"name\":\"node\",\"version\":\"22.16.0\"},\"os\":{\"name\":\"linux\",\"version\":\"6.8.0\",\"build_number\":\"1\"},\"device\":{\"locale\":\"en_US\",\"model\":\"World\",\"manufacturer\":\"World\",\"architecture\":\"arm64\",\"is_emulator\":false},\"debug_meta\":{\"images\":[]},\"profile\":{\"samples\":[{\"stack_id\":0,\"thread_id\":\"0\",\"elapsed_since_start_ns\":\"0\"},{\"stack_id\":0,\"thread_id\":\"0\",\"elapsed_since_start_ns\":\"1000000\"}],\"stacks\":[[0]],\"frames\":[{\"function\":\"cleanupWorkspaces\",\"filename\":\"cleanup.ts\",\"lineno\":99,\"in_app\":true}],\"thread_metadata\":{\"0\":{\"name\":\"main\"}}},\"transaction\":{\"name\":\"cleanup-workspaces\",\"id\":\"7f7f7f7f7f7f4f7f8f7f7f7f7f7f7f7f\",\"trace_id\":\"1234567890abcdef1234567890abcdef\",\"active_thread_id\":\"0\"}}\n",
+      "evidence": "twentyhq/twenty@1d561b8c73c9:packages/twenty-server/src/instrument.ts:99",
+      "client": "@sentry/profiling-node@10.73.0:build/esm/index.js:586"
+    },
+    {
+      "name": "Twenty reports the scheduled cleanup error through its exception handler",
+      "method": "POST",
+      "path": "https://{r_host}/api/{t_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nestjs/10.73.0, sentry_key={t_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"event_id\":\"5e5e5e5e5e5e4e5e8e5e5e5e5e5e5e5e\"}\n{\"type\":\"event\"}\n{\"event_id\":\"5e5e5e5e5e5e4e5e8e5e5e5e5e5e5e5e\",\"timestamp\":\"2026-01-07T03:02:00.000Z\",\"platform\":\"node\",\"level\":\"error\",\"environment\":\"production\",\"exception\":{\"values\":[{\"type\":\"QueryFailedError\",\"value\":\"canceling statement due to statement timeout\"}]}}\n",
+      "evidence": "twentyhq/twenty@1d561b8c73c9:packages/twenty-server/src/engine/core-modules/exception-handler/drivers/sentry.driver.ts:108",
+      "client": "@sentry/core@10.73.0:build/esm/client.js:333"
+    },
+    {
+      "name": "The next nightly cleanup runs on schedule",
+      "wait": "1436m"
+    },
+    {
+      "name": "Thursday 03:00, the next scheduled cleanup starts",
+      "method": "POST",
+      "path": "https://{r_host}/api/{t_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nestjs/10.73.0, sentry_key={t_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-08T03:00:00.000Z\"}\n{\"type\":\"check_in\"}\n{\"check_in_id\":\"3f2e1d0c9b8a47968574635241302919\",\"monitor_slug\":\"cleanup-workspaces\",\"status\":\"in_progress\",\"environment\":\"production\",\"monitor_config\":{\"schedule\":{\"type\":\"crontab\",\"value\":\"0 3 * * *\"},\"checkin_margin\":1,\"max_runtime\":5,\"timezone\":\"UTC\"}}\n",
+      "evidence": "twentyhq/twenty@1d561b8c73c9:packages/twenty-server/src/engine/core-modules/cron/sentry-cron-monitor.decorator.ts:29",
+      "client": "@sentry/core@10.73.0:build/esm/server-runtime-client.js:69"
+    },
+    {
+      "name": "The failing cleanup spends four minutes on its database request",
+      "wait": "4m"
+    },
+    {
+      "name": "The cleanup fails and Twenty reports its error check-in",
+      "method": "POST",
+      "path": "https://{r_host}/api/{t_proj}/envelope/",
+      "status": 200,
+      "headers": {
+        "x-sentry-auth": "Sentry sentry_version=7, sentry_client=sentry.javascript.nestjs/10.73.0, sentry_key={t_key}",
+        "content-type": "application/x-sentry-envelope"
+      },
+      "body": "{\"sent_at\":\"2026-01-08T03:04:00.000Z\"}\n{\"type\":\"check_in\"}\n{\"check_in_id\":\"3f2e1d0c9b8a47968574635241302919\",\"monitor_slug\":\"cleanup-workspaces\",\"status\":\"error\",\"environment\":\"production\"}\n",
+      "evidence": "twentyhq/twenty@1d561b8c73c9:packages/twenty-server/src/engine/core-modules/cron/sentry-cron-monitor.decorator.ts:54",
+      "client": "@sentry/core@10.73.0:build/esm/server-runtime-client.js:69"
+    },
+    {
+      "name": "Thursday 8 January: the applications continue reporting",
+      "wait": "476m"
+    },
+    {
+      "name": "Monday 2 February, 10:00: the next release, and commits",
+      "wait": "35940m"
+    },
+    {
+      "name": "The release build makes Cal release 54343aa685ae8f33159d2f485ec4a57bad5c574a",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/projects/harbourline/cal/releases/",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "version": "54343aa685ae8f33159d2f485ec4a57bad5c574a",
+        "projects": [
+          "cal"
+        ]
+      },
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:19",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:682"
+    },
+    {
+      "name": "Cal release integration set-commits --auto finds no repository",
+      "method": "GET",
+      "path": "https://sentry.io/api/0/organizations/harbourline/repos/?cursor=",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:22",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:1321"
+    },
+    {
+      "name": "set-commits asks for the previous release before its local git fallback",
+      "method": "GET",
+      "path": "https://sentry.io/api/0/organizations/harbourline/releases/54343aa685ae8f33159d2f485ec4a57bad5c574a/previous-with-commits/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:22",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:858",
+      "expect": [
+        {
+          "path": "",
+          "equals": {}
+        }
+      ]
+    },
+    {
+      "name": "set-commits attaches the Cal release local git commits",
+      "method": "PUT",
+      "path": "https://sentry.io/api/0/organizations/harbourline/releases/54343aa685ae8f33159d2f485ec4a57bad5c574a/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "commits": [
+          {
+            "id": "54343aa685ae8f33159d2f485ec4a57bad5c574a",
+            "repository": "calcom/cal.diy",
+            "message": "Update booking availability",
+            "author_name": "Priya Raman",
+            "author_email": "priya@harbourline.test"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "commitCount",
+          "equals": 1
+        },
+        {
+          "path": "lastCommit.id",
+          "equals": "54343aa685ae8f33159d2f485ec4a57bad5c574a"
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:22",
+      "client": "@sentry/cli@2.58.4:src/commands/releases/set_commits.rs:219"
+    },
+    {
+      "name": "Cal source maps: It reads the server's chunk upload options",
+      "method": "GET",
+      "path": "https://sentry.io/api/0/organizations/harbourline/chunk-upload/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://us.sentry.io/api/0/organizations/harbourline/chunk-upload/"
+        },
+        {
+          "path": "hashAlgorithm",
+          "equals": "sha1"
+        },
+        {
+          "path": "chunksPerRequest",
+          "equals": 64
+        },
+        {
+          "path": "compression",
+          "equals": [
+            "gzip"
+          ]
+        },
+        {
+          "path": "accept",
+          "contains": "artifact_bundles_v2"
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:31",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:959"
+    },
+    {
+      "name": "Cal source maps: It asks to assemble the artifact bundle: its chunk is missing",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/artifactbundle/assemble/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "checksum": "e9080f1276d3040cca84b6a6b5191462d27801a6",
+        "chunks": [
+          "e9080f1276d3040cca84b6a6b5191462d27801a6"
+        ],
+        "projects": [
+          "cal"
+        ],
+        "version": "54343aa685ae8f33159d2f485ec4a57bad5c574a"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "not_found"
+        },
+        {
+          "path": "missingChunks",
+          "equals": [
+            "e9080f1276d3040cca84b6a6b5191462d27801a6"
+          ]
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:31",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:1021"
+    },
+    {
+      "name": "Cal source maps: It uploads the chunk, gzipped, named by its SHA-1, to the URL the options gave",
+      "method": "POST",
+      "path": "https://us.sentry.io/api/0/organizations/harbourline/chunk-upload/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4",
+        "content-type": "multipart/form-data; boundary=----sentrycli9f1c"
+      },
+      "bodyBase64": "LS0tLS0tc2VudHJ5Y2xpOWYxYw0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJmaWxlX2d6aXAiOyBmaWxlbmFtZT0iZTkwODBmMTI3NmQzMDQwY2NhODRiNmE2YjUxOTE0NjJkMjc4MDFhNiINCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24vb2N0ZXQtc3RyZWFtDQoNCh+LCAAAAAAAAhOlU81OwkAQLqAeMN64+pM1MZJQGgQRMByMJ4MmjYknIWVpp7DabhtaDIZgPHn26jv4Pj6Dr8DJ2W0EaSJgnM2ks7PfzH4z09UbqbWMIkU/aMJbexMSiiJ0C10u5cyGIMzfBR4fEZs5EJDaiBgaLg7DUAtCGjJTM3sDfh9oJnUQKhCDvkNq5GkRKkfCRx8Q5TK8hYFlBN6gbwIe9IBa0JeJLOgMuiqzEFctQ4F2jkrqsVU01ZJtU7VilQsqVItQqZi2XT6hGBxlcamPIdFVebEZj3NLeEvYStwlcso/utCIfP+gPkbR5+bRak8+AU2hO6iL+ZseDzwH8o7XPRSVk+xpWtP29ySPC6u+CgkZEBV0RX2f8e7N9WV9VnV6nuBLa7L7jqZQspSgSDAiD9ge5nFSK+bkHzUd03R22L1b6QuDIWlNveceD4GH8vBHqU0BbZKsQHLqymg03Yg+7sgZCiaXfTD+MA+9kUhmUr8/j295TijxxxIPjU9yFvqaWNa2eK5402e5CslVRqA31jcEPoXrA7/bKbH7AgebSJMKBAAADQotLS0tLS1zZW50cnljbGk5ZjFjLS0NCg==",
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:31",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:393"
+    },
+    {
+      "name": "Cal source maps: and assembles the bundle: created",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/artifactbundle/assemble/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "checksum": "e9080f1276d3040cca84b6a6b5191462d27801a6",
+        "chunks": [
+          "e9080f1276d3040cca84b6a6b5191462d27801a6"
+        ],
+        "projects": [
+          "cal"
+        ],
+        "version": "54343aa685ae8f33159d2f485ec4a57bad5c574a"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "created"
+        },
+        {
+          "path": "missingChunks",
+          "equals": []
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:31",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:1021"
+    },
+    {
+      "name": "Cal source maps: polling, it is ok",
+      "method": "POST",
+      "path": "https://sentry.io/api/0/organizations/harbourline/artifactbundle/assemble/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "checksum": "e9080f1276d3040cca84b6a6b5191462d27801a6",
+        "chunks": [
+          "e9080f1276d3040cca84b6a6b5191462d27801a6"
+        ],
+        "projects": [
+          "cal"
+        ],
+        "version": "54343aa685ae8f33159d2f485ec4a57bad5c574a"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "ok"
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:31",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:1021"
+    },
+    {
+      "name": "The release is finalized",
+      "method": "PUT",
+      "path": "https://sentry.io/api/0/projects/harbourline/cal/releases/54343aa685ae8f33159d2f485ec4a57bad5c574a/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {cal_ci}",
+        "user-agent": "sentry-cli/2.58.4"
+      },
+      "body": {
+        "projects": [
+          "cal"
+        ],
+        "dateReleased": "2026-02-02T10:03:00Z"
+      },
+      "expect": [
+        {
+          "path": "dateReleased",
+          "equals": "2026-02-02T10:03:00Z"
+        }
+      ],
+      "evidence": "calcom/cal.diy@54343aa685ae:apps/web/scripts/create-sentry-release.js:39",
+      "client": "@sentry/cli@2.58.4:src/api/mod.rs:701"
+    }
+  ],
+  "host": "sentry.io"
+}

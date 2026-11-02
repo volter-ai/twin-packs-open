@@ -165,6 +165,9 @@ const worldAppScopes = (): string[] => [...new Set([...allScopes(), 'channels:hi
  *  `connections:write` (`xapp-`) and the app's signing secret and client credentials, the same at every boot (each
  *  drawn from the World's secret). An app a person removed, or whose tokens they revoked, is made again. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
+  const account = await ctx.account();
+  const team = account === 'default' ? HOME_TEAM : `T${ctx.crypto.digest('sha256', account, 'hex').slice(0, 10).toUpperCase()}`;
+  if (account !== 'default' && !ctx.row('team', team)) await ctx.write('team', team, { id: team, name: `World ${account}`, domain: `world-${ctx.crypto.digest('sha256', account, 'hex').slice(0, 16)}`, email_domain: '', _world_account: account }, 'team.create');
   const draw = async (label: string, app: string): Promise<string> => ctx.crypto.digest('sha256', await ctx.secret(`world-app:${label}:${app}`), 'hex');
   const tokensOf = async (app: string): Promise<{ bot: string; app: string }> => {
     const b = await draw('bot', app);
@@ -173,9 +176,9 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   };
   // the World's app still standing: not removed, installed, its tokens not revoked
   let held: Row | undefined;
-  for (const a of ctx.rowsRaw('app').filter((x) => x._world_app === true && x.deleted !== true)) {
+  for (const a of ctx.rowsRaw('app').filter((x) => x._world_app === true && (x._world_account ?? 'default') === account && x.deleted !== true)) {
     const t = await tokensOf(String(a.id));
-    const install = ctx.row('app_install', `${String(a.id)}::${HOME_TEAM}`);
+    const install = ctx.row('app_install', `${String(a.id)}::${team}`);
     if (install?.deleted === true || [t.bot, t.app].some((k) => ctx.row(TOKENS, tokenKey(k))?.revoked === true)) continue;
     held = a;
   }
@@ -183,13 +186,13 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
     display_information: { name: 'World app' },
     features: { bot_user: { display_name: 'world', always_online: true } },
     settings: { socket_mode_enabled: true, event_subscriptions: { bot_events: WORLD_APP_EVENTS } },
-  }, { team: HOME_TEAM });
-  if (!held) await ctx.write('app', String(app.id), { _world_app: true }, 'app.update');
-  const { user, bot } = await botFor(ctx, app, HOME_TEAM);
+  }, { team: team });
+  if (!held) await ctx.write('app', String(app.id), { _world_app: true, _world_account: account }, 'app.update');
+  const { user, bot } = await botFor(ctx, app, team);
   const tokens = await tokensOf(String(app.id));
-  if (!ctx.row(TOKENS, tokenKey(tokens.bot))) await keepToken(ctx, tokens.bot, { user, bot, app: app.id, scopes: worldAppScopes(), team: HOME_TEAM });
-  if (!ctx.row(TOKENS, tokenKey(tokens.app))) await keepToken(ctx, tokens.app, { app: app.id, scopes: ['connections:write'], team: HOME_TEAM, name: 'world' });
-  if (!ctx.row('app_install', `${String(app.id)}::${HOME_TEAM}`)) await ctx.write('app_install', `${String(app.id)}::${HOME_TEAM}`, { team: HOME_TEAM, app: app.id, installed_by: null, at: now(ctx), deleted: false }, 'app.install');
+  if (!ctx.row(TOKENS, tokenKey(tokens.bot))) await keepToken(ctx, tokens.bot, { user, bot, app: app.id, scopes: worldAppScopes(), team: team });
+  if (!ctx.row(TOKENS, tokenKey(tokens.app))) await keepToken(ctx, tokens.app, { app: app.id, scopes: ['connections:write'], team: team, name: 'world' });
+  if (!ctx.row('app_install', `${String(app.id)}::${team}`)) await ctx.write('app_install', `${String(app.id)}::${team}`, { team: team, app: app.id, installed_by: null, at: now(ctx), deleted: false }, 'app.install');
   const credentials = app.credentials as Row;
   return Response.json({ ok: true, app_id: app.id, bot_user_id: user, bot_token: tokens.bot, app_token: tokens.app, signing_secret: credentials.signing_secret, client_id: credentials.client_id, client_secret: credentials.client_secret }, { status: 201 });
 }

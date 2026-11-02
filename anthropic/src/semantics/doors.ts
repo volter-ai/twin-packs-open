@@ -59,10 +59,12 @@ async function makeKey(ctx: HandlerContext, b: Row): Promise<Response> {
 /** POST /_twin/app-credentials: the key the World's application holds (the descriptor's credentialDoor), a key "world" of
  *  owner@world.test's organization: made the first time the runtime asks and the same at every boot after. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
+  const account = await ctx.account();
+  const email = account === 'default' ? 'owner@world.test' : `owner+${ctx.crypto.sha256(account).slice(0, 24)}@world.test`;
   // a held key answers again only while its value still matches what is stored (a branch that made its own seed before
   // the key reached it derives another value, so it issues a new key rather than one that is refused)
-  const held = ctx.rowsRaw(KEY).find((k) => k.name === 'world' && k.created_by === 'owner@world.test' && k.status === 'active' && k.deleted !== true);
+  const held = ctx.rowsRaw(KEY).find((k) => k.name === 'world' && k.created_by === email && k.status === 'active' && k.deleted !== true);
   const again = held ? await keyValue(ctx, String(held.id)) : undefined;
   if (held && again && held._sha256 === ctx.crypto.sha256(again)) return Response.json({ id: held.id, key: again }, { status: 201 });
-  return makeKey(ctx, { email: 'owner@world.test', organization: 'World', name: 'world' });
+  return makeKey(ctx, { email, organization: account === 'default' ? 'World' : `World ${account}`, name: 'world' });
 }

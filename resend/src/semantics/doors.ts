@@ -32,11 +32,14 @@ export async function keys(ctx: HandlerContext): Promise<Response> {
 /** POST /_twin/app-credentials: the key the World's application holds (the descriptor's credentialDoor), of the team
  *  "World": made the first time the runtime asks and the same at every boot after. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
+  const account = await ctx.account();
+  const team = account === 'default' ? 'World' : `World:${account}`;
+  const owner = account === 'default' ? 'owner@world.test' : `owner+${ctx.crypto.sha256(account).slice(0, 24)}@world.test`;
   // a held key answers again only while its value still matches what is stored (a branch that made its own seed before
   // the key reached it derives another value, so it issues a new key rather than one that is refused)
-  const held = ctx.rowsRaw(KEY).find((k) => k.name === 'world' && k._team === 'World' && k.status === 'active' && k.deleted !== true);
+  const held = ctx.rowsRaw(KEY).find((k) => k.name === 'world' && k._team === team && k.status === 'active' && k.deleted !== true);
   const again = held ? await keyToken(ctx, String(held.id)) : undefined;
-  return Response.json(held && again && held._sha256 === ctx.crypto.sha256(again) ? { id: held.id, token: again } : await makeKey(ctx, 'world', 'World', 'owner@world.test'), { status: 201 });
+  return Response.json(held && again && held._sha256 === ctx.crypto.sha256(again) ? { id: held.id, token: again } : await makeKey(ctx, 'world', team, owner), { status: 201 });
 }
 
 /** DELETE /_twin/api-keys/{id}: a key deleted on the API Keys page. */
