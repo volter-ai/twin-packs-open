@@ -1,0 +1,3955 @@
+{
+  "vendor": "aws",
+  "author": "Contributor 82",
+  "host": null,
+  "about": "Larkspur, a twelve-person scheduling SaaS on AWS in us-east-1, over about eighteen months (journeys/customer-life.outline.md): its files in S3 from the applications it runs unchanged (the twin platform's nightly backups and a restore, its team's Rallly, its CRM Twenty with browser uploads behind the bucket's CORS, its team's LibreChat with presigned links and multipart uploads), and its secrets in Secrets Manager: the database credentials and the Stripe key moved out of environment files, a manual and then a Lambda rotation, a resource policy, replication to us-west-2 and a DR drill, an old key retired through its recovery window, quarterly audits, and everything deleted when Larkspur is acquired.",
+  "steps": [
+    {
+      "name": "Monday 5 January, 09:00: Larkspur keeps its files in S3, us-east-1",
+      "wait": "6300m"
+    },
+    {
+      "name": "The World issues the applications' AWS access key (the IAM console's Create access key): Twenty, LibreChat, Rallly and the twin platform's backup job each sign with it",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "capture": {
+        "akid": "access_key_id",
+        "secret": "secret_access_key"
+      }
+    },
+    {
+      "name": "Dana's own access key, as she made it in the IAM console for her user dana (the platform team's)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "user": "dana"
+      },
+      "capture": {
+        "dana_akid": "access_key_id",
+        "dana_secret": "secret_access_key"
+      }
+    },
+    {
+      "name": "Sam's, for his user sam (the platform team's, on call)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "user": "sam"
+      },
+      "capture": {
+        "sam_akid": "access_key_id",
+        "sam_secret": "secret_access_key"
+      }
+    },
+    {
+      "name": "Dana makes larkspur-twenty-files, for Twenty's files",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files",
+      "status": 200,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "/larkspur-twenty-files"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Dana makes larkspur-librechat-files, for LibreChat's attachments",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files",
+      "status": 200,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "/larkspur-librechat-files"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Dana makes larkspur-rallly-files, for Rallly's images",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-rallly-files",
+      "status": 200,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "/larkspur-rallly-files"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Dana lists the account's buckets",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "<Name>larkspur-librechat-files</Name>"
+        },
+        {
+          "path": "",
+          "contains": "<Name>larkspur-rallly-files</Name>"
+        },
+        {
+          "path": "",
+          "contains": "<Name>larkspur-twenty-files</Name>"
+        },
+        {
+          "path": "",
+          "notContains": "Larkspur_Files"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Tuesday 6 January, 02:00: the twin platform's nightly backup",
+      "wait": "1020m"
+    },
+    {
+      "name": "The backup job checks for its bucket: it is missing",
+      "method": "HEAD",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups",
+      "status": 404,
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and makes it",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups",
+      "status": 200,
+      "expect": [
+        {
+          "header": "location",
+          "equals": "/larkspur-platform-backups"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and puts the night's archive",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups/platform-state/2026-01-06T02-00-00-000Z.json",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "x-amz-sdk-checksum-algorithm": "CRC32",
+        "x-amz-checksum-crc32": "szIiDQ=="
+      },
+      "bodyBase64": "eyJtYWRlQXQiOiAiMjAyNi0wMS0wNlQwMjowMDowMC4wMDBaIiwgImZpbGVzIjogeyJwbGF0Zm9ybS5zcWxpdGUiOiAiVTFGTWFYUmxJR1p2Y20xaGRDQXpBQT09IiwgIndvcmxkcy5qc29uIjogImV5SjNiM0pzWkhNaU9sc2liR0Z5YTNOd2RYSXRZWEJwTFdsMElsMTkifX0=",
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"becf5a2a91726672532438c863033097\""
+        },
+        {
+          "header": "x-amz-checksum-crc32",
+          "equals": "szIiDQ=="
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Tuesday 6 January, mid-morning: Dana moves secrets out of environment files",
+      "wait": "480m"
+    },
+    {
+      "name": "Dana stores the production database credentials, which lived in the API's env file, as a JSON secret tagged with its team and environment",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Name": "larkspur/prod/db",
+        "Description": "Production Postgres credentials for the Larkspur API",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"Hq7vN2mXw4Lr9TzK\"}",
+        "ClientRequestToken": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f01",
+        "Tags": [
+          {
+            "Key": "team",
+            "Value": "platform"
+          },
+          {
+            "Key": "env",
+            "Value": "prod"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.CreateSecret"
+      },
+      "capture": {
+        "db": "ARN"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        },
+        {
+          "path": "VersionId",
+          "equals": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f01"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Her CLI times out waiting for the answer and retries with the same client request token; Secrets Manager answers with the secret it already made",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Name": "larkspur/prod/db",
+        "Description": "Production Postgres credentials for the Larkspur API",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"Hq7vN2mXw4Lr9TzK\"}",
+        "ClientRequestToken": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f01",
+        "Tags": [
+          {
+            "Key": "team",
+            "Value": "platform"
+          },
+          {
+            "Key": "env",
+            "Value": "prod"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.CreateSecret"
+      },
+      "expect": [
+        {
+          "path": "ARN",
+          "equals": "{db}"
+        },
+        {
+          "path": "VersionId",
+          "equals": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f01"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Dana grants the API service's role secretsmanager:GetSecretValue on larkspur/prod/db in IAM, an identity policy (docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_iam-policies.html); an hour later the API is redeployed to read its credentials from Secrets Manager",
+      "wait": "1h"
+    },
+    {
+      "name": "STS gives the API service a fresh session of its role, larkspur-api, as it starts (session larkspur-api-1)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-api",
+        "session": "larkspur-api-1"
+      },
+      "capture": {
+        "api1_akid": "access_key_id",
+        "api1_secret": "secret_access_key",
+        "api1_token": "session_token"
+      }
+    },
+    {
+      "name": "The API service boots and reads the database credentials",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{api1_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"Hq7vN2mXw4Lr9TzK\"}"
+        },
+        {
+          "path": "VersionId",
+          "equals": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f01"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{api1_akid}",
+        "secretAccessKey": "{api1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Dana stores the Stripe secret key the nightly billing job and the morning revenue report script need, tagged the same way, and in IAM grants each of their roles GetSecretValue on it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Name": "larkspur/prod/stripe",
+        "Description": "Stripe live secret key for the nightly billing job",
+        "SecretString": "invalid-fixture-stripe-opaque-secret-1",
+        "ClientRequestToken": "2d8f5a61-9c3e-4b7a-8e02-5f1c7d9a3b11",
+        "Tags": [
+          {
+            "Key": "team",
+            "Value": "platform"
+          },
+          {
+            "Key": "env",
+            "Value": "prod"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.CreateSecret"
+      },
+      "capture": {
+        "stripe": "ARN"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/stripe"
+        },
+        {
+          "path": "VersionId",
+          "equals": "2d8f5a61-9c3e-4b7a-8e02-5f1c7d9a3b11"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Wednesday 7 January, 02:00: the next night's backup",
+      "wait": "900m"
+    },
+    {
+      "name": "The backup job checks its bucket: it is there, in us-east-1",
+      "method": "HEAD",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups",
+      "status": 200,
+      "expect": [
+        {
+          "header": "x-amz-bucket-region",
+          "equals": "us-east-1"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and puts the night's archive",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups/platform-state/2026-01-07T02-00-00-000Z.json",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "x-amz-sdk-checksum-algorithm": "CRC32",
+        "x-amz-checksum-crc32": "8hYR5A=="
+      },
+      "bodyBase64": "eyJtYWRlQXQiOiAiMjAyNi0wMS0wN1QwMjowMDowMC4wMDBaIiwgImZpbGVzIjogeyJwbGF0Zm9ybS5zcWxpdGUiOiAiVTFGTWFYUmxJR1p2Y20xaGRDQXpBUT09IiwgIndvcmxkcy5qc29uIjogImV5SjNiM0pzWkhNaU9sc2liR0Z5YTNOd2RYSXRZWEJwTFdsMElpd2lZbWxzYkdsdVp5MXBkQ0pkZlE9PSJ9fQ==",
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"a3eb307ae8a4cb892d1db4489c2cc1f8\""
+        },
+        {
+          "header": "x-amz-checksum-crc32",
+          "equals": "8hYR5A=="
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "09:30: a migration broke the test platform's state; an operator restores yesterday's",
+      "wait": "450m"
+    },
+    {
+      "name": "The platform checks its bucket",
+      "method": "HEAD",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups",
+      "status": 200,
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and lists the archives kept",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups?list-type=2&prefix=platform-state%2F",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "<KeyCount>2</KeyCount>"
+        },
+        {
+          "path": "",
+          "contains": "<Key>platform-state/2026-01-06T02-00-00-000Z.json</Key>"
+        },
+        {
+          "path": "",
+          "contains": "<Key>platform-state/2026-01-07T02-00-00-000Z.json</Key>"
+        },
+        {
+          "path": "",
+          "contains": "<IsTruncated>false</IsTruncated>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "It fetches the 6 January archive and writes its files back",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-platform-backups/platform-state/2026-01-06T02-00-00-000Z.json",
+      "status": 200,
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"becf5a2a91726672532438c863033097\""
+        },
+        {
+          "header": "content-type",
+          "equals": "application/json"
+        },
+        {
+          "path": "",
+          "contains": "\"madeAt\": \"2026-01-06T02:00:00.000Z\""
+        },
+        {
+          "header": "x-amz-checksum-crc32",
+          "equals": "szIiDQ=="
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      },
+      "headers": {
+        "x-amz-checksum-mode": "ENABLED"
+      }
+    },
+    {
+      "name": "Thursday 8 January, 14:00: the team's Rallly",
+      "wait": "1710m"
+    },
+    {
+      "name": "Sam sets an avatar; Rallly's settings name the bucket larkspur-rally-files (a typo), and its upload route is refused",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-rally-files/avatars/usr_sam-1767880800000.png",
+      "status": 404,
+      "headers": {
+        "content-type": "image/png"
+      },
+      "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAGHRFWHRDb21tZW50AHNhbSBhdmF0YXIsIGJsdWVvvMbvAAAADElEQVR42mPQiDoBAAH4AUsXMgTyAAAAAElFTkSuQmCC",
+      "expect": [
+        {
+          "path": "",
+          "contains": "<Code>NoSuchBucket</Code>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Dana fixes S3_BUCKET_NAME and Rallly restarts",
+      "wait": "10m"
+    },
+    {
+      "name": "Sam's avatar goes up through Rallly's upload route",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-rallly-files/avatars/usr_sam-1767881400000.png",
+      "status": 200,
+      "headers": {
+        "content-type": "image/png"
+      },
+      "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAGHRFWHRDb21tZW50AHNhbSBhdmF0YXIsIGJsdWVvvMbvAAAADElEQVR42mPQiDoBAAH4AUsXMgTyAAAAAElFTkSuQmCC",
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"09dd6a0e3fd271d53a730c13cc2be099\""
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "His profile shows it through Rallly's storage route",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-rallly-files/avatars/usr_sam-1767881400000.png",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "image/png"
+        },
+        {
+          "header": "content-length",
+          "equals": "105"
+        },
+        {
+          "path": "",
+          "contains": "sam avatar, blue"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Sam picks a different picture",
+      "wait": "5m"
+    },
+    {
+      "name": "The new avatar goes up",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-rallly-files/avatars/usr_sam-1767881700000.png",
+      "status": 200,
+      "headers": {
+        "content-type": "image/png"
+      },
+      "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAGXRFWHRDb21tZW50AHNhbSBhdmF0YXIsIGdyZWVuLNLsUQAAAAxJREFUeNpj0FgVBQACKgEtiyLzUAAAAABJRU5ErkJggg==",
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"6b625e4243da5632c4bea27555de863e\""
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and Rallly deletes the old one",
+      "method": "DELETE",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-rallly-files/avatars/usr_sam-1767881400000.png",
+      "status": 204,
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "A page still holding the old link gets nothing",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-rallly-files/avatars/usr_sam-1767881400000.png",
+      "status": 404,
+      "expect": [
+        {
+          "path": "",
+          "contains": "<Code>NoSuchKey</Code>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Monday 12 January, 11:00: Priya works in Twenty, the CRM",
+      "wait": "5565m"
+    },
+    {
+      "name": "Priya uploads a prospect's logo; her browser's preflight to the presigned upload URL is refused: the bucket has no CORS rules",
+      "method": "OPTIONS",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-3f2a/pending/7f3c9a2e-5b1d-4c8e-a0f4-2d9b6e1c3a57/orbit-logo.png",
+      "status": 403,
+      "headers": {
+        "origin": "https://crm.larkspur.app",
+        "access-control-request-method": "PUT",
+        "access-control-request-headers": "content-type"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "<Code>AccessForbidden</Code>"
+        },
+        {
+          "path": "",
+          "contains": "CORS is not enabled for this bucket"
+        }
+      ]
+    },
+    {
+      "name": "Dana adds a CORS rule for the CRM's origin: PUT and GET, any header",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files?cors",
+      "status": 200,
+      "headers": {
+        "content-type": "application/xml",
+        "content-md5": "O2y/8I3wMe4z3ACgABD0Lw=="
+      },
+      "body": "<CORSConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><CORSRule><AllowedOrigin>https://crm.larkspur.app</AllowedOrigin><AllowedMethod>PUT</AllowedMethod><AllowedMethod>GET</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3000</MaxAgeSeconds></CORSRule></CORSConfiguration>",
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "The preflight now passes",
+      "method": "OPTIONS",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-3f2a/pending/7f3c9a2e-5b1d-4c8e-a0f4-2d9b6e1c3a57/orbit-logo.png",
+      "status": 200,
+      "headers": {
+        "origin": "https://crm.larkspur.app",
+        "access-control-request-method": "PUT",
+        "access-control-request-headers": "content-type"
+      },
+      "expect": [
+        {
+          "header": "access-control-allow-origin",
+          "equals": "https://crm.larkspur.app"
+        },
+        {
+          "header": "access-control-max-age",
+          "equals": "3000"
+        }
+      ]
+    },
+    {
+      "name": "Her browser PUTs the logo to the presigned upload URL Twenty gave it, which signs its type and length",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-3f2a/pending/7f3c9a2e-5b1d-4c8e-a0f4-2d9b6e1c3a57/orbit-logo.png?x-id=PutObject&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={akid}%2F20260112%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260112T110000Z&X-Amz-Expires=900&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost&X-Amz-Signature=00",
+      "status": 200,
+      "headers": {
+        "origin": "https://crm.larkspur.app",
+        "content-type": "image/png",
+        "content-length": "104"
+      },
+      "bodyBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAF3RFWHRDb21tZW50AG9yYml0IGFwcHMgbG9nb3VNZBgAAAAMSURBVHjaY/hQIQcAA+IBh2EJAn8AAAAASUVORK5CYII=",
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"7b0a77feb4c42ea5116594618532bc11\""
+        },
+        {
+          "header": "access-control-allow-origin",
+          "equals": "https://crm.larkspur.app"
+        }
+      ],
+      "presign": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}"
+      }
+    },
+    {
+      "name": "Twenty moves it into the company's folder: a copy",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-3f2a/company-logos/orbit-logo.png",
+      "status": 200,
+      "headers": {
+        "x-amz-copy-source": "/larkspur-twenty-files/workspace-3f2a/pending/7f3c9a2e-5b1d-4c8e-a0f4-2d9b6e1c3a57/orbit-logo.png"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "<ETag>&quot;7b0a77feb4c42ea5116594618532bc11&quot;</ETag>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "then the pending upload deleted",
+      "method": "DELETE",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-3f2a/pending/7f3c9a2e-5b1d-4c8e-a0f4-2d9b6e1c3a57/orbit-logo.png",
+      "status": 204,
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Twenty stores the prospect's contract from its server",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-3f2a/attachment/orbit-msa.pdf",
+      "status": 200,
+      "headers": {
+        "content-type": "application/pdf",
+        "x-amz-sdk-checksum-algorithm": "CRC32",
+        "x-amz-checksum-crc32": "+eolGw=="
+      },
+      "bodyBase64": "JVBERi0xLjcKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA1IDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA2NyA+PgpzdHJlYW0KQlQgL0YxIDE4IFRmIDcyIDcyMCBUZCAoT3JiaXQgQXBwcyBtYXN0ZXIgc2VydmljZXMgYWdyZWVtZW50KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDM1OCAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQyOAolJUVPRgo=",
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"91fedbb59077ffb2b45c33a8555816ce\""
+        },
+        {
+          "header": "x-amz-checksum-crc32",
+          "equals": "+eolGw=="
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Dana tries Twenty in a sandbox workspace: an import file",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-sbx1/imports/companies.csv",
+      "status": 200,
+      "headers": {
+        "content-type": "text/csv",
+        "x-amz-sdk-checksum-algorithm": "CRC32",
+        "x-amz-checksum-crc32": "l6T7zw=="
+      },
+      "bodyBase64": "bmFtZSxkb21haW4KT3JiaXQgQXBwcyxvcmJpdC5leGFtcGxlCg==",
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      },
+      "expect": [
+        {
+          "header": "x-amz-checksum-crc32",
+          "equals": "l6T7zw=="
+        }
+      ]
+    },
+    {
+      "name": "and an attachment",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-sbx1/attachment/try.pdf",
+      "status": 200,
+      "headers": {
+        "content-type": "application/pdf",
+        "x-amz-sdk-checksum-algorithm": "CRC32",
+        "x-amz-checksum-crc32": "UHM8jA=="
+      },
+      "bodyBase64": "JVBERi0xLjcKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA1IDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0OSA+PgpzdHJlYW0KQlQgL0YxIDE4IFRmIDcyIDcyMCBUZCAoc2FuZGJveCBhdHRhY2htZW50KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDM0MCAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQxMAolJUVPRgo=",
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      },
+      "expect": [
+        {
+          "header": "x-amz-checksum-crc32",
+          "equals": "UHM8jA=="
+        }
+      ]
+    },
+    {
+      "name": "Priya opens the contract through the presigned link Twenty gives her browser, naming its type, disposition and caching",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files/workspace-3f2a/attachment/orbit-msa.pdf?response-cache-control=private%2C%20max-age%3D3600&response-content-disposition=inline&response-content-type=application%2Fpdf&x-id=GetObject&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={akid}%2F20260112%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260112T110000Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=00",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "application/pdf"
+        },
+        {
+          "header": "content-disposition",
+          "equals": "inline"
+        },
+        {
+          "header": "cache-control",
+          "equals": "private, max-age=3600"
+        },
+        {
+          "path": "",
+          "contains": "master services agreement"
+        }
+      ],
+      "presign": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}"
+      }
+    },
+    {
+      "name": "Tuesday 13 January, 15:00: the team's LibreChat",
+      "wait": "1680m"
+    },
+    {
+      "name": "A person attaches a PDF; LibreChat stores it",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/plan-q1.pdf",
+      "status": 200,
+      "headers": {
+        "content-type": "application/pdf"
+      },
+      "bodyBase64": "JVBERi0xLjcKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA1IDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NSA+PgpzdHJlYW0KQlQgL0YxIDE4IFRmIDcyIDcyMCBUZCAocXVhcnRlcmx5IHBsYW4pIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzM2IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDA2CiUlRU9GCg==",
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"ec3fbcc9d3df16b6e931c6ccf46c28e7\""
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "It signs a download link for the file, good for an hour and naming it as an attachment, and the browser opens it",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/plan-q1.pdf?response-content-disposition=attachment%3B%20filename%3D%22plan-q1.pdf%22&response-content-type=application%2Fpdf&x-id=GetObject&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={akid}%2F20260113%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260113T150000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=00",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "quarterly plan"
+        },
+        {
+          "header": "content-disposition",
+          "equals": "attachment; filename=\"plan-q1.pdf\""
+        }
+      ],
+      "presign": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}"
+      }
+    },
+    {
+      "name": "17:00: the person opens the link again, two hours later",
+      "wait": "120m"
+    },
+    {
+      "name": "The link has expired",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/plan-q1.pdf?response-content-disposition=attachment%3B%20filename%3D%22plan-q1.pdf%22&response-content-type=application%2Fpdf&x-id=GetObject&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={akid}%2F20260113%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260113T150000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=00",
+      "status": 403,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Request has expired"
+        }
+      ],
+      "presign": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}"
+      }
+    },
+    {
+      "name": "A call recording is uploaded in parts: LibreChat starts a multipart upload",
+      "method": "POST",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/call.m4a?uploads",
+      "status": 200,
+      "headers": {
+        "content-type": "audio/mp4"
+      },
+      "capture": {
+        "up": "text:<UploadId>([^<]+)</UploadId>"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "<Key>uploads/user_61a/call.m4a</Key>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "its one part (the last part of an upload may be any size)",
+      "method": "PUT",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/call.m4a?partNumber=1&uploadId={up}",
+      "status": 200,
+      "bodyBase64": "AAAAHGZ0eXBNNEEgAAACAE00QSBpc29taXNvMgAAAuJtb292AAAAbG12aGQAAAAAAAAAAAAAAAAAAAPoAAAAyAABAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAACMXRyYWsAAABcdGtoZAAAAAMAAAAAAAAAAAAAAAEAAAAAAAAAyAAAAAAAAAAAAAAAAQEAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAMgAAAQAAAEAAAAAAaltZGlhAAAAIG1kaGQAAAAAAAAAAAAAAAAAAB9AAAAKQFXEAAAAAAAtaGRscgAAAAAAAAAAc291bgAAAAAAAAAAAAAAAFNvdW5kSGFuZGxlcgAAAAFUbWluZgAAABBzbWhkAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsIAAAAAEAAAEYc3RibAAAAGpzdHNkAAAAAAAAAAEAAABabXA0YQAAAAAAAAABAAAAAAAAAAAAAQAQAAAAAB9AAAAAAAA2ZXNkcwAAAAADgICAJQABAASAgIAXQBUAAAAAAFVdAABVXQWAgIAFFYhW5QAGgICAAQIAAAAgc3R0cwAAAAAAAAACAAAAAgAABAAAAAABAAACQAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAwAAAAEAAAAgc3RzegAAAAAAAAAAAAAAAwAAAVQAAAFAAAAA7AAAABRzdGNvAAAAAAAAAAEAAAMOAAAAGnNncGQBAAAAcm9sbAAAAAIAAAAB//8AAAAcc2JncAAAAAByb2xsAAAAAQAAAAMAAAABAAAAPXVkdGEAAAA1bWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAIaWxzdAAAAAhmcmVlAAADiG1kYXQBGlOtdORzVX6y+36frwuVV7SSOSIki4GYsw5izDmLMPrXrvrXrvr31HurtXurtXurtX9t+1/Xftf439WmqZpq2aatmLTzMU801TOYs07G1rsbm2LTzMVO2ViOXsw8XdU/YplHHW7M7j6Pxr78ptcGrdNU7ZXuPWu29W6LtWu5VjcdYbllOvZTjsbYrjYrjYrjYqzWqzWo1+jX59fn1UpVKVSlUpXKX5SqUqlKokokokokokokokokokokokokokokokokokokokokokokokokokokokokokokokpwU4KcOZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZTJkyBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGB8APSe2bFhdcIh1mMxKC7MZOX8Z/+3/t9641xdxK9fp/6f+f30S7uaz9vt/+H/z+INW4vP2/b/t/5/raNS9aWXRSBwGXRyTieHtQU0l9OI8aqKKKKKKKKKKKO1rWX5C5F+vBdggcI/1hviHvIFxhuuD4Sb4+n5PT6PL1lzIsZi1wlbUT7B/WK1Dcx8s0Z8sDPpgZNMeWGFtmyjRfYiLNhHy3LdsnQuja+zD7NmyPbYdt/I335S2RvbuadXemUeetw9Pec+3S9Rh8UnVJ6SHqQ9bx3/Gfxm4aGnQ0qXl3HXsOTZU5FngsZV1kHbfaddNZzzzzzzqVPOqedU8886p1bDzzzz0FBdSkN/4H8+Oy7Bvidvbkbmnk1XrZz+4/qqOmDZeO9kpbG6uaX0bUwMSJXgYGrklKir2DuZaezezFFek4AA8p+2/yH5D8vfn/6f+33101d3ICOhz5LTaEAACMeISmyAAAIwGEpsYAAIi/QAAJLHZogAAJUoJGQkAACVJxGWkAACWIkEcBCJWmkaqQAAAAAlQKRmjJSgYDHAAAAACVYWPaV3ULFmgAAAAFnWKlq0VTlWgAAAAAStctW1Q9iVK1B1KwpAAAAAAAAXffwC7j+2QshJ1xEKwydQhCmUAAAAAAAAAACdlBCuknWSQqLJ1FkKTCdFpCg0nPcQnPAAAAAAAAAAAAACdOIQpRCdGKQoRic+OQnxyc6QQmyScyUQlywAAAAAAAAAAAADgA==",
+      "capture": {
+        "p1": "header:etag"
+      },
+      "expect": [
+        {
+          "header": "etag",
+          "equals": "\"868b117ba98c4cad33b93db1facbfbd8\""
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and completes it",
+      "method": "POST",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/call.m4a?uploadId={up}",
+      "status": 200,
+      "headers": {
+        "content-type": "application/xml"
+      },
+      "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag>{p1}</ETag></Part></CompleteMultipartUpload>",
+      "expect": [
+        {
+          "path": "",
+          "contains": "<Key>uploads/user_61a/call.m4a</Key>"
+        },
+        {
+          "path": "",
+          "contains": "-1&quot;</ETag>"
+        },
+        {
+          "path": "",
+          "contains": "<Location>https://larkspur-librechat-files.s3.us-east-1.amazonaws.com/uploads/user_61a/call.m4a</Location>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "LibreChat streams it to the person",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/call.m4a",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-length",
+          "equals": "1678"
+        },
+        {
+          "path": "",
+          "contains": "ftypM4A"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "The person deletes the PDF: LibreChat checks it is there",
+      "method": "HEAD",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/plan-q1.pdf",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "application/pdf"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and deletes it",
+      "method": "DELETE",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/plan-q1.pdf",
+      "status": 204,
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Ten minutes later the person deletes the PDF again from a second browser tab that still lists it",
+      "wait": "10m"
+    },
+    {
+      "name": "LibreChat checks it is there before deleting it: it is gone, so nothing more is deleted",
+      "method": "HEAD",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-librechat-files/uploads/user_61a/plan-q1.pdf",
+      "status": 404,
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Monday 2 February, 10:00: Dana deletes her Twenty sandbox workspace",
+      "wait": "28370m"
+    },
+    {
+      "name": "First she opens larkspur-twenty-files in the S3 console, which lists it one folder level at a time: the CRM's workspace and her sandbox's",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files?list-type=2&delimiter=%2F",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "<CommonPrefixes><Prefix>workspace-3f2a/</Prefix></CommonPrefixes>"
+        },
+        {
+          "path": "",
+          "contains": "<CommonPrefixes><Prefix>workspace-sbx1/</Prefix></CommonPrefixes>"
+        },
+        {
+          "path": "",
+          "contains": "<KeyCount>2</KeyCount>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "Twenty lists the workspace's files",
+      "method": "GET",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files?list-type=2&prefix=workspace-sbx1%2F",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "<KeyCount>2</KeyCount>"
+        },
+        {
+          "path": "",
+          "contains": "<Key>workspace-sbx1/imports/companies.csv</Key>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "and deletes them in one request",
+      "method": "POST",
+      "path": "https://s3.us-east-1.amazonaws.com/larkspur-twenty-files?delete",
+      "status": 200,
+      "headers": {
+        "content-type": "application/xml",
+        "content-md5": "0dGoN71fnMhuH6elxUTTOA=="
+      },
+      "body": "<Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>workspace-sbx1/attachment/try.pdf</Key></Object><Object><Key>workspace-sbx1/imports/companies.csv</Key></Object></Delete>",
+      "expect": [
+        {
+          "path": "",
+          "contains": "<Deleted><Key>workspace-sbx1/attachment/try.pdf</Key></Deleted>"
+        },
+        {
+          "path": "",
+          "contains": "<Deleted><Key>workspace-sbx1/imports/companies.csv</Key></Deleted>"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{akid}",
+        "secretAccessKey": "{secret}",
+        "region": "us-east-1",
+        "service": "s3"
+      }
+    },
+    {
+      "name": "A Monday morning in February: the team is adding Redis",
+      "wait": "168h"
+    },
+    {
+      "name": "Dana stores the Redis auth token as a secret before the cache worker that reads it is deployed",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Name": "larkspur/prod/redis",
+        "Description": "ElastiCache Redis auth token for the cache worker",
+        "SecretString": "r3dis-Auth-9fK2mQ7xLw4Tz8Vb",
+        "ClientRequestToken": "5e3b9c20-7a41-4d6f-b8e9-0c2a6f4d8e21",
+        "Tags": [
+          {
+            "Key": "team",
+            "Value": "platform"
+          },
+          {
+            "Key": "env",
+            "Value": "prod"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.CreateSecret"
+      },
+      "capture": {
+        "redis": "ARN"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/redis"
+        },
+        {
+          "path": "VersionId",
+          "equals": "5e3b9c20-7a41-4d6f-b8e9-0c2a6f4d8e21"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The next afternoon Dana grants the cache worker's role GetSecretValue on larkspur/prod/redis in IAM, and the worker is deployed",
+      "wait": "28h"
+    },
+    {
+      "name": "STS gives the cache worker a fresh session of its role, larkspur-cache-worker, as it starts (session larkspur-cache-worker-1)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-cache-worker",
+        "session": "larkspur-cache-worker-1"
+      },
+      "capture": {
+        "cache1_akid": "access_key_id",
+        "cache1_secret": "secret_access_key",
+        "cache1_token": "session_token"
+      }
+    },
+    {
+      "name": "The cache worker reads the Redis auth token on its first boot",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/redis"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{cache1_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "r3dis-Auth-9fK2mQ7xLw4Tz8Vb"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{cache1_akid}",
+        "secretAccessKey": "{cache1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "A Thursday in March: a contractor who knew the database password left yesterday",
+      "wait": "716h"
+    },
+    {
+      "name": "Dana asks Secrets Manager for a new 32-character database password without punctuation, which the database driver mishandles",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "PasswordLength": 32,
+        "ExcludePunctuation": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetRandomPassword"
+      },
+      "capture": {
+        "pw": "RandomPassword"
+      },
+      "expect": [
+        {
+          "path": "RandomPassword",
+          "exists": true
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She stores it as a new version staged AWSPENDING, so the API keeps reading the current password meanwhile",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw}\"}",
+        "ClientRequestToken": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f02",
+        "VersionStages": [
+          "AWSPENDING"
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutSecretValue"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f02"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSPENDING"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She sets the new password on the database and checks a login with it",
+      "wait": "20m"
+    },
+    {
+      "name": "The login works, so she moves AWSCURRENT to the new version; the old one becomes AWSPREVIOUS, and AWSPENDING stays on the new one, as a finished rotation may leave it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "VersionStage": "AWSCURRENT",
+        "MoveToVersionId": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f02",
+        "RemoveFromVersionId": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f01"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.UpdateSecretVersionStage"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "That afternoon the API is deployed again",
+      "wait": "280m"
+    },
+    {
+      "name": "STS gives the API service a fresh session of its role, larkspur-api, as it starts (session larkspur-api-2)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-api",
+        "session": "larkspur-api-2"
+      },
+      "capture": {
+        "api2_akid": "access_key_id",
+        "api2_secret": "secret_access_key",
+        "api2_token": "session_token"
+      }
+    },
+    {
+      "name": "The API service boots and picks up the new password",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{api2_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "7c2a4e10-3b5d-4f8e-9a61-0d2c5b8e1f02"
+        },
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw}\"}"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSPENDING",
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{api2_akid}",
+        "secretAccessKey": "{api2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Early April: the first quarterly security review",
+      "wait": "499h"
+    },
+    {
+      "name": "For the security review Dana lists the production secrets by their env tag; none has been rotated by Secrets Manager yet (March's change was made by hand)",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Filters": [
+          {
+            "Key": "tag-key",
+            "Values": [
+              "env"
+            ]
+          },
+          {
+            "Key": "tag-value",
+            "Values": [
+              "prod"
+            ]
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ListSecrets"
+      },
+      "expect": [
+        {
+          "path": "SecretList.0.Name",
+          "equals": "larkspur/prod/db"
+        },
+        {
+          "path": "SecretList.1.Name",
+          "equals": "larkspur/prod/stripe"
+        },
+        {
+          "path": "SecretList.2.Name",
+          "equals": "larkspur/prod/redis"
+        },
+        {
+          "path": "SecretList.3",
+          "exists": false
+        },
+        {
+          "path": "SecretList.0.LastRotatedDate",
+          "exists": false
+        },
+        {
+          "path": "SecretList.1.LastRotatedDate",
+          "exists": false
+        },
+        {
+          "path": "SecretList.2.LastRotatedDate",
+          "exists": false
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Mid-April: Dana locks the database secret down",
+      "wait": "288h"
+    },
+    {
+      "name": "Dana validates her draft policy that denies reading the database secret's value to everyone but the API service's role; the role ARN in its Principal is missing the account id, and validation refuses it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "ResourcePolicy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ReadersMayRead\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam:::role/larkspur-api\"]},\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\"},{\"Sid\":\"NoOneElseReads\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\",\"Condition\":{\"ArnNotEquals\":{\"aws:PrincipalArn\":[\"arn:aws:iam::000000000000:role/larkspur-api\"]}}}]}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ValidateResourcePolicy"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "__type",
+          "equals": "MalformedPolicyDocumentException"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She puts the account id in the ARN and validates again; it passes",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "ResourcePolicy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ReadersMayRead\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/larkspur-api\"]},\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\"},{\"Sid\":\"NoOneElseReads\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\",\"Condition\":{\"ArnNotEquals\":{\"aws:PrincipalArn\":[\"arn:aws:iam::000000000000:role/larkspur-api\"]}}}]}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ValidateResourcePolicy"
+      },
+      "expect": [
+        {
+          "path": "PolicyValidationPassed",
+          "equals": true
+        },
+        {
+          "path": "ValidationErrors",
+          "equals": []
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She attaches the policy, blocking any policy that would open the secret to everyone",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "ResourcePolicy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ReadersMayRead\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/larkspur-api\"]},\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\"},{\"Sid\":\"NoOneElseReads\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\",\"Condition\":{\"ArnNotEquals\":{\"aws:PrincipalArn\":[\"arn:aws:iam::000000000000:role/larkspur-api\"]}}}]}",
+        "BlockPublicPolicy": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutResourcePolicy"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Early June: Dana deploys the PostgreSQL single-user rotation function from AWS's template, with punctuation excluded, which creates its role with the Secrets Manager permissions the function needs on this secret",
+      "wait": "1176h"
+    },
+    {
+      "name": "She adds the rotation function's role to the policy's readers, since the function must read the secret to rotate it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "ResourcePolicy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ReadersMayRead\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/larkspur-api\",\"arn:aws:iam::000000000000:role/larkspur-db-rotation-role\"]},\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\"},{\"Sid\":\"NoOneElseReads\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\",\"Condition\":{\"ArnNotEquals\":{\"aws:PrincipalArn\":[\"arn:aws:iam::000000000000:role/larkspur-api\",\"arn:aws:iam::000000000000:role/larkspur-db-rotation-role\"]}}}]}",
+        "BlockPublicPolicy": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutResourcePolicy"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She turns on rotation every 90 days, the database team's policy, with that function, rotating once now; her token becomes the new version's id",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "RotationLambdaARN": "arn:aws:lambda:us-east-1:000000000000:function:larkspur-db-rotation",
+        "RotationRules": {
+          "AutomaticallyAfterDays": 90
+        },
+        "ClientRequestToken": "c47a2e18-6b90-4d3f-a5c1-9e8f2b7d4a51"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.RotateSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        },
+        {
+          "path": "VersionId",
+          "equals": "c47a2e18-6b90-4d3f-a5c1-9e8f2b7d4a51"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "A minute later: Secrets Manager has invoked the rotation function for create_secret",
+      "wait": "1m"
+    },
+    {
+      "name": "STS gives the rotation function a fresh session of its role, larkspur-db-rotation-role, as it starts (session larkspur-db-rotation-1)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-db-rotation-role",
+        "session": "larkspur-db-rotation-1"
+      },
+      "capture": {
+        "rot1_akid": "access_key_id",
+        "rot1_secret": "secret_access_key",
+        "rot1_token": "session_token"
+      }
+    },
+    {
+      "name": "create_secret: the rotation function reads the event it was invoked with: the secret, a new version token and a rotation token",
+      "method": "GET",
+      "path": "/_twin/rotation-invocations?secret=larkspur/prod/db&step=create_secret",
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "authorization": "AWS4-HMAC-SHA256 Credential={rot1_akid}/20260602/us-east-1/secretsmanager/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=0f3c",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "capture": {
+        "rsid1": "Invocations.0.SecretId",
+        "tok1": "Invocations.0.ClientRequestToken",
+        "rt1": "Invocations.0.RotationToken"
+      },
+      "expect": [
+        {
+          "path": "Invocations.0.Step",
+          "equals": "create_secret"
+        },
+        {
+          "path": "Invocations.0.InvokedAt",
+          "equals": 1780394400
+        }
+      ]
+    },
+    {
+      "name": "It reads the current credentials to copy their connection details",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid1}",
+        "VersionStage": "AWSCURRENT"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot1_akid}",
+        "secretAccessKey": "{rot1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "As the template does before making one, it looks for a value under its pending version; Secrets Manager has made the version but nothing is in it yet",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid1}",
+        "VersionId": "{tok1}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "__type",
+          "equals": "ResourceNotFoundException"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot1_akid}",
+        "secretAccessKey": "{rot1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It asks for a new password without punctuation, as Dana configured it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "PasswordLength": 32,
+        "ExcludePunctuation": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetRandomPassword",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "capture": {
+        "pw1": "RandomPassword"
+      },
+      "expect": [
+        {
+          "path": "RandomPassword",
+          "exists": true
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot1_akid}",
+        "secretAccessKey": "{rot1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It stores the new credentials under its version token, staged AWSPENDING, with the rotation token that vouches for its role",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid1}",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw1}\"}",
+        "ClientRequestToken": "{tok1}",
+        "RotationToken": "{rt1}",
+        "VersionStages": [
+          "AWSPENDING"
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutSecretValue",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "{tok1}"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSPENDING"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot1_akid}",
+        "secretAccessKey": "{rot1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "set_secret: Secrets Manager invokes the function again, with the same tokens",
+      "wait": "1m"
+    },
+    {
+      "name": "The function reads the pending credentials and sets that password on the database (outside Secrets Manager)",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid1}",
+        "VersionId": "{tok1}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw1}\"}"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot1_akid}",
+        "secretAccessKey": "{rot1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "test_secret: the function logs in to the database with the pending password, outside Secrets Manager, and it works",
+      "wait": "1m"
+    },
+    {
+      "name": "finish_secret: the function looks up which version is current",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid1}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "capture": {
+        "cur1": "text:\"([0-9a-f-]{36})\":\\[\"AWSCURRENT\""
+      },
+      "sigv4": {
+        "accessKeyId": "{rot1_akid}",
+        "secretAccessKey": "{rot1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "and moves AWSCURRENT from it to the new version, which finishes the rotation",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid1}",
+        "VersionStage": "AWSCURRENT",
+        "MoveToVersionId": "{tok1}",
+        "RemoveFromVersionId": "{cur1}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.UpdateSecretVersionStage",
+        "x-amz-security-token": "{rot1_token}"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot1_akid}",
+        "secretAccessKey": "{rot1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "That afternoon Dana checks the schedule",
+      "wait": "237m"
+    },
+    {
+      "name": "She reads the secret's details: rotated at 10:00 today, rotation on every 90 days, the next due by the end of 31 August",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret"
+      },
+      "expect": [
+        {
+          "path": "RotationEnabled",
+          "equals": true
+        },
+        {
+          "path": "RotationLambdaARN",
+          "equals": "arn:aws:lambda:us-east-1:000000000000:function:larkspur-db-rotation"
+        },
+        {
+          "path": "RotationRules.AutomaticallyAfterDays",
+          "equals": 90
+        },
+        {
+          "path": "LastRotatedDate",
+          "equals": 1780394580
+        },
+        {
+          "path": "NextRotationDate",
+          "equals": 1788220799
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "At 09:00 the next day the API service is redeployed",
+      "wait": "19h"
+    },
+    {
+      "name": "STS gives the API service a fresh session of its role, larkspur-api, as it starts (session larkspur-api-3)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-api",
+        "session": "larkspur-api-3"
+      },
+      "capture": {
+        "api3_akid": "access_key_id",
+        "api3_secret": "secret_access_key",
+        "api3_token": "session_token"
+      }
+    },
+    {
+      "name": "The API service boots and reads AWSCURRENT, now the rotated credentials",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{api3_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "c47a2e18-6b90-4d3f-a5c1-9e8f2b7d4a51"
+        },
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw1}\"}"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{api3_akid}",
+        "secretAccessKey": "{api3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "1 July: the second quarterly security review",
+      "wait": "673h"
+    },
+    {
+      "name": "Dana lists the production secrets for the review; the database secret shows it was last rotated on 2 June",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Filters": [
+          {
+            "Key": "tag-key",
+            "Values": [
+              "env"
+            ]
+          },
+          {
+            "Key": "tag-value",
+            "Values": [
+              "prod"
+            ]
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ListSecrets"
+      },
+      "expect": [
+        {
+          "path": "SecretList.0.Name",
+          "equals": "larkspur/prod/db"
+        },
+        {
+          "path": "SecretList.1.Name",
+          "equals": "larkspur/prod/stripe"
+        },
+        {
+          "path": "SecretList.2.Name",
+          "equals": "larkspur/prod/redis"
+        },
+        {
+          "path": "SecretList.3",
+          "exists": false
+        },
+        {
+          "path": "SecretList.0.LastRotatedDate",
+          "equals": 1780394580
+        },
+        {
+          "path": "SecretList.0.RotationEnabled",
+          "equals": true
+        },
+        {
+          "path": "SecretList.1.LastRotatedDate",
+          "exists": false
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "31 August 2026, a minute past midnight UTC: the database secret's 90-day rotation window opened at midnight, and Secrets Manager has invoked the rotation function",
+      "wait": "87241m"
+    },
+    {
+      "name": "STS gives the rotation function a fresh session of its role, larkspur-db-rotation-role, as it starts (session larkspur-db-rotation-2)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-db-rotation-role",
+        "session": "larkspur-db-rotation-2"
+      },
+      "capture": {
+        "rot2_akid": "access_key_id",
+        "rot2_secret": "secret_access_key",
+        "rot2_token": "session_token"
+      }
+    },
+    {
+      "name": "create_secret: the rotation function reads the event it was invoked with: the secret, a new version token and a rotation token",
+      "method": "GET",
+      "path": "/_twin/rotation-invocations?secret=larkspur/prod/db&step=create_secret",
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "authorization": "AWS4-HMAC-SHA256 Credential={rot2_akid}/20260831/us-east-1/secretsmanager/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=0f3c",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "capture": {
+        "rsid2": "Invocations.0.SecretId",
+        "tok2": "Invocations.0.ClientRequestToken",
+        "rt2": "Invocations.0.RotationToken"
+      },
+      "expect": [
+        {
+          "path": "Invocations.0.Step",
+          "equals": "create_secret"
+        },
+        {
+          "path": "Invocations.0.InvokedAt",
+          "equals": 1788134400
+        }
+      ]
+    },
+    {
+      "name": "It reads the current credentials to copy their connection details",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid2}",
+        "VersionStage": "AWSCURRENT"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot2_akid}",
+        "secretAccessKey": "{rot2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "As the template does before making one, it looks for a value under its pending version; Secrets Manager has made the version but nothing is in it yet",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid2}",
+        "VersionId": "{tok2}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "__type",
+          "equals": "ResourceNotFoundException"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot2_akid}",
+        "secretAccessKey": "{rot2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It asks for a new password without punctuation, as Dana configured it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "PasswordLength": 32,
+        "ExcludePunctuation": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetRandomPassword",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "capture": {
+        "pw2": "RandomPassword"
+      },
+      "expect": [
+        {
+          "path": "RandomPassword",
+          "exists": true
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot2_akid}",
+        "secretAccessKey": "{rot2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It stores the new credentials under its version token, staged AWSPENDING, with the rotation token that vouches for its role",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid2}",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw2}\"}",
+        "ClientRequestToken": "{tok2}",
+        "RotationToken": "{rt2}",
+        "VersionStages": [
+          "AWSPENDING"
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutSecretValue",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "{tok2}"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSPENDING"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot2_akid}",
+        "secretAccessKey": "{rot2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "set_secret: Secrets Manager invokes the function again, with the same tokens",
+      "wait": "1m"
+    },
+    {
+      "name": "The function reads the pending credentials and sets that password on the database (outside Secrets Manager)",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid2}",
+        "VersionId": "{tok2}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw2}\"}"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot2_akid}",
+        "secretAccessKey": "{rot2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "test_secret: the function logs in to the database with the pending password, outside Secrets Manager, and it works",
+      "wait": "1m"
+    },
+    {
+      "name": "finish_secret: the function looks up which version is current",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid2}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "capture": {
+        "cur2": "text:\"([0-9a-f-]{36})\":\\[\"AWSCURRENT\""
+      },
+      "sigv4": {
+        "accessKeyId": "{rot2_akid}",
+        "secretAccessKey": "{rot2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "and moves AWSCURRENT from it to the new version, which finishes the rotation",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid2}",
+        "VersionStage": "AWSCURRENT",
+        "MoveToVersionId": "{tok2}",
+        "RemoveFromVersionId": "{cur2}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.UpdateSecretVersionStage",
+        "x-amz-security-token": "{rot2_token}"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot2_akid}",
+        "secretAccessKey": "{rot2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "September: an enterprise customer's contract requires cross-region disaster recovery",
+      "wait": "12117m"
+    },
+    {
+      "name": "Dana adds the us-west-2 DR app's role to the policy's readers",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "ResourcePolicy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ReadersMayRead\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/larkspur-api\",\"arn:aws:iam::000000000000:role/larkspur-db-rotation-role\",\"arn:aws:iam::000000000000:role/larkspur-dr-app\"]},\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\"},{\"Sid\":\"NoOneElseReads\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\",\"Condition\":{\"ArnNotEquals\":{\"aws:PrincipalArn\":[\"arn:aws:iam::000000000000:role/larkspur-api\",\"arn:aws:iam::000000000000:role/larkspur-db-rotation-role\",\"arn:aws:iam::000000000000:role/larkspur-dr-app\"]}}}]}",
+        "BlockPublicPolicy": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutResourcePolicy"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She replicates the database secret to us-west-2; the replica is being made",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "AddReplicaRegions": [
+          {
+            "Region": "us-west-2"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ReplicateSecretToRegions"
+      },
+      "expect": [
+        {
+          "path": "ReplicationStatus.0.Region",
+          "equals": "us-west-2"
+        },
+        {
+          "path": "ReplicationStatus.0.Status",
+          "equals": "InProgress"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Dana adds the replica to the DR runbook meanwhile",
+      "wait": "10m"
+    },
+    {
+      "name": "She checks the replica's status: us-west-2 now reads InSync",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret"
+      },
+      "expect": [
+        {
+          "path": "ReplicationStatus.0.Region",
+          "equals": "us-west-2"
+        },
+        {
+          "path": "ReplicationStatus.0.Status",
+          "equals": "InSync"
+        },
+        {
+          "path": "PrimaryRegion",
+          "equals": "us-east-1"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "and that the replica carries the policy, so only the three roles can read it there",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetResourcePolicy"
+      },
+      "expect": [
+        {
+          "path": "ResourcePolicy",
+          "equals": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ReadersMayRead\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/larkspur-api\",\"arn:aws:iam::000000000000:role/larkspur-db-rotation-role\",\"arn:aws:iam::000000000000:role/larkspur-dr-app\"]},\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\"},{\"Sid\":\"NoOneElseReads\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"secretsmanager:GetSecretValue\",\"Resource\":\"*\",\"Condition\":{\"ArnNotEquals\":{\"aws:PrincipalArn\":[\"arn:aws:iam::000000000000:role/larkspur-api\",\"arn:aws:iam::000000000000:role/larkspur-db-rotation-role\",\"arn:aws:iam::000000000000:role/larkspur-dr-app\"]}}}]}"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-west-2",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Early October: the third quarterly security review",
+      "wait": "40310m"
+    },
+    {
+      "name": "Dana lists the production secrets for the review; new this quarter, the database secret is the primary of a replica, in us-east-1, and was last rotated on 31 August",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Filters": [
+          {
+            "Key": "tag-key",
+            "Values": [
+              "env"
+            ]
+          },
+          {
+            "Key": "tag-value",
+            "Values": [
+              "prod"
+            ]
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ListSecrets"
+      },
+      "expect": [
+        {
+          "path": "SecretList.0.Name",
+          "equals": "larkspur/prod/db"
+        },
+        {
+          "path": "SecretList.1.Name",
+          "equals": "larkspur/prod/stripe"
+        },
+        {
+          "path": "SecretList.2.Name",
+          "equals": "larkspur/prod/redis"
+        },
+        {
+          "path": "SecretList.3",
+          "exists": false
+        },
+        {
+          "path": "SecretList.0.PrimaryRegion",
+          "equals": "us-east-1"
+        },
+        {
+          "path": "SecretList.1.PrimaryRegion",
+          "exists": false
+        },
+        {
+          "path": "SecretList.0.LastRotatedDate",
+          "equals": 1788134580
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "November: the DR drill",
+      "wait": "840h"
+    },
+    {
+      "name": "Sam promotes the us-west-2 replica to a standalone secret, as the runbook says, with the platform team's IAM permissions, which include secretsmanager:StopReplicationToReplica",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.StopReplicationToReplica"
+      },
+      "expect": [
+        {
+          "path": "ARN",
+          "exists": true
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{sam_akid}",
+        "secretAccessKey": "{sam_secret}",
+        "region": "us-west-2",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The drill's app starts in us-west-2 twenty minutes later",
+      "wait": "20m"
+    },
+    {
+      "name": "STS gives the DR app a fresh session of its role, larkspur-dr-app, as it starts (session larkspur-dr-app-1)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-dr-app",
+        "session": "larkspur-dr-app-1"
+      },
+      "capture": {
+        "dr1_akid": "access_key_id",
+        "dr1_secret": "secret_access_key",
+        "dr1_token": "session_token"
+      }
+    },
+    {
+      "name": "The drill app in us-west-2 reads the database credentials from the promoted secret",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{dr1_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        },
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dr1_akid}",
+        "secretAccessKey": "{dr1_secret}",
+        "region": "us-west-2",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The drill ends that afternoon",
+      "wait": "280m"
+    },
+    {
+      "name": "Dana deletes the promoted copy without a recovery window; it was a drill copy",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "ForceDeleteWithoutRecovery": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DeleteSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-west-2",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The next day, once the deletion has finished",
+      "wait": "19h"
+    },
+    {
+      "name": "Dana replicates the primary to us-west-2 again",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "AddReplicaRegions": [
+          {
+            "Region": "us-west-2"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ReplicateSecretToRegions"
+      },
+      "expect": [
+        {
+          "path": "ReplicationStatus.0.Region",
+          "equals": "us-west-2"
+        },
+        {
+          "path": "ReplicationStatus.0.Status",
+          "equals": "InProgress"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She writes up the drill's findings meanwhile",
+      "wait": "10m"
+    },
+    {
+      "name": "She checks the replica's status: us-west-2 reads InSync again",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret"
+      },
+      "expect": [
+        {
+          "path": "ReplicationStatus.0.Region",
+          "equals": "us-west-2"
+        },
+        {
+          "path": "ReplicationStatus.0.Status",
+          "equals": "InSync"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "29 November 2026, a minute past midnight UTC: the database secret's 90-day rotation window opened at midnight, and Secrets Manager has invoked the rotation function",
+      "wait": "25311m"
+    },
+    {
+      "name": "STS gives the rotation function a fresh session of its role, larkspur-db-rotation-role, as it starts (session larkspur-db-rotation-3)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-db-rotation-role",
+        "session": "larkspur-db-rotation-3"
+      },
+      "capture": {
+        "rot3_akid": "access_key_id",
+        "rot3_secret": "secret_access_key",
+        "rot3_token": "session_token"
+      }
+    },
+    {
+      "name": "create_secret: the rotation function reads the event it was invoked with: the secret, a new version token and a rotation token",
+      "method": "GET",
+      "path": "/_twin/rotation-invocations?secret=larkspur/prod/db&step=create_secret",
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "authorization": "AWS4-HMAC-SHA256 Credential={rot3_akid}/20261129/us-east-1/secretsmanager/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=0f3c",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "capture": {
+        "rsid3": "Invocations.0.SecretId",
+        "tok3": "Invocations.0.ClientRequestToken",
+        "rt3": "Invocations.0.RotationToken"
+      },
+      "expect": [
+        {
+          "path": "Invocations.0.Step",
+          "equals": "create_secret"
+        },
+        {
+          "path": "Invocations.0.InvokedAt",
+          "equals": 1795910400
+        }
+      ]
+    },
+    {
+      "name": "It reads the current credentials to copy their connection details",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid3}",
+        "VersionStage": "AWSCURRENT"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot3_akid}",
+        "secretAccessKey": "{rot3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "As the template does before making one, it looks for a value under its pending version; Secrets Manager has made the version but nothing is in it yet",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid3}",
+        "VersionId": "{tok3}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "__type",
+          "equals": "ResourceNotFoundException"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot3_akid}",
+        "secretAccessKey": "{rot3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It asks for a new password without punctuation, as Dana configured it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "PasswordLength": 32,
+        "ExcludePunctuation": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetRandomPassword",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "capture": {
+        "pw3": "RandomPassword"
+      },
+      "expect": [
+        {
+          "path": "RandomPassword",
+          "exists": true
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot3_akid}",
+        "secretAccessKey": "{rot3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It stores the new credentials under its version token, staged AWSPENDING, with the rotation token that vouches for its role",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid3}",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw3}\"}",
+        "ClientRequestToken": "{tok3}",
+        "RotationToken": "{rt3}",
+        "VersionStages": [
+          "AWSPENDING"
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutSecretValue",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "{tok3}"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSPENDING"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot3_akid}",
+        "secretAccessKey": "{rot3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "set_secret: Secrets Manager invokes the function again, with the same tokens",
+      "wait": "1m"
+    },
+    {
+      "name": "The function reads the pending credentials and sets that password on the database (outside Secrets Manager)",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid3}",
+        "VersionId": "{tok3}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw3}\"}"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot3_akid}",
+        "secretAccessKey": "{rot3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "test_secret: the function logs in to the database with the pending password, outside Secrets Manager, and it works",
+      "wait": "1m"
+    },
+    {
+      "name": "finish_secret: the function looks up which version is current",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid3}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "capture": {
+        "cur3": "text:\"([0-9a-f-]{36})\":\\[\"AWSCURRENT\""
+      },
+      "sigv4": {
+        "accessKeyId": "{rot3_akid}",
+        "secretAccessKey": "{rot3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "and moves AWSCURRENT from it to the new version, which finishes the rotation",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid3}",
+        "VersionStage": "AWSCURRENT",
+        "MoveToVersionId": "{tok3}",
+        "RemoveFromVersionId": "{cur3}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.UpdateSecretVersionStage",
+        "x-amz-security-token": "{rot3_token}"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot3_akid}",
+        "secretAccessKey": "{rot3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Mid-January: billing moves to a restricted Stripe key",
+      "wait": "63957m"
+    },
+    {
+      "name": "Dana stores the restricted Stripe key the billing job will use",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Name": "larkspur/prod/stripe-restricted",
+        "Description": "Stripe restricted key for the nightly billing job",
+        "SecretString": "invalid-fixture-stripe-opaque-secret-2",
+        "ClientRequestToken": "8a4c1e97-3d52-4f0b-9a6e-7b2d5c8f1a31",
+        "Tags": [
+          {
+            "Key": "team",
+            "Value": "platform"
+          },
+          {
+            "Key": "env",
+            "Value": "prod"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.CreateSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/stripe-restricted"
+        },
+        {
+          "path": "VersionId",
+          "equals": "8a4c1e97-3d52-4f0b-9a6e-7b2d5c8f1a31"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She grants the billing job's role GetSecretValue on larkspur/prod/stripe-restricted in IAM and points the job at it; its nightly run starts at 02:00",
+      "wait": "16h"
+    },
+    {
+      "name": "STS gives the billing job a fresh session of its role, larkspur-billing-job, as it starts (session larkspur-billing-job-1)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-billing-job",
+        "session": "larkspur-billing-job-1"
+      },
+      "capture": {
+        "billing1_akid": "access_key_id",
+        "billing1_secret": "secret_access_key",
+        "billing1_token": "session_token"
+      }
+    },
+    {
+      "name": "The billing job reads the restricted key on its nightly run",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe-restricted"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{billing1_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "invalid-fixture-stripe-opaque-secret-2"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{billing1_akid}",
+        "secretAccessKey": "{billing1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The billing run succeeded; Dana is in at 10:00",
+      "wait": "8h"
+    },
+    {
+      "name": "Dana schedules the old Stripe key for deletion with a 30-day recovery window",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe",
+        "RecoveryWindowInDays": 30
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DeleteSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/stripe"
+        },
+        {
+          "path": "DeletionDate",
+          "equals": 1802426400
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The next morning at 07:00",
+      "wait": "21h"
+    },
+    {
+      "name": "STS gives the report script a fresh session of its role, larkspur-report-script, as it starts (session larkspur-report-script-1)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-report-script",
+        "session": "larkspur-report-script-1"
+      },
+      "capture": {
+        "report1_akid": "access_key_id",
+        "report1_secret": "secret_access_key",
+        "report1_token": "session_token"
+      }
+    },
+    {
+      "name": "A forgotten revenue report script still reads the old key the next morning and is refused: the secret is scheduled for deletion",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{report1_token}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "__type",
+          "equals": "InvalidRequestException"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{report1_akid}",
+        "secretAccessKey": "{report1_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Dana sees the failed report at 09:30 that morning",
+      "wait": "150m"
+    },
+    {
+      "name": "She restores the old key so the report runs until the script is fixed",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.RestoreSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/stripe"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "That evening she reruns the missed report",
+      "wait": "630m"
+    },
+    {
+      "name": "STS gives the report script a fresh session of its role, larkspur-report-script, as it starts (session larkspur-report-script-2)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-report-script",
+        "session": "larkspur-report-script-2"
+      },
+      "capture": {
+        "report2_akid": "access_key_id",
+        "report2_secret": "secret_access_key",
+        "report2_token": "session_token"
+      }
+    },
+    {
+      "name": "The report script, not yet fixed, reads the restored old key and the report runs",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{report2_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "invalid-fixture-stripe-opaque-secret-1"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{report2_akid}",
+        "secretAccessKey": "{report2_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The next day Dana grants the report script's role GetSecretValue on larkspur/prod/stripe-restricted in IAM, and the script is changed to that key",
+      "wait": "11h"
+    },
+    {
+      "name": "STS gives the report script a fresh session of its role, larkspur-report-script, as it starts (session larkspur-report-script-3)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-report-script",
+        "session": "larkspur-report-script-3"
+      },
+      "capture": {
+        "report3_akid": "access_key_id",
+        "report3_secret": "secret_access_key",
+        "report3_token": "session_token"
+      }
+    },
+    {
+      "name": "The report script reads the restricted key",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe-restricted"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{report3_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "invalid-fixture-stripe-opaque-secret-2"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{report3_akid}",
+        "secretAccessKey": "{report3_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The report ran; Dana is in at 10:00",
+      "wait": "3h"
+    },
+    {
+      "name": "Dana schedules the old key for deletion again, with a 30-day window",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe",
+        "RecoveryWindowInDays": 30
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DeleteSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/stripe"
+        },
+        {
+          "path": "DeletionDate",
+          "equals": 1802599200
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "The following Tuesday: the fourth quarterly security review",
+      "wait": "96h"
+    },
+    {
+      "name": "Dana lists the production secrets for the review, including those scheduled for deletion; new this quarter, the restricted key, the old key pending deletion, and the database secret's rotation of 29 November",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Filters": [
+          {
+            "Key": "tag-key",
+            "Values": [
+              "env"
+            ]
+          },
+          {
+            "Key": "tag-value",
+            "Values": [
+              "prod"
+            ]
+          }
+        ],
+        "IncludePlannedDeletion": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ListSecrets"
+      },
+      "expect": [
+        {
+          "path": "SecretList.0.Name",
+          "equals": "larkspur/prod/db"
+        },
+        {
+          "path": "SecretList.1.Name",
+          "equals": "larkspur/prod/stripe"
+        },
+        {
+          "path": "SecretList.2.Name",
+          "equals": "larkspur/prod/redis"
+        },
+        {
+          "path": "SecretList.3.Name",
+          "equals": "larkspur/prod/stripe-restricted"
+        },
+        {
+          "path": "SecretList.4",
+          "exists": false
+        },
+        {
+          "path": "SecretList.1.DeletedDate",
+          "equals": 1800007200
+        },
+        {
+          "path": "SecretList.3.DeletedDate",
+          "exists": false
+        },
+        {
+          "path": "SecretList.0.LastRotatedDate",
+          "equals": 1795910580
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "27 February 2027, a minute past midnight UTC: the database secret's 90-day rotation window opened at midnight, and Secrets Manager has invoked the rotation function",
+      "wait": "55561m"
+    },
+    {
+      "name": "STS gives the rotation function a fresh session of its role, larkspur-db-rotation-role, as it starts (session larkspur-db-rotation-4)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-db-rotation-role",
+        "session": "larkspur-db-rotation-4"
+      },
+      "capture": {
+        "rot4_akid": "access_key_id",
+        "rot4_secret": "secret_access_key",
+        "rot4_token": "session_token"
+      }
+    },
+    {
+      "name": "create_secret: the rotation function reads the event it was invoked with: the secret, a new version token and a rotation token",
+      "method": "GET",
+      "path": "/_twin/rotation-invocations?secret=larkspur/prod/db&step=create_secret",
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "authorization": "AWS4-HMAC-SHA256 Credential={rot4_akid}/20270227/us-east-1/secretsmanager/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=0f3c",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "capture": {
+        "rsid4": "Invocations.0.SecretId",
+        "tok4": "Invocations.0.ClientRequestToken",
+        "rt4": "Invocations.0.RotationToken"
+      },
+      "expect": [
+        {
+          "path": "Invocations.0.Step",
+          "equals": "create_secret"
+        },
+        {
+          "path": "Invocations.0.InvokedAt",
+          "equals": 1803686400
+        }
+      ]
+    },
+    {
+      "name": "It reads the current credentials to copy their connection details",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid4}",
+        "VersionStage": "AWSCURRENT"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot4_akid}",
+        "secretAccessKey": "{rot4_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "As the template does before making one, it looks for a value under its pending version; Secrets Manager has made the version but nothing is in it yet",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid4}",
+        "VersionId": "{tok4}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "__type",
+          "equals": "ResourceNotFoundException"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot4_akid}",
+        "secretAccessKey": "{rot4_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It asks for a new password without punctuation, as Dana configured it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "PasswordLength": 32,
+        "ExcludePunctuation": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetRandomPassword",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "capture": {
+        "pw4": "RandomPassword"
+      },
+      "expect": [
+        {
+          "path": "RandomPassword",
+          "exists": true
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot4_akid}",
+        "secretAccessKey": "{rot4_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It stores the new credentials under its version token, staged AWSPENDING, with the rotation token that vouches for its role",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid4}",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw4}\"}",
+        "ClientRequestToken": "{tok4}",
+        "RotationToken": "{rt4}",
+        "VersionStages": [
+          "AWSPENDING"
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutSecretValue",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "{tok4}"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSPENDING"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot4_akid}",
+        "secretAccessKey": "{rot4_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "set_secret: Secrets Manager invokes the function again, with the same tokens",
+      "wait": "1m"
+    },
+    {
+      "name": "The function reads the pending credentials and sets that password on the database (outside Secrets Manager)",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid4}",
+        "VersionId": "{tok4}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw4}\"}"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot4_akid}",
+        "secretAccessKey": "{rot4_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "test_secret: the function logs in to the database with the pending password, outside Secrets Manager, and it works",
+      "wait": "1m"
+    },
+    {
+      "name": "finish_secret: the function looks up which version is current",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid4}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "capture": {
+        "cur4": "text:\"([0-9a-f-]{36})\":\\[\"AWSCURRENT\""
+      },
+      "sigv4": {
+        "accessKeyId": "{rot4_akid}",
+        "secretAccessKey": "{rot4_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "and moves AWSCURRENT from it to the new version, which finishes the rotation",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid4}",
+        "VersionStage": "AWSCURRENT",
+        "MoveToVersionId": "{tok4}",
+        "RemoveFromVersionId": "{cur4}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.UpdateSecretVersionStage",
+        "x-amz-security-token": "{rot4_token}"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot4_akid}",
+        "secretAccessKey": "{rot4_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "Early April 2027: the fifth quarterly security review, well after the old key's window closed on 14 February",
+      "wait": "55317m"
+    },
+    {
+      "name": "Dana lists the production secrets, including any scheduled for deletion; the old Stripe key is gone, and the database secret was last rotated on 27 February",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "Filters": [
+          {
+            "Key": "tag-key",
+            "Values": [
+              "env"
+            ]
+          },
+          {
+            "Key": "tag-value",
+            "Values": [
+              "prod"
+            ]
+          }
+        ],
+        "IncludePlannedDeletion": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.ListSecrets"
+      },
+      "expect": [
+        {
+          "path": "SecretList.0.Name",
+          "equals": "larkspur/prod/db"
+        },
+        {
+          "path": "SecretList.1.Name",
+          "equals": "larkspur/prod/redis"
+        },
+        {
+          "path": "SecretList.2.Name",
+          "equals": "larkspur/prod/stripe-restricted"
+        },
+        {
+          "path": "SecretList.3",
+          "exists": false
+        },
+        {
+          "path": "SecretList.0.LastRotatedDate",
+          "equals": 1803686580
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "28 May 2027, a minute past midnight UTC: the database secret's 90-day rotation window opened at midnight, and Secrets Manager has invoked the rotation function",
+      "wait": "74281m"
+    },
+    {
+      "name": "STS gives the rotation function a fresh session of its role, larkspur-db-rotation-role, as it starts (session larkspur-db-rotation-5)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "role": "larkspur-db-rotation-role",
+        "session": "larkspur-db-rotation-5"
+      },
+      "capture": {
+        "rot5_akid": "access_key_id",
+        "rot5_secret": "secret_access_key",
+        "rot5_token": "session_token"
+      }
+    },
+    {
+      "name": "create_secret: the rotation function reads the event it was invoked with: the secret, a new version token and a rotation token",
+      "method": "GET",
+      "path": "/_twin/rotation-invocations?secret=larkspur/prod/db&step=create_secret",
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "authorization": "AWS4-HMAC-SHA256 Credential={rot5_akid}/20270528/us-east-1/secretsmanager/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=0f3c",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "capture": {
+        "rsid5": "Invocations.0.SecretId",
+        "tok5": "Invocations.0.ClientRequestToken",
+        "rt5": "Invocations.0.RotationToken"
+      },
+      "expect": [
+        {
+          "path": "Invocations.0.Step",
+          "equals": "create_secret"
+        },
+        {
+          "path": "Invocations.0.InvokedAt",
+          "equals": 1811462400
+        }
+      ]
+    },
+    {
+      "name": "It reads the current credentials to copy their connection details",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid5}",
+        "VersionStage": "AWSCURRENT"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSCURRENT"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot5_akid}",
+        "secretAccessKey": "{rot5_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "As the template does before making one, it looks for a value under its pending version; Secrets Manager has made the version but nothing is in it yet",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid5}",
+        "VersionId": "{tok5}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "status": 400,
+      "expect": [
+        {
+          "path": "__type",
+          "equals": "ResourceNotFoundException"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot5_akid}",
+        "secretAccessKey": "{rot5_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It asks for a new password without punctuation, as Dana configured it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "PasswordLength": 32,
+        "ExcludePunctuation": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetRandomPassword",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "capture": {
+        "pw5": "RandomPassword"
+      },
+      "expect": [
+        {
+          "path": "RandomPassword",
+          "exists": true
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot5_akid}",
+        "secretAccessKey": "{rot5_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "It stores the new credentials under its version token, staged AWSPENDING, with the rotation token that vouches for its role",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid5}",
+        "SecretString": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw5}\"}",
+        "ClientRequestToken": "{tok5}",
+        "RotationToken": "{rt5}",
+        "VersionStages": [
+          "AWSPENDING"
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.PutSecretValue",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "expect": [
+        {
+          "path": "VersionId",
+          "equals": "{tok5}"
+        },
+        {
+          "path": "VersionStages",
+          "equals": [
+            "AWSPENDING"
+          ]
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot5_akid}",
+        "secretAccessKey": "{rot5_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "set_secret: Secrets Manager invokes the function again, with the same tokens",
+      "wait": "1m"
+    },
+    {
+      "name": "The function reads the pending credentials and sets that password on the database (outside Secrets Manager)",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid5}",
+        "VersionId": "{tok5}",
+        "VersionStage": "AWSPENDING"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.GetSecretValue",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "expect": [
+        {
+          "path": "SecretString",
+          "equals": "{\"engine\":\"postgres\",\"host\":\"larkspur-prod.cluster-c8x2.us-east-1.rds.amazonaws.com\",\"port\":5432,\"dbname\":\"larkspur\",\"username\":\"larkspur_app\",\"password\":\"{pw5}\"}"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot5_akid}",
+        "secretAccessKey": "{rot5_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "test_secret: the function logs in to the database with the pending password, outside Secrets Manager, and it works",
+      "wait": "1m"
+    },
+    {
+      "name": "finish_secret: the function looks up which version is current",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid5}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DescribeSecret",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "capture": {
+        "cur5": "text:\"([0-9a-f-]{36})\":\\[\"AWSCURRENT\""
+      },
+      "sigv4": {
+        "accessKeyId": "{rot5_akid}",
+        "secretAccessKey": "{rot5_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "and moves AWSCURRENT from it to the new version, which finishes the rotation",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "{rsid5}",
+        "VersionStage": "AWSCURRENT",
+        "MoveToVersionId": "{tok5}",
+        "RemoveFromVersionId": "{cur5}"
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.UpdateSecretVersionStage",
+        "x-amz-security-token": "{rot5_token}"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{rot5_akid}",
+        "secretAccessKey": "{rot5_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "June 2027: Larkspur has been acquired; the acquirer's vault holds fresh database credentials made there and set on the database by its own team, so no one reads the old password, and the migration is verified",
+      "wait": "16437m"
+    },
+    {
+      "name": "Dana removes the us-west-2 replica, since a replicated primary cannot be deleted",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "RemoveReplicaRegions": [
+          "us-west-2"
+        ]
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.RemoveRegionsFromReplication"
+      },
+      "expect": [
+        {
+          "path": "ReplicationStatus",
+          "equals": []
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She deletes larkspur/prod/db without a recovery window",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/db",
+        "ForceDeleteWithoutRecovery": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DeleteSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/db"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She deletes larkspur/prod/redis without a recovery window",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/redis",
+        "ForceDeleteWithoutRecovery": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DeleteSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/redis"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    },
+    {
+      "name": "She deletes larkspur/prod/stripe-restricted without a recovery window",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "SecretId": "larkspur/prod/stripe-restricted",
+        "ForceDeleteWithoutRecovery": true
+      },
+      "headers": {
+        "content-type": "application/x-amz-json-1.1",
+        "x-amz-target": "secretsmanager.DeleteSecret"
+      },
+      "expect": [
+        {
+          "path": "Name",
+          "equals": "larkspur/prod/stripe-restricted"
+        }
+      ],
+      "sigv4": {
+        "accessKeyId": "{dana_akid}",
+        "secretAccessKey": "{dana_secret}",
+        "region": "us-east-1",
+        "service": "secretsmanager"
+      }
+    }
+  ]
+}

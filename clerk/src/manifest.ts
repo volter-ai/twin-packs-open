@@ -31,6 +31,7 @@ const ORDER_BY_INVALID = { status: 422, code: 'form_param_format_invalid', kind:
 export const manifest: DerivedManifest = {
   vendor: 'clerk',
   service: 'clerk',
+  tenant: { field: '_world_account', storage: 'namespaced' },
   body: {},
   // Clerk's ids are a type prefix and an opaque suffix (`user_…`, `org_…`, `orginv_…`: the spec's examples)
   // Clerk's ids are a type prefix and a KSUID (`user_2…`, 27 characters: the spec's ^ins_\w{27}$)
@@ -237,7 +238,7 @@ export const manifest: DerivedManifest = {
     // the application's keys, issued once the twin is up (./semantics/doors.ts appCredentials), under the names Clerk's
     // SDKs read (runhuman's among them: CLERK_SECRET_KEY, CLERK_JWT_KEY, CLERK_WEBHOOK_SIGNING_SECRET and the framework
     // prefixes of the publishable key)
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: {
+    credentialDoor: { path: '/_twin/app-credentials', body: {}, account: { field: 'account' }, fill: {
       CLERK_SECRET_KEY: 'secret_key', CLERK_API_KEY: 'secret_key',
       CLERK_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'publishable_key', VITE_CLERK_PUBLISHABLE_KEY: 'publishable_key',
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'publishable_key', PUBLIC_CLERK_PUBLISHABLE_KEY: 'publishable_key',

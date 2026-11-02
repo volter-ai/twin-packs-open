@@ -1,0 +1,52 @@
+Pinned Better Auth 1.7.5 and @better-auth/oauth-provider 1.7.5 source snapshots from the packages named in SOURCE.md; these are not API observations.
+
+@better-auth/oauth-provider dist/introspect-njKASm3q.mjs:1349-1380
+async function createJwtAccessToken(ctx, opts, user, client, audienceClaim, scopes, overrides) {
+	const iat = overrides?.iat ?? Math.floor(Date.now() / 1e3);
+	const exp = overrides?.exp ?? iat + (opts.accessTokenExpiresIn ?? 3600);
+	const jwtPluginOptions = getJwtPlugin(ctx.context).options;
+	const subject = user?.id ?? client.clientId;
+	return signJWT(ctx, {
+		options: jwtPluginOptions,
+		header: { typ: JWT_ACCESS_TOKEN_TYPE },
+		signingKeyId: overrides?.signingKeyId ?? void 0,
+		signingAlgorithm: overrides?.signingAlgorithm ?? void 0,
+		payload: {
+			...overrides?.accessTokenClaims ?? {},
+			sub: subject,
+			aud: toAudienceClaim(audienceClaim),
+			client_id: client.clientId,
+			azp: client.clientId,
+			scope: scopes.join(" "),
+			sid: overrides?.sid,
+			iss: jwtPluginOptions?.jwt?.issuer ?? ctx.context.baseURL,
+			iat,
+			exp,
+			jti: generateRandomString(32),
+			...overrides?.confirmation ? { cnf: overrides.confirmation } : {}
+		}
+	});
+}
+/**
+* Computes an OIDC hash (at_hash, c_hash) per OIDC Core §3.1.3.6.
+* Hashes the token, takes the left half, and base64url-encodes it.
+*/
+async function computeOidcHash(token, signingAlg) {
+	let hashAlg;
+
+better-auth dist/plugins/jwt/sign.mjs:103-117
+	const { alg, kid, privateKey } = config.resolvedKey ?? await resolveSigningKey(ctx, options, {
+		signingKeyId: config.signingKeyId,
+		signingAlgorithm: config.signingAlgorithm
+	});
+	const jwt = new SignJWT(payload).setProtectedHeader({
+		...config.header,
+		alg,
+		kid
+	}).setExpirationTime(exp).setIssuer(iss ?? defaultIss).setAudience(aud ?? defaultAud);
+	if (iat) jwt.setIssuedAt(iat);
+	if (payload.sub) jwt.setSubject(payload.sub);
+	if (payload.nbf) jwt.setNotBefore(payload.nbf);
+	if (payload.jti) jwt.setJti(payload.jti);
+	return await jwt.sign(privateKey);
+}
