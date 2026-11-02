@@ -44,6 +44,12 @@ jobs:
         shell: bash
         run: |
           timeout 45s bash -euo pipefail <<'PUBLISH'
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            umask 077
+            export NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/publisher.npmrc"
+            trap 'rm -f "$NPM_CONFIG_USERCONFIG"' EXIT
+            printf '%s\n' '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' > "$NPM_CONFIG_USERCONFIG"
+          fi
           mkdir -p "$RUNNER_TEMP/publisher-source"
           gh api "repos/$GITHUB_REPOSITORY/tarball/$GITHUB_SHA" > "$RUNNER_TEMP/publisher-source.tgz"
           tar -xzf "$RUNNER_TEMP/publisher-source.tgz" -C "$RUNNER_TEMP/publisher-source" --strip-components=1
