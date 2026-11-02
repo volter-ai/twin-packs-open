@@ -21,5 +21,5 @@ export async function around(ctx: HandlerContext, next: (request?: Request) => P
     const held = ctx.rowsRaw('_access_token').some((t) => (t._environment ?? 'production') === environment(ctx) && t._sha256 === sha256(bearer) && t.deleted !== true && (t.expires_at === null || Date.parse(String(t.expires_at)) > Date.parse(ctx.occurredAt)));
     if (!held) return unauthorized();
   }
-  return next();
+  return ctx.validate() ?? next();
 }
