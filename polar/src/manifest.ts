@@ -16,7 +16,8 @@ export const manifest: DerivedManifest = {
   vendor: 'polar',
   service: 'polar',
   tenant: { field: 'organization_id' },
-  // source: spec:/components/schemas/MeterCreate and HTTPValidationError
+  // source: spec:/components/schemas/MeterCreate "MeterCreate"
+  // source: spec:/components/schemas/HTTPValidationError "HTTPValidationError"
   body: { json: 'always', validation: {
     operations: ['meters:create'], status: 422,
     missing: { detail: [{ type: 'missing', loc: ['body', '{name}'], msg: 'Field required', input: '{input}' }] },
