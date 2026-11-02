@@ -4,7 +4,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { selectedPack } from './selected-pack.mjs';
-import { digest, git, integrity, packedManifest, readJson, sourceCommit, sweepCommit, verifyPreparation } from './release-evidence.mjs';
+import { digest, git, integrity, packedManifest, publicationRef, publicationWorkflow, readJson, sourceCommit, sweepCommit, verifyPreparation } from './release-evidence.mjs';
 
 assert.ok(!process.env.GITHUB_ACTIONS, 'Qualification and keys sweep are explicit operator acts outside CI');
 assert.ok(!process.env.NODE_OPTIONS && !process.env.NODE_PATH, 'Keys sweep refuses injected Node loaders');
@@ -57,6 +57,7 @@ assert.ok(retained.some(name => name.startsWith('consumer-')), 'Prepared custome
 const preparation = {
   kind: 'volter.publisher-preparation', schemaVersion: 1, repository: 'volter-ai/twin-packs-open',
   vendor: selected.vendor, package: manifest.name, version: manifest.version, sourceCommit: source,
+  publicationRef, publicationWorkflow,
   archive: inventory.filename, integrity: inventory.integrity, tools: assessment.tools,
   dependencyLockSha512: assessment.dependencyLockSha512, consumerDependencyLockSha512: assessment.consumerDependencyLockSha512,
   preparedAt: new Date().toISOString(),

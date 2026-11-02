@@ -15,6 +15,10 @@ on:
         description: Exact preparation.json digest named in the release permission
         required: true
         type: string
+      manager_authorization:
+        description: Manager permission reference for the exact archive and preparation digest (audit only)
+        required: true
+        type: string
 permissions:
   contents: write
   id-token: write
@@ -23,13 +27,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: vars.PACK_PUBLISH_ENABLED == 'true' && github.event.repository.visibility == 'public'
+    if: vars.PACK_PUBLISH_ENABLED == 'true' && github.event.repository.visibility == 'public' && github.ref == 'refs/heads/publish'
     runs-on: ubuntu-latest
     timeout-minutes: 1
     env:
       PACK_VENDOR: ${{ inputs.vendor }}
       PACK_PREPARATION_TAG: ${{ inputs.preparation_tag }}
       PACK_PREPARATION_SHA256: ${{ inputs.preparation_sha256 }}
+      PACK_MANAGER_AUTHORIZATION: ${{ inputs.manager_authorization }}
       GH_TOKEN: ${{ github.token }}
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:

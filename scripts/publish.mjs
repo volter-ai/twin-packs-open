@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { selectedPack } from './selected-pack.mjs';
 import { npmCommand } from './commands.mjs';
-import { readJson, verifyPreparation } from './release-evidence.mjs';
+import { publicationRef, publicationWorkflow, readJson, verifyPreparation } from './release-evidence.mjs';
 
 const registry = 'https://registry.npmjs.org';
 const upload = process.argv.includes('--upload-only');
@@ -17,8 +17,12 @@ assert.match(vendor, /^[a-z][a-z0-9-]*$/);
 let directory, preparationDigest, expectedSource;
 if (upload) {
   assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Uploads require the registered provenance workflow');
+  assert.equal(process.env.GITHUB_EVENT_NAME, 'workflow_dispatch');
   assert.equal(process.env.GITHUB_REPOSITORY, 'volter-ai/twin-packs-open');
-  assert.match(process.env.GITHUB_WORKFLOW_REF ?? '', /^volter-ai\/twin-packs-open\/\.github\/workflows\/release\.yml@/);
+  assert.equal(process.env.GITHUB_REF, publicationRef, 'Uploads require the dedicated publish branch');
+  assert.equal(process.env.GITHUB_WORKFLOW_REF, publicationWorkflow, 'Uploads require the registered workflow on publish');
+  assert.match(process.env.GITHUB_SHA ?? '', /^[a-f0-9]{40}$/);
+  assert.equal(process.env.GITHUB_WORKFLOW_SHA, process.env.GITHUB_SHA, 'Publication source and workflow revision must agree');
   assert.match(process.env.PACK_PREPARATION_TAG ?? '', /^prepared-[a-z0-9.-]+-[a-f0-9]{16}$/);
   directory = mkdtempSync(join(process.env.RUNNER_TEMP ?? tmpdir(), 'prepared-pack-'));
   const downloaded = spawnSync('gh', ['release', 'download', process.env.PACK_PREPARATION_TAG,
@@ -34,12 +38,17 @@ if (upload) {
 }
 const preparation = verifyPreparation(directory, preparationDigest, expectedSource);
 assert.equal(preparation.vendor, vendor);
+if (upload) assert.equal(process.env.PACK_PREPARATION_TAG,
+  `prepared-${preparation.vendor}-${preparation.version}-${preparationDigest.slice(0, 16)}`, 'Use the canonical release for this exact preparation');
 const archive = resolve(directory, preparation.archive);
 const receipt = {
   schemaVersion: 1, package: preparation.package, version: preparation.version, integrity: preparation.integrity,
   sourceCommit: preparation.sourceCommit, preparationSha256: preparationDigest,
+  publicationRef, publicationWorkflow,
   acceptedUpload: false, registryConfirmed: false,
   workflowRun: process.env.GITHUB_RUN_ID ?? null, workflowAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+  workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null, workflowSha: process.env.GITHUB_WORKFLOW_SHA ?? null,
+  managerAuthorization: process.env.PACK_MANAGER_AUTHORIZATION ?? null,
 };
 if (upload) {
   // One read, one bounded upload. Unknown registry responses never mean absence.
@@ -69,7 +78,7 @@ if (upload) {
     join(directory, 'upload-accepted.json'), '--repo', process.env.GITHUB_REPOSITORY, '--clobber'], { stdio: 'inherit', timeout: 5000 });
   assert.equal(recorded.status, 0, 'Upload result could not be retained; confirm the exact registry version outside CI');
   if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY,
-    `\nExact archive upload: \`${preparation.package}@${preparation.version}\`\n\nPreparation SHA-256: \`${preparationDigest}\`\n\nSource: \`${preparation.sourceCommit}\`\n\nIntegrity: \`${preparation.integrity}\`\n\nAccepted upload: ${receipt.acceptedUpload}. Registry bytes already confirmed: ${receipt.registryConfirmed}. Run the operator confirmation and submission commands outside CI.\n`, { flag: 'a' });
+    `\nExact archive upload: \`${preparation.package}@${preparation.version}\`\n\nPreparation SHA-256: \`${preparationDigest}\`\n\nSource: \`${preparation.sourceCommit}\`\n\nPublication ref: \`${publicationRef}\`\n\nWorkflow: \`${receipt.workflowRef}\` at \`${receipt.workflowSha}\`\n\nManager authorization reference: ${receipt.managerAuthorization ?? '(not recorded)'}.\n\nIntegrity: \`${preparation.integrity}\`\n\nAccepted upload: ${receipt.acceptedUpload}. Registry bytes already confirmed: ${receipt.registryConfirmed}. Run the operator confirmation and submission commands outside CI.\n`, { flag: 'a' });
 } else {
   const cli = process.env.CATALOG_CLI;
   assert.ok(cli, 'CATALOG_CLI must name the exact installed registered catalog bootstrap CLI');

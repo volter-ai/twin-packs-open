@@ -10,6 +10,8 @@ export const integrity = (bytes) => 'sha512-' + createHash('sha512').update(byte
 export const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 export const git = (...args) => execFileSync('git', args, { encoding: 'utf8', timeout: 5000 }).trim();
 export const sweepCommit = 'e392ca8c4b14530874bb770e574ab01413da45f9';
+export const publicationRef = 'refs/heads/publish';
+export const publicationWorkflow = `volter-ai/twin-packs-open/.github/workflows/release.yml@${publicationRef}`;
 
 export function sourceCommit() {
   const commit = git('rev-parse', 'HEAD');
@@ -51,6 +53,8 @@ export function verifyPreparation(directory, expectedDigest, expectedSource) {
   assert.equal(preparation.schemaVersion, 1);
   assert.equal(preparation.sourceCommit, expectedSource, 'Preparation belongs to another source revision');
   assert.equal(preparation.repository, 'volter-ai/twin-packs-open');
+  assert.equal(preparation.publicationRef, publicationRef, 'Preparation must target the dedicated publish branch');
+  assert.equal(preparation.publicationWorkflow, publicationWorkflow, 'Preparation must bind the registered publish workflow');
   assert.match(preparation.vendor, /^[a-z][a-z0-9-]*$/);
   assert.ok(Array.isArray(preparation.files) && preparation.files.length > 0);
   for (const required of ['pack-inventory.json', 'qualification.json', 'prepared-assessment.json', 'keys-sweep.json',
