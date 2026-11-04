@@ -5,7 +5,7 @@ The Tripo twin (Protocol 3), serving what Volter Editor calls ([journeys/demand.
 settings test a connected key with, answered in Tripo's envelope (`code` 0, `data.balance`, `data.frozen`); a key no
 account holds is 401 code 1002. The declared spec retains the complete fixed HTTP surface of Tripo's official
 Python SDK 0.4.2 at `4115894a0a603c5183c9ed6dc8662745562c8941`, including v2 and v3 task/upload operations
-([spec/SOURCE.md](./spec/SOURCE.md)). Its retained reference bytes and `spec/write-spec.py` reproduce the document.
+([spec/SOURCE.md](./spec/SOURCE.md)). The retained reference bytes establish the document’s sources.
 
 The World's door: `POST /_twin/accounts` ({ balance? }: an account with its credits, and its API key, `tsk_…`). The
 credential door answers TRIPO_API_KEY.

@@ -6,7 +6,6 @@
 - Pin: `4115894a0a603c5183c9ed6dc8662745562c8941` (the `4115894` SDK reading).
 - SDK version: `0.4.2`, as pyproject.toml declares; vendor API channels v2 and v3.
 - Reader: Codex, 2026-10-03.
-- Writer: `write-spec.py`; from the packs root, `python3 tripo/spec/write-spec.py`. It reads only retained bytes and rewrites the document without a network request.
 - Corrections: `patches.json` supplements the SDK-derived document with recording-backed HTTP 401 response schemas. The SDK bytes do not contain Authentication failed or establish a 401 response.
 
 ## Sources and retained bytes
@@ -37,7 +36,7 @@ README.md, docs/API.md and all five linked example programs supply the examples 
 
 ## Recorded authentication schemas
 
-`recordings/bad-key.json` retains the 2026-09-30 bad-key reading from this repository’s original SOURCE.md: HTTP 401 and its exact code/message/suggestion JSON. The historical text retained neither the literal key nor the method/path; the recording states those limits. `patches.json` adds the 401 response under every declared operation: the envelope fields and sample values come from that recording, and v2 prefix authentication ordering from `recordings/unknown.json`. v3 bearer security is declared by the spec; the same recorded vendor error envelope is used for its refusal, without claiming a v3 wire observation. The unpatched writer emits only SDK-derived success responses. Manifest error/auth rules cite the recordings directly.
+`recordings/bad-key.json` retains the 2026-09-30 bad-key reading from this repository’s original SOURCE.md: HTTP 401 and its exact code/message/suggestion JSON. The historical text retained neither the literal key nor the method/path; the recording states those limits. `patches.json` adds the 401 response under every declared operation: the envelope fields and sample values come from that recording, and v2 prefix authentication ordering from `recordings/unknown.json`. v3 bearer security is declared by the spec; the same recorded vendor error envelope is used for its refusal, without claiming a v3 wire observation. The unpatched document declares only SDK-derived success responses. Manifest error/auth rules cite the recordings directly.
 
 ## Existing wire recordings
 
