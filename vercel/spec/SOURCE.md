@@ -22,3 +22,21 @@
   operation's schema (every property, every scalar as a string), so each is read as a sample of that schema. The other
   52 are the pages whose success status the spec gives no JSON schema: 47 publish no example response (a 204, an
   empty 200, a HEAD), and 5, of operations the twin does not serve, a JSON-lines one.
+
+## Captured example sanitation
+
+The unsanitized `doc-examples.json` capture is retained outside the package at
+`/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/vercel/spec/doc-examples.json`.
+The following captured string values matched the exact-archive sweep's `generic-api-key` rule. Each is replaced with
+the inert string `"INERT"`; all other capture bytes and every upstream page locator remain unchanged. The OpenAPI
+document is unchanged. These access-group, authentication-token and API-key operations have no served response
+handler; the captured output fields remain JSON strings. Served token and project doors use native stored rows.
+
+| JSON pointer in `doc-examples.json` | Reason |
+| --- | --- |
+| `/1/output/accessGroupId` | Access-group identifier example matched the credential rule; captured line 45. |
+| `/8/output/accessGroupId` | Access-group identifier example matched the credential rule; captured line 184. |
+| `/10/output/accessGroupId` | Access-group identifier example matched the credential rule; captured line 243. |
+| `/36/output/bearerToken` | Credential-like bearer-token example; captured line 1048. |
+| `/37/output/tokenId` | Token identifier example matched the credential rule; captured line 1086. |
+| `/359/output/apiKeyString` | Credential-like API-key example; captured line 20391. |

@@ -5,15 +5,16 @@ import { branchOf, DATABASE, makeDatabase, makeOrganization, makePassword, organ
 
 /** The users door's refusal of a request missing what a sign-up needs. */
 function incomplete(): Response {
-  return Response.json({ error: 'an email, a password and an organization name are required' }, { status: 400 });
+  return Response.json({ error: 'an email and an organization name are required; a supplied password must be nonempty' }, { status: 400 });
 }
 
-/** POST /_twin/users/{email} {password, organization}: a person who can sign in, and their organization. */
+/** POST /_twin/users/{email} {password?, organization}: a person who can sign in, and their organization. */
 export async function users(ctx: HandlerContext): Promise<Response> {
   const email = String(ctx.call.params.email ?? '').toLowerCase();
   const b = (ctx.body && typeof ctx.body === 'object' ? ctx.body : {}) as Row;
-  if (!/^[^@\s]+@[^@\s]+$/.test(email) || typeof b.password !== 'string' || !b.password || typeof b.organization !== 'string' || !/^[a-z0-9-]+$/.test(b.organization)) return incomplete();
-  await recordPerson(ctx, email, b.password);
+  if (!/^[^@\s]+@[^@\s]+$/.test(email) || (b.password !== undefined && (typeof b.password !== 'string' || !b.password)) || typeof b.organization !== 'string' || !/^[a-z0-9-]+$/.test(b.organization)) return incomplete();
+  const password = typeof b.password === 'string' ? b.password : await ctx.secret(`signup-password:${email}`);
+  await recordPerson(ctx, email, password);
   if (!organizationOf(ctx, b.organization)) {
     try { await makeOrganization(ctx, { name: b.organization, billingEmail: email }); }
     catch (error) {
@@ -21,7 +22,7 @@ export async function users(ctx: HandlerContext): Promise<Response> {
       throw error;
     }
   }
-  return Response.json({ email, organization: b.organization }, { status: 201 });
+  return Response.json({ email, organization: b.organization, ...(b.password === undefined ? { password } : {}) }, { status: 201 });
 }
 
 /** A name collision retries the native create once, without adopting another object's identity. */
