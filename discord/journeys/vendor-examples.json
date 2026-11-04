@@ -1,0 +1,5646 @@
+{
+ "vendor": "discord",
+ "author": "Contributor 87",
+ "host": "discord.com",
+ "about": "Discord's published examples for the operations the discord pack serves (spec/doc-examples.json: its pages publish no example in the OpenAPI document). They are made by Mason, a developer building AIRHORN SOLUTIONS in his test server SomeTest from Discord's own pages: the OAuth2 page's code exchange, refresh and bot authorization, the current authorization, the Gateway Bot answer, the message page's request bodies and allowed-mentions cases, a reaction's rules and its object, a message's edit, the application-commands page's global commands (/blep, /permissions_test made twice) with their edit, list and delete, and the rules the pages state, each replayed as the refusal it causes. Two more applications he adds stand for a bot without a permission (Soundboard Lite, permissions 0) and one with only some (Mod Helper), which later fills its hundred global commands. Each setup step makes an example's precondition true or reads an example's effect; an example no World of this surface can set up is in notReplayed with why.",
+ "steps": [
+  {
+   "name": "Setup: Monday 5 January",
+   "wait": "4d"
+  },
+  {
+   "name": "Setup: nine in the morning",
+   "wait": "9h"
+  },
+  {
+   "name": "Setup: Mason has a Discord account",
+   "method": "POST",
+   "path": "/_twin/people",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "global_name": "Mason",
+    "email": "mason@nicememe.website",
+    "password": "airhorn-sound-9"
+   },
+   "capture": {
+    "mason": "id"
+   }
+  },
+  {
+   "name": "Setup: he creates the server SomeTest in the client",
+   "method": "POST",
+   "path": "/_twin/guilds",
+   "status": 201,
+   "body": {
+    "owner": "mason",
+    "name": "SomeTest"
+   },
+   "capture": {
+    "g": "id",
+    "general": "system_channel_id"
+   }
+  },
+  {
+   "name": "Setup: the portal makes AIRHORN SOLUTIONS, its redirect https://nicememe.website",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {
+    "name": "AIRHORN SOLUTIONS",
+    "redirect_uris": [
+     "https://nicememe.website"
+    ]
+   },
+   "capture": {
+    "aid": "client_id",
+    "asec": "client_secret",
+    "atok": "bot_token",
+    "abot": "bot_user_id"
+   }
+  },
+  {
+   "name": "Setup: Mason adds the bot to SomeTest with the code grant (bot, Administrator): the redirect carries a code",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={aid}&scope=bot&permissions=8&response_type=code&redirect_uri=https%3A%2F%2Fnicememe.website&state=15773059ghq9183habn&username=mason&password=airhorn-sound-9&decision=authorize&guild_id={g}",
+   "capture": {
+    "botcode": "redirect.code"
+   },
+   "expect": [
+    {
+     "path": "redirect.guild_id",
+     "equals": "{g}"
+    },
+    {
+     "path": "redirect.state",
+     "equals": "15773059ghq9183habn"
+    }
+   ]
+  },
+  {
+   "name": "Extended Bot Authorization Access Token: the code traded, the answer carrying the guild",
+   "example": "oauth2_token#doc Extended Bot Authorization Access Token",
+   "method": "POST",
+   "path": "/api/v10/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "{basic:aid:asec}"
+   },
+   "body": "grant_type=authorization_code&code={botcode}&redirect_uri=https%3A%2F%2Fnicememe.website",
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "bot"
+    },
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "expires_in",
+     "equals": 604800
+    },
+    {
+     "path": "guild.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "guild.name",
+     "equals": "SomeTest"
+    },
+    {
+     "path": "guild.owner_id",
+     "equals": "{mason}"
+    },
+    {
+     "path": "guild.roles.0.name",
+     "equals": "@everyone"
+    },
+    {
+     "path": "guild.roles.0.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "guild.system_channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "guild.roles.1.name",
+     "equals": "AIRHORN SOLUTIONS"
+    },
+    {
+     "path": "guild.roles.1.tags.bot_id",
+     "equals": "{abot}"
+    }
+   ],
+   "exampleDiffers": {
+    "guild.roles[].permissions": "The example predates API v8: a role's permissions are a string in the served v10 spec (role object, permissions: string) and on the permissions page (\"Permissions are stored in a variable-length integer serialized into a string\"); the integer is the older form.",
+    "guild.roles[].permissions_new": "permissions_new was the string beside the integer before API v8 made permissions itself the string; the v10 role object (the permissions page's Role Structure, the served spec's role schema) has no permissions_new.",
+    "guild.system_channel_id": "the guild the bot is added to was made in Discord's client (the World's guilds door, as a person creates a server), which gives it #general as its system channel; the published answer's guild has none set"
+   }
+  },
+  {
+   "name": "Setup: Mason signs in to his own site with Discord (identify): he authorizes",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "response_type=code&client_id={aid}&scope=identify&state=15773059ghq9183habn&redirect_uri=https%3A%2F%2Fnicememe.website&prompt=consent&username=mason&password=airhorn-sound-9&decision=authorize",
+   "capture": {
+    "code": "redirect.code"
+   },
+   "expect": [
+    {
+     "path": "redirect.state",
+     "equals": "15773059ghq9183habn"
+    }
+   ]
+  },
+  {
+   "name": "Access Token Exchange: the site trades the code",
+   "example": "oauth2_token#doc Access Token Exchange",
+   "method": "POST",
+   "path": "/api/v10/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "{basic:aid:asec}"
+   },
+   "body": "grant_type=authorization_code&code={code}&redirect_uri=https%3A%2F%2Fnicememe.website",
+   "capture": {
+    "at": "access_token",
+    "rt": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "identify"
+    },
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "expires_in",
+     "equals": 604800
+    }
+   ]
+  },
+  {
+   "name": "Access Token Exchange: a grant_type other than authorization_code is refused",
+   "example": "oauth2_token#doc Access Token Exchange: grant_type, refused as RFC 6749 section 5.2 states (Discord's OAuth2 page says it must be authorization_code and refers implementers to RFC 6749; the 400 and its error body are where that page stops)",
+   "method": "POST",
+   "path": "/api/v10/oauth2/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "{basic:aid:asec}"
+   },
+   "body": "grant_type=authorization&code={code}&redirect_uri=https%3A%2F%2Fnicememe.website",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "unsupported_grant_type"
+    }
+   ]
+  },
+  {
+   "name": "Example Authorization Information: the site reads the authorization",
+   "example": "get_my_oauth2_authorization#doc Example Authorization Information",
+   "method": "GET",
+   "path": "/api/v10/oauth2/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {at}"
+   },
+   "expect": [
+    {
+     "path": "application.id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "application.name",
+     "equals": "AIRHORN SOLUTIONS"
+    },
+    {
+     "path": "scopes",
+     "equals": [
+      "identify"
+     ]
+    },
+    {
+     "path": "user.id",
+     "equals": "{mason}"
+    },
+    {
+     "path": "user.username",
+     "equals": "mason"
+    },
+    {
+     "path": "user.global_name",
+     "equals": "Mason"
+    },
+    {
+     "path": "application.redirect_uris.0",
+     "equals": "https://nicememe.website"
+    },
+    {
+     "path": "application.bot.id",
+     "equals": "{abot}"
+    }
+   ],
+   "exampleDiffers": {
+    "application.hook": "Discord's OAuth2 page sample includes hook, but the pinned API v10 ApplicationResponse omits it; the twin answers the spec's shape (spec/SOURCE.md and resources/application's Application Structure).",
+    "application.icon": "The OAuth2 page sample has an icon; this application's portal setup gives no icon. API v10 ApplicationResponse and resources/application's Application Structure allow a null icon.",
+    "user.avatar": "The OAuth2 page sample has an avatar; Mason's account setup gives none. API v10 UserResponse and resources/user's User Structure allow a null avatar."
+   }
+  },
+  {
+   "name": "Get Current User: the site reads Mason with its identify grant, without his email",
+   "example": "get_my_user#doc Get Current User: an identify grant, without the email",
+   "method": "GET",
+   "path": "/api/v10/users/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {at}"
+   },
+   "expect": [
+    {
+     "path": "username",
+     "equals": "mason"
+    },
+    {
+     "path": "email",
+     "exists": false
+    },
+    {
+     "path": "id",
+     "equals": "{mason}"
+    },
+    {
+     "path": "global_name",
+     "equals": "Mason"
+    }
+   ]
+  },
+  {
+   "name": "Get Current Authorization Information: a bot token is refused",
+   "example": "get_my_oauth2_authorization#doc Get Current Authorization Information: a bot token",
+   "method": "GET",
+   "path": "/api/v10/oauth2/@me",
+   "status": 401,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Get Current User Guilds: the site's identify grant is refused",
+   "example": "list_my_guilds#doc Get Current User Guilds: a grant without the guilds scope",
+   "method": "GET",
+   "path": "/api/v10/users/@me/guilds",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {at}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50001
+    }
+   ]
+  },
+  {
+   "name": "Setup: a week later the grant nears its expiry",
+   "wait": "6d"
+  },
+  {
+   "name": "Refresh Token Exchange: the site refreshes the grant",
+   "example": "oauth2_token#doc Refresh Token Exchange",
+   "method": "POST",
+   "path": "/api/v10/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "{basic:aid:asec}"
+   },
+   "body": "grant_type=refresh_token&refresh_token={rt}",
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "identify"
+    },
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "expires_in",
+     "equals": 604800
+    }
+   ]
+  },
+  {
+   "name": "Example Partial Guild: the bot lists its servers with counts",
+   "example": "list_my_guilds#doc Example Partial Guild",
+   "method": "GET",
+   "path": "/api/v10/users/@me/guilds?with_counts=true",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "0.name",
+     "equals": "SomeTest"
+    },
+    {
+     "path": "0.owner",
+     "equals": false
+    },
+    {
+     "path": "0.approximate_member_count",
+     "equals": 2
+    },
+    {
+     "path": "1",
+     "exists": false
+    }
+   ],
+   "exampleDiffers": {
+    "[].icon": "A server with no icon answers null (the partial guild's icon is ?string); SomeTest has none, the example's 1337 Krew has one.",
+    "[].banner": "A server with no banner answers null (?string); SomeTest has none.",
+    "[].features": "A new server has no features (the guild's features list is empty until the server enables community, a banner or an invite splash); the example's 1337 Krew has six."
+   }
+  },
+  {
+   "name": "Get Gateway Bot Example Response: the bot finds the Gateway",
+   "example": "get_bot_gateway#doc Get Gateway Bot Example Response",
+   "method": "GET",
+   "path": "/api/v10/gateway/bot",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "url",
+     "matches": "^wss?://"
+    },
+    {
+     "path": "session_start_limit.total",
+     "equals": 1000
+    },
+    {
+     "path": "session_start_limit.remaining",
+     "equals": 1000
+    },
+    {
+     "path": "session_start_limit.max_concurrency",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Setup: a second application, Soundboard Lite, with no permission of its own",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {
+    "name": "Soundboard Lite"
+   },
+   "capture": {
+    "lid": "client_id",
+    "ltok": "bot_token",
+    "lbot": "bot_user_id"
+   }
+  },
+  {
+   "name": "Setup: Mason adds it to SomeTest (permissions 0)",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={lid}&scope=bot&permissions=0&username=mason&password=airhorn-sound-9&decision=authorize&guild_id={g}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "was added to SomeTest"
+    }
+   ]
+  },
+  {
+   "name": "Setup: a third, Mod Helper, managing channels and roles and reading the audit log",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {
+    "name": "Mod Helper"
+   },
+   "capture": {
+    "mid": "client_id",
+    "mtok": "bot_token"
+   }
+  },
+  {
+   "name": "Setup: Mason adds it to SomeTest (MANAGE_CHANNELS, MANAGE_ROLES, VIEW_AUDIT_LOG)",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={mid}&scope=bot&permissions=268435600&username=mason&password=airhorn-sound-9&decision=authorize&guild_id={g}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "was added to SomeTest"
+    }
+   ]
+  },
+  {
+   "name": "Example Request Body (application/json): the bot posts in #general",
+   "example": "create_message#doc Example Request Body (application/json)",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Hello, World!",
+    "tts": false,
+    "embeds": [
+     {
+      "title": "Hello, Embed!",
+      "description": "This is an embedded message."
+     }
+    ]
+   },
+   "capture": {
+    "hello": "id"
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "Hello, World!"
+    },
+    {
+     "path": "tts",
+     "equals": false
+    },
+    {
+     "path": "embeds.0.title",
+     "equals": "Hello, Embed!"
+    },
+    {
+     "path": "embeds.0.description",
+     "equals": "This is an embedded message."
+    },
+    {
+     "path": "embeds.0.type",
+     "equals": "rich"
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    }
+   ]
+  },
+  {
+   "name": "Uploading Files: without payload_json: content and tts as form fields",
+   "example": "create_message#doc Uploading Files: without payload_json",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "multipart/form-data; boundary=boundary"
+   },
+   "body": "--boundary\r\nContent-Disposition: form-data; name=\"content\"\r\n\r\nHello, World!\r\n--boundary\r\nContent-Disposition: form-data; name=\"tts\"\r\n\r\ntrue\r\n--boundary--\r\n",
+   "expect": [
+    {
+     "path": "content",
+     "equals": "Hello, World!"
+    },
+    {
+     "path": "tts",
+     "equals": true
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    }
+   ]
+  },
+  {
+   "name": "Setup: the bot posts the message the upload will reply to",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "body": {
+    "content": "Attachment preview request"
+   },
+   "capture": {
+    "uploadsource": "id"
+   }
+  },
+  {
+   "name": "Uploading Files: with payload_json and two attached images",
+   "example": "create_message#doc Uploading Files: with payload_json",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "payload_json",
+      "value": "{\"content\": \"Hello, World!\", \"embeds\": [{\"title\": \"Hello, Embed!\", \"description\": \"This is an embedded message.\", \"thumbnail\": {\"url\": \"attachment://myfilename.png\"}, \"image\": {\"url\": \"attachment://mygif.gif\"}}], \"message_reference\": {\"message_id\": \"{uploadsource}\"}, \"attachments\": [{\"id\": 0, \"description\": \"Image of a cute little cat\", \"filename\": \"myfilename.png\"}, {\"id\": 1, \"description\": \"Rickroll gif\", \"filename\": \"mygif.gif\"}]}"
+     },
+     {
+      "name": "files[0]",
+      "filename": "myfilename.png",
+      "type": "image/png",
+      "base64": "aW1hZ2UgYnl0ZXM="
+     },
+     {
+      "name": "files[1]",
+      "filename": "mygif.gif",
+      "type": "image/gif",
+      "base64": "Z2lmIGJ5dGVz"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "Hello, World!"
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "message_reference.message_id",
+     "equals": "{uploadsource}"
+    },
+    {
+     "path": "attachments.0.filename",
+     "equals": "myfilename.png"
+    },
+    {
+     "path": "attachments.0.description",
+     "equals": "Image of a cute little cat"
+    },
+    {
+     "path": "attachments.1.filename",
+     "equals": "mygif.gif"
+    },
+    {
+     "path": "attachments.1.description",
+     "equals": "Rickroll gif"
+    },
+    {
+     "path": "embeds.0.title",
+     "equals": "Hello, Embed!"
+    },
+    {
+     "path": "embeds.0.description",
+     "equals": "This is an embedded message."
+    },
+    {
+     "path": "embeds.0.thumbnail.url",
+     "equals": "attachment://myfilename.png"
+    },
+    {
+     "path": "embeds.0.image.url",
+     "equals": "attachment://mygif.gif"
+    },
+    {
+     "path": "message_reference.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "message_reference.guild_id",
+     "equals": "{g}"
+    },
+    {
+     "path": "referenced_message.id",
+     "equals": "{uploadsource}"
+    },
+    {
+     "path": "referenced_message.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "referenced_message.content",
+     "equals": "Attachment preview request"
+    },
+    {
+     "path": "referenced_message.author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the payload omits it (resources/message, Create Message JSON/Form Params).",
+    "referenced_message.tts": "The source request omitted tts, whose default is false (resources/message, Create Message JSON/Form Params)."
+   },
+   "capture": {
+    "uploaded": "id",
+    "keepfile": "attachments.0.id"
+   }
+  },
+  {
+   "name": "Edit Message: retaining and replacing uploaded attachments",
+   "example": "update_message#doc Edit Message: retaining and replacing uploaded attachments",
+   "method": "PATCH",
+   "path": "/api/v10/channels/{general}/messages/{uploaded}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "form": {
+    "parts": [
+     {
+      "name": "payload_json",
+      "value": "{\"attachments\": [{\"id\": \"{keepfile}\", \"description\": \"Retained cat image\"}, {\"id\": 0, \"filename\": \"replacement.txt\", \"description\": \"Replacement notes\"}]}"
+     },
+     {
+      "name": "files[0]",
+      "filename": "replacement.txt",
+      "type": "text/plain",
+      "base64": "bm90ZXM="
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "attachments.0.id",
+     "equals": "{keepfile}"
+    },
+    {
+     "path": "attachments.0.filename",
+     "equals": "myfilename.png"
+    },
+    {
+     "path": "attachments.0.description",
+     "equals": "Retained cat image"
+    },
+    {
+     "path": "attachments.1.filename",
+     "equals": "replacement.txt"
+    },
+    {
+     "path": "attachments.1.description",
+     "equals": "Replacement notes"
+    },
+    {
+     "path": "attachments.1.size",
+     "equals": 5
+    },
+    {
+     "path": "attachments.2",
+     "exists": false
+    },
+    {
+     "path": "content",
+     "equals": "Hello, World!"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "message_reference.message_id",
+     "equals": "{uploadsource}"
+    },
+    {
+     "path": "embeds.0.title",
+     "equals": "Hello, Embed!"
+    },
+    {
+     "path": "embeds.0.description",
+     "equals": "This is an embedded message."
+    },
+    {
+     "path": "embeds.0.thumbnail.url",
+     "equals": "attachment://myfilename.png"
+    },
+    {
+     "path": "embeds.0.image.url",
+     "equals": "attachment://mygif.gif"
+    },
+    {
+     "path": "message_reference.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "message_reference.guild_id",
+     "equals": "{g}"
+    },
+    {
+     "path": "referenced_message.id",
+     "equals": "{uploadsource}"
+    },
+    {
+     "path": "referenced_message.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "referenced_message.content",
+     "equals": "Attachment preview request"
+    },
+    {
+     "path": "referenced_message.author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "id",
+     "equals": "{uploaded}"
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the payload omits it (resources/message, Create Message JSON/Form Params).",
+    "referenced_message.tts": "The source request omitted tts, whose default is false (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Allowed Mentions: none configured",
+   "example": "create_message#doc Allowed Mentions: none configured",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "@here Hello <@&1234> and <@5678> \ud83d\udc4b"
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "@here Hello <@&1234> and <@5678> \ud83d\udc4b"
+    },
+    {
+     "path": "mention_everyone",
+     "equals": true
+    },
+    {
+     "path": "mention_roles",
+     "equals": [
+      "1234"
+     ]
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the request omits it; this coincides with a prior request's false value (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Allowed Mentions: all suppressed",
+   "example": "create_message#doc Allowed Mentions: all suppressed",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "@here Hello <@&1234> and <@5678> \ud83d\udc4b",
+    "allowed_mentions": {
+     "parse": []
+    }
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "@here Hello <@&1234> and <@5678> \ud83d\udc4b"
+    },
+    {
+     "path": "mention_everyone",
+     "equals": false
+    },
+    {
+     "path": "mention_roles",
+     "equals": []
+    },
+    {
+     "path": "mentions",
+     "equals": []
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the request omits it; this coincides with a prior request's false value (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Allowed Mentions: users and roles parsed",
+   "example": "create_message#doc Allowed Mentions: users and roles parsed",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "@here Hello <@&1234> and <@5678> \ud83d\udc4b",
+    "allowed_mentions": {
+     "parse": [
+      "users",
+      "roles"
+     ],
+     "users": []
+    }
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "@here Hello <@&1234> and <@5678> \ud83d\udc4b"
+    },
+    {
+     "path": "mention_everyone",
+     "equals": false
+    },
+    {
+     "path": "mention_roles",
+     "equals": [
+      "1234"
+     ]
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the request omits it; this coincides with a prior request's false value (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Allowed Mentions: everyone and listed users",
+   "example": "create_message#doc Allowed Mentions: everyone and listed users",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "@everyone <@1234> <@5678> <@&789> \ud83d\udc4b",
+    "allowed_mentions": {
+     "parse": [
+      "everyone"
+     ],
+     "users": [
+      "1234",
+      "5678"
+     ]
+    }
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "@everyone <@1234> <@5678> <@&789> \ud83d\udc4b"
+    },
+    {
+     "path": "mention_everyone",
+     "equals": true
+    },
+    {
+     "path": "mention_roles",
+     "equals": []
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the request omits it; this coincides with a prior request's false value (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Allowed Mentions: an id not in the content",
+   "example": "create_message#doc Allowed Mentions: an id not in the content",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "<@123> Time for some memes \ud83e\udd20",
+    "allowed_mentions": {
+     "users": [
+      "123",
+      "456"
+     ]
+    }
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "<@123> Time for some memes \ud83e\udd20"
+    },
+    {
+     "path": "content",
+     "equals": "<@123> Time for some memes \ud83e\udd20"
+    },
+    {
+     "path": "mention_everyone",
+     "equals": false
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the request omits it; this coincides with a prior request's false value (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Allowed Mentions: an invalid configuration is refused",
+   "example": "create_message#doc Allowed Mentions: an invalid configuration",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "@everyone <@1234> <@5678> <@9012> <@&200>",
+    "allowed_mentions": {
+     "parse": [
+      "users"
+     ],
+     "users": [
+      "1234",
+      "5678"
+     ]
+    }
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Message: an empty message is refused",
+   "example": "create_message#doc Create Message: an empty message",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": ""
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50006
+    }
+   ]
+  },
+  {
+   "name": "Create Message: 2001 characters are refused",
+   "example": "create_message#doc Create Message: content over 2000 characters",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "errors.content._errors.0.code",
+     "equals": "BASE_TYPE_MAX_LENGTH"
+    }
+   ]
+  },
+  {
+   "name": "Create Message: eleven embeds are refused",
+   "example": "create_message#doc Create Message: eleven embeds",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "embeds": [
+     {
+      "title": "Embed 1"
+     },
+     {
+      "title": "Embed 2"
+     },
+     {
+      "title": "Embed 3"
+     },
+     {
+      "title": "Embed 4"
+     },
+     {
+      "title": "Embed 5"
+     },
+     {
+      "title": "Embed 6"
+     },
+     {
+      "title": "Embed 7"
+     },
+     {
+      "title": "Embed 8"
+     },
+     {
+      "title": "Embed 9"
+     },
+     {
+      "title": "Embed 10"
+     },
+     {
+      "title": "Embed 11"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Message: a reply to a message that does not exist is refused",
+   "example": "create_message#doc Create Message: a reply to a message that does not exist",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Replying",
+    "message_reference": {
+     "message_id": "1"
+    }
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Message: tts from a bot without SEND_TTS_MESSAGES is refused",
+   "example": "create_message#doc Create Message: tts without SEND_TTS_MESSAGES",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Read this aloud",
+    "tts": true
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Setup: the bot makes a category, Info",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Info",
+    "type": 4
+   },
+   "capture": {
+    "cat": "id"
+   },
+   "expect": [
+    {
+     "path": "type",
+     "equals": 4
+    }
+   ]
+  },
+  {
+   "name": "Create Message: a category takes no message",
+   "example": "create_message#doc Create Message: a category",
+   "method": "POST",
+   "path": "/api/v10/channels/{cat}/messages",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Hello"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50008
+    }
+   ]
+  },
+  {
+   "name": "Create Message: an unknown channel",
+   "example": "create_message#doc Create Message: an unknown channel",
+   "method": "POST",
+   "path": "/api/v10/channels/1234/messages",
+   "status": 404,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Hello"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10003
+    }
+   ]
+  },
+  {
+   "name": "Create Message: no Authorization header",
+   "example": "create_message#doc Create Message: no Authorization header",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 401,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Hello"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Get Channel Messages: a limit over 100 is refused",
+   "example": "list_messages#doc Get Channel Messages: a limit over 100",
+   "method": "GET",
+   "path": "/api/v10/channels/{general}/messages?limit=101",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Setup: a channel where Soundboard Lite may not read history",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "staff-log",
+    "permission_overwrites": [
+     {
+      "id": "{lbot}",
+      "type": 1,
+      "deny": "65536"
+     }
+    ]
+   },
+   "capture": {
+    "locked": "id"
+   }
+  },
+  {
+   "name": "Setup: a line in it",
+   "method": "POST",
+   "path": "/api/v10/channels/{locked}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Rotation starts Friday."
+   },
+   "capture": {
+    "rot": "id"
+   }
+  },
+  {
+   "name": "Get Channel Messages: without READ_MESSAGE_HISTORY, none",
+   "example": "list_messages#doc Get Channel Messages: without READ_MESSAGE_HISTORY",
+   "method": "GET",
+   "path": "/api/v10/channels/{locked}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ltok}"
+   },
+   "expect": [
+    {
+     "path": "0",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Setup: a voice channel @everyone may not connect to",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Stage Room",
+    "type": 2,
+    "permission_overwrites": [
+     {
+      "id": "{g}",
+      "type": 0,
+      "deny": "1048576"
+     }
+    ]
+   },
+   "capture": {
+    "voice": "id"
+   }
+  },
+  {
+   "name": "Get Channel Messages: a voice channel without CONNECT is refused",
+   "example": "list_messages#doc Get Channel Messages: a voice channel without CONNECT",
+   "method": "GET",
+   "path": "/api/v10/channels/{voice}/messages",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50001
+    }
+   ]
+  },
+  {
+   "name": "Setup: a thread on the bot's hello",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages/{hello}/threads",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Hello thread"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{hello}"
+    }
+   ]
+  },
+  {
+   "name": "Start Thread from Message: a second thread on it is refused",
+   "example": "create_thread_from_message#doc Start Thread from Message: a second thread",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages/{hello}/threads",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Second thoughts"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 160004
+    }
+   ]
+  },
+  {
+   "name": "Setup: another message",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Weekly notes go here."
+   },
+   "capture": {
+    "notes": "id"
+   }
+  },
+  {
+   "name": "Start Thread from Message: an archive duration Discord does not offer is refused",
+   "example": "create_thread_from_message#doc Start Thread from Message: an archive duration Discord does not offer",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages/{notes}/threads",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Weekly notes",
+    "auto_archive_duration": 120
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Start Thread from Message: an empty name is refused",
+   "example": "create_thread_from_message#doc Start Thread from Message: an empty name",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages/{notes}/threads",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": ""
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Start Thread from Message: an unknown message",
+   "example": "create_thread_from_message#doc Start Thread from Message: an unknown message",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages/1/threads",
+   "status": 404,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Lost"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10008
+    }
+   ]
+  },
+  {
+   "name": "Create Guild Channel: a name over 100 is refused",
+   "example": "create_guild_channel#doc Create Guild Channel: a name over 100",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Guild Channel: Soundboard Lite without MANAGE_CHANNELS is refused",
+   "example": "create_guild_channel#doc Create Guild Channel: without MANAGE_CHANNELS",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "bot-lounge"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Create Guild Channel: Mod Helper may not allow MANAGE_WEBHOOKS, which it does not hold",
+   "example": "create_guild_channel#doc Create Guild Channel: an overwrite the bot does not hold",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "hooks",
+    "permission_overwrites": [
+     {
+      "id": "{g}",
+      "type": 0,
+      "allow": "536870912"
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Create Guild Channel: an unknown guild",
+   "example": "create_guild_channel#doc Create Guild Channel: an unknown guild",
+   "method": "POST",
+   "path": "/api/v10/guilds/1234/channels",
+   "status": 404,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "elsewhere"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10004
+    }
+   ]
+  },
+  {
+   "name": "Create Guild Role: a name over 100 is refused",
+   "example": "create_guild_role#doc Create Guild Role: a name over 100",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/roles",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Guild Role: Soundboard Lite without MANAGE_ROLES is refused",
+   "example": "create_guild_role#doc Create Guild Role: without MANAGE_ROLES",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/roles",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Helpers"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Create Guild Role: Mod Helper may not grant Administrator, which it does not hold",
+   "example": "create_guild_role#doc Create Guild Role: a permission the bot does not hold",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/roles",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Admins",
+    "permissions": "8"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Search Guild Members: a limit over 1000 is refused",
+   "example": "search_guild_members#doc Search Guild Members: a limit over 1000",
+   "method": "GET",
+   "path": "/api/v10/guilds/{g}/members/search?query=ma&limit=1001",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Modify Current Member: a nickname over 32 is refused",
+   "example": "update_my_guild_member#doc Modify Current Member: a nickname over 32",
+   "method": "PATCH",
+   "path": "/api/v10/guilds/{g}/members/@me",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "nick": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Webhook: a name with discord in it is refused",
+   "example": "create_webhook#doc Create Webhook: a name with discord in it",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/webhooks",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Discord Alerts"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Webhook: an empty name is refused",
+   "example": "create_webhook#doc Create Webhook: an empty name",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/webhooks",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": ""
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Webhook: Soundboard Lite without MANAGE_WEBHOOKS is refused",
+   "example": "create_webhook#doc Create Webhook: without MANAGE_WEBHOOKS",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/webhooks",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Alerts"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Get Guild Webhooks: Soundboard Lite without MANAGE_WEBHOOKS is refused",
+   "example": "get_guild_webhooks#doc Get Guild Webhooks: without MANAGE_WEBHOOKS",
+   "method": "GET",
+   "path": "/api/v10/guilds/{g}/webhooks",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Setup: the bot makes a webhook in #general",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/webhooks",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Deploys"
+   },
+   "capture": {
+    "hook": "id",
+    "hooktok": "token"
+   }
+  },
+  {
+   "name": "Execute Webhook: wait=true answers the message",
+   "example": "execute_webhook#doc Execute Webhook: wait",
+   "method": "POST",
+   "path": "/api/v10/webhooks/{hook}/{hooktok}?wait=true",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Deploy finished"
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "Deploy finished"
+    },
+    {
+     "path": "webhook_id",
+     "equals": "{hook}"
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.username",
+     "equals": "Deploys"
+    },
+    {
+     "path": "author.id",
+     "equals": "{hook}"
+    },
+    {
+     "path": "application_id",
+     "equals": "{aid}"
+    }
+   ],
+   "undecided": {
+    "tts": "The request omitted tts; Discord defaults it to false (resources/message and resources/webhook JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Execute Webhook: thread_id sends it in the thread",
+   "example": "execute_webhook#doc Execute Webhook: a thread of the webhook channel",
+   "method": "POST",
+   "path": "/api/v10/webhooks/{hook}/{hooktok}?thread_id={hello}",
+   "status": 204,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Notes for the thread"
+   },
+   "undecided": {
+    "tts": "The request omitted tts; Discord defaults it to false (resources/message and resources/webhook JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Setup: the thread holds it",
+   "method": "GET",
+   "path": "/api/v10/channels/{hello}/messages?limit=1",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.content",
+     "equals": "Notes for the thread"
+    },
+    {
+     "path": "0.channel_id",
+     "equals": "{hello}"
+    },
+    {
+     "path": "0.webhook_id",
+     "equals": "{hook}"
+    }
+   ]
+  },
+  {
+   "name": "Execute Webhook: a wrong token is refused",
+   "example": "execute_webhook#doc Execute Webhook: a wrong token",
+   "method": "POST",
+   "path": "/api/v10/webhooks/{hook}/notthetoken",
+   "status": 401,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Hello"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50027
+    }
+   ]
+  },
+  {
+   "name": "Execute Webhook: an unknown webhook",
+   "example": "execute_webhook#doc Execute Webhook: an unknown webhook",
+   "method": "POST",
+   "path": "/api/v10/webhooks/1234/{hooktok}",
+   "status": 404,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Hello"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10015
+    }
+   ]
+  },
+  {
+   "name": "Create Channel Invite: a max age over 7 days is refused",
+   "example": "create_channel_invite#doc Create Channel Invite: a max age over 7 days",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/invites",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "max_age": 604801
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Create Channel Invite: max uses over 100 are refused",
+   "example": "create_channel_invite#doc Create Channel Invite: max uses over 100",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/invites",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "max_uses": 101
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Setup: an invite that never expires",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/invites",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "max_age": 0
+   },
+   "capture": {
+    "inv": "code"
+   }
+  },
+  {
+   "name": "Create Channel Invite: unique makes another, not the similar one",
+   "example": "create_channel_invite#doc Create Channel Invite: unique",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/invites",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "max_age": 0,
+    "unique": true
+   },
+   "expect": [
+    {
+     "path": "max_age",
+     "equals": 0
+    },
+    {
+     "path": "guild.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "guild.name",
+     "equals": "SomeTest"
+    },
+    {
+     "path": "guild_id",
+     "equals": "{g}"
+    },
+    {
+     "path": "channel.id",
+     "equals": "{general}"
+    },
+    {
+     "path": "inviter.id",
+     "equals": "{abot}"
+    }
+   ]
+  },
+  {
+   "name": "Get Guild Invites: Soundboard Lite is refused",
+   "example": "list_guild_invites#doc Get Guild Invites: without MANAGE_GUILD or VIEW_AUDIT_LOG",
+   "method": "GET",
+   "path": "/api/v10/guilds/{g}/invites",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Get Guild Invites: Mod Helper, with VIEW_AUDIT_LOG, reads them without their metadata",
+   "example": "list_guild_invites#doc Get Guild Invites: VIEW_AUDIT_LOG without MANAGE_GUILD",
+   "method": "GET",
+   "path": "/api/v10/guilds/{g}/invites",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {mtok}"
+   },
+   "expect": [
+    {
+     "path": "0.code",
+     "equals": "{inv}"
+    },
+    {
+     "path": "1",
+     "exists": true
+    },
+    {
+     "path": "0.uses",
+     "exists": false
+    },
+    {
+     "path": "0.max_age",
+     "exists": false
+    },
+    {
+     "path": "0.guild.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "0.guild.name",
+     "equals": "SomeTest"
+    },
+    {
+     "path": "0.guild_id",
+     "equals": "{g}"
+    },
+    {
+     "path": "0.channel.id",
+     "equals": "{general}"
+    },
+    {
+     "path": "0.inviter.id",
+     "equals": "{abot}"
+    }
+   ]
+  },
+  {
+   "name": "Setup: a channel where @everyone may not add reactions, for polls",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "polls",
+    "permission_overwrites": [
+     {
+      "id": "{g}",
+      "type": 0,
+      "deny": "64"
+     }
+    ]
+   },
+   "capture": {
+    "polls": "id"
+   }
+  },
+  {
+   "name": "Setup: a poll in it",
+   "method": "POST",
+   "path": "/api/v10/channels/{polls}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Friday's session: react if you're in"
+   },
+   "capture": {
+    "poll": "id"
+   }
+  },
+  {
+   "name": "Create Reaction: Soundboard Lite, without ADD_REACTIONS there, may not react first",
+   "example": "add_my_message_reaction#doc Create Reaction: the first reaction without ADD_REACTIONS",
+   "method": "PUT",
+   "path": "/api/v10/channels/{polls}/messages/{poll}/reactions/%F0%9F%91%8D/@me",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Setup: AIRHORN SOLUTIONS reacts first",
+   "method": "PUT",
+   "path": "/api/v10/channels/{polls}/messages/{poll}/reactions/%F0%9F%91%8D/@me",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Create Reaction: once someone has, Soundboard Lite may add to it",
+   "example": "add_my_message_reaction#doc Create Reaction: an emoji someone already used, without ADD_REACTIONS",
+   "method": "PUT",
+   "path": "/api/v10/channels/{polls}/messages/{poll}/reactions/%F0%9F%91%8D/@me",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {ltok}"
+   }
+  },
+  {
+   "name": "Reaction Object: the poll read back with its reaction, counted twice, the reader's among them",
+   "example": "list_messages#doc Reaction Object: a message read back with its reactions",
+   "method": "GET",
+   "path": "/api/v10/channels/{polls}/messages?limit=1",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{poll}"
+    },
+    {
+     "path": "0.reactions.0.count",
+     "equals": 2
+    },
+    {
+     "path": "0.reactions.0.count_details.normal",
+     "equals": 2
+    },
+    {
+     "path": "0.reactions.0.me",
+     "equals": true
+    },
+    {
+     "path": "0.reactions.0.emoji.name",
+     "equals": "\ud83d\udc4d"
+    },
+    {
+     "path": "0.channel_id",
+     "equals": "{polls}"
+    },
+    {
+     "path": "0.content",
+     "equals": "Friday's session: react if you're in"
+    },
+    {
+     "path": "0.author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "undecided": {
+    "0.tts": "Discord defaults tts to false when the request omits it; this coincides with a prior request's false value (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Delete Own Reaction: AIRHORN SOLUTIONS takes its reaction back",
+   "example": "delete_my_message_reaction#doc Delete Own Reaction",
+   "method": "DELETE",
+   "path": "/api/v10/channels/{polls}/messages/{poll}/reactions/%F0%9F%91%8D/@me",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Setup: the poll keeps Soundboard Lite's reaction alone",
+   "method": "GET",
+   "path": "/api/v10/channels/{polls}/messages?limit=1",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.reactions.0.count",
+     "equals": 1
+    },
+    {
+     "path": "0.reactions.0.me",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Create Reaction: a custom emoji SomeTest does not have",
+   "example": "add_my_message_reaction#doc Create Reaction: a custom emoji the server does not have",
+   "method": "PUT",
+   "path": "/api/v10/channels/{polls}/messages/{poll}/reactions/airhorn%3A1234567890/@me",
+   "status": 404,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10014
+    }
+   ]
+  },
+  {
+   "name": "Create Reaction: Soundboard Lite, without READ_MESSAGE_HISTORY in #staff-log, is refused",
+   "example": "add_my_message_reaction#doc Create Reaction: without READ_MESSAGE_HISTORY",
+   "method": "PUT",
+   "path": "/api/v10/channels/{locked}/messages/{rot}/reactions/%F0%9F%91%8D/@me",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    }
+   ]
+  },
+  {
+   "name": "Edit Message: Soundboard Lite may not edit the bot's hello",
+   "example": "update_message#doc Edit Message: another user's message",
+   "method": "PATCH",
+   "path": "/api/v10/channels/{general}/messages/{hello}",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ltok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Goodbye, World!"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50005
+    }
+   ]
+  },
+  {
+   "name": "Edit Message: 2001 characters are refused",
+   "example": "update_message#doc Edit Message: content over 2000 characters",
+   "method": "PATCH",
+   "path": "/api/v10/channels/{general}/messages/{hello}",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "errors.content._errors.0.code",
+     "equals": "BASE_TYPE_MAX_LENGTH"
+    }
+   ]
+  },
+  {
+   "name": "Edit Message: the bot turns its notes into an embed, its link previews suppressed, the text cleared",
+   "example": "update_message#doc Edit Message: embeds, flags and components by the author, the content cleared",
+   "method": "PATCH",
+   "path": "/api/v10/channels/{general}/messages/{notes}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": null,
+    "embeds": [
+     {
+      "title": "Weekly notes",
+      "description": "Notes for the week go in the thread."
+     }
+    ],
+    "components": [],
+    "flags": 4
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": ""
+    },
+    {
+     "path": "embeds.0.title",
+     "equals": "Weekly notes"
+    },
+    {
+     "path": "embeds.0.type",
+     "equals": "rich"
+    },
+    {
+     "path": "flags",
+     "equals": 4
+    },
+    {
+     "path": "edited_timestamp",
+     "exists": true
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "id",
+     "equals": "{notes}"
+    },
+    {
+     "path": "embeds.0.description",
+     "equals": "Notes for the week go in the thread."
+    }
+   ],
+   "undecided": {
+    "tts": "Discord defaults tts to false when the request omits it; this coincides with a prior request's false value (resources/message, Create Message JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Making a Global Command: AIRHORN SOLUTIONS registers /blep as the page shows it, with its bot token",
+   "example": "create_application_command#doc Making a Global Command",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "blep",
+    "type": 1,
+    "description": "Send a random adorable animal photo",
+    "options": [
+     {
+      "name": "animal",
+      "description": "The type of animal",
+      "type": 3,
+      "required": true,
+      "choices": [
+       {
+        "name": "Dog",
+        "value": "animal_dog"
+       },
+       {
+        "name": "Cat",
+        "value": "animal_cat"
+       },
+       {
+        "name": "Penguin",
+        "value": "animal_penguin"
+       }
+      ]
+     },
+     {
+      "name": "only_smol",
+      "description": "Whether to show only baby animals",
+      "type": 5,
+      "required": false
+     }
+    ]
+   },
+   "capture": {
+    "blep": "id"
+   },
+   "expect": [
+    {
+     "path": "application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "name",
+     "equals": "blep"
+    },
+    {
+     "path": "type",
+     "equals": 1
+    },
+    {
+     "path": "description",
+     "equals": "Send a random adorable animal photo"
+    },
+    {
+     "path": "options.0.name",
+     "equals": "animal"
+    },
+    {
+     "path": "options.0.type",
+     "equals": 3
+    },
+    {
+     "path": "options.0.required",
+     "equals": true
+    },
+    {
+     "path": "options.0.choices.2.value",
+     "equals": "animal_penguin"
+    },
+    {
+     "path": "options.1.name",
+     "equals": "only_smol"
+    },
+    {
+     "path": "options.1.type",
+     "equals": 5
+    },
+    {
+     "path": "options.1.required",
+     "equals": false
+    },
+    {
+     "path": "version",
+     "exists": true
+    },
+    {
+     "path": "options.0.description",
+     "equals": "The type of animal"
+    },
+    {
+     "path": "options.0.choices.0.name",
+     "equals": "Dog"
+    },
+    {
+     "path": "options.0.choices.0.value",
+     "equals": "animal_dog"
+    },
+    {
+     "path": "options.0.choices.1.name",
+     "equals": "Cat"
+    },
+    {
+     "path": "options.0.choices.1.value",
+     "equals": "animal_cat"
+    },
+    {
+     "path": "options.0.choices.2.name",
+     "equals": "Penguin"
+    },
+    {
+     "path": "options.1.description",
+     "equals": "Whether to show only baby animals"
+    }
+   ]
+  },
+  {
+   "name": "Using Default Permissions: /permissions_test, for admins only",
+   "example": "create_application_command#doc Using Default Permissions: admins only",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "permissions_test",
+    "description": "A test of default permissions",
+    "type": 1,
+    "default_member_permissions": "0"
+   },
+   "capture": {
+    "perm": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "permissions_test"
+    },
+    {
+     "path": "description",
+     "equals": "A test of default permissions"
+    },
+    {
+     "path": "type",
+     "equals": 1
+    },
+    {
+     "path": "default_member_permissions",
+     "equals": "0"
+    },
+    {
+     "path": "application_id",
+     "equals": "{aid}"
+    }
+   ]
+  },
+  {
+   "name": "Using Default Permissions: the same name again, for MANAGE_GUILD: the command is overwritten (200)",
+   "example": "create_application_command#doc Using Default Permissions: MANAGE_GUILD",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "permissions_test",
+    "description": "A test of default permissions",
+    "type": 1,
+    "default_member_permissions": "32"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{perm}"
+    },
+    {
+     "path": "name",
+     "equals": "permissions_test"
+    },
+    {
+     "path": "description",
+     "equals": "A test of default permissions"
+    },
+    {
+     "path": "default_member_permissions",
+     "equals": "32"
+    },
+    {
+     "path": "application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "type",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Edit Global Application Command: /blep gains a French description; what the edit leaves out stays",
+   "example": "update_application_command#doc Edit Global Application Command",
+   "method": "PATCH",
+   "path": "/api/v10/applications/{aid}/commands/{blep}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "description_localizations": {
+     "fr": "Envoie une photo d'animal adorable"
+    }
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{blep}"
+    },
+    {
+     "path": "description_localizations.fr",
+     "equals": "Envoie une photo d'animal adorable"
+    },
+    {
+     "path": "description",
+     "equals": "Send a random adorable animal photo"
+    },
+    {
+     "path": "options.0.name",
+     "equals": "animal"
+    },
+    {
+     "path": "application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "name",
+     "equals": "blep"
+    },
+    {
+     "path": "type",
+     "equals": 1
+    },
+    {
+     "path": "options.0.description",
+     "equals": "The type of animal"
+    },
+    {
+     "path": "options.0.type",
+     "equals": 3
+    },
+    {
+     "path": "options.0.required",
+     "equals": true
+    },
+    {
+     "path": "options.0.choices.0.name",
+     "equals": "Dog"
+    },
+    {
+     "path": "options.0.choices.0.value",
+     "equals": "animal_dog"
+    },
+    {
+     "path": "options.0.choices.1.name",
+     "equals": "Cat"
+    },
+    {
+     "path": "options.0.choices.1.value",
+     "equals": "animal_cat"
+    },
+    {
+     "path": "options.0.choices.2.name",
+     "equals": "Penguin"
+    },
+    {
+     "path": "options.0.choices.2.value",
+     "equals": "animal_penguin"
+    },
+    {
+     "path": "options.1.name",
+     "equals": "only_smol"
+    },
+    {
+     "path": "options.1.description",
+     "equals": "Whether to show only baby animals"
+    },
+    {
+     "path": "options.1.type",
+     "equals": 5
+    },
+    {
+     "path": "options.1.required",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Get Global Application Commands: both, without their localization dictionaries",
+   "example": "list_application_commands#doc Get Global Application Commands",
+   "method": "GET",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{blep}"
+    },
+    {
+     "path": "1.id",
+     "equals": "{perm}"
+    },
+    {
+     "path": "1.default_member_permissions",
+     "equals": "32"
+    },
+    {
+     "path": "2",
+     "exists": false
+    },
+    {
+     "path": "0.description_localizations",
+     "exists": false
+    },
+    {
+     "path": "0.application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "0.name",
+     "equals": "blep"
+    },
+    {
+     "path": "0.type",
+     "equals": 1
+    },
+    {
+     "path": "0.description",
+     "equals": "Send a random adorable animal photo"
+    },
+    {
+     "path": "0.options.0.name",
+     "equals": "animal"
+    },
+    {
+     "path": "0.options.0.description",
+     "equals": "The type of animal"
+    },
+    {
+     "path": "0.options.0.type",
+     "equals": 3
+    },
+    {
+     "path": "0.options.0.required",
+     "equals": true
+    },
+    {
+     "path": "0.options.0.choices.0.name",
+     "equals": "Dog"
+    },
+    {
+     "path": "0.options.0.choices.0.value",
+     "equals": "animal_dog"
+    },
+    {
+     "path": "0.options.0.choices.1.name",
+     "equals": "Cat"
+    },
+    {
+     "path": "0.options.0.choices.1.value",
+     "equals": "animal_cat"
+    },
+    {
+     "path": "0.options.0.choices.2.name",
+     "equals": "Penguin"
+    },
+    {
+     "path": "0.options.0.choices.2.value",
+     "equals": "animal_penguin"
+    },
+    {
+     "path": "0.options.1.name",
+     "equals": "only_smol"
+    },
+    {
+     "path": "0.options.1.description",
+     "equals": "Whether to show only baby animals"
+    },
+    {
+     "path": "0.options.1.type",
+     "equals": 5
+    },
+    {
+     "path": "0.options.1.required",
+     "equals": false
+    },
+    {
+     "path": "1.application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "1.name",
+     "equals": "permissions_test"
+    },
+    {
+     "path": "1.description",
+     "equals": "A test of default permissions"
+    },
+    {
+     "path": "1.type",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Get Global Application Commands: with_localizations, /blep's French description with it",
+   "example": "list_application_commands#doc Get Global Application Commands: with_localizations",
+   "method": "GET",
+   "path": "/api/v10/applications/{aid}/commands?with_localizations=true",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{blep}"
+    },
+    {
+     "path": "0.description_localizations.fr",
+     "equals": "Envoie une photo d'animal adorable"
+    },
+    {
+     "path": "0.application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "0.name",
+     "equals": "blep"
+    },
+    {
+     "path": "0.type",
+     "equals": 1
+    },
+    {
+     "path": "0.description",
+     "equals": "Send a random adorable animal photo"
+    },
+    {
+     "path": "0.options.0.name",
+     "equals": "animal"
+    },
+    {
+     "path": "0.options.0.description",
+     "equals": "The type of animal"
+    },
+    {
+     "path": "0.options.0.type",
+     "equals": 3
+    },
+    {
+     "path": "0.options.0.required",
+     "equals": true
+    },
+    {
+     "path": "0.options.0.choices.0.name",
+     "equals": "Dog"
+    },
+    {
+     "path": "0.options.0.choices.0.value",
+     "equals": "animal_dog"
+    },
+    {
+     "path": "0.options.0.choices.1.name",
+     "equals": "Cat"
+    },
+    {
+     "path": "0.options.0.choices.1.value",
+     "equals": "animal_cat"
+    },
+    {
+     "path": "0.options.0.choices.2.name",
+     "equals": "Penguin"
+    },
+    {
+     "path": "0.options.0.choices.2.value",
+     "equals": "animal_penguin"
+    },
+    {
+     "path": "0.options.1.name",
+     "equals": "only_smol"
+    },
+    {
+     "path": "0.options.1.description",
+     "equals": "Whether to show only baby animals"
+    },
+    {
+     "path": "0.options.1.type",
+     "equals": 5
+    },
+    {
+     "path": "0.options.1.required",
+     "equals": false
+    },
+    {
+     "path": "1.id",
+     "equals": "{perm}"
+    },
+    {
+     "path": "1.application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "1.name",
+     "equals": "permissions_test"
+    },
+    {
+     "path": "1.description",
+     "equals": "A test of default permissions"
+    },
+    {
+     "path": "1.type",
+     "equals": 1
+    },
+    {
+     "path": "1.default_member_permissions",
+     "equals": "32"
+    },
+    {
+     "path": "2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Create Global Application Command: /Blep is refused",
+   "example": "create_application_command#doc Create Global Application Command: a name with capitals",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Blep",
+    "type": 1,
+    "description": "Send a random adorable animal photo"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "message",
+     "equals": "Invalid Form Body"
+    }
+   ]
+  },
+  {
+   "name": "Create Global Application Command: a description of 101 characters is refused",
+   "example": "create_application_command#doc Create Global Application Command: a description over 100 characters",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "blep",
+    "type": 1,
+    "description": "Send a random adorable animal photo, a dog, a cat or a penguin, chosen by the bot each time you ask it"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "message",
+     "equals": "Invalid Form Body"
+    }
+   ]
+  },
+  {
+   "name": "Create Global Application Command: 26 options are refused",
+   "example": "create_application_command#doc Create Global Application Command: 26 options",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "sounds",
+    "type": 1,
+    "description": "Play an airhorn sound",
+    "options": [
+     {
+      "name": "sound_1",
+      "description": "Sound 1",
+      "type": 5
+     },
+     {
+      "name": "sound_2",
+      "description": "Sound 2",
+      "type": 5
+     },
+     {
+      "name": "sound_3",
+      "description": "Sound 3",
+      "type": 5
+     },
+     {
+      "name": "sound_4",
+      "description": "Sound 4",
+      "type": 5
+     },
+     {
+      "name": "sound_5",
+      "description": "Sound 5",
+      "type": 5
+     },
+     {
+      "name": "sound_6",
+      "description": "Sound 6",
+      "type": 5
+     },
+     {
+      "name": "sound_7",
+      "description": "Sound 7",
+      "type": 5
+     },
+     {
+      "name": "sound_8",
+      "description": "Sound 8",
+      "type": 5
+     },
+     {
+      "name": "sound_9",
+      "description": "Sound 9",
+      "type": 5
+     },
+     {
+      "name": "sound_10",
+      "description": "Sound 10",
+      "type": 5
+     },
+     {
+      "name": "sound_11",
+      "description": "Sound 11",
+      "type": 5
+     },
+     {
+      "name": "sound_12",
+      "description": "Sound 12",
+      "type": 5
+     },
+     {
+      "name": "sound_13",
+      "description": "Sound 13",
+      "type": 5
+     },
+     {
+      "name": "sound_14",
+      "description": "Sound 14",
+      "type": 5
+     },
+     {
+      "name": "sound_15",
+      "description": "Sound 15",
+      "type": 5
+     },
+     {
+      "name": "sound_16",
+      "description": "Sound 16",
+      "type": 5
+     },
+     {
+      "name": "sound_17",
+      "description": "Sound 17",
+      "type": 5
+     },
+     {
+      "name": "sound_18",
+      "description": "Sound 18",
+      "type": 5
+     },
+     {
+      "name": "sound_19",
+      "description": "Sound 19",
+      "type": 5
+     },
+     {
+      "name": "sound_20",
+      "description": "Sound 20",
+      "type": 5
+     },
+     {
+      "name": "sound_21",
+      "description": "Sound 21",
+      "type": 5
+     },
+     {
+      "name": "sound_22",
+      "description": "Sound 22",
+      "type": 5
+     },
+     {
+      "name": "sound_23",
+      "description": "Sound 23",
+      "type": 5
+     },
+     {
+      "name": "sound_24",
+      "description": "Sound 24",
+      "type": 5
+     },
+     {
+      "name": "sound_25",
+      "description": "Sound 25",
+      "type": 5
+     },
+     {
+      "name": "sound_26",
+      "description": "Sound 26",
+      "type": 5
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "message",
+     "equals": "Invalid Form Body"
+    }
+   ]
+  },
+  {
+   "name": "Create Global Application Command: an option named Animal is refused",
+   "example": "create_application_command#doc Create Global Application Command: an option name with capitals",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "blep",
+    "type": 1,
+    "description": "Send a random adorable animal photo",
+    "options": [
+     {
+      "name": "Animal",
+      "description": "The type of animal",
+      "type": 3
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "message",
+     "equals": "Invalid Form Body"
+    }
+   ]
+  },
+  {
+   "name": "Create Global Application Command: an option described in 101 characters is refused",
+   "example": "create_application_command#doc Create Global Application Command: an option description over 100 characters",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "blep",
+    "type": 1,
+    "description": "Send a random adorable animal photo",
+    "options": [
+     {
+      "name": "animal",
+      "description": "Send a random adorable animal photo, a dog, a cat or a penguin, chosen by the bot each time you ask it",
+      "type": 3
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "message",
+     "equals": "Invalid Form Body"
+    }
+   ]
+  },
+  {
+   "name": "Create Global Application Command: an option of 26 choices is refused",
+   "example": "create_application_command#doc Create Global Application Command: 26 choices",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "airhorn",
+    "type": 1,
+    "description": "Play an airhorn",
+    "options": [
+     {
+      "name": "sound",
+      "description": "Which airhorn",
+      "type": 3,
+      "choices": [
+       {
+        "name": "Airhorn 1",
+        "value": "airhorn_1"
+       },
+       {
+        "name": "Airhorn 2",
+        "value": "airhorn_2"
+       },
+       {
+        "name": "Airhorn 3",
+        "value": "airhorn_3"
+       },
+       {
+        "name": "Airhorn 4",
+        "value": "airhorn_4"
+       },
+       {
+        "name": "Airhorn 5",
+        "value": "airhorn_5"
+       },
+       {
+        "name": "Airhorn 6",
+        "value": "airhorn_6"
+       },
+       {
+        "name": "Airhorn 7",
+        "value": "airhorn_7"
+       },
+       {
+        "name": "Airhorn 8",
+        "value": "airhorn_8"
+       },
+       {
+        "name": "Airhorn 9",
+        "value": "airhorn_9"
+       },
+       {
+        "name": "Airhorn 10",
+        "value": "airhorn_10"
+       },
+       {
+        "name": "Airhorn 11",
+        "value": "airhorn_11"
+       },
+       {
+        "name": "Airhorn 12",
+        "value": "airhorn_12"
+       },
+       {
+        "name": "Airhorn 13",
+        "value": "airhorn_13"
+       },
+       {
+        "name": "Airhorn 14",
+        "value": "airhorn_14"
+       },
+       {
+        "name": "Airhorn 15",
+        "value": "airhorn_15"
+       },
+       {
+        "name": "Airhorn 16",
+        "value": "airhorn_16"
+       },
+       {
+        "name": "Airhorn 17",
+        "value": "airhorn_17"
+       },
+       {
+        "name": "Airhorn 18",
+        "value": "airhorn_18"
+       },
+       {
+        "name": "Airhorn 19",
+        "value": "airhorn_19"
+       },
+       {
+        "name": "Airhorn 20",
+        "value": "airhorn_20"
+       },
+       {
+        "name": "Airhorn 21",
+        "value": "airhorn_21"
+       },
+       {
+        "name": "Airhorn 22",
+        "value": "airhorn_22"
+       },
+       {
+        "name": "Airhorn 23",
+        "value": "airhorn_23"
+       },
+       {
+        "name": "Airhorn 24",
+        "value": "airhorn_24"
+       },
+       {
+        "name": "Airhorn 25",
+        "value": "airhorn_25"
+       },
+       {
+        "name": "Airhorn 26",
+        "value": "airhorn_26"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "message",
+     "equals": "Invalid Form Body"
+    }
+   ]
+  },
+  {
+   "name": "Create Global Application Command: a required option after an optional one is refused",
+   "example": "create_application_command#doc Create Global Application Command: a required option after an optional one",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "blep",
+    "type": 1,
+    "description": "Send a random adorable animal photo",
+    "options": [
+     {
+      "name": "only_smol",
+      "description": "Whether to show only baby animals",
+      "type": 5,
+      "required": false
+     },
+     {
+      "name": "animal",
+      "description": "The type of animal",
+      "type": 3,
+      "required": true
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    },
+    {
+     "path": "message",
+     "equals": "Invalid Form Body"
+    }
+   ]
+  },
+  {
+   "name": "Edit Global Application Command: /permissions_test may not take /blep's name",
+   "example": "update_application_command#doc Edit Global Application Command: a name another command has",
+   "method": "PATCH",
+   "path": "/api/v10/applications/{aid}/commands/{perm}",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "blep"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 40041
+    }
+   ]
+  },
+  {
+   "name": "Delete Global Application Command: /permissions_test",
+   "example": "delete_application_command#doc Delete Global Application Command",
+   "method": "DELETE",
+   "path": "/api/v10/applications/{aid}/commands/{perm}",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Setup: the list reads /blep alone",
+   "method": "GET",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{blep}"
+    },
+    {
+     "path": "1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Edit Global Application Command: the deleted command is unknown",
+   "example": "update_application_command#doc Edit Global Application Command: a command the app does not have",
+   "method": "PATCH",
+   "path": "/api/v10/applications/{aid}/commands/{perm}",
+   "status": 404,
+   "headers": {
+    "authorization": "Bot {atok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "description": "A test of default permissions"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10063
+    }
+   ]
+  },
+  {
+   "name": "Delete Global Application Command: deleting it again, unknown",
+   "example": "delete_application_command#doc Delete Global Application Command: a command the app does not have",
+   "method": "DELETE",
+   "path": "/api/v10/applications/{aid}/commands/{perm}",
+   "status": 404,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10063
+    }
+   ]
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 1 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-001",
+    "type": 1,
+    "description": "Moderation tool 1"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 2 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-002",
+    "type": 1,
+    "description": "Moderation tool 2"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 3 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-003",
+    "type": 1,
+    "description": "Moderation tool 3"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 4 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-004",
+    "type": 1,
+    "description": "Moderation tool 4"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 5 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-005",
+    "type": 1,
+    "description": "Moderation tool 5"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 6 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-006",
+    "type": 1,
+    "description": "Moderation tool 6"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 7 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-007",
+    "type": 1,
+    "description": "Moderation tool 7"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 8 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-008",
+    "type": 1,
+    "description": "Moderation tool 8"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 9 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-009",
+    "type": 1,
+    "description": "Moderation tool 9"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 10 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-010",
+    "type": 1,
+    "description": "Moderation tool 10"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 11 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-011",
+    "type": 1,
+    "description": "Moderation tool 11"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 12 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-012",
+    "type": 1,
+    "description": "Moderation tool 12"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 13 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-013",
+    "type": 1,
+    "description": "Moderation tool 13"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 14 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-014",
+    "type": 1,
+    "description": "Moderation tool 14"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 15 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-015",
+    "type": 1,
+    "description": "Moderation tool 15"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 16 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-016",
+    "type": 1,
+    "description": "Moderation tool 16"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 17 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-017",
+    "type": 1,
+    "description": "Moderation tool 17"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 18 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-018",
+    "type": 1,
+    "description": "Moderation tool 18"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 19 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-019",
+    "type": 1,
+    "description": "Moderation tool 19"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 20 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-020",
+    "type": 1,
+    "description": "Moderation tool 20"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 21 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-021",
+    "type": 1,
+    "description": "Moderation tool 21"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 22 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-022",
+    "type": 1,
+    "description": "Moderation tool 22"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 23 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-023",
+    "type": 1,
+    "description": "Moderation tool 23"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 24 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-024",
+    "type": 1,
+    "description": "Moderation tool 24"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 25 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-025",
+    "type": 1,
+    "description": "Moderation tool 25"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 26 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-026",
+    "type": 1,
+    "description": "Moderation tool 26"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 27 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-027",
+    "type": 1,
+    "description": "Moderation tool 27"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 28 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-028",
+    "type": 1,
+    "description": "Moderation tool 28"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 29 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-029",
+    "type": 1,
+    "description": "Moderation tool 29"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 30 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-030",
+    "type": 1,
+    "description": "Moderation tool 30"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 31 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-031",
+    "type": 1,
+    "description": "Moderation tool 31"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 32 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-032",
+    "type": 1,
+    "description": "Moderation tool 32"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 33 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-033",
+    "type": 1,
+    "description": "Moderation tool 33"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 34 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-034",
+    "type": 1,
+    "description": "Moderation tool 34"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 35 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-035",
+    "type": 1,
+    "description": "Moderation tool 35"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 36 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-036",
+    "type": 1,
+    "description": "Moderation tool 36"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 37 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-037",
+    "type": 1,
+    "description": "Moderation tool 37"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 38 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-038",
+    "type": 1,
+    "description": "Moderation tool 38"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 39 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-039",
+    "type": 1,
+    "description": "Moderation tool 39"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 40 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-040",
+    "type": 1,
+    "description": "Moderation tool 40"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 41 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-041",
+    "type": 1,
+    "description": "Moderation tool 41"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 42 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-042",
+    "type": 1,
+    "description": "Moderation tool 42"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 43 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-043",
+    "type": 1,
+    "description": "Moderation tool 43"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 44 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-044",
+    "type": 1,
+    "description": "Moderation tool 44"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 45 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-045",
+    "type": 1,
+    "description": "Moderation tool 45"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 46 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-046",
+    "type": 1,
+    "description": "Moderation tool 46"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 47 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-047",
+    "type": 1,
+    "description": "Moderation tool 47"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 48 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-048",
+    "type": 1,
+    "description": "Moderation tool 48"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 49 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-049",
+    "type": 1,
+    "description": "Moderation tool 49"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 50 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-050",
+    "type": 1,
+    "description": "Moderation tool 50"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 51 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-051",
+    "type": 1,
+    "description": "Moderation tool 51"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 52 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-052",
+    "type": 1,
+    "description": "Moderation tool 52"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 53 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-053",
+    "type": 1,
+    "description": "Moderation tool 53"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 54 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-054",
+    "type": 1,
+    "description": "Moderation tool 54"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 55 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-055",
+    "type": 1,
+    "description": "Moderation tool 55"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 56 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-056",
+    "type": 1,
+    "description": "Moderation tool 56"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 57 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-057",
+    "type": 1,
+    "description": "Moderation tool 57"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 58 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-058",
+    "type": 1,
+    "description": "Moderation tool 58"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 59 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-059",
+    "type": 1,
+    "description": "Moderation tool 59"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 60 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-060",
+    "type": 1,
+    "description": "Moderation tool 60"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 61 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-061",
+    "type": 1,
+    "description": "Moderation tool 61"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 62 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-062",
+    "type": 1,
+    "description": "Moderation tool 62"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 63 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-063",
+    "type": 1,
+    "description": "Moderation tool 63"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 64 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-064",
+    "type": 1,
+    "description": "Moderation tool 64"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 65 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-065",
+    "type": 1,
+    "description": "Moderation tool 65"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 66 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-066",
+    "type": 1,
+    "description": "Moderation tool 66"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 67 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-067",
+    "type": 1,
+    "description": "Moderation tool 67"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 68 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-068",
+    "type": 1,
+    "description": "Moderation tool 68"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 69 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-069",
+    "type": 1,
+    "description": "Moderation tool 69"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 70 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-070",
+    "type": 1,
+    "description": "Moderation tool 70"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 71 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-071",
+    "type": 1,
+    "description": "Moderation tool 71"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 72 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-072",
+    "type": 1,
+    "description": "Moderation tool 72"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 73 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-073",
+    "type": 1,
+    "description": "Moderation tool 73"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 74 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-074",
+    "type": 1,
+    "description": "Moderation tool 74"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 75 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-075",
+    "type": 1,
+    "description": "Moderation tool 75"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 76 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-076",
+    "type": 1,
+    "description": "Moderation tool 76"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 77 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-077",
+    "type": 1,
+    "description": "Moderation tool 77"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 78 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-078",
+    "type": 1,
+    "description": "Moderation tool 78"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 79 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-079",
+    "type": 1,
+    "description": "Moderation tool 79"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 80 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-080",
+    "type": 1,
+    "description": "Moderation tool 80"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 81 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-081",
+    "type": 1,
+    "description": "Moderation tool 81"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 82 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-082",
+    "type": 1,
+    "description": "Moderation tool 82"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 83 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-083",
+    "type": 1,
+    "description": "Moderation tool 83"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 84 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-084",
+    "type": 1,
+    "description": "Moderation tool 84"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 85 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-085",
+    "type": 1,
+    "description": "Moderation tool 85"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 86 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-086",
+    "type": 1,
+    "description": "Moderation tool 86"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 87 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-087",
+    "type": 1,
+    "description": "Moderation tool 87"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 88 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-088",
+    "type": 1,
+    "description": "Moderation tool 88"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 89 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-089",
+    "type": 1,
+    "description": "Moderation tool 89"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 90 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-090",
+    "type": 1,
+    "description": "Moderation tool 90"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 91 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-091",
+    "type": 1,
+    "description": "Moderation tool 91"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 92 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-092",
+    "type": 1,
+    "description": "Moderation tool 92"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 93 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-093",
+    "type": 1,
+    "description": "Moderation tool 93"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 94 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-094",
+    "type": 1,
+    "description": "Moderation tool 94"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 95 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-095",
+    "type": 1,
+    "description": "Moderation tool 95"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 96 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-096",
+    "type": 1,
+    "description": "Moderation tool 96"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 97 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-097",
+    "type": 1,
+    "description": "Moderation tool 97"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 98 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-098",
+    "type": 1,
+    "description": "Moderation tool 98"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 99 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-099",
+    "type": 1,
+    "description": "Moderation tool 99"
+   }
+  },
+  {
+   "name": "Setup: Mod Helper registers its command 100 of 100",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-100",
+    "type": 1,
+    "description": "Moderation tool 100"
+   }
+  },
+  {
+   "name": "Create Global Application Command: Mod Helper's 101st command is refused",
+   "example": "create_application_command#doc Create Global Application Command: a 101st command",
+   "method": "POST",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 400,
+   "headers": {
+    "authorization": "Bot {mtok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "mod-101",
+    "type": 1,
+    "description": "Moderation tool 101"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 30032
+    },
+    {
+     "path": "message",
+     "equals": "Maximum number of application commands reached"
+    }
+   ]
+  },
+  {
+   "name": "Setup: its list holds the hundred, the 101st not among them",
+   "method": "GET",
+   "path": "/api/v10/applications/{mid}/commands",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {mtok}"
+   },
+   "expect": [
+    {
+     "path": "99.name",
+     "equals": "mod-100"
+    },
+    {
+     "path": "100",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Setup: AIRHORN registers /skill for interaction examples",
+   "method": "POST",
+   "path": "/api/v10/applications/{aid}/commands",
+   "status": 201,
+   "body": {
+    "name": "skill",
+    "description": "Run a Hermes skill",
+    "options": [
+     {
+      "name": "name",
+      "description": "Which skill to run",
+      "type": 3,
+      "autocomplete": true
+     }
+    ]
+   },
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Setup: Mason uses the client to invoke /skill",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/interactions",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "application_id": "{aid}",
+    "command": "skill",
+    "type": 2
+   },
+   "capture": {
+    "directi": "id",
+    "directtoken": "token"
+   }
+  },
+  {
+   "name": "Interaction Callback: message response",
+   "method": "POST",
+   "path": "/api/v10/interactions/{directi}/{directtoken}/callback",
+   "status": 204,
+   "body": {
+    "type": 4,
+    "data": {
+     "content": "Congrats on sending your command!"
+    }
+   },
+   "example": "create_interaction_response#doc Interaction Callback: message response"
+  },
+  {
+   "name": "Setup: #general reads back the message the published callback made",
+   "method": "GET",
+   "path": "/api/v10/channels/{general}/messages?limit=1",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.content",
+     "equals": "Congrats on sending your command!"
+    },
+    {
+     "path": "0.application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "0.author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "0.interaction_metadata.id",
+     "equals": "{directi}"
+    }
+   ]
+  },
+  {
+   "name": "Interaction Callback: a repeated acknowledgement is refused",
+   "method": "POST",
+   "path": "/api/v10/interactions/{directi}/{directtoken}/callback",
+   "status": 400,
+   "body": {
+    "type": 4,
+    "data": {
+     "content": "duplicate"
+    }
+   },
+   "example": "create_interaction_response#doc Interaction Callback: single acknowledgement",
+   "expect": [
+    {
+     "path": "code",
+     "equals": 40060
+    }
+   ]
+  },
+  {
+   "name": "Setup: Mason uses the client to invoke /skill",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/interactions",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "application_id": "{aid}",
+    "command": "skill",
+    "type": 2
+   },
+   "capture": {
+    "richi": "id",
+    "richtoken": "token"
+   }
+  },
+  {
+   "name": "Interaction Callback: with_response returns the created resource",
+   "method": "POST",
+   "path": "/api/v10/interactions/{richi}/{richtoken}/callback?with_response=true",
+   "status": 200,
+   "body": {
+    "type": 4,
+    "data": {
+     "content": "Preview ready",
+     "flags": 64
+    }
+   },
+   "example": "create_interaction_response#doc Interaction Callback: with_response",
+   "expect": [
+    {
+     "path": "interaction.id",
+     "equals": "{richi}"
+    },
+    {
+     "path": "interaction.type",
+     "equals": 2
+    },
+    {
+     "path": "interaction.response_message_ephemeral",
+     "equals": true
+    },
+    {
+     "path": "resource.type",
+     "equals": 4
+    },
+    {
+     "path": "resource.message.content",
+     "equals": "Preview ready"
+    },
+    {
+     "path": "resource.message.flags",
+     "equals": 64
+    },
+    {
+     "path": "resource.message.application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "resource.message.webhook_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "resource.message.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "resource.message.author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "resource.message.interaction_metadata.id",
+     "equals": "{richi}"
+    },
+    {
+     "path": "resource.message.interaction_metadata.user.id",
+     "equals": "{mason}"
+    },
+    {
+     "path": "resource.message.interaction_metadata.authorizing_integration_owners.0",
+     "equals": "{g}"
+    },
+    {
+     "path": "resource.message.interaction_metadata.user.username",
+     "equals": "mason"
+    },
+    {
+     "path": "resource.message.interaction_metadata.user.global_name",
+     "equals": "Mason"
+    }
+   ],
+   "undecided": {
+    "resource.message.tts": "The request omitted tts; Discord defaults it to false (resources/message and resources/webhook JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Setup: Mason uses the client to invoke /skill",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/interactions",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "application_id": "{aid}",
+    "command": "skill",
+    "type": 2
+   },
+   "capture": {
+    "deferi": "id",
+    "defertoken": "token"
+   }
+  },
+  {
+   "name": "Interaction Callback: defer",
+   "method": "POST",
+   "path": "/api/v10/interactions/{deferi}/{defertoken}/callback",
+   "status": 204,
+   "body": {
+    "type": 5,
+    "data": {
+     "flags": 64
+    }
+   },
+   "example": "create_interaction_response#doc Interaction Callback: defer"
+  },
+  {
+   "name": "Followup Message: completing a deferred response",
+   "method": "POST",
+   "path": "/api/v10/webhooks/{aid}/{defertoken}",
+   "status": 200,
+   "body": {
+    "content": "The deferred work is finished"
+   },
+   "example": "execute_webhook#doc Followup Message: completing a deferred response",
+   "expect": [
+    {
+     "path": "content",
+     "equals": "The deferred work is finished"
+    },
+    {
+     "path": "flags",
+     "equals": 64
+    },
+    {
+     "path": "application_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "webhook_id",
+     "equals": "{aid}"
+    },
+    {
+     "path": "channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "interaction_metadata.id",
+     "equals": "{deferi}"
+    },
+    {
+     "path": "interaction_metadata.user.id",
+     "equals": "{mason}"
+    },
+    {
+     "path": "interaction_metadata.authorizing_integration_owners.0",
+     "equals": "{g}"
+    },
+    {
+     "path": "interaction_metadata.user.username",
+     "equals": "mason"
+    },
+    {
+     "path": "interaction_metadata.user.global_name",
+     "equals": "Mason"
+    }
+   ],
+   "capture": {
+    "deferredmsg": "id"
+   },
+   "undecided": {
+    "tts": "The request omitted tts; Discord defaults it to false (resources/message and resources/webhook JSON/Form Params)."
+   }
+  },
+  {
+   "name": "Setup: Mason uses the client to invoke /skill",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/interactions",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "application_id": "{aid}",
+    "command": "skill",
+    "type": 2
+   },
+   "capture": {
+    "badflagi": "id",
+    "badflagtoken": "token"
+   }
+  },
+  {
+   "name": "Interaction Callback: a defer cannot suppress embeds",
+   "method": "POST",
+   "path": "/api/v10/interactions/{badflagi}/{badflagtoken}/callback",
+   "status": 400,
+   "body": {
+    "type": 5,
+    "data": {
+     "flags": 4
+    }
+   },
+   "example": "create_interaction_response#doc Interaction Callback: defer flags",
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50035
+    }
+   ]
+  },
+  {
+   "name": "Setup: the application corrects the defer flags",
+   "method": "POST",
+   "path": "/api/v10/interactions/{badflagi}/{badflagtoken}/callback",
+   "status": 204,
+   "body": {
+    "type": 5,
+    "data": {
+     "flags": 64
+    }
+   }
+  },
+  {
+   "name": "Setup: a confirmation component exists",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "body": {
+    "content": "Continue the workflow?",
+    "components": [
+     {
+      "type": 1,
+      "components": [
+       {
+        "type": 2,
+        "style": 1,
+        "label": "Continue",
+        "custom_id": "continue"
+       }
+      ]
+     }
+    ]
+   },
+   "capture": {
+    "componentmsg": "id"
+   },
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Setup: Mason uses the client to click Continue",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/interactions",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "application_id": "{aid}",
+    "command": "skill",
+    "type": 3,
+    "message_id": "{componentmsg}",
+    "custom_id": "continue"
+   },
+   "capture": {
+    "componenti": "id",
+    "componenttoken": "token"
+   }
+  },
+  {
+   "name": "Interaction Callback: deferred component update",
+   "method": "POST",
+   "path": "/api/v10/interactions/{componenti}/{componenttoken}/callback?with_response=true",
+   "status": 200,
+   "body": {
+    "type": 6
+   },
+   "example": "create_interaction_response#doc Interaction Callback: deferred component update",
+   "expect": [
+    {
+     "path": "interaction.id",
+     "equals": "{componenti}"
+    },
+    {
+     "path": "interaction.type",
+     "equals": 3
+    },
+    {
+     "path": "interaction.response_message_id",
+     "equals": "{componentmsg}"
+    },
+    {
+     "path": "interaction.response_message_loading",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Setup: the component acknowledgement leaves its message unchanged, #general's newest",
+   "method": "GET",
+   "path": "/api/v10/channels/{general}/messages?limit=1",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{componentmsg}"
+    },
+    {
+     "path": "0.content",
+     "equals": "Continue the workflow?"
+    },
+    {
+     "path": "0.edited_timestamp",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "Setup: Mason uses the client to request skill autocomplete",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/interactions",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "application_id": "{aid}",
+    "command": "skill",
+    "type": 4
+   },
+   "capture": {
+    "autocompletei": "id",
+    "autocompletetoken": "token"
+   }
+  },
+  {
+   "name": "Interaction Callback: autocomplete",
+   "method": "POST",
+   "path": "/api/v10/interactions/{autocompletei}/{autocompletetoken}/callback",
+   "status": 204,
+   "body": {
+    "type": 8,
+    "data": {
+     "choices": [
+      {
+       "name": "Release notes",
+       "value": "release-notes"
+      }
+     ]
+    }
+   },
+   "example": "create_interaction_response#doc Interaction Callback: autocomplete"
+  },
+  {
+   "name": "Setup: Mason uses the client to invoke /skill",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/interactions",
+   "status": 201,
+   "body": {
+    "username": "mason",
+    "application_id": "{aid}",
+    "command": "skill",
+    "type": 2
+   },
+   "capture": {
+    "latei": "id",
+    "latetoken": "token"
+   }
+  },
+  {
+   "name": "Setup: the application misses the three-second initial-response deadline",
+   "wait": "4s"
+  },
+  {
+   "name": "Interaction Callback: response deadline",
+   "method": "POST",
+   "path": "/api/v10/interactions/{latei}/{latetoken}/callback",
+   "status": 404,
+   "body": {
+    "type": 4,
+    "data": {
+     "content": "Too late"
+    }
+   },
+   "example": "create_interaction_response#doc Interaction Callback: response deadline",
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10062
+    }
+   ]
+  },
+  {
+   "name": "Setup: the acknowledged interaction token reaches its fifteen-minute expiry",
+   "wait": "16m"
+  },
+  {
+   "name": "Followup Message: token expiry",
+   "method": "POST",
+   "path": "/api/v10/webhooks/{aid}/{directtoken}",
+   "status": 404,
+   "body": {
+    "content": "Expired followup"
+   },
+   "example": "execute_webhook#doc Followup Message: token expiry",
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10015
+    }
+   ]
+  },
+  {
+   "name": "Edit Original Interaction Response: token expiry",
+   "method": "PATCH",
+   "path": "/api/v10/webhooks/{aid}/{directtoken}/messages/@original",
+   "status": 404,
+   "body": {
+    "content": "Expired edit"
+   },
+   "example": "update_original_webhook_message#doc Edit Original Interaction Response: token expiry",
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10015
+    }
+   ]
+  },
+  {
+   "name": "Setup: a message for the paging example: older",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "body": {
+    "content": "Paging older"
+   },
+   "capture": {
+    "olderpage": "id"
+   },
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Setup: a message for the paging example: middle",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "body": {
+    "content": "Paging middle"
+   },
+   "capture": {
+    "middlepage": "id"
+   },
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Setup: a message for the paging example: newer",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "body": {
+    "content": "Paging newer"
+   },
+   "capture": {
+    "newerpage": "id"
+   },
+   "headers": {
+    "authorization": "Bot {atok}"
+   }
+  },
+  {
+   "name": "Get Channel Messages: around",
+   "method": "GET",
+   "path": "/api/v10/channels/{general}/messages?around={middlepage}&limit=3",
+   "status": 200,
+   "example": "list_messages#doc Get Channel Messages: around",
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{newerpage}"
+    },
+    {
+     "path": "1.id",
+     "equals": "{middlepage}"
+    },
+    {
+     "path": "2.id",
+     "equals": "{olderpage}"
+    },
+    {
+     "path": "0.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "1.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "2.channel_id",
+     "equals": "{general}"
+    },
+    {
+     "path": "0.content",
+     "equals": "Paging newer"
+    },
+    {
+     "path": "1.content",
+     "equals": "Paging middle"
+    },
+    {
+     "path": "2.content",
+     "equals": "Paging older"
+    },
+    {
+     "path": "0.author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "1.author.id",
+     "equals": "{abot}"
+    },
+    {
+     "path": "2.author.id",
+     "equals": "{abot}"
+    }
+   ],
+   "headers": {
+    "authorization": "Bot {atok}"
+   },
+   "undecided": {
+    "0.tts": "The request omitted tts; Discord defaults it to false (resources/message and resources/webhook JSON/Form Params).",
+    "1.tts": "The request omitted tts; Discord defaults it to false (resources/message and resources/webhook JSON/Form Params).",
+    "2.tts": "The request omitted tts; Discord defaults it to false (resources/message and resources/webhook JSON/Form Params)."
+   }
+  }
+ ],
+ "notReplayed": {
+  "oauth2_token#doc Client Credentials Token Request": "The client credentials grant is the twin's gap: no application of the demand and no step of the life asks for a bot owner's own token, so oauth2_token answers this grant as the twin answers what it does not serve (architecture, Creating a pack, step 7: an operation, or a variant of one, that only a published example reaches stays the gap).",
+  "oauth2_token#doc Webhook Token Response": "The webhook.incoming authorization (a person picks a channel on the authorize page and the token answer carries the webhook it made) is the twin's gap: Cal.com's webhook, the demand's one, is made in its channel (create_webhook), and nothing of the demand or the life installs one through OAuth2, so the authorize page answers that scope as the gap."
+ }
+}

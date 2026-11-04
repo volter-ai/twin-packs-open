@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/get-started",
+  "about": "Meta's Get Started guide for the Instagram API with Instagram Login, as a game studio's launch tooling makes it with fetch (Meta publishes no Node SDK for this API): with the long-lived token the App Dashboard's Generate token gives for the studio's own professional account, which the World's credential door issues as INSTAGRAM_ACCESS_TOKEN beside INSTAGRAM_APP_ID, INSTAGRAM_APP_SECRET and INSTAGRAM_USER_ID (the env names are the entry's synthetic choice of the dashboard's Instagram App ID, App Secret and the account's ID), it reads the professional account (/me: id, user_id, username, account_type, media_count, followers_count), its media and its publishing usage and quota, and keeps them as its receipt; readback reads the same account, media and quota again after the World resumes, writing nothing. Publishing is the life's (its act 3): an entry has no server of its own for Instagram to fetch a video from.",
+  "files": {
+    "package.json": "{\n  \"name\": \"instagram-account-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {}\n}\n",
+    ".env.example": "INSTAGRAM_APP_ID=\nINSTAGRAM_APP_SECRET=\nINSTAGRAM_ACCESS_TOKEN=\nINSTAGRAM_USER_ID=\n",
+    "account.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync, writeFileSync } from 'node:fs';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst token = process.env.INSTAGRAM_ACCESS_TOKEN ?? '';\nconst userId = process.env.INSTAGRAM_USER_ID ?? '';\nassert.ok(process.env.INSTAGRAM_APP_ID && process.env.INSTAGRAM_APP_SECRET, 'the App Dashboard gives the app its Instagram App ID and secret');\nconst graph = async (path, params = {}) => {\n  const url = new URL(`https://graph.instagram.com/v26.0${path}`);\n  for (const [k, v] of Object.entries({ ...params, access_token: token })) url.searchParams.set(k, v);\n  const answer = await fetch(url);\n  const body = await answer.json();\n  if (!answer.ok) throw new Error(`GET ${path}: ${answer.status} ${JSON.stringify(body)}`);\n  return body;\n};\nconst receiptFile = 'instagram-account.json';\nconst me = await graph('/me', { fields: 'id,user_id,username,account_type,media_count,followers_count' });\nassert.equal(me.user_id, userId, '/me answered ' + JSON.stringify(me));\nassert.ok(/^\\d+$/.test(me.id) && me.username, '/me answered ' + JSON.stringify(me));\nassert.ok(['Business', 'Media_Creator'].includes(me.account_type), 'a professional account: ' + me.account_type);\nassert.equal(typeof me.media_count, 'number');\nassert.equal(typeof me.followers_count, 'number');\nconst media = await graph(`/${me.user_id}/media`, { fields: 'id,media_type,timestamp' });\nassert.ok(Array.isArray(media.data), 'the media list answered ' + JSON.stringify(media));\nconst limit = await graph(`/${me.user_id}/content_publishing_limit`, { fields: 'quota_usage,config' });\nassert.equal(limit.data[0].config.quota_total, 50);\nassert.equal(limit.data[0].config.quota_duration, 86400);\nassert.equal(typeof limit.data[0].quota_usage, 'number');\nconst account = { id: me.id, user_id: me.user_id, username: me.username, account_type: me.account_type, media_count: me.media_count, followers_count: me.followers_count };\nif (process.argv[2] === 'readback') {\n  const saved = JSON.parse(readFileSync(receiptFile, 'utf8'));\n  assert.deepEqual(account, saved.account);\n  assert.deepEqual(media.data.map((m) => m.id), saved.media);\n  console.log(JSON.stringify({ retained: true, ...saved }));\n} else {\n  assert.equal(me.media_count, media.data.length);\n  const saved = { account, media: media.data.map((m) => m.id), quota_usage: limit.data[0].quota_usage };\n  writeFileSync(receiptFile, JSON.stringify(saved) + '\\n');\n  console.log(JSON.stringify({ read: true, ...saved }));\n}\n"
+  },
+  "run": [
+    "node",
+    "account.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "account.mjs",
+      "readback"
+    ]
+  }
+}

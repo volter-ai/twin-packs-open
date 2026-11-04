@@ -1,0 +1,272 @@
+{
+  "sha256": "beb2edf831a37dcd5c6f70627662e2f61000c51f9574249c7afa9c5ee51bc432",
+  "bar": "829132787d94a2d4",
+  "plausible": true,
+  "judge": {
+    "agent": "Contributor 9"
+  },
+  "authors": [
+    "Contributor 34",
+    "Contributor 1"
+  ],
+  "rulings": [
+    {
+      "id": "L1",
+      "steps": [
+        9,
+        10,
+        11
+      ],
+      "defect": "The separate admin app grant is obtained in steps 4–8 and never used. These Basic requests also use the API gateway path documented for OAuth.",
+      "requiredCorrection": "Use Bearer {adm} for project and component setup on api.atlassian.com. This fulfills the admin-helper promise without changing the already plausible OAuth setup.",
+      "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/"
+    },
+    {
+      "id": "L2",
+      "steps": [
+        29,
+        31,
+        39,
+        41
+      ],
+      "defect": "Unscoped account Basic authentication is sent to OAuth gateway URLs rather than the documented site URL.",
+      "requiredCorrection": "Send account-token requests to https://tidewater.atlassian.net/rest/api/3/...; preserve the intended actor and discovered issue identifiers. Use the token of the named actor.",
+      "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/"
+    },
+    {
+      "id": "L3",
+      "steps": [
+        1,
+        39
+      ],
+      "defect": "The step called Jonah’s review authenticates with Maya’s Basic token.",
+      "requiredCorrection": "After Jonah is invited, create/capture Jonah’s account API token with his own email/password through the existing API-token door. Step 39 uses that credential and the site URL, or another genuine Jonah grant. Keep Jonah as the outline’s reviewer.",
+      "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/; spec:User.accountId"
+    },
+    {
+      "id": "L4",
+      "steps": [
+        21
+      ],
+      "defect": "The assignable-user request sends neither query nor accountId, despite the spec requiring one (the username alternative is removed). Its response/order is the twin’s all-people guess.",
+      "requiredCorrection": "Give the picker a genuine query, e.g. query=Jonah, name it as a search for Jonah, and assert only the matching assignable Jonah account. The handler must implement that documented filter; do not bend the request to its current behavior.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) /paths/~1rest~1api~13~1user~1assignable~1search/get/parameters; query and accountId descriptions"
+    },
+    {
+      "id": "L5",
+      "steps": [
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41
+      ],
+      "defect": "BOOK-1 and BOOK-2 are minted keys, but only issue IDs are captured and later requests/expectations write guessed sequence keys literally.",
+      "requiredCorrection": "Capture key together with id on both creates. Replace every subsequent path/expected issue-key value with the corresponding capture (or use captured IDs for paths). Do not assert a particular generated numeric suffix at creation; assert the actual project prefix/type or presence instead.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:CreatedIssue.key; architecture: capture values only learned from answers"
+    },
+    {
+      "id": "L6",
+      "steps": [
+        28,
+        29,
+        30,
+        31,
+        35,
+        36
+      ],
+      "defect": "Transition IDs 21 and 31 are used before a workflow response supplies them; step 35 pins generated IDs 11/21, and step 36 types 11 instead of capturing the transition it just read.",
+      "requiredCorrection": "Before start and close, GET available transitions and capture the ID for the desired named target, inserting discovery after steps 28 and 30 respectively. Use those captures at 29 and 31. At 35 capture the chosen available reopen ID; remove assertions of numerical transition IDs; at 36 send the capture. Preserve status assertions and the later-sitting regression cause.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:getTransitions; spec:findAssignableUsers description says transition IDs are obtained from the issue; architecture: capture answer-only IDs"
+    },
+    {
+      "id": "L7",
+      "steps": [
+        25,
+        27
+      ],
+      "defect": "Both reports have the same frozen created/updated timestamp, yet ORDER BY updated DESC is asserted to return Firefox first solely from the twin’s undocumented ID tie-break.",
+      "requiredCorrection": "Separate the two report filings with a believable nonzero wait inserted after step 25, or remove dependence on the equal-time ordering while still verifying both results. Keep ORDER BY semantics justified by distinct times, not generated IDs.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:SearchAndReconcileRequestBean.jql; architecture: nothing asserted that the vendor generates or defaults"
+    },
+    {
+      "id": "L8",
+      "steps": [
+        40,
+        42
+      ],
+      "defect": "The distinct Firefox failure is labeled duplicate, while the stated reason is follow-up and no duplicate Firefox report is shown.",
+      "requiredCorrection": "Use a follow-up label that bears out the action, e.g. follow-up, and adjust the later taxonomy expectation to the resulting sorted label set. Alternatively show a real duplication cause in this step’s story and make the action’s name honest; do not invent an unexplained duplicate.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:editIssue; architecture: content must bear out the step’s name and a stated cause must happen"
+    },
+    {
+      "id": "L9",
+      "steps": [
+        24,
+        "fields"
+      ],
+      "defect": "The life presents a raw plain-string REST refusal under a cookbook-client framing, but does not establish the SDK’s actual wire bytes. Independent blind walk proves installed jira.js 5.4.0 normalizes strings to ADF; the pinned cookbook declares ^4.0.0 and its behavior is not established by that 5.4.0 observation.",
+      "requiredCorrection": "Name step 24 explicitly as a stale raw-HTTP/plain-JSON script request, not a refusal of the pinned cookbook SDK call. Clarify the life about field accordingly. Preserve the real documented ADF refusal; do not claim the pinned SDK caller fails without inspecting or replaying its matching version.",
+      "vendorSource": "spec:createIssue ADF requirement; cookbook/on-call-agent/agent.mjs:28 and package.json jira.js ^4.0.0; independently recorded blind-walk.md jira.js 5.4.0 wire normalization"
+    }
+  ],
+  "doubts": [
+    "The prose describes an hour access-token lifetime; source code calls it observed practice where documentation stops. No date or wait contradicts it in this life, and every integration call after a long wait refreshes.",
+    "Picker issue-type ordering is also template-specific. The fixed local template explains the current index, but selecting types by returned name is more robust than treating index 1 as a vendor invariant.",
+    "The Safari discussion contains the original duplicate reproduction, not deployment diagnostics. Reading it for context is plausible, but the story should not claim that comment itself explains the regression."
+  ],
+  "readAgainst": [
+    "architecture: What a judge rejects",
+    "architecture: Published examples",
+    "auth and platform vendored specs and SOURCE.md",
+    "every current step and notReplayed entry",
+    "README.md, journeys/demand.json, journeys/decisions.json"
+  ],
+  "applied": {
+    "from": "5848c9746ed723d0f33235947a4cdbd144cde81d1561140e3e7e81fe361d1489",
+    "wasPlausible": false,
+    "steps": [
+      "1",
+      "9",
+      "10",
+      "11",
+      "21",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "31",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "fields"
+    ],
+    "rulings": [
+      {
+        "id": "L1",
+        "steps": [
+          9,
+          10,
+          11
+        ],
+        "defect": "The separate admin app grant is obtained in steps 4–8 and never used. These Basic requests also use the API gateway path documented for OAuth.",
+        "requiredCorrection": "Use Bearer {adm} for project and component setup on api.atlassian.com. This fulfills the admin-helper promise without changing the already plausible OAuth setup.",
+        "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/"
+      },
+      {
+        "id": "L2",
+        "steps": [
+          29,
+          31,
+          39,
+          41
+        ],
+        "defect": "Unscoped account Basic authentication is sent to OAuth gateway URLs rather than the documented site URL.",
+        "requiredCorrection": "Send account-token requests to https://tidewater.atlassian.net/rest/api/3/...; preserve the intended actor and discovered issue identifiers. Use the token of the named actor.",
+        "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/"
+      },
+      {
+        "id": "L3",
+        "steps": [
+          1,
+          39
+        ],
+        "defect": "The step called Jonah’s review authenticates with Maya’s Basic token.",
+        "requiredCorrection": "After Jonah is invited, create/capture Jonah’s account API token with his own email/password through the existing API-token door. Step 39 uses that credential and the site URL, or another genuine Jonah grant. Keep Jonah as the outline’s reviewer.",
+        "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/; spec:User.accountId"
+      },
+      {
+        "id": "L4",
+        "steps": [
+          21
+        ],
+        "defect": "The assignable-user request sends neither query nor accountId, despite the spec requiring one (the username alternative is removed). Its response/order is the twin’s all-people guess.",
+        "requiredCorrection": "Give the picker a genuine query, e.g. query=Jonah, name it as a search for Jonah, and assert only the matching assignable Jonah account. The handler must implement that documented filter; do not bend the request to its current behavior.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) /paths/~1rest~1api~13~1user~1assignable~1search/get/parameters; query and accountId descriptions"
+      },
+      {
+        "id": "L5",
+        "steps": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          31,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41
+        ],
+        "defect": "BOOK-1 and BOOK-2 are minted keys, but only issue IDs are captured and later requests/expectations write guessed sequence keys literally.",
+        "requiredCorrection": "Capture key together with id on both creates. Replace every subsequent path/expected issue-key value with the corresponding capture (or use captured IDs for paths). Do not assert a particular generated numeric suffix at creation; assert the actual project prefix/type or presence instead.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:CreatedIssue.key; architecture: capture values only learned from answers"
+      },
+      {
+        "id": "L6",
+        "steps": [
+          28,
+          29,
+          30,
+          31,
+          35,
+          36
+        ],
+        "defect": "Transition IDs 21 and 31 are used before a workflow response supplies them; step 35 pins generated IDs 11/21, and step 36 types 11 instead of capturing the transition it just read.",
+        "requiredCorrection": "Before start and close, GET available transitions and capture the ID for the desired named target, inserting discovery after steps 28 and 30 respectively. Use those captures at 29 and 31. At 35 capture the chosen available reopen ID; remove assertions of numerical transition IDs; at 36 send the capture. Preserve status assertions and the later-sitting regression cause.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:getTransitions; spec:findAssignableUsers description says transition IDs are obtained from the issue; architecture: capture answer-only IDs"
+      },
+      {
+        "id": "L7",
+        "steps": [
+          25,
+          27
+        ],
+        "defect": "Both reports have the same frozen created/updated timestamp, yet ORDER BY updated DESC is asserted to return Firefox first solely from the twin’s undocumented ID tie-break.",
+        "requiredCorrection": "Separate the two report filings with a believable nonzero wait inserted after step 25, or remove dependence on the equal-time ordering while still verifying both results. Keep ORDER BY semantics justified by distinct times, not generated IDs.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:SearchAndReconcileRequestBean.jql; architecture: nothing asserted that the vendor generates or defaults"
+      },
+      {
+        "id": "L8",
+        "steps": [
+          40,
+          42
+        ],
+        "defect": "The distinct Firefox failure is labeled duplicate, while the stated reason is follow-up and no duplicate Firefox report is shown.",
+        "requiredCorrection": "Use a follow-up label that bears out the action, e.g. follow-up, and adjust the later taxonomy expectation to the resulting sorted label set. Alternatively show a real duplication cause in this step’s story and make the action’s name honest; do not invent an unexplained duplicate.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:editIssue; architecture: content must bear out the step’s name and a stated cause must happen"
+      },
+      {
+        "id": "L9",
+        "steps": [
+          24,
+          "fields"
+        ],
+        "defect": "The life presents a raw plain-string REST refusal under a cookbook-client framing, but does not establish the SDK’s actual wire bytes. Independent blind walk proves installed jira.js 5.4.0 normalizes strings to ADF; the pinned cookbook declares ^4.0.0 and its behavior is not established by that 5.4.0 observation.",
+        "requiredCorrection": "Name step 24 explicitly as a stale raw-HTTP/plain-JSON script request, not a refusal of the pinned cookbook SDK call. Clarify the life about field accordingly. Preserve the real documented ADF refusal; do not claim the pinned SDK caller fails without inspecting or replaying its matching version.",
+        "vendorSource": "spec:createIssue ADF requirement; cookbook/on-call-agent/agent.mjs:28 and package.json jira.js ^4.0.0; independently recorded blind-walk.md jira.js 5.4.0 wire normalization"
+      }
+    ]
+  }
+}

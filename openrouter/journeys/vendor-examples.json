@@ -1,0 +1,2880 @@
+{
+ "vendor": "openrouter",
+ "author": "Contributor 66",
+ "host": "openrouter.ai",
+ "about": "OpenRouter OpenAPI response examples and the executable requests/refusal rules of its linked OAuth, overview, streaming, limits and Responses documentation. Model prose is scripted for examples; failures are vendor status faults; keys are made through actual approval/exchange flows.",
+ "scenario": "examples-scenario.json",
+ "steps": [
+  {
+   "name": "Use the vendor snapshot date after all example models were released",
+   "wait": "393120m"
+  },
+  {
+   "name": "The World provisions a throwaway application key for inference and current-key examples",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "capture": {
+    "app": "api_key"
+   }
+  },
+  {
+   "name": "The PKCE examples person signs in",
+   "method": "POST",
+   "path": "/_twin/users",
+   "status": 201,
+   "body": {
+    "email": "example@studio.test",
+    "name": "Example Person"
+   },
+   "capture": {
+    "person": "id"
+   }
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#200 application/json",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 200,
+   "body": {
+    "code": "{code}",
+    "code_challenge_method": "S256",
+    "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+   },
+   "example": "exchangeAuthCodeForAPIKey#200 application/json",
+   "capture": {
+    "oauthkey": "key"
+   },
+   "expect": [
+    {
+     "path": "key",
+     "matches": "^sk-or-v1-[0-9a-f]{64}$"
+    },
+    {
+     "path": "user_id",
+     "equals": "{person}"
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=YZHC5CELD1x821VESsimH0XRmYO5iqMyp3tMc2BrB7I&code_challenge_method=S256&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#400 application/json",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 400,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "example-verifier",
+    "code_challenge_method": "invalid"
+   },
+   "example": "exchangeAuthCodeForAPIKey#400 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    }
+   ]
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#403 application/json",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 403,
+   "body": {
+    "code": "missing-code",
+    "code_verifier": "missing-verifier",
+    "code_challenge_method": "S256"
+   },
+   "example": "exchangeAuthCodeForAPIKey#403 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ],
+   "exampleDiffers": {
+    "error.message": "The generic OpenAPI ForbiddenResponse example says management keys; the OAuth page documents Invalid code or code_verifier for this endpoint. The request deliberately supplies an unissued authorization code."
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#500 application/json",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 500,
+   "body": {
+    "code": "auth_code_abc123def456",
+    "code_challenge_method": "S256",
+    "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+   },
+   "example": "exchangeAuthCodeForAPIKey#500 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 500
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#200 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#200 application/json",
+   "expect": [
+    {
+     "path": "model",
+     "equals": "openai/gpt-4"
+    },
+    {
+     "path": "choices.0.message.content",
+     "equals": "The capital of France is Paris."
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "exampleDiffers": {
+    "system_fingerprint": "The API overview makes system_fingerprint conditional: Only present if the provider supports it. A World runs no provider model, so no provider fingerprint is returned."
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#200 text/event-stream",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7,
+    "stream": true
+   },
+   "example": "sendChatCompletionRequest#200 text/event-stream",
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"object\":\"chat.completion.chunk\""
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4\""
+    },
+    {
+     "path": "",
+     "contains": ": OPENROUTER PROCESSING"
+    },
+    {
+     "path": "",
+     "contains": "data: [DONE]"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#400 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#400 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#401 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 401,
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#401 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 401
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#402 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 402,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#402 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 402
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#403 insufficient-permissions",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#403 insufficient-permissions",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#404 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 404,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#404 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 404
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#408 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 408,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#408 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 408
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#413 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 413,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#413 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 413
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#422 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 422,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#422 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 422
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#429 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#429 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 429
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#500 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 500,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#500 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 500
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#502 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 502,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#502 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 502
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#503 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 503,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#503 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 503
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#524 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 524,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#524 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 524
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#529 application/json",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 529,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7
+   },
+   "example": "sendChatCompletionRequest#529 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 529
+    }
+   ]
+  },
+  {
+   "name": "getCurrentKey#200 application/json",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "example": "getCurrentKey#200 application/json",
+   "expect": [
+    {
+     "path": "data.usage",
+     "equals": 0
+    },
+    {
+     "path": "data.limit",
+     "equals": null
+    },
+    {
+     "path": "data.creator_user_id",
+     "exists": true
+    }
+   ],
+   "exampleDiffers": {
+    "data.limit": "The limits page documents optional per-key credit caps, and this newly provisioned key has no cap or reset period. The sample is a capped paid key.",
+    "data.limit_remaining": "The limits page documents optional per-key credit caps, and this newly provisioned key has no cap or reset period. The sample is a capped paid key.",
+    "data.limit_reset": "The limits page documents optional per-key credit caps, and this newly provisioned key has no cap or reset period. The sample is a capped paid key.",
+    "data.expires_at": "This newly provisioned World key has no expiry and no workspace; those optional fields are nullable in the current-key schema.",
+    "data.workspace_id": "This newly provisioned World key has no expiry and no workspace; those optional fields are nullable in the current-key schema."
+   }
+  },
+  {
+   "name": "getCurrentKey#401 application/json",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 401,
+   "example": "getCurrentKey#401 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 401
+    }
+   ]
+  },
+  {
+   "name": "getCurrentKey#500 application/json",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 500,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "example": "getCurrentKey#500 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 500
+    }
+   ]
+  },
+  {
+   "name": "createMessages#200 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#200 application/json",
+   "expect": [
+    {
+     "path": "model",
+     "equals": "anthropic/claude-sonnet-4"
+    },
+    {
+     "path": "content.0.text",
+     "equals": "I'm doing well, thank you for asking! How can I help you today?"
+    },
+    {
+     "path": "stop_reason",
+     "equals": "end_turn"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "exampleDiffers": {
+    "usage.cache_creation_input_tokens": "The Messages schema allows numeric cache counts; the World has no prompt-cache hits or cache creation, so it reports zero rather than the sample null.",
+    "usage.cache_read_input_tokens": "The Messages schema allows numeric cache counts; the World has no prompt-cache hits or cache creation, so it reports zero rather than the sample null."
+   }
+  },
+  {
+   "name": "createMessages#200 text/event-stream",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4",
+    "stream": true
+   },
+   "example": "createMessages#200 text/event-stream",
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "event: content_block_delta"
+    },
+    {
+     "path": "",
+     "contains": "\"text\":\"Hello\""
+    },
+    {
+     "path": "",
+     "contains": "event: message_stop"
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"anthropic/claude-sonnet-4\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "createMessages#400 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#400 application/json",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "invalid_request_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "invalid_request"
+    }
+   ]
+  },
+  {
+   "name": "createMessages#401 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 401,
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#401 application/json",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "authentication_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "authentication"
+    }
+   ]
+  },
+  {
+   "name": "createMessages#403 insufficient-permissions",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#403 insufficient-permissions",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "permission_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "permission_denied"
+    }
+   ]
+  },
+  {
+   "name": "createMessages#404 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 404,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "missing/model"
+   },
+   "example": "createMessages#404 application/json",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "not_found_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "not_found"
+    }
+   ],
+   "exampleDiffers": {
+    "request_id": "The Messages error schema admits null request_id; a local pre-provider refusal or scripted outage has no upstream generation id. The vendor example shows a provider-generated id."
+   }
+  },
+  {
+   "name": "createMessages#429 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#429 application/json",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "rate_limit_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "rate_limit_exceeded"
+    }
+   ],
+   "exampleDiffers": {
+    "request_id": "The Messages error schema admits null request_id; a local pre-provider refusal or scripted outage has no upstream generation id. The vendor example shows a provider-generated id."
+   }
+  },
+  {
+   "name": "createMessages#500 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 500,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#500 application/json",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "api_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "server"
+    }
+   ],
+   "exampleDiffers": {
+    "request_id": "The Messages error schema admits null request_id; a local pre-provider refusal or scripted outage has no upstream generation id. The vendor example shows a provider-generated id."
+   }
+  },
+  {
+   "name": "createMessages#503 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 503,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#503 application/json",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "overloaded_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "provider_overloaded"
+    }
+   ],
+   "exampleDiffers": {
+    "request_id": "The Messages error schema admits null request_id; a local pre-provider refusal or scripted outage has no upstream generation id. The vendor example shows a provider-generated id."
+   }
+  },
+  {
+   "name": "createMessages#529 application/json",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 529,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4"
+   },
+   "example": "createMessages#529 application/json",
+   "expect": [
+    {
+     "path": "type",
+     "equals": "error"
+    },
+    {
+     "path": "error.type",
+     "equals": "overloaded_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "provider_overloaded"
+    }
+   ],
+   "exampleDiffers": {
+    "request_id": "The Messages error schema admits null request_id; a local pre-provider refusal or scripted outage has no upstream generation id. The vendor example shows a provider-generated id."
+   }
+  },
+  {
+   "name": "getModels#200 application/json",
+   "method": "GET",
+   "path": "/api/v1/models",
+   "status": 200,
+   "example": "getModels#200 application/json",
+   "expect": [
+    {
+     "path": "data.0.id",
+     "equals": "openai/gpt-4o"
+    },
+    {
+     "path": "data.0.pricing.prompt",
+     "equals": "0.0000025"
+    },
+    {
+     "path": "total_count",
+     "equals": 7
+    },
+    {
+     "path": "data.3.id",
+     "equals": "openai/gpt-4"
+    },
+    {
+     "path": "data.3.canonical_slug",
+     "equals": "openai/gpt-4"
+    },
+    {
+     "path": "data.4.id",
+     "equals": "anthropic/claude-sonnet-4"
+    },
+    {
+     "path": "data.4.canonical_slug",
+     "equals": "anthropic/claude-sonnet-4"
+    }
+   ],
+   "exampleDiffers": {
+    "data[].architecture.instruct_type": "The model architecture schema permits null; the GPT-4o page gives no provider chat-template identifier. This catalogue leaves it null while the old GPT-4 sample supplies chatml.",
+    "data[].architecture.input_modalities": "The spec's example lists one model's input modalities (text); each model in the catalog lists its own (the Model schema's architecture.input_modalities: \"Supported input modalities\"): an image-reading model text and image, a multimodal one text, image and file.",
+    "data[].supported_parameters": "The spec's example lists three of one model's parameters; each model in the catalog lists those it takes (the Model schema's supported_parameters: \"List of supported parameters for this model\"), seven for these chat models."
+   }
+  },
+  {
+   "name": "getModels#400 application/json",
+   "method": "GET",
+   "path": "/api/v1/models?limit=2000",
+   "status": 400,
+   "example": "getModels#400 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    }
+   ]
+  },
+  {
+   "name": "getModels#403 application/json",
+   "method": "GET",
+   "path": "/api/v1/models",
+   "status": 403,
+   "example": "getModels#403 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ]
+  },
+  {
+   "name": "getModels#500 application/json",
+   "method": "GET",
+   "path": "/api/v1/models",
+   "status": 500,
+   "example": "getModels#500 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 500
+    }
+   ]
+  },
+  {
+   "name": "createResponses#200 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#200 application/json",
+   "expect": [
+    {
+     "path": "model",
+     "equals": "openai/gpt-4o"
+    },
+    {
+     "path": "output.0.content.0.text",
+     "equals": "Why did the chicken cross the road? To get to the other side!"
+    },
+    {
+     "path": "store",
+     "equals": false
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "createResponses#200 text/event-stream",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o",
+    "stream": true
+   },
+   "example": "createResponses#200 text/event-stream",
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "event: response.output_text.delta"
+    },
+    {
+     "path": "",
+     "contains": "\"delta\":\"Hel\""
+    },
+    {
+     "path": "",
+     "contains": "event: response.completed"
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4o\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "createResponses#400 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#400 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    }
+   ]
+  },
+  {
+   "name": "createResponses#401 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 401,
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#401 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 401
+    }
+   ]
+  },
+  {
+   "name": "createResponses#402 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 402,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#402 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 402
+    }
+   ]
+  },
+  {
+   "name": "createResponses#403 insufficient-permissions",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#403 insufficient-permissions",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ]
+  },
+  {
+   "name": "createResponses#404 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 404,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#404 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 404
+    }
+   ]
+  },
+  {
+   "name": "createResponses#408 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 408,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#408 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 408
+    }
+   ]
+  },
+  {
+   "name": "createResponses#413 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 413,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#413 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 413
+    }
+   ]
+  },
+  {
+   "name": "createResponses#422 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 422,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#422 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 422
+    }
+   ]
+  },
+  {
+   "name": "createResponses#429 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#429 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 429
+    }
+   ]
+  },
+  {
+   "name": "createResponses#500 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 500,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#500 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 500
+    }
+   ]
+  },
+  {
+   "name": "createResponses#502 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 502,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#502 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 502
+    }
+   ]
+  },
+  {
+   "name": "createResponses#503 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 503,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#503 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 503
+    }
+   ]
+  },
+  {
+   "name": "createResponses#524 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 524,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#524 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 524
+    }
+   ]
+  },
+  {
+   "name": "createResponses#529 application/json",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 529,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o"
+   },
+   "example": "createResponses#529 application/json",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 529
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=8GJyUT8OHlFtlGf42H5NmFa7NDE-yUpLlYXCfJTJOpc&code_challenge_method=S256&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc PKCE exchange S256",
+   "example": "exchangeAuthCodeForAPIKey#doc PKCE exchange S256",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 200,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "your-random-string",
+    "code_challenge_method": "S256"
+   },
+   "capture": {
+    "latestkey": "key"
+   },
+   "expect": [
+    {
+     "path": "user_id",
+     "equals": "{person}"
+    },
+    {
+     "path": "key",
+     "matches": "^sk-or-v1-[0-9a-f]{64}$"
+    }
+   ]
+  },
+  {
+   "name": "The application verifies the exchanged key belongs to the authorizing person",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {latestkey}"
+   },
+   "expect": [
+    {
+     "path": "data.creator_user_id",
+     "equals": "{person}"
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=your-random-string&code_challenge_method=plain&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc PKCE exchange plain",
+   "example": "exchangeAuthCodeForAPIKey#doc PKCE exchange plain",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 200,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "your-random-string",
+    "code_challenge_method": "plain"
+   },
+   "capture": {
+    "latestkey": "key"
+   },
+   "expect": [
+    {
+     "path": "user_id",
+     "equals": "{person}"
+    },
+    {
+     "path": "key",
+     "matches": "^sk-or-v1-[0-9a-f]{64}$"
+    }
+   ]
+  },
+  {
+   "name": "The application verifies the exchanged key belongs to the authorizing person",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {latestkey}"
+   },
+   "expect": [
+    {
+     "path": "data.creator_user_id",
+     "equals": "{person}"
+    }
+   ]
+  },
+  {
+   "name": "Approve the documented callback without a challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "status": 302,
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc PKCE exchange without challenge",
+   "example": "exchangeAuthCodeForAPIKey#doc PKCE exchange without challenge",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 200,
+   "body": {
+    "code": "{code}"
+   },
+   "capture": {
+    "latestkey": "key"
+   },
+   "expect": [
+    {
+     "path": "user_id",
+     "equals": "{person}"
+    },
+    {
+     "path": "key",
+     "matches": "^sk-or-v1-[0-9a-f]{64}$"
+    }
+   ]
+  },
+  {
+   "name": "The application verifies the exchanged key belongs to the authorizing person",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {latestkey}"
+   },
+   "expect": [
+    {
+     "path": "data.creator_user_id",
+     "equals": "{person}"
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=8GJyUT8OHlFtlGf42H5NmFa7NDE-yUpLlYXCfJTJOpc&code_challenge_method=S256",
+   "capture": {
+    "code": "text:<code id=\"code\">([A-Za-z0-9]+)</code>"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc PKCE exchange headless",
+   "example": "exchangeAuthCodeForAPIKey#doc PKCE exchange headless",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 200,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "your-random-string",
+    "code_challenge_method": "S256"
+   },
+   "capture": {
+    "latestkey": "key"
+   },
+   "expect": [
+    {
+     "path": "user_id",
+     "equals": "{person}"
+    },
+    {
+     "path": "key",
+     "matches": "^sk-or-v1-[0-9a-f]{64}$"
+    }
+   ]
+  },
+  {
+   "name": "The application verifies the exchanged key belongs to the authorizing person",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {latestkey}"
+   },
+   "expect": [
+    {
+     "path": "data.creator_user_id",
+     "equals": "{person}"
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=JU77r4BH7wk4xsKhGJmKmOieX5HbW2tPLqKVM6rX8l0&code_challenge_method=S256&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "Exchange the code once before exercising the single-use rule",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "body": {
+    "code": "{code}",
+    "code_verifier": "single-use-verifier",
+    "code_challenge_method": "S256"
+   },
+   "status": 200,
+   "capture": {
+    "singlekey": "key"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc single-use authorization code",
+   "example": "exchangeAuthCodeForAPIKey#doc single-use authorization code",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 403,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "single-use-verifier",
+    "code_challenge_method": "S256"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=8GJyUT8OHlFtlGf42H5NmFa7NDE-yUpLlYXCfJTJOpc&code_challenge_method=S256&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc wrong challenge method",
+   "example": "exchangeAuthCodeForAPIKey#doc wrong challenge method",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 400,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "your-random-string",
+    "code_challenge_method": "plain"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=8GJyUT8OHlFtlGf42H5NmFa7NDE-yUpLlYXCfJTJOpc&code_challenge_method=S256&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc wrong verifier",
+   "example": "exchangeAuthCodeForAPIKey#doc wrong verifier",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 403,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "wrong-verifier",
+    "code_challenge_method": "S256"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ]
+  },
+  {
+   "name": "Authorize the published PKCE exchange with its documented challenge",
+   "method": "POST",
+   "path": "https://openrouter.ai/auth",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=example%40studio.test&code_challenge=8GJyUT8OHlFtlGf42H5NmFa7NDE-yUpLlYXCfJTJOpc&code_challenge_method=S256&callback_url=https%3A%2F%2Fexample.studio.test%2Fcallback",
+   "capture": {
+    "code": "redirect.code"
+   }
+  },
+  {
+   "name": "The documented ten-minute lifetime elapses",
+   "wait": "10m"
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc expired authorization code",
+   "example": "exchangeAuthCodeForAPIKey#doc expired authorization code",
+   "method": "POST",
+   "path": "/api/v1/auth/keys",
+   "status": 403,
+   "body": {
+    "code": "{code}",
+    "code_verifier": "your-random-string",
+    "code_challenge_method": "S256"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#doc attribution headers",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}",
+    "http-referer": "https://example.studio.test",
+    "x-openrouter-title": "Example Studio"
+   },
+   "body": {
+    "model": "openai/gpt-5.2",
+    "messages": [
+     {
+      "role": "user",
+      "content": "What is the meaning of life?"
+     }
+    ]
+   },
+   "example": "sendChatCompletionRequest#doc attribution headers",
+   "expect": [
+    {
+     "path": "model",
+     "equals": "openai/gpt-5.2"
+    },
+    {
+     "path": "object",
+     "equals": "chat.completion"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#doc assistant prefill",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/gpt-5.2",
+    "messages": [
+     {
+      "role": "user",
+      "content": "What is the meaning of life?"
+     },
+     {
+      "role": "assistant",
+      "content": "I'm not sure, but my best guess is"
+     }
+    ]
+   },
+   "example": "sendChatCompletionRequest#doc assistant prefill",
+   "expect": [
+    {
+     "path": "model",
+     "equals": "openai/gpt-5.2"
+    },
+    {
+     "path": "object",
+     "equals": "chat.completion"
+    },
+    {
+     "path": "choices.0.message.role",
+     "equals": "assistant"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#doc SDK streaming",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "How would you build the tallest building ever?"
+     }
+    ],
+    "stream": true
+   },
+   "example": "sendChatCompletionRequest#doc SDK streaming",
+   "expect": [
+    {
+     "path": "",
+     "contains": ": OPENROUTER PROCESSING"
+    },
+    {
+     "path": "",
+     "contains": "\"usage\":{"
+    },
+    {
+     "path": "",
+     "contains": "data: [DONE]"
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4o\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#doc eventsource-parser streaming",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello"
+     }
+    ],
+    "stream": true
+   },
+   "example": "sendChatCompletionRequest#doc eventsource-parser streaming",
+   "expect": [
+    {
+     "path": "",
+     "contains": ": OPENROUTER PROCESSING"
+    },
+    {
+     "path": "",
+     "contains": "\"usage\":{"
+    },
+    {
+     "path": "",
+     "contains": "data: [DONE]"
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4o\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#doc streamWithErrorHandling",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "A short question"
+     }
+    ],
+    "stream": true
+   },
+   "example": "sendChatCompletionRequest#doc streamWithErrorHandling",
+   "expect": [
+    {
+     "path": "",
+     "contains": ": OPENROUTER PROCESSING"
+    },
+    {
+     "path": "",
+     "contains": "\"usage\":{"
+    },
+    {
+     "path": "",
+     "contains": "data: [DONE]"
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4o\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "createResponses#doc authenticated Responses request",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/o4-mini",
+    "input": "Hello, world!"
+   },
+   "example": "createResponses#doc authenticated Responses request",
+   "expect": [
+    {
+     "path": "model",
+     "equals": "openai/o4-mini"
+    },
+    {
+     "path": "store",
+     "equals": false
+    },
+    {
+     "path": "output.0.role",
+     "equals": "assistant"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "createResponses#doc store true is refused",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/gpt-4o",
+    "input": "Hello",
+    "store": true
+   },
+   "example": "createResponses#doc store true is refused",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    }
+   ]
+  },
+  {
+   "name": "createResponses#doc previous_response_id is refused",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "model": "openai/gpt-4o",
+    "input": "Hello",
+    "previous_response_id": "resp_abc123"
+   },
+   "example": "createResponses#doc previous_response_id is refused",
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    }
+   ]
+  },
+  {
+   "name": "getCurrentKey#doc Checking your limits",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "example": "getCurrentKey#doc Checking your limits",
+   "expect": [
+    {
+     "path": "data.usage",
+     "equals": 0
+    },
+    {
+     "path": "data.limit",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#doc Retry-After on a pre-stream rate-limit fault",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 150,
+    "messages": [
+     {
+      "content": "You are a helpful assistant.",
+      "role": "system"
+     },
+     {
+      "content": "What is the capital of France?",
+      "role": "user"
+     }
+    ],
+    "model": "openai/gpt-4",
+    "temperature": 0.7,
+    "stream": true
+   },
+   "example": "sendChatCompletionRequest#doc Retry-After on a pre-stream rate-limit fault",
+   "expect": [
+    {
+     "header": "retry-after",
+     "equals": "2"
+    },
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    },
+    {
+     "path": "error.code",
+     "equals": 429
+    }
+   ]
+  },
+  {
+   "name": "createResponses#doc Retry-After on a pre-stream rate-limit fault",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "input": "Tell me a joke",
+    "model": "openai/gpt-4o",
+    "stream": true
+   },
+   "example": "createResponses#doc Retry-After on a pre-stream rate-limit fault",
+   "expect": [
+    {
+     "header": "retry-after",
+     "equals": "2"
+    },
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    },
+    {
+     "path": "error.code",
+     "equals": 429
+    }
+   ]
+  },
+  {
+   "name": "createMessages#doc Retry-After on a pre-stream rate-limit fault",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "body": {
+    "max_tokens": 1024,
+    "messages": [
+     {
+      "content": "Hello, how are you?",
+      "role": "user"
+     }
+    ],
+    "model": "anthropic/claude-sonnet-4",
+    "stream": true
+   },
+   "example": "createMessages#doc Retry-After on a pre-stream rate-limit fault",
+   "expect": [
+    {
+     "header": "retry-after",
+     "equals": "2"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "rate_limit_exceeded"
+    },
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    },
+    {
+     "path": "error.type",
+     "equals": "rate_limit_error"
+    }
+   ]
+  },
+  {
+   "name": "Read the PKCE success example effect with its issued credential",
+   "method": "GET",
+   "path": "/api/v1/key",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {oauthkey}"
+   },
+   "expect": [
+    {
+     "path": "data.creator_user_id",
+     "equals": "{person}"
+    }
+   ]
+  },
+  {
+   "name": "exchangeAuthCodeForAPIKey#doc OAuth wrong request method",
+   "example": "exchangeAuthCodeForAPIKey#doc OAuth wrong request method",
+   "method": "GET",
+   "path": "https://openrouter.ai/api/v1/auth/keys",
+   "status": 405,
+   "headers": {},
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 405
+    }
+   ]
+  },
+  {
+   "name": "sendChatCompletionRequest#doc normalized GPT-4o completion response",
+   "example": "sendChatCompletionRequest#doc normalized GPT-4o completion response",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "path": "model",
+     "equals": "openai/gpt-4o"
+    },
+    {
+     "path": "choices.0.message.content",
+     "equals": "Hello there!"
+    },
+    {
+     "path": "choices.0.finish_reason",
+     "equals": "stop"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Greet me."
+     }
+    ]
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#doc invalid model before stream commitment",
+   "example": "sendChatCompletionRequest#doc invalid model before stream commitment",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 400
+    },
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    }
+   ],
+   "body": {
+    "model": "unknown/model",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello"
+     }
+    ],
+    "stream": true
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#doc provider disconnected after stream commitment",
+   "example": "sendChatCompletionRequest#doc provider disconnected after stream commitment",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"finish_reason\":\"error\""
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4o\""
+    },
+    {
+     "path": "",
+     "contains": "data: [DONE]"
+    },
+    {
+     "path": "",
+     "contains": "\"error_type\":\"provider_unavailable\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Published fault: provider disconnected after stream commitment"
+     }
+    ],
+    "stream": true
+   },
+   "exampleDiffers": {
+    "error.code": "The older streaming-page sketch uses a string server_error code; the current errors-and-debugging reference and vendored error schema require numeric HTTP code 502 for provider_unavailable. Canonical numeric code/type are emitted and asserted."
+   }
+  },
+  {
+   "name": "createResponses#doc missing model error response",
+   "example": "createResponses#doc missing model error response",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": "invalid_prompt"
+    },
+    {
+     "path": "metadata",
+     "equals": null
+    },
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    }
+   ],
+   "body": {
+    "input": "Hello, world!"
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#doc typed provider rate-limit response",
+   "example": "sendChatCompletionRequest#doc typed provider rate-limit response",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": 429
+    },
+    {
+     "path": "error.metadata.error_type",
+     "equals": "rate_limit_exceeded"
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Published fault: typed provider rate-limit response"
+     }
+    ]
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#doc typed mid-stream rate-limit event",
+   "example": "sendChatCompletionRequest#doc typed mid-stream rate-limit event",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"finish_reason\":\"error\""
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4o\""
+    },
+    {
+     "path": "",
+     "contains": "data: [DONE]"
+    },
+    {
+     "path": "",
+     "contains": "\"error_type\":\"rate_limit_exceeded\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Published fault: typed mid-stream rate-limit event"
+     }
+    ],
+    "stream": true
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#doc partial non-streaming completion interrupted by provider",
+   "example": "sendChatCompletionRequest#doc partial non-streaming completion interrupted by provider",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "path": "model",
+     "equals": "openai/gpt-4o"
+    },
+    {
+     "path": "choices.0.finish_reason",
+     "equals": "error"
+    },
+    {
+     "path": "choices.0.message.content",
+     "equals": "partial output..."
+    },
+    {
+     "path": "choices.0.error.metadata.error_type",
+     "equals": "provider_unavailable"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Published fault: partial non-streaming completion interrupted by provider"
+     }
+    ]
+   }
+  },
+  {
+   "name": "createResponses#doc failed Responses authentication result",
+   "example": "createResponses#doc failed Responses authentication result",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "failed"
+    },
+    {
+     "path": "error_type",
+     "equals": "authentication"
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "input": "Published fault: failed Responses authentication result"
+   }
+  },
+  {
+   "name": "createResponses#doc response.failed terminal event",
+   "example": "createResponses#doc response.failed terminal event",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"type\":\"response.failed\""
+    },
+    {
+     "path": "",
+     "contains": "\"error_type\":\"server\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "input": "Published fault: response.failed terminal event",
+    "stream": true
+   }
+  },
+  {
+   "name": "createResponses#doc response.error generation event",
+   "example": "createResponses#doc response.error generation event",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"type\":\"response.error\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "input": "Published fault: response.error generation event",
+    "stream": true
+   }
+  },
+  {
+   "name": "createResponses#doc plain Responses error event",
+   "example": "createResponses#doc plain Responses error event",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"type\":\"error\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "input": "Published fault: plain Responses error event",
+    "stream": true
+   }
+  },
+  {
+   "name": "createMessages#doc canonical Messages authentication envelope",
+   "example": "createMessages#doc canonical Messages authentication envelope",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 401,
+   "headers": {},
+   "expect": [
+    {
+     "path": "error.type",
+     "equals": "authentication_error"
+    },
+    {
+     "path": "error.error_type",
+     "equals": "authentication"
+    },
+    {
+     "path": "request_id",
+     "equals": null
+    }
+   ],
+   "body": {
+    "model": "anthropic/claude-sonnet-4",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello"
+     }
+    ],
+    "max_tokens": 1024
+   }
+  },
+  {
+   "name": "createMessages#doc Messages mid-stream overload event",
+   "example": "createMessages#doc Messages mid-stream overload event",
+   "method": "POST",
+   "path": "/api/v1/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"type\":\"error\""
+    },
+    {
+     "path": "",
+     "contains": "\"error_type\":\"provider_overloaded\""
+    },
+    {
+     "path": "",
+     "contains": "\"error_type\":\"provider_overloaded\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "anthropic/claude-sonnet-4",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Published fault: Messages mid-stream overload event"
+     }
+    ],
+    "max_tokens": 1024,
+    "stream": true
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#doc typed pre-stream rate-limit response",
+   "example": "sendChatCompletionRequest#doc typed pre-stream rate-limit response",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    },
+    {
+     "path": "error.code",
+     "equals": 429
+    },
+    {
+     "path": "error.metadata.error_type",
+     "equals": "rate_limit_exceeded"
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Published fault: typed pre-stream rate-limit response"
+     }
+    ],
+    "stream": true
+   }
+  },
+  {
+   "name": "createResponses#doc typed pre-stream rate-limit response",
+   "example": "createResponses#doc typed pre-stream rate-limit response",
+   "method": "POST",
+   "path": "/api/v1/responses",
+   "status": 429,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    },
+    {
+     "path": "error.code",
+     "equals": 429
+    },
+    {
+     "path": "error.metadata.error_type",
+     "equals": "rate_limit_exceeded"
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "input": "Published fault: typed pre-stream rate-limit response",
+    "stream": true
+   }
+  },
+  {
+   "name": "sendChatCompletionRequest#doc mid-stream rate-limit event",
+   "example": "sendChatCompletionRequest#doc mid-stream rate-limit event",
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {app}"
+   },
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "text/event-stream"
+    },
+    {
+     "path": "",
+     "contains": "\"finish_reason\":\"error\""
+    },
+    {
+     "path": "",
+     "contains": "\"model\":\"openai/gpt-4o\""
+    },
+    {
+     "path": "",
+     "contains": "data: [DONE]"
+    },
+    {
+     "path": "",
+     "contains": "\"error_type\":\"server\""
+    },
+    {
+     "header": "x-generation-id",
+     "exists": true
+    }
+   ],
+   "body": {
+    "model": "openai/gpt-4o",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Published fault: mid-stream rate-limit event"
+     }
+    ],
+    "stream": true
+   }
+  }
+ ],
+ "notReplayed": {
+  "sendChatCompletionRequest#403 guardrail-blocked": "This example requires a configured guardrail and opted-in router pipeline metadata. Guardrail configuration and provider routing are unmodeled; no World of this pack has those preconditions. The cited errors-and-debugging page distinguishes these from ordinary permission faults.",
+  "createMessages#403 guardrail-blocked": "This example requires a configured guardrail and opted-in router pipeline metadata. Guardrail configuration and provider routing are unmodeled; no World of this pack has those preconditions. The cited errors-and-debugging page distinguishes these from ordinary permission faults.",
+  "createResponses#403 guardrail-blocked": "This example requires a configured guardrail and opted-in router pipeline metadata. Guardrail configuration and provider routing are unmodeled; no World of this pack has those preconditions. The cited errors-and-debugging page distinguishes these from ordinary permission faults.",
+  "sendChatCompletionRequest#doc OAuth Step 3 live latest alias": "The page supplies an unversioned live alias without its historical binding or availability date. A frozen World cannot identify which dated model it selects; pinned GPT-4/GPT-4o and GPT-5.2 examples exercise the same chat operation without inventing that binding.",
+  "sendChatCompletionRequest#doc upstream debug echo": "A World runs no provider model and has no upstream transformed request. This real-provider debug payload cannot be produced truthfully; debug and provider routing are outside demand.",
+  "createResponses#doc upstream debug echo": "A World runs no provider model and has no upstream transformed request. This real-provider debug payload cannot be produced truthfully; debug and provider routing are outside demand.",
+  "sendChatCompletionRequest#doc OAuth Step 3 SDK live latest alias": "The published SDK variant explicitly sends stream:false. Its unversioned live alias has no documented dated binding, so the frozen World cannot select a known dated model. The fetch variant is the existing live-latest-alias record.",
+  "sendChatCompletionRequest#doc stream cancellation request": "The SDK, Python and fetch variants publish the same request but exercise connection abort and provider processing/billing cancellation. The journey data format has no abort action and this World has no progressive provider execution or billing to stop. A normal completed stream would not replay the cancellation. This is a missing shared kernel/walk mechanism if cancellation is to become reachable.",
+  "sendChatCompletionRequest#doc guardrail block without router metadata": "A configured content/prompt-injection guardrail is required, and guardrail configuration/evaluation is unmodeled in this World. A generic permission fault lacks the published detection metadata and cannot replay it.",
+  "sendChatCompletionRequest#doc guardrail block with router metadata": "The example requires an installed guardrail plus opted-in provider/router pipeline metadata. Neither configured guardrails nor the router pipeline exist in this World. This is the same justified boundary as the three current spec guardrail records, now inventorying the separately published page examples.",
+  "createResponses#doc guardrail block without router metadata": "A configured content/prompt-injection guardrail is required, and guardrail configuration/evaluation is unmodeled in this World. A generic permission fault lacks the published detection metadata and cannot replay it.",
+  "createResponses#doc guardrail block with router metadata": "The example requires an installed guardrail plus opted-in provider/router pipeline metadata. Neither configured guardrails nor the router pipeline exist in this World. This is the same justified boundary as the three current spec guardrail records, now inventorying the separately published page examples.",
+  "sendChatCompletionRequest#doc in-flight spending-budget refusal": "This World charges no generated inference and has no prepaid account balance, concurrent estimated-cost holds or settlement window. It cannot reach the documented in-flight budget. A generic insufficient-credits status fault cannot truthfully supply this limit_source/reason/remedy_hint or its Retry-After case.",
+  "createResponses#doc in-flight spending-budget refusal": "This World charges no generated inference and has no prepaid account balance, concurrent estimated-cost holds or settlement window. It cannot reach the documented in-flight budget. A generic insufficient-credits status fault cannot truthfully supply this limit_source/reason/remedy_hint or its Retry-After case."
+ }
+}

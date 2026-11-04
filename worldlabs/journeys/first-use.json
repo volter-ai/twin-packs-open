@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://docs.worldlabs.ai/api/reference/worlds/list",
+  "about": "Volter Editor's Account settings key test for World Labs as it ships (volter-ai/editor b86dde8c5618, packages/editor-core/server/provider-credentials.ts): its own fetch, no World Labs SDK, lists one world with the WLT-Api-Key the World's credential door issues as WORLDLABS_API_KEY. A truncated paste is refused (401) and the editor reports it; the full key connects and the account's list is empty. The readback tests the same key again after the World resumes, the account and its key retained, without issuing another.",
+  "files": {
+    "package.json": "{\n  \"name\": \"worldlabs-editor-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {}\n}\n",
+    ".env.example": "WORLDLABS_API_KEY=\n",
+    "connect.mjs": "import assert from 'node:assert/strict';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n// Volter Editor's Account settings key test for World Labs (volter-ai/editor b86dde8c5618,\n// packages/editor-core/server/provider-credentials.ts: PROVIDER_CREDENTIALS and test()), unchanged\nconst provider = {\n  id: 'worldlabs',\n  label: 'World Labs',\n  environmentVariable: 'WORLDLABS_API_KEY',\n  test: (key, signal) =>\n    fetch('https://api.worldlabs.ai/marble/v1/worlds:list', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'WLT-Api-Key': key },\n      body: JSON.stringify({ page_size: 1 }),\n      signal,\n    }),\n};\nasync function test(key) {\n  if (!key) throw new Error(`${provider.label} is not configured.`);\n  let response;\n  try {\n    response = await provider.test(key, AbortSignal.timeout(15_000));\n  } catch {\n    throw new Error(`Could not reach ${provider.label}.`);\n  }\n  if (!response.ok) {\n    throw new Error(`${provider.label} rejected the credential (${response.status}).`);\n  }\n  return { response, result: { provider: provider.id, ok: true, testedAt: new Date().toISOString() } };\n}\nconst mode = process.argv[2] ?? 'connect';\nif (mode === 'connect') {\n  // the first paste is a truncated clipboard value: the editor's test refuses it\n  await assert.rejects(test(process.env[provider.environmentVariable].slice(0, 12)), { message: 'World Labs rejected the credential (401).' });\n}\n// the full saved key connects; the account has generated no world yet\nconst { response, result } = await test(process.env[provider.environmentVariable]);\nassert.equal(result.ok, true);\nassert.deepEqual(await response.json(), { worlds: [], next_page_token: null });\nconsole.log(JSON.stringify({ mode, ...result }));\n"
+  },
+  "run": [
+    "node",
+    "connect.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "connect.mjs",
+      "retest"
+    ]
+  }
+}

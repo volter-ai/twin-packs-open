@@ -1,0 +1,54 @@
+{
+  "measured": "2026-10-07: read Dub at the commit recorded in twin-world/generated/demand.json, beginning with OAuth entry and callback, then group/tag selection, cron import, rate-limit rescheduling and the legacy-link middleware. Plain fetch, no Bitly SDK. The middleware credential is supplied by its operator; the import feature accepts an end-user account and is shipped demand. No other pack implementation was consulted.",
+  "applications": [
+    {
+      "name": "Dub",
+      "repo": "dubinc/dub",
+      "commit": "7e0101363b2ab30afc537c1893f159d1dcba513a",
+      "client": "Native fetch and URLSearchParams; apps/web/lib/integrations/oauth-provider.ts",
+      "backend": [
+        {
+          "call": "Exchange code with form body; parse form-encoded token",
+          "operation": "exchangeAccessToken",
+          "evidence": "apps/web/app/api/callback/bitly/route.ts:24",
+          "client": "apps/web/lib/integrations/bitly/oauth.ts:5-16; apps/web/lib/integrations/oauth-provider.ts:76-123"
+        },
+        {
+          "call": "List active groups and their branded short domains",
+          "operation": "getGroups",
+          "evidence": "apps/web/app/api/workspaces/[idOrSlug]/import/bitly/route.ts:22"
+        },
+        {
+          "call": "List group tags for selection and import",
+          "operation": "getGroupTags",
+          "evidence": "apps/web/app/api/workspaces/[idOrSlug]/import/bitly/route.ts:43",
+          "client": "apps/web/app/(ee)/api/cron/import/bitly/route.ts:43"
+        },
+        {
+          "call": "Fetch size=100 with search_after and created_before; special group batches five pages",
+          "operation": "getBitlinksByGroup",
+          "evidence": "apps/web/app/(ee)/api/cron/import/bitly/fetch-utils.ts:65",
+          "client": "apps/web/app/(ee)/api/cron/import/bitly/fetch-utils.ts:144"
+        },
+        {
+          "call": "Read GET limit and count to defer the import",
+          "operation": "getPlatformLimits",
+          "evidence": "apps/web/app/(ee)/api/cron/import/bitly/rate-limit.ts:9"
+        },
+        {
+          "call": "Read a migrated legacy link before redirecting; BUFFER_BITLY_API_KEY is this request credential",
+          "operation": "getBitlink",
+          "evidence": "apps/web/lib/middleware/utils/crawl-bitly.ts:91"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "Send the person to Bitly authorization and preserve state on return",
+          "operation": "screen:authorize",
+          "evidence": "apps/web/lib/integrations/bitly/oauth.ts:9",
+          "client": "apps/web/lib/integrations/oauth-provider.ts:30-44; apps/web/ui/modals/import-bitly-modal.tsx:93"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1229 @@
+{
+ "vendor": "telegram",
+ "author": "Contributor 173",
+ "host": "api.telegram.org",
+ "about": "Tide Labs, a two-person studio, runs its Volter Harness agent on Telegram (a bot polling for updates, answering in private and in the team group, where privacy mode keeps a plain member from hearing the team until it is made an administrator, posting a scheduled digest, and sending a finished card's release notes as a document) and publishes its news to a Telegram channel through Scheduler (connected by a /connect post, then text, an album, a reply, a photo, a video and a PDF), from January to the agent's retirement at the end of February.",
+ "steps": [
+  {
+   "name": "Monday 5 January, 10:00 in Lisbon",
+   "wait": "106h"
+  },
+  {
+   "name": "Ana signs up for Telegram in the app",
+   "method": "POST",
+   "path": "/_twin/people",
+   "body": {
+    "first_name": "Ana",
+    "last_name": "Ribeiro",
+    "username": "ana_ribeiro",
+    "language_code": "pt"
+   },
+   "status": 200,
+   "capture": {
+    "ana": "id"
+   }
+  },
+  {
+   "name": "Bruno signs up for Telegram in the app",
+   "method": "POST",
+   "path": "/_twin/people",
+   "body": {
+    "first_name": "Bruno",
+    "last_name": "Costa",
+    "username": "brunocosta",
+    "language_code": "pt"
+   },
+   "status": 200,
+   "capture": {
+    "bruno": "id"
+   }
+  },
+  {
+   "name": "Ana makes the studio's agent bot with BotFather (/newbot) and is given its token",
+   "method": "POST",
+   "path": "/_twin/bots",
+   "body": {
+    "owner": "{ana}",
+    "name": "Tide Agent",
+    "username": "tidelabs_agent_bot"
+   },
+   "status": 200,
+   "capture": {
+    "agent_token": "token",
+    "agent_id": "id"
+   },
+   "expect": [
+    {
+     "path": "token",
+     "matches": "^{agent_id}:"
+    }
+   ]
+  },
+  {
+   "name": "Ana opens the agent bot in Telegram and presses Start",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{ana}",
+    "chat": "@tidelabs_agent_bot",
+    "text": "/start"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "entities.0.type",
+     "equals": "bot_command"
+    }
+   ]
+  },
+  {
+   "name": "...and writes to it",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{ana}",
+    "chat": "@tidelabs_agent_bot",
+    "text": "Hi! I'm Ana from Tide Labs. Can you keep notes of our standups?"
+   },
+   "status": 200
+  },
+  {
+   "name": "10:05: Ana starts Volter Harness with the token in her profile",
+   "wait": "5m"
+  },
+  {
+   "name": "Harness's Telegram adapter reads its bot",
+   "method": "POST",
+   "path": "/bot{agent_token}/getMe",
+   "body": {},
+   "status": 200,
+   "expect": [
+    {
+     "path": "ok",
+     "equals": true
+    },
+    {
+     "path": "result.username",
+     "equals": "tidelabs_agent_bot"
+    },
+    {
+     "path": "result.is_bot",
+     "equals": true
+    },
+    {
+     "path": "result.can_read_all_group_messages",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "...removes any webhook before it polls, keeping what is pending",
+   "method": "POST",
+   "path": "/bot{agent_token}/deleteWebhook",
+   "body": {
+    "drop_pending_updates": false
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    },
+    {
+     "path": "description",
+     "equals": "Webhook is already deleted"
+    }
+   ]
+  },
+  {
+   "name": "...and polls: Ana's Start and her message are waiting",
+   "method": "POST",
+   "path": "/bot{agent_token}/getUpdates",
+   "body": {
+    "limit": 100,
+    "timeout": 30
+   },
+   "status": 200,
+   "capture": {
+    "ana_chat": "result.1.message.chat.id",
+    "agent_next": "next:result.1.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.message.text",
+     "equals": "/start"
+    },
+    {
+     "path": "result.1.message.text",
+     "equals": "Hi! I'm Ana from Tide Labs. Can you keep notes of our standups?"
+    },
+    {
+     "path": "result.1.message.chat.type",
+     "equals": "private"
+    },
+    {
+     "path": "result.1.message.from.id",
+     "equals": "{ana}"
+    },
+    {
+     "path": "result.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "It shows the bot typing in her private chat while the agent works",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendChatAction",
+   "body": {
+    "chat_id": "{ana_chat}",
+    "action": "typing"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "...and posts the agent's answer there",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendMessage",
+   "body": {
+    "chat_id": "{ana_chat}",
+    "text": "Hi Ana! I'll keep notes of each standup and post a digest of it. Add me to your team chat and mention me there."
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.chat.id",
+     "equals": "{ana_chat}"
+    },
+    {
+     "path": "result.from.id",
+     "equals": "{agent_id}"
+    },
+    {
+     "path": "result.message_id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "11:00: the team chat",
+   "wait": "55m"
+  },
+  {
+   "name": "Ana makes the group \"Tide Labs team\" with Bruno and the agent bot, which the app adds as a plain member",
+   "method": "POST",
+   "path": "/_twin/chats",
+   "body": {
+    "creator": "{ana}",
+    "type": "group",
+    "title": "Tide Labs team",
+    "members": [
+     {
+      "user": "{bruno}"
+     },
+     {
+      "user": "{agent_id}"
+     }
+    ]
+   },
+   "status": 200,
+   "capture": {
+    "team": "id"
+   },
+   "expect": [
+    {
+     "path": "type",
+     "equals": "group"
+    }
+   ]
+  },
+  {
+   "name": "Harness's poll, from the update after the last it read, receives its own membership and the group's creation (a service message, which privacy mode lets through)",
+   "method": "POST",
+   "path": "/bot{agent_token}/getUpdates",
+   "body": {
+    "offset": "{agent_next}",
+    "limit": 100,
+    "timeout": 30
+   },
+   "status": 200,
+   "capture": {
+    "team_chat": "result.1.message.chat.id",
+    "agent_next": "next:result.1.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.my_chat_member.new_chat_member.status",
+     "equals": "member"
+    },
+    {
+     "path": "result.0.my_chat_member.from.id",
+     "equals": "{ana}"
+    },
+    {
+     "path": "result.1.message.group_chat_created",
+     "equals": true
+    },
+    {
+     "path": "result.1.message.chat.title",
+     "equals": "Tide Labs team"
+    },
+    {
+     "path": "result.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "11:10",
+   "wait": "10m"
+  },
+  {
+   "name": "Bruno tells the team when the standup is",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{bruno}",
+    "chat": "{team}",
+    "text": "Morning all! Standups are at 9:00 on Tuesdays, starting tomorrow. Post your items here."
+   },
+   "status": 200
+  },
+  {
+   "name": "Bruno asks the agent in the group",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{bruno}",
+    "chat": "{team}",
+    "text": "@tidelabs_agent_bot what did Ana ask you to track?"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "entities.0.type",
+     "equals": "mention"
+    }
+   ]
+  },
+  {
+   "name": "11:25: no answer comes; Ana reads that a bot in privacy mode is not sent a plain mention, and an administrator bot is sent every message",
+   "wait": "15m"
+  },
+  {
+   "name": "Ana makes the agent bot an administrator of the group",
+   "method": "POST",
+   "path": "/_twin/chats/{team}/members",
+   "body": {
+    "by": "{ana}",
+    "user": "{agent_id}",
+    "status": "administrator"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "status",
+     "equals": "administrator"
+    }
+   ]
+  },
+  {
+   "name": "Bruno asks again, with the standup time",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{bruno}",
+    "chat": "{team}",
+    "text": "@tidelabs_agent_bot standups are at 9:00 on Tuesdays from tomorrow, items posted here. What did Ana ask you to track?"
+   },
+   "status": 200
+  },
+  {
+   "name": "Harness's next poll receives its promotion and Bruno's second question; his two earlier messages were never sent to it",
+   "method": "POST",
+   "path": "/bot{agent_token}/getUpdates",
+   "body": {
+    "offset": "{agent_next}",
+    "limit": 100,
+    "timeout": 30
+   },
+   "status": 200,
+   "capture": {
+    "agent_next": "next:result.1.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.my_chat_member.old_chat_member.status",
+     "equals": "member"
+    },
+    {
+     "path": "result.0.my_chat_member.new_chat_member.status",
+     "equals": "administrator"
+    },
+    {
+     "path": "result.1.message.text",
+     "equals": "@tidelabs_agent_bot standups are at 9:00 on Tuesdays from tomorrow, items posted here. What did Ana ask you to track?"
+    },
+    {
+     "path": "result.1.message.from.id",
+     "equals": "{bruno}"
+    },
+    {
+     "path": "result.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The agent answers Bruno in the group",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendMessage",
+   "body": {
+    "chat_id": "{team_chat}",
+    "text": "Ana asked me to keep notes of your standups: post your items here at 9:00 on Tuesdays and I will post the digest at 9:15."
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.chat.title",
+     "equals": "Tide Labs team"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 6 January, 09:00: the standup",
+   "wait": "1295m"
+  },
+  {
+   "name": "Ana posts her standup items in the group",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{ana}",
+    "chat": "{team}",
+    "text": "Today: release notes for 0.9. Yesterday: CI cache fixed."
+   },
+   "status": 200
+  },
+  {
+   "name": "Harness's poll, held open, returns with her item as she posts it",
+   "method": "POST",
+   "path": "/bot{agent_token}/getUpdates",
+   "body": {
+    "offset": "{agent_next}",
+    "limit": 100,
+    "timeout": 30
+   },
+   "status": 200,
+   "capture": {
+    "agent_next": "next:result.0.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.message.from.id",
+     "equals": "{ana}"
+    },
+    {
+     "path": "result.0.message.text",
+     "equals": "Today: release notes for 0.9. Yesterday: CI cache fixed."
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "09:02",
+   "wait": "2m"
+  },
+  {
+   "name": "Bruno posts his",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{bruno}",
+    "chat": "{team}",
+    "text": "Today: the login redirect bug. Blocked on: staging credentials."
+   },
+   "status": 200
+  },
+  {
+   "name": "Harness's next poll, from the update after hers, returns with Bruno's item as he posts it",
+   "method": "POST",
+   "path": "/bot{agent_token}/getUpdates",
+   "body": {
+    "offset": "{agent_next}",
+    "limit": 100,
+    "timeout": 30
+   },
+   "status": 200,
+   "capture": {
+    "agent_next": "next:result.0.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.message.from.id",
+     "equals": "{bruno}"
+    },
+    {
+     "path": "result.0.message.text",
+     "equals": "Today: the login redirect bug. Blocked on: staging credentials."
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "09:15: the digest",
+   "wait": "13m"
+  },
+  {
+   "name": "Harness's scheduled job posts the standup digest to the home chat",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendMessage",
+   "body": {
+    "chat_id": "{team_chat}",
+    "text": "Standup digest, Tuesday 6 January\n\nAna: release notes for 0.9 today; CI cache fixed yesterday.\nBruno: the login redirect bug today; blocked on staging credentials."
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "contains": "blocked on staging credentials"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 7 January, 14:00",
+   "wait": "1725m"
+  },
+  {
+   "name": "Ana makes the public channel \"Tide Labs News\" (@tidelabs_news) with the studio logo as its photo",
+   "method": "POST",
+   "path": "/_twin/chats",
+   "body": {
+    "creator": "{ana}",
+    "type": "channel",
+    "title": "Tide Labs News",
+    "username": "tidelabs_news",
+    "description": "Releases and notes from Tide Labs.",
+    "photo": "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"
+   },
+   "status": 200,
+   "capture": {
+    "news": "id"
+   },
+   "expect": [
+    {
+     "path": "photo.big_file_id",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Ana makes the news bot with BotFather for Scheduler, which she runs herself (docker compose, local storage)",
+   "method": "POST",
+   "path": "/_twin/bots",
+   "body": {
+    "owner": "{ana}",
+    "name": "Tide News",
+    "username": "tidelabs_news_bot"
+   },
+   "status": 200,
+   "capture": {
+    "news_token": "token",
+    "news_bot": "id"
+   }
+  },
+  {
+   "name": "14:05",
+   "wait": "5m"
+  },
+  {
+   "name": "...and adds it to the channel as an administrator that may post and delete messages",
+   "method": "POST",
+   "path": "/_twin/chats/{news}/members",
+   "body": {
+    "by": "{ana}",
+    "user": "{news_bot}",
+    "status": "administrator",
+    "rights": {
+     "can_post_messages": true,
+     "can_edit_messages": true,
+     "can_delete_messages": true
+    }
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "status",
+     "equals": "administrator"
+    }
+   ]
+  },
+  {
+   "name": "14:06: Ana sets her Scheduler's TELEGRAM_TOKEN to the news bot's token and, in Scheduler, chooses to add Telegram",
+   "wait": "1m"
+  },
+  {
+   "name": "Scheduler's connect screen polls the news bot: only the bot's own promotion is waiting, and it holds no /connect",
+   "method": "POST",
+   "path": "/bot{news_token}/getUpdates",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "allowed_updates%5B0%5D=message&allowed_updates%5B1%5D=channel_post",
+   "status": 200,
+   "capture": {
+    "news_next": "next:result.0.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.my_chat_member.new_chat_member.status",
+     "equals": "administrator"
+    },
+    {
+     "path": "result.0.update_id",
+     "exists": true
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ana posts the command Scheduler shows her in the channel",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{ana}",
+    "chat": "{news}",
+    "text": "/connect k3x9"
+   },
+   "status": 200
+  },
+  {
+   "name": "Scheduler polls again from the next update (the last update_id it saw plus one) and finds the /connect post",
+   "method": "POST",
+   "path": "/bot{news_token}/getUpdates",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "offset={news_next}&allowed_updates%5B0%5D=message&allowed_updates%5B1%5D=channel_post",
+   "status": 200,
+   "capture": {
+    "channel": "result.0.channel_post.chat.id",
+    "connect_post": "result.0.channel_post.message_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.channel_post.text",
+     "equals": "/connect k3x9"
+    },
+    {
+     "path": "result.0.channel_post.sender_chat.username",
+     "equals": "tidelabs_news"
+    }
+   ]
+  },
+  {
+   "name": "Scheduler reads its bot",
+   "method": "POST",
+   "path": "/bot{news_token}/getMe",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "",
+   "status": 200,
+   "capture": {
+    "news_bot_id": "result.id"
+   }
+  },
+  {
+   "name": "...checks the bot may delete messages in the channel",
+   "method": "POST",
+   "path": "/bot{news_token}/getChatMember",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "chat_id={channel}&user_id={news_bot_id}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.status",
+     "equals": "administrator"
+    },
+    {
+     "path": "result.can_delete_messages",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "...deletes the /connect post",
+   "method": "POST",
+   "path": "/bot{news_token}/deleteMessage",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "chat_id={channel}&message_id={connect_post}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "...and posts its notice",
+   "method": "POST",
+   "path": "/bot{news_token}/sendMessage",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "chat_id={channel}&text=Connection%20Successful.%20Message%20will%20be%20deleted%20in%2010%20seconds.",
+   "status": 200,
+   "capture": {
+    "notice": "result.message_id"
+   },
+   "expect": [
+    {
+     "path": "result.sender_chat.id",
+     "equals": "{channel}"
+    }
+   ]
+  },
+  {
+   "name": "ten seconds later",
+   "wait": "10s"
+  },
+  {
+   "name": "Scheduler deletes its notice",
+   "method": "POST",
+   "path": "/bot{news_token}/deleteMessage",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "chat_id={channel}&message_id={notice}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Scheduler reads the channel it is connecting",
+   "method": "POST",
+   "path": "/bot{news_token}/getChat",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "chat_id={channel}",
+   "status": 200,
+   "capture": {
+    "logo": "result.photo.big_file_id"
+   },
+   "expect": [
+    {
+     "path": "result.title",
+     "equals": "Tide Labs News"
+    },
+    {
+     "path": "result.username",
+     "equals": "tidelabs_news"
+    }
+   ]
+  },
+  {
+   "name": "...the photo's file, to make its link",
+   "method": "POST",
+   "path": "/bot{news_token}/getFile",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "file_id={logo}",
+   "status": 200,
+   "capture": {
+    "logo_path": "result.file_path"
+   },
+   "expect": [
+    {
+     "path": "result.file_path",
+     "matches": "^profile_photos/"
+    }
+   ]
+  },
+  {
+   "name": "...and copies the picture into its storage from the link",
+   "method": "GET",
+   "path": "/file/bot{news_token}/{logo_path}",
+   "status": 200,
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "image/jpeg"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 8 January, 10:00",
+   "wait": "71630s"
+  },
+  {
+   "name": "Scheduler publishes the launch post (Scheduler's HTML: a bold title, two paragraphs)",
+   "method": "POST",
+   "path": "/bot{news_token}/sendMessage",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "chat_id={channel}&text=%3Cb%3ETide%20is%20live%3C%2Fb%3E%0ATide%20plans%20and%20ships%20weekly%20releases%20for%20small%20teams.%0ATry%20it%20free%20at%20https%3A%2F%2Ftide.example%20and%20tell%20us%20what%20you%20think.%0A&parse_mode=HTML",
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "equals": "Tide is live\nTide plans and ships weekly releases for small teams.\nTry it free at https://tide.example and tell us what you think."
+    },
+    {
+     "path": "result.entities.0.type",
+     "equals": "bold"
+    },
+    {
+     "path": "result.entities.0.length",
+     "equals": 12
+    },
+    {
+     "path": "result.entities.1.type",
+     "equals": "url"
+    }
+   ]
+  },
+  {
+   "name": "11:00: Ana asks the agent for the release notes",
+   "wait": "1h"
+  },
+  {
+   "name": "Ana asks the agent in her private chat for the 0.9 release notes",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{ana}",
+    "chat": "@tidelabs_agent_bot",
+    "text": "Can you draft the release notes for 0.9 from this week's merged work? I need them by Friday."
+   },
+   "status": 200
+  },
+  {
+   "name": "Harness's poll receives her request",
+   "method": "POST",
+   "path": "/bot{agent_token}/getUpdates",
+   "body": {
+    "offset": "{agent_next}",
+    "limit": 100,
+    "timeout": 30
+   },
+   "status": 200,
+   "capture": {
+    "agent_next": "next:result.0.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.message.text",
+     "equals": "Can you draft the release notes for 0.9 from this week's merged work? I need them by Friday."
+    },
+    {
+     "path": "result.0.message.chat.id",
+     "equals": "{ana_chat}"
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "It shows the bot typing while the agent files the card",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendChatAction",
+   "body": {
+    "chat_id": "{ana_chat}",
+    "action": "typing"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The agent answers that the card is on the board and this chat will hear when it is done",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendMessage",
+   "body": {
+    "chat_id": "{ana_chat}",
+    "text": "On it: \"Draft the 0.9 release notes\" is card release-notes on the board, and this chat will get the notes when it is done."
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.chat.id",
+     "equals": "{ana_chat}"
+    },
+    {
+     "path": "result.text",
+     "contains": "release-notes"
+    }
+   ]
+  },
+  {
+   "name": "Friday 9 January, 15:00: the card is done",
+   "wait": "28h"
+  },
+  {
+   "name": "Harness's board tells the subscribed chat the card is done, its notes attached (the Chat SDK sends a message with files as MarkdownV2)",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendDocument",
+   "form": {
+    "parts": [
+     {
+      "name": "chat_id",
+      "value": "{ana_chat}"
+     },
+     {
+      "name": "caption",
+      "value": "✔ card release\\-notes done — Draft the 0\\.9 release notes\nNotes for Tide 0\\.9: drag to reschedule a release, a faster dashboard and the login redirect fix\\."
+     },
+     {
+      "name": "parse_mode",
+      "value": "MarkdownV2"
+     },
+     {
+      "name": "document",
+      "filename": "release-notes-0.9.md",
+      "type": "application/octet-stream",
+      "base64": "IyBUaWRlIDAuOQoKIyMgTmV3Ci0gRHJhZyBhIHJlbGVhc2Ugb24gdGhlIHRpbWVsaW5lIHRvIHJlc2NoZWR1bGUgaXQuCi0gVGhlIGRhc2hib2FyZCBsb2FkcyBpbiBoYWxmIHRoZSB0aW1lLgoKIyMgRml4ZWQKLSBTaWduaW5nIGluIG5vIGxvbmdlciBsb29wcyBiYWNrIHRvIHRoZSBsb2dpbiBwYWdlLgo="
+     }
+    ]
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.chat.id",
+     "equals": "{ana_chat}"
+    },
+    {
+     "path": "result.caption",
+     "equals": "✔ card release-notes done — Draft the 0.9 release notes\nNotes for Tide 0.9: drag to reschedule a release, a faster dashboard and the login redirect fix."
+    },
+    {
+     "path": "result.caption_entities",
+     "exists": false
+    },
+    {
+     "path": "result.document.file_name",
+     "equals": "release-notes-0.9.md"
+    }
+   ]
+  },
+  {
+   "name": "Monday 12 January, 10:00",
+   "wait": "67h"
+  },
+  {
+   "name": "Scheduler publishes the 0.9 release with three screenshots as one album, the text on the first",
+   "method": "POST",
+   "path": "/bot{news_token}/sendMediaGroup?chat_id={channel}&media=%5B%7B%22type%22%3A%22photo%22%2C%22media%22%3A%22attach%3A%2F%2F0%22%2C%22caption%22%3A%22%3Cb%3ETide%200.9%3C%2Fb%3E%5CnA%20dashboard%20for%20every%20release%2C%20a%20timeline%20you%20can%20drag%2C%20and%20settings%20in%20one%20place.%22%2C%22parse_mode%22%3A%22HTML%22%7D%2C%7B%22type%22%3A%22photo%22%2C%22media%22%3A%22attach%3A%2F%2F1%22%2C%22parse_mode%22%3A%22HTML%22%7D%2C%7B%22type%22%3A%22photo%22%2C%22media%22%3A%22attach%3A%2F%2F2%22%2C%22parse_mode%22%3A%22HTML%22%7D%5D",
+   "form": {
+    "parts": [
+     {
+      "name": "0",
+      "filename": "dashboard.png",
+      "type": "image/png",
+      "base64": "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"
+     },
+     {
+      "name": "1",
+      "filename": "timeline.png",
+      "type": "image/png",
+      "base64": "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"
+     },
+     {
+      "name": "2",
+      "filename": "settings.png",
+      "type": "image/png",
+      "base64": "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"
+     }
+    ]
+   },
+   "status": 200,
+   "capture": {
+    "album": "result.0.message_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.caption",
+     "equals": "Tide 0.9\nA dashboard for every release, a timeline you can drag, and settings in one place."
+    },
+    {
+     "path": "result.0.photo.2.width",
+     "equals": 480
+    },
+    {
+     "path": "result.2.photo.2.height",
+     "equals": 300
+    },
+    {
+     "path": "result.0.media_group_id",
+     "exists": true
+    },
+    {
+     "path": "result.3",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "11:00",
+   "wait": "1h"
+  },
+  {
+   "name": "Scheduler publishes the post's comment, the changelog, as a reply to the album",
+   "method": "POST",
+   "path": "/bot{news_token}/sendMessage",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "chat_id={channel}&text=Changelog%3A%20drag%20to%20reschedule%20a%20release%3B%20faster%20dashboard%3B%20fixed%20the%20login%20redirect.%0A&parse_mode=HTML&reply_parameters=%7B%22message_id%22%3A{album}%7D",
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.reply_to_message.message_id",
+     "equals": "{album}"
+    }
+   ]
+  },
+  {
+   "name": "18:00: the standups move to a video call",
+   "wait": "7h"
+  },
+  {
+   "name": "Ana removes the agent bot from \"Tide Labs team\"",
+   "method": "POST",
+   "path": "/_twin/chats/{team}/members",
+   "body": {
+    "by": "{ana}",
+    "user": "{agent_id}",
+    "status": "kicked"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "status",
+     "equals": "kicked"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 13 January, 09:15",
+   "wait": "915m"
+  },
+  {
+   "name": "The digest job, still on, posts to the home chat and is refused",
+   "method": "POST",
+   "path": "/bot{agent_token}/sendMessage",
+   "body": {
+    "chat_id": "{team_chat}",
+    "text": "Standup digest, Tuesday 13 January\n\nNo standup items were posted this week."
+   },
+   "status": 403,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Forbidden: bot was kicked from the group chat"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 14 January, 16:00",
+   "wait": "1845m"
+  },
+  {
+   "name": "Scheduler sends Ana's product photo with its 1,091-character story, and Telegram refuses the caption",
+   "method": "POST",
+   "path": "/bot{news_token}/sendPhoto?chat_id={channel}&caption=Tide%20Desk%20started%20as%20a%20sketch%20on%20a%20caf%C3%A9%20napkin%20in%20Porto%2C%20the%20week%20our%20second%20release%20slipped%20for%20the%20third%20time.%20We%20were%20two%20people%20with%20a%20shared%20spreadsheet%2C%20a%20calendar%20nobody%20trusted%20and%20a%20habit%20of%20shipping%20on%20Fridays%20at%20midnight.%20Ana%20drew%20three%20columns%3A%20what%20is%20ready%2C%20what%20is%20waiting%2C%20what%20is%20promised.%20Bruno%20added%20a%20fourth%3A%20who%20is%20waiting%20for%20it.%20That%20napkin%20became%20the%20first%20board%2C%20and%20the%20board%20became%20the%20planner%20we%20use%20every%20Monday.%20We%20kept%20the%20rule%20from%20that%20night%3A%20nothing%20goes%20on%20the%20timeline%20unless%20someone%20can%20say%20who%20is%20waiting%20for%20it.%20It%20sounds%20small%2C%20but%20it%20changed%20how%20we%20talk%20about%20releases.%20We%20stopped%20arguing%20about%20dates%20and%20started%20asking%20who%20would%20notice.%20The%20desk%20in%20the%20photo%20is%20where%20it%20all%20happens%20now%3A%20one%20screen%20for%20the%20timeline%2C%20one%20for%20the%20changelog%2C%20and%20a%20cup%20that%20says%20Friday.%20Today%20Tide%20plans%20the%20weekly%20releases%20of%20forty%20small%20teams%2C%20from%20a%20bakery%27s%20ordering%20app%20in%20Braga%20to%20a%20school%20timetable%20in%20Coimbra.%20If%20your%20team%20still%20keeps%20its%20releases%20in%20a%20spreadsheet%2C%20we%20were%20you%20two%20years%20ago.%20Come%20and%20try%20the%20board%3B%20the%20napkin%20is%20framed%20on%20the%20wall%20behind%20it.&parse_mode=HTML",
+   "form": {
+    "parts": [
+     {
+      "name": "photo",
+      "filename": "tide-desk.jpg",
+      "type": "image/jpeg",
+      "base64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA4KCw0LCQ4NDA0QDw4RFiQXFhQUFiwgIRokNC43NjMuMjI6QVNGOj1OPjIySGJJTlZYXV5dOEVmbWVabFNbXVn/2wBDAQ8QEBYTFioXFypZOzI7WVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVn/wAARCAHgAoADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDt6KKKgoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACivIaK6fq/mcv1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoqppH/IHsf+veP/0EVbrmejOlO6CiiigYUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB5DRRRXpHlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB6npH/ACB7H/r3j/8AQRVuqmkf8gex/wCveP8A9BFW6857npR2QUUUUigooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDyGiiivSPLCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP8AkD2P/XvH/wCgirdVNI/5A9j/ANe8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/r3j/wDQRVuqmkf8gex/694//QRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P/AF7x/wDoIq3VTSP+QPY/9e8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/AK94/wD0EVbqppH/ACB7H/r3j/8AQRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P8A17x/+girdVNI/wCQPY/9e8f/AKCKt15z3PSjsgooopFBRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHkNFFFekeWFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHqekf8gex/694//QRVuqmkf8gex/694/8A0EVbrznuelHZBRRRSKCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAPIaKKK9I8sKKKKACiiigAooooAKKKKACiirtpa289vPJLPLG0Kb2VYgwI3KvB3D+9QNK5SorSttInuLyKEfJHIyDe5UHDAEEDPJwQcCqjWc6wecUGzAY/MMgHoSM5A6c47ildBZkFFaMWnRyJaKLhhcXSFo08v5c7mUAtnPJX071CNNuiVAjGScH51+Xgn5ufl4BPOOhougsypRV59MnS3EmBu3OGXIwoVUO7dnGDvH6dc1RouDVgooopiCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP8AkD2P/XvH/wCgirdVNI/5A9j/ANe8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFTwXHkw3Kbd3nxiPOfu/OrZ/8dx+NQUUDNeLWEWa2kltS/wBmaN4wJNvKoinPHOdgPt71DPqrzWQgIlzsSM/vjswuMYT14FZ1FLlQ+ZmhFqEccdqwgY3FqhWN/M+XO5mB246gt69qnl1tppVkdZyS5kYfaGwDgj5Bj5ep9fTpWRRRyoOZmrNrCy20lt9lVYJGZyoYA7iqgHIHXK5PY7jwKyqKKErCbb3CiiimIKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAPU9I/5A9j/ANe8f/oIq3VTSP8AkD2P/XvH/wCgirdec9z0o7IKKKKRQUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB5DRRRXpHlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB6npH/IHsf+veP/0EVbqppH/IHsf+veP/ANBFW6857npR2QUUUUigooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDyGiiivSPLCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP+QPY/9e8f/oIq3VTSP+QPY/8AXvH/AOgirdec9z0o7IKKKKRQUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB5DRRRXpHlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB6npH/ACB7H/r3j/8AQRVuqmkf8gex/wCveP8A9BFW6857npR2QUUUUigooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDyGiiivSPLCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP8AkD2P/XvH/wCgirdVNI/5A9j/ANe8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/r3j/wDQRVuqmkf8gex/694//QRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P/AF7x/wDoIq3VTSP+QPY/9e8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/AK94/wD0EVbqppH/ACB7H/r3j/8AQRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P8A17x/+girdVNI/wCQPY/9e8f/AKCKt15z3PSjsgooopFBRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAFT+ytO/58LX/vyv8AhR/ZWnf8+Fr/AN+V/wAKt0U7snlXYqf2Vp3/AD4Wv/flf8KP7K07/nwtf+/K/wCFW6KLsOVdip/ZWnf8+Fr/AN+V/wAKP7K07/nwtf8Avyv+FW6KLsOVdip/ZWnf8+Fr/wB+V/wo/srTv+fC1/78r/hVuii7DlXYqf2Vp3/Pha/9+V/wo/srTv8Anwtf+/K/4Vboouw5V2Kn9lad/wA+Fr/35X/Cj+ytO/58LX/vyv8AhVuii7DlXYqf2Vp3/Pha/wDflf8ACj+ytO/58LX/AL8r/hVuii7DlXYqf2Vp3/Pha/8Aflf8KP7K07/nwtf+/K/4Vboouw5V2Kn9lad/z4Wv/flf8KP7K07/AJ8LX/vyv+FW6KLsOVdip/ZWnf8APha/9+V/wo/srTv+fC1/78r/AIVboouw5V2Kn9lad/z4Wv8A35X/AAo/srTv+fC1/wC/K/4Vboouw5V2Kn9lad/z4Wv/AH5X/Cj+ytO/58LX/vyv+FW6KLsOVdip/ZWnf8+Fr/35X/Cj+ytO/wCfC1/78r/hVuii7DlXYqf2Vp3/AD4Wv/flf8KP7K07/nwtf+/K/wCFW6KLsOVdip/ZWnf8+Fr/AN+V/wAKP7K07/nwtf8Avyv+FW6KLsOVdip/ZWnf8+Fr/wB+V/wo/srTv+fC1/78r/hVuii7DlXYqf2Vp3/Pha/9+V/wo/srTv8Anwtf+/K/4Vboouw5V2Kn9lad/wA+Fr/35X/Cj+ytO/58LX/vyv8AhVuii7DlXYqf2Vp3/Pha/wDflf8ACj+ytO/58LX/AL8r/hVuii7DlXYqf2Vp3/Pha/8Aflf8KP7K07/nwtf+/K/4Vboouw5V2ERFjRURQqKMBQMAD0paKKRQUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/Z"
+     }
+    ]
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "ok",
+     "equals": false
+    },
+    {
+     "path": "description",
+     "equals": "Bad Request: message caption is too long"
+    }
+   ]
+  },
+  {
+   "name": "16:20: Ana cuts the story to a paragraph",
+   "wait": "20m"
+  },
+  {
+   "name": "Scheduler sends the photo again with the short caption",
+   "method": "POST",
+   "path": "/bot{news_token}/sendPhoto?chat_id={channel}&caption=Tide%20Desk%20started%20as%20a%20sketch%20on%20a%20caf%C3%A9%20napkin%20in%20Porto%2C%20the%20week%20our%20second%20release%20slipped%20for%20the%20third%20time.%20That%20napkin%20became%20the%20first%20board%2C%20and%20the%20board%20became%20the%20planner%20we%20use%20every%20Monday.%20Today%20Tide%20plans%20the%20weekly%20releases%20of%20forty%20small%20teams.&parse_mode=HTML",
+   "form": {
+    "parts": [
+     {
+      "name": "photo",
+      "filename": "tide-desk.jpg",
+      "type": "image/jpeg",
+      "base64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA4KCw0LCQ4NDA0QDw4RFiQXFhQUFiwgIRokNC43NjMuMjI6QVNGOj1OPjIySGJJTlZYXV5dOEVmbWVabFNbXVn/2wBDAQ8QEBYTFioXFypZOzI7WVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVn/wAARCAHgAoADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDt6KKKgoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACivIaK6fq/mcv1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoryGij6v5h9Y8j16ivIaKPq/mH1jyPXqK8hoo+r+YfWPI9eoqppH/IHsf+veP/0EVbrmejOlO6CiiigYUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB5DRRRXpHlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB6npH/ACB7H/r3j/8AQRVuqmkf8gex/wCveP8A9BFW6857npR2QUUUUigooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDyGiiivSPLCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP8AkD2P/XvH/wCgirdVNI/5A9j/ANe8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/r3j/wDQRVuqmkf8gex/694//QRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P/AF7x/wDoIq3VTSP+QPY/9e8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/AK94/wD0EVbqppH/ACB7H/r3j/8AQRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P8A17x/+girdVNI/wCQPY/9e8f/AKCKt15z3PSjsgooopFBRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHkNFFFekeWFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHqekf8gex/694//QRVuqmkf8gex/694/8A0EVbrznuelHZBRRRSKCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAPIaKKK9I8sKKKKACiiigAooooAKKKKACiirtpa289vPJLPLG0Kb2VYgwI3KvB3D+9QNK5SorSttInuLyKEfJHIyDe5UHDAEEDPJwQcCqjWc6wecUGzAY/MMgHoSM5A6c47ildBZkFFaMWnRyJaKLhhcXSFo08v5c7mUAtnPJX071CNNuiVAjGScH51+Xgn5ufl4BPOOhougsypRV59MnS3EmBu3OGXIwoVUO7dnGDvH6dc1RouDVgooopiCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP8AkD2P/XvH/wCgirdVNI/5A9j/ANe8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFTwXHkw3Kbd3nxiPOfu/OrZ/8dx+NQUUDNeLWEWa2kltS/wBmaN4wJNvKoinPHOdgPt71DPqrzWQgIlzsSM/vjswuMYT14FZ1FLlQ+ZmhFqEccdqwgY3FqhWN/M+XO5mB246gt69qnl1tppVkdZyS5kYfaGwDgj5Bj5ep9fTpWRRRyoOZmrNrCy20lt9lVYJGZyoYA7iqgHIHXK5PY7jwKyqKKErCbb3CiiimIKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAPU9I/5A9j/ANe8f/oIq3VTSP8AkD2P/XvH/wCgirdec9z0o7IKKKKRQUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB5DRRRXpHlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB6npH/IHsf+veP/0EVbqppH/IHsf+veP/ANBFW6857npR2QUUUUigooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDyGiiivSPLCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP+QPY/9e8f/oIq3VTSP+QPY/8AXvH/AOgirdec9z0o7IKKKKRQUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB5DRRRXpHlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB6npH/ACB7H/r3j/8AQRVuqmkf8gex/wCveP8A9BFW6857npR2QUUUUigooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDyGiiivSPLCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD1PSP8AkD2P/XvH/wCgirdVNI/5A9j/ANe8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/r3j/wDQRVuqmkf8gex/694//QRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P/AF7x/wDoIq3VTSP+QPY/9e8f/oIq3XnPc9KOyCiiikUFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAeQ0UUV6R5YUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAep6R/yB7H/AK94/wD0EVbqppH/ACB7H/r3j/8AQRVuvOe56UdkFFFFIoKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8hooor0jywooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA9T0j/kD2P8A17x/+girdVNI/wCQPY/9e8f/AKCKt15z3PSjsgooopFBRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAFT+ytO/58LX/vyv8AhR/ZWnf8+Fr/AN+V/wAKt0U7snlXYqf2Vp3/AD4Wv/flf8KP7K07/nwtf+/K/wCFW6KLsOVdip/ZWnf8+Fr/AN+V/wAKP7K07/nwtf8Avyv+FW6KLsOVdip/ZWnf8+Fr/wB+V/wo/srTv+fC1/78r/hVuii7DlXYqf2Vp3/Pha/9+V/wo/srTv8Anwtf+/K/4Vboouw5V2Kn9lad/wA+Fr/35X/Cj+ytO/58LX/vyv8AhVuii7DlXYqf2Vp3/Pha/wDflf8ACj+ytO/58LX/AL8r/hVuii7DlXYqf2Vp3/Pha/8Aflf8KP7K07/nwtf+/K/4Vboouw5V2Kn9lad/z4Wv/flf8KP7K07/AJ8LX/vyv+FW6KLsOVdip/ZWnf8APha/9+V/wo/srTv+fC1/78r/AIVboouw5V2Kn9lad/z4Wv8A35X/AAo/srTv+fC1/wC/K/4Vboouw5V2Kn9lad/z4Wv/AH5X/Cj+ytO/58LX/vyv+FW6KLsOVdip/ZWnf8+Fr/35X/Cj+ytO/wCfC1/78r/hVuii7DlXYqf2Vp3/AD4Wv/flf8KP7K07/nwtf+/K/wCFW6KLsOVdip/ZWnf8+Fr/AN+V/wAKP7K07/nwtf8Avyv+FW6KLsOVdip/ZWnf8+Fr/wB+V/wo/srTv+fC1/78r/hVuii7DlXYqf2Vp3/Pha/9+V/wo/srTv8Anwtf+/K/4Vboouw5V2Kn9lad/wA+Fr/35X/Cj+ytO/58LX/vyv8AhVuii7DlXYqf2Vp3/Pha/wDflf8ACj+ytO/58LX/AL8r/hVuii7DlXYqf2Vp3/Pha/8Aflf8KP7K07/nwtf+/K/4Vboouw5V2ERFjRURQqKMBQMAD0paKKRQUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/Z"
+     }
+    ]
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.photo.2.width",
+     "equals": 640
+    },
+    {
+     "path": "result.photo.2.height",
+     "equals": 480
+    },
+    {
+     "path": "result.caption",
+     "contains": "café napkin"
+    }
+   ]
+  },
+  {
+   "name": "Monday 19 January, 11:00",
+   "wait": "6880m"
+  },
+  {
+   "name": "Scheduler publishes the product demo video",
+   "method": "POST",
+   "path": "/bot{news_token}/sendVideo?chat_id={channel}&caption=Three%20seconds%20of%20Tide%200.9%3A%20a%20release%20dragged%20to%20Friday.&parse_mode=HTML",
+   "form": {
+    "parts": [
+     {
+      "name": "video",
+      "filename": "tide-demo.mp4",
+      "type": "video/mp4",
+      "base64": "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAARGbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAC7gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAA3B0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAC7gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAUAAAAC0AAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAu4AAAIAAABAAAAAALobWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAoAAAAeABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAACk21pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAlNzdGJsAAAAw3N0c2QAAAAAAAAAAQAAALNhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAUAAtABIAAAASAAAAAAAAAABFUxhdmM2Mi4yOC4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAOWF2Y0MBZAAV/+EAG2dkABWscgRBQZ+fARAAAAMAEAAAAwFA8WLYRgEAB2joQ4OSyLD9+PgAAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAANMIAAAAAAAAAGHN0dHMAAAAAAAAAAQAAAB4AAAQAAAAAFHN0c3MAAAAAAAAAAQAAAAEAAACgY3R0cwAAAAAAAAASAAAAAQAACAAAAAABAAAkAAAAAAEAABAAAAAAAwAAAAAAAAADAAAEAAAAAAEAACQAAAAAAQAAEAAAAAADAAAAAAAAAAMAAAQAAAAAAQAAFAAAAAABAAAIAAAAAAEAAAAAAAAAAQAABAAAAAABAAAIAAAAAAEAACQAAAAAAQAAEAAAAAADAAAAAAAAAAMAAAQAAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAAeAAAAAQAAAIxzdHN6AAAAAAAAAAAAAAAeAAAH4AAAAaYAAACBAAAAPAAAAEUAAABDAAAAIgAAACUAAAAvAAABZgAAAJAAAAArAAAALwAAACsAAAAdAAAAKgAAADMAAAEoAAAAVQAAACIAAAAmAAAAzwAAAVAAAACcAAAALQAAADEAAAAoAAAAKgAAADAAAAAzAAAAFHN0Y28AAAAAAAAAAQAABHYAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYyLjEyLjEwMgAAAAhmcmVlAAAT0W1kYXQAAAKwBgX//6zcRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY1IHIzMjIyIGIzNTYwNWEgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDI1IC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MSByZWY9MTYgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDEzMyBtZT11bWggc3VibWU9MTAgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0yNCBjaHJvbWFfbWU9MSB0cmVsbGlzPTIgOHg4ZGN0PTEgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz02IGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9OCBiX3B5cmFtaWQ9MiBiX2FkYXB0PTIgYl9iaWFzPTAgZGlyZWN0PTMgd2VpZ2h0Yj0xIG9wZW5fZ29wPTAgd2VpZ2h0cD0yIGtleWludD0yNTAga2V5aW50X21pbj0xMCBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTYwIHJjPWNyZiBtYnRyZWU9MSBjcmY9NDAuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAABShliIEAB//+yk+BS51hTnNAKQ/znJOFOrHoADiq7Ki/6De44xGbLzuPCzz6CbgTQzHPCuXcSOkjmT6nZszvjsVM6ym2ZI4O3XVjYl1j233X/blD/DAN04JbYsrseIvjCieGLQSns1AEKb5jaOMi7SJMZjkm4hOKXtkCsMiyqyc3j8ZnCGoVJuIM2OmDl5KgzuKXvT9McJQxc7YS1+BVTT05bhODMvT0e3S3YoyuVLY9Wg7tY7riXgqdMx+XpJc27eEJ80y+l7ac+bNNK/+7BE5faEqOsJRSpqGF++MgZ4hZZRw0+9PBVepOGxyhibEWGyO+IbY4eseaEbMn5XvueAQK/Whu6yUy+k+2e98HLJLnhF8QLiy6R64pZkl08KhfYWIKex1KvNDoWnHGjm/XzIT4tATZjIg/jDxGJIoxh01uklCcxLs86UVnG+jggLFhEjiGR8O9rMpfAvQDoHYcS4FU3Vq4MpOn0Au0Hi5Z1sd9sefA+aS3ljvBpWekWS2pEf9unOMX8Lz8QG07FGBe/2UChpqwUAf/JHKM+FmJZm8E/v2ttP9jRoX9Io3LKoXRkotxQ/x+tWfcWjAiKYleLu4C37RRj9QIQ7eYaXW2B+YBJUMynNoeBlk9yEHy5YIsI3v/nQ+CsttEVRpMnjrwp/+a7ZAT9+1PK0Jv2Q+w1zDHNK7dohDkbHxDT27yK6yRONTK9auGB3wpHtl8CBQPfmx7JuMX7zTmmOQUEuqlsCN+gh6kxAsB1uzvYTGmYgFiYPB65NDVo+K4qwLqhTRYu2TlUHh3ZzUKuPTgwOb/u+UQwBgW2eCEFxjlVQUNssycJeDq9QdHWd5IekkTvGjY1Hq4gcx/JiWy7uIVUG7n7it0hcOlv7Lsf2bH7wr54ob3a7SK/g6XcIw1IHJ5mh2qT2FIrzXSrVrG6Hv3HlFZqq+M6ROA3q2+9y7p999WXe6bZmUb+Aft7TUvANlqumebdSWmeMEAW5erM6EvX5IuaCx0jR2N19bT3itjyRCOYKhInlC0ePCh5hsx3QDMIVGPl87l6JPkmIIVy7LJimEcYRJbokBcaInn41GYolLZjAyuE9oic0RbbV/Qd52Vp6gkBISZzObK6Bwte9kjR5pKEqeFMKopkDBLsB+LZrR0+c37NjIMLcMhtEtFlx1TiU08GTFs2AYTH0v5662y9KIkLNPUWoskgSHrhtwLvzE7eAYvPfux/2ltGfMSNO+cC2lkmVVexTkjghhUcE42sTWoiNPHQFoTpoC1O+yYhn8aweVvm6DQgxglL6Vbj0+kQkB33H08ieR8lY4gs2fEQ5nZ9vy4LU5vy8NulRAxEE8OaSUqTAq+4wsBwC7E52K/aCTE7mjS5LE5BaYumU1kktSt4PSBnMFrcokq6LzijE+rAen5y+4NXIbQPRPpe7DUbiPm5epEJkmMvSlSc5/e83a3pjFfbdB8pswj1jGtR1YQNPhQeZarpDOvJhMkSLKV6ve3oYMkjHACGgnhHfaJcEzBIGgE+A5OOgsJgoLd/jRrqq1bhVeolegmwnCF/p1HUbxUpiNnM5XthlWPAahlWs8kU1eq8PCTgNHtFB6f3GcmJvo2el+pc4zTuiG2F88bH2e5F2WUp121qrhUaf2Y7+PbDeNxqhK6hqLjEmorOEZ/PClIL2x70T6esR79uQwwo3EOS1lA/TrHhbXtN+3Mae6Xcg+2J56dlQQ3z5eUIIRMcYTiQqNIubKHaqShLqb1xjbZ56iD4Nr0cFCVhGEAAAGiQZoJDYgj/wDgz6SZTTrQfJIAkZ1QTgZGpKR6fBYzvaujE0OFx+AOfPwiM5FyYToK3uX5RIM9c1KgcVPHGmRLrM4pK+l1z8beykW5GITNF+lXvArGD/JI9aXnWPRpukojl8/gFX49JAM8qanzM4fWjuKO/HtY2AtPwdm7YhRCNrAnwtHSQPNW3PgXghHLeoQZ8RPLZP2NXsiXDkATF+yQ3v6fmNcL0RBGf6VUL81oaOXj3INkPaakl5Sg6HklqC60KQOfmiNkaazcFntBAZk2ak/G4ZXy3Zcw/9JyxjJrH6SDMyAyLR/0oXGBOBMYSshz5TYcxz94eFfn4eEtcU8fno+Nkm+n1UZ9YH2JZOGU0bDS7wdpBYjb7+IQydoWUnhqyLZY6x9PpQT2k200nXQA8tz7FW24NFr/VYh3CMbitflfyPxE/YElU2/fekwJuNeX0VaIOwSaiV2dFeS0Mx0iYeKW2IBjrUvF+gXMqcZq8BDlXpadYAlKIMz5mRXQxZoMkgbOurmYlAzcHuU9htOxFaUPAkpVuNo8xUpsIUw5BARofAAAAH1BnhCHEP9EfAzz/Mokv/Dr8KgZMKr3HRWG/Vg0okkUAJ5i8ijteIviu2vKX9FHmcEcCVD7D1gubhNMZ5Uj2HiCZTnsY8c4w/toj0WYsoye0laptBKToL+pbEwyj/cHeipXdjwpJSCOEsA3EjGnzXmeIOH1h0+C3G5JFl0PwQAAADgBnhgmiG//TskRHUVraRP4cywogzFbLrCOUcTpEzIxvKCupebB5pDVwn4X12QlA7JZmpdWmqUuoAAAAEEBnhhGiG//TskRHUvcjZuOp20wQkdoS5+gDau9QOt0lDnOT2q2Fxdi+4E+XAXXuZwNYzUIei5+Do/ZzjBCSwzZrQAAAD8BnhhmiG//TskRHUvcjZuOp20wQkdzRFfHNY9jCuAOwOZ1oCc335KoyrhQrmbzMQ3pRIjYJiENDfbJHI6LaxcAAAAeAZ4YrUhv/wIZokLammxV8u2UaBff4AcbLs97gcLxAAAAIQGeGM1Ib/8CGaWJh8SKw78Eg+qyWSHI8hvZBB87EDoLIQAAACsBnhjtSG//IxiFqFUv1Qn0BKWnm8oSUTZAT+txuwpTE8D+rdY0+ezF2xNCAAABYkGaGgk1AgLRMpgQ/wADcpQNYYxrPxWzZEOC5J9oXH5DxJXfdgADVAJ8sGVFCHLU1kRXWWjzaQSPfYLD9DBYDWRRvS5DZU7kG1Xv9wOE4thUPlq6rT3Qqe+DABJcqdh5JBi6YeCM53gCwSWS5iqvBJUzzAW7E4IcZYZtET5ACGLyOVTylnitj7Ipxtm61ZkJnCi/ZNbw5oKmBETM20V3CLgtpBXYDIB/+Oh3URnsRPtvA6wvds30XqFAi0kNMzvw1e7gcftZHinGEqov1c3hOZ6PcBoufu+r0XNV7A4A7OlEA24opinIOmBMwZZ0WJi7pM+StIlSxy/tz6jPOy17IPxXBRhcg8o+mVLrAsYDj4WpMY6XDRJ8/soCVRggQn1O6GZ8dCgSTJUN255WGDbmhGGq6wjIQVpFUd0zPXNCZnm4zgQ/pKvwLVcfMQUSpK7V0fEkpUQIMvP10HuaNpPqBWRcrAAAAIxBniGNxD//J44VQL01xBm6R4MlKHgWBv2CaDmESRmihXeiOH70BCNM/jORtd3FW8Kj5pBaGljDcCOd+wQE/ThwA5z/XWq5uE56GTxSNOIO5Q49zS1ukTcSF6/OFIfe3czJ7EQnZ64OGzXDz0rzrl3aL2kn81ao8gpb0D85HiSQl61q6MKqYfcp7as/rQAAACcBniktohv/L+9rG9C9HLzRmxKBtiiBl9vIcjwHjXp11YEACPUDjiAAAAArAZ4pTaIb/wdQZGvnkCIFwt+oIO7iBdHfmQ4tGGOFO2TUh2x8eTFQxqoN6AAAACcBniltohv/IzncqJ00XMin7EZkJE/xpkGaF3FNdUHy6QztOfKeDYEAAAAZAZ4prJIb/wJnUtrt7D6MIlJoCoyJIAOXMQAAACYBninMkhv/Aq5VA3nDZIvYGfOZGSAw0yFgONDuowuV3DfvmOCjxQAAAC8Bninskhv/MJCn/HwkUmg9lf0wr8rSuvBYNfSS4cWV+JaaqtA2HFvMzN7mfzA+YAAAASRBmiqJtQIC2tEymAEN/wANOxDWB//4+g4PuiGh+f3OzDdQAjtIENfLbj1dd9zzIdkiAxmPbOHpdjuCBvtEf4h3V5ruOAFwB673qlkWTTwTU5PpjnDVMoFzq7MCHgJMUx/ohlSTAg8wxfWJQg6ZTF2OnXaOQRBYvPRHzTimDEOzRe44uorFfhEwOt9K2V3QNTSBKidMSIwQF1NuZ/5U8uNh91idhH1X/PbcjXvvkJc6jvnpYcNzvChLn+MBdPfhlOtftAqJwi8+9LRx5Wx2a0OkVl5TdE8zsA6OVPpFkThecErIIl/yrdUv78qPAumnU/v3dN4Lt8cYt50f6YMFoEMsqZDsN4CEE3A8E9jpiNwOpoCL2+kxHel2w7WJgj5lmN2ocxvAAAAAUUGeMkyxDv8r9rkVFSfznjazes7FhXf1qSRj6NQI/2Kv8fcoSkvMALjUAdseONz6ubJZm8vcwe2nnNuNEhhiVs8QOUyYGfgPzDbkE+6R+1ujoQAAAB4BnjosqIb/Aqi30Bh8gcrmlmh6Vn67F6ZxC9IVOOQAAAAiAZ46bNIb/wdfk6d6NlxiG2Njx2Zo6/YRGHpAJlyB7KVNmAAAAMtBmjqojUCAtra0TKYABBD/AACXZ40gnEbKKd7xUpaqABnheMbGVNN98DgUkzJjeM5Rhc8uIqS4oLZKG4vCnmx7o+53q03pnFvAQhXGZNS1Vpp51I4ogeRkk6nytjvRqGBEU4v82Otyi0Afuq6HycnD7EPfjl1aYa6bbQPe+rrE4TpiyxRcWZk9tc0t6Wp/QzYNondwmvR+1o6+lZwztTlw6oB+KWkSqX1k6IOFcHYsc1Wj5tAkGLjvlNEPFPPyclOhEffg/g+lqlblgQAAAUxBmkOonwIFLa2tEymAAEN/AAKEf8QAZHszTCd/xMhwxCy/zC7yUiIuCGFSSTQCLCNGNml+NFB8ohS9ohHwNqPJibVl063zF9aKcBPUzhaHneIFL4zq9LZti/CLpnLQUp78aphMytwcDT+hpOZCSywAocAZIUNAoG+26cV/knM8QttJpUGKx25fJEWkI082ur2nFxgWqFqLokJ6e0prldBxLsA6AuIYVkITbt1k4jmNM3GZ2AUp93h41stc3SyKM9DuPz1gSsdHpnjG6IWyyi7O8fhYKcqE05yw0nRODRcWeEHsh2PcvysAHxXVSWUICbq1dy+sP0RqIR3W/jAg3GPjvY1+lJbCRRf1iVzh4L5IrwUPgXYOAw+c0ciRMv2KIc76XzY7D9LUxTlNKx9lL5szQIMl8cucXG/ZquLP8bwiwyjUX6y3if3YVOOrgAAAAJhBnkssREP/DW7ahI8e9y7OrESLFumK1Vi0yhPiMb2ZUpxnDq+AFhFGbbb6TBH3utHfANGaNXyD6Gfa3fu43OMcUKU0+kSfzsGHvQWjU7TODet+bJd6z0NSniYYy3DYS7z0cVXOkGAIzu1Qiezved15FFzkOf4opMvPP0bMbFPPlln74yMeqJbmSOolHLeJh/1gDDe64yr/gQAAACkBnlLMQiG/ClHhe0ZmLigIki/srBDKNdOSWGnkRHctYSoMLwlcL1lt9QAAAC0BnlLsQiG/ApanSIOIta2pp4EexhGbihEhWEPAeliFTQ44gQdeoI+6BKh/60AAAAAkAZ5TDEIhvwIrZqV1HjbsenH++f9Hrl7wu6ZI5ltocdMgZoyBAAAAJgGeU0xMhv8CJAGMpyiNrxzv+h3TFdQoXRTTk2g+NjYNltsB0wggAAAALAGeU2xMhv8CnFAx+tWomVwwJydLqA2HJ9xqLDeuBhaPk2r7z+f6fJea8MOBAAAALwGeU4xMhv8KaLJ580szQ+9UPgQTCoukVmicsoNgVuyymntAu85kddajuwJPG6CV"
+     }
+    ]
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.video.duration",
+     "equals": 3
+    },
+    {
+     "path": "result.video.width",
+     "equals": 320
+    },
+    {
+     "path": "result.video.height",
+     "equals": 180
+    },
+    {
+     "path": "result.video.mime_type",
+     "equals": "video/mp4"
+    }
+   ]
+  },
+  {
+   "name": "15:00",
+   "wait": "4h"
+  },
+  {
+   "name": "Scheduler publishes the white paper as a PDF",
+   "method": "POST",
+   "path": "/bot{news_token}/sendDocument?chat_id={channel}&caption=How%20a%20two-person%20team%20ships%20every%20week%3A%20our%20notes%2C%20as%20a%20PDF.&parse_mode=HTML",
+   "form": {
+    "parts": [
+     {
+      "name": "document",
+      "filename": "tide-whitepaper.pdf",
+      "type": "application/pdf",
+      "base64": "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNjEyIDc5Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDUgMCBSPj4+Pj4+ZW5kb2JqCjQgMCBvYmo8PC9MZW5ndGggOTU+PnN0cmVhbQpCVCAvRjEgMTggVGYgNzIgNzIwIFRkIChUaWRlOiBzaGlwcGluZyB3ZWVrbHkgcmVsZWFzZXMgd2l0aCBhIHR3by1wZXJzb24gdGVhbSkgVGogRVQKZW5kc3RyZWFtIGVuZG9iago1IDAgb2JqPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhPj5lbmRvYmoKdHJhaWxlcjw8L1Jvb3QgMSAwIFI+PgolJUVPRgo="
+     }
+    ]
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.document.file_name",
+     "equals": "tide-whitepaper.pdf"
+    },
+    {
+     "path": "result.document.mime_type",
+     "equals": "application/pdf"
+    }
+   ]
+  },
+  {
+   "name": "Friday 27 February, 17:00",
+   "wait": "938h"
+  },
+  {
+   "name": "Ana retires the agent: in BotFather she makes a new token (/token), which revokes the one Harness holds",
+   "method": "POST",
+   "path": "/_twin/bots/tidelabs_agent_bot/token",
+   "body": {
+    "owner": "{ana}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "token",
+     "notContains": "{agent_token}"
+    }
+   ]
+  },
+  {
+   "name": "Harness, still running on her laptop, polls with the old token and is refused",
+   "method": "POST",
+   "path": "/bot{agent_token}/getUpdates",
+   "body": {
+    "offset": "{agent_next}",
+    "limit": 100,
+    "timeout": 30
+   },
+   "status": 401,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Unauthorized"
+    }
+   ]
+  }
+ ]
+}

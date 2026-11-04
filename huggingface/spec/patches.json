@@ -1,0 +1,127 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/components/schemas/ModelInfo",
+      "value": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "sha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "siblings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rfilename": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rfilename"
+              ]
+            }
+          },
+          "_id": {
+            "type": "string",
+            "description": "The repository ObjectId, the identity returned as id at creation."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": true
+      },
+      "why": "Restore ModelInfo omitted from the vendored snapshot; the HfApi reference describes its fields, and the owner\u2019s reviewed refresh identity ruling specifies the repository ObjectId as _id.",
+      "source": {
+        "url": "https://huggingface.co/docs/huggingface_hub/package_reference/hf_api",
+        "quote": "Contains information about a model on the Hub."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1api~1models~1{namespace}~1{repo}",
+      "value": {
+        "get": {
+          "operationId": "get_api_models_repo_id",
+          "summary": "Get model repository information",
+          "tags": [
+            "api"
+          ],
+          "parameters": [
+            {
+              "name": "namespace",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "repo",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "The model repository information",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ModelInfo"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Repository not found or private without access",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "error"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "security": [
+            {
+              "bearerAuth": []
+            },
+            {}
+          ]
+        }
+      },
+      "why": "Restore the Hub API reference\u2019s GET /api/models/{repo_id}; the HfApi reference defines repo_id as namespace/name, represented by its two path segments so refresh can use the repository\u2019s stored namespace and repo fields.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/huggingface/hub-docs/4910c3c90009c5f906da11a89793bc9216f6ec7f/docs/hub/api.md",
+        "quote": "GET /api/models/{repo_id}"
+      }
+    }
+  ]
+}

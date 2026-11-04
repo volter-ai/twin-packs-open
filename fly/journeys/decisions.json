@@ -1,0 +1,101 @@
+{
+  "about": "Substrate lifecycle and the platform refresh reads; each route enforces its token organization/app grant.",
+  "decisions": [
+    {
+      "operation": "Apps_show",
+      "demand": "Substrate checks its sandbox app exists",
+      "mechanism": "handler",
+      "why": "a read scoped by the token's organization (404 for an app it cannot see)"
+    },
+    {
+      "operation": "Apps_create",
+      "demand": "Substrate makes its sandbox app",
+      "mechanism": "handler",
+      "why": "an action: unique names, the token's organization"
+    },
+    {
+      "operation": "Volumes_list",
+      "demand": "Substrate finds its workspace volume",
+      "mechanism": "handler",
+      "why": "a computed read: the app's volumes (a deleted one pending_destroy until it is gone)"
+    },
+    {
+      "operation": "Volumes_create",
+      "demand": "Substrate makes a workspace volume",
+      "mechanism": "handler",
+      "why": "a create with the vendor's assigned fields"
+    },
+    {
+      "operation": "Volume_delete",
+      "demand": "Substrate removes a workspace volume",
+      "mechanism": "handler",
+      "why": "a move: pending_destroy (states.ts), then destroyed by the vendor"
+    },
+    {
+      "operation": "Machines_list",
+      "demand": "Substrate lists running sandboxes; Runhuman 1 lists its workers",
+      "mechanism": "handler",
+      "why": "a computed read: the app's machines, destroyed ones left out"
+    },
+    {
+      "operation": "Machines_create",
+      "demand": "Substrate launches a sandbox; Runhuman 1 a worker",
+      "mechanism": "handler",
+      "why": "an action: the machine made and launched (states.ts), its image run by the World's machine pool (ctx.machines); with a light pool, SDK command execution beyond node plus a folder-owned JS entry is unserved (shells, eval/flags, PTYs and other programs): the manifest's gap answers command admission before any machine state is created or process launched, as twin-world docs/contributing/architecture.md, Other wires: lanes, headers, line protocols, sockets and machines prescribes"
+    },
+    {
+      "operation": "Machines_show",
+      "demand": "Substrate reads a sandbox's address",
+      "mechanism": "handler",
+      "why": "a read, with the ports the pool published"
+    },
+    {
+      "operation": "Machines_wait",
+      "demand": "Substrate waits for started and stopped",
+      "mechanism": "handler",
+      "why": "a computed read: the state asked, or a timeout"
+    },
+    {
+      "operation": "Machines_stop",
+      "demand": "Substrate pauses a sandbox",
+      "mechanism": "handler",
+      "why": "a move started → stopped, the pool stops the image"
+    },
+    {
+      "operation": "Machines_start",
+      "demand": "Substrate resumes a sandbox",
+      "mechanism": "handler",
+      "why": "a move stopped → started, the pool runs the image again"
+    },
+    {
+      "operation": "Machines_delete",
+      "demand": "Substrate stops a sandbox; Runhuman 1 destroys a worker",
+      "mechanism": "handler",
+      "why": "a move to destroyed (force), the pool removes the image"
+    },
+    {
+      "operation": "Apps_list",
+      "demand": "platform refresh and vendor documentation",
+      "mechanism": "handler",
+      "why": "organization-scoped apps with their counts"
+    },
+    {
+      "operation": "CurrentToken_show",
+      "demand": "platform refresh and vendor documentation",
+      "mechanism": "handler",
+      "why": "the held token organization and app caveats"
+    },
+    {
+      "operation": "door:tokens",
+      "demand": "the World's own door, POST /_twin/tokens: { org, app? }: `fly tokens create org` (an organization token) or `fly tokens create deploy -a <app>` (a deploy token)",
+      "mechanism": "door",
+      "why": "{ org, app? }: `fly tokens create org` (an organization token) or `fly tokens create deploy -a <app>` (a deploy token), which no vendor API makes."
+    },
+    {
+      "operation": "door:exit",
+      "demand": "the World's own door, POST /_twin/machines/{id}/exit: a machine's process exits on its own (a worker that drained its queue): stopped, and destroyed with auto_destroy",
+      "mechanism": "door",
+      "why": "A machine's process exits on its own (a worker that drained its queue): stopped, and destroyed with auto_destroy, which no vendor API makes."
+    }
+  ]
+}

@@ -1,0 +1,2366 @@
+{
+  "vendor": "instagram",
+  "author": "claude-instagram-p3",
+  "host": "graph.instagram.com",
+  "about": "Plunger Works launching Heck Plungers on Instagram from its launch tooling (videogame-ai's games-ecosystem sandbox): the App Dashboard, the professional account, the trailer Reel through its container, the community's comments, the insights, a creator connecting through Business Login, and the next day's tokens and expired container; operations cited in demand.json.",
+  "steps": [
+    {
+      "name": "Tuesday 3 March 2026, 10:00: Heck Plungers launches, and Plunger Works opens Instagram",
+      "wait": "88440m"
+    },
+    {
+      "name": "The App Dashboard: the studio's Instagram app, its redirect URI, its Business account and the token Generate token gives",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "username": "heckplungers",
+        "name": "Heck Plungers",
+        "account_type": "Business",
+        "biography": "A co-op party game about plungers. Out now on itch and Steam.",
+        "website": "https://videogame.ai/heck-plungers",
+        "followers_count": 2140,
+        "follows_count": 87,
+        "redirect_uris": [
+          "https://videogame.ai/integrations/instagram/callback"
+        ]
+      },
+      "capture": {
+        "appId": "app_id",
+        "appSecret": "app_secret",
+        "token": "access_token",
+        "uid": "user_id",
+        "sid": "id"
+      },
+      "expect": [
+        {
+          "path": "username",
+          "equals": "heckplungers"
+        },
+        {
+          "path": "redirect_uris.0",
+          "equals": "https://videogame.ai/integrations/instagram/callback"
+        },
+        {
+          "path": "access_token",
+          "matches": "^IGAA"
+        }
+      ]
+    },
+    {
+      "name": "The dashboard asked again hands out the same app, account and token",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "expect": [
+        {
+          "path": "access_token",
+          "equals": "{token}"
+        },
+        {
+          "path": "user_id",
+          "equals": "{uid}"
+        },
+        {
+          "path": "app_id",
+          "equals": "{appId}"
+        },
+        {
+          "path": "app_secret",
+          "equals": "{appSecret}"
+        }
+      ]
+    },
+    {
+      "name": "A redirect URI that is no URL is refused",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 400,
+      "body": {
+        "redirect_uris": [
+          "not a url"
+        ]
+      }
+    },
+    {
+      "name": "Juno signs up and switches to a creator account",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "status": 201,
+      "body": {
+        "username": "junoplays",
+        "password": "reel-life-2026",
+        "name": "Juno Plays",
+        "account_type": "Media_Creator",
+        "followers_count": 15800,
+        "follows_count": 410
+      },
+      "expect": [
+        {
+          "path": "account_type",
+          "equals": "Media_Creator"
+        }
+      ]
+    },
+    {
+      "name": "Mara signs up with a personal account",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "status": 201,
+      "body": {
+        "username": "mara.loops",
+        "password": "plunge-ahead",
+        "name": "Mara",
+        "account_type": "Personal"
+      }
+    },
+    {
+      "name": "A taken username is refused",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "status": 400,
+      "body": {
+        "username": "junoplays",
+        "password": "again"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "contains": "taken"
+        }
+      ]
+    },
+    {
+      "name": "An account with no password is refused",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "status": 400,
+      "body": {
+        "username": "nopass"
+      }
+    },
+    {
+      "name": "The tooling reads the professional account (Get Started)",
+      "method": "GET",
+      "path": "/v26.0/me?fields=id,user_id,username,account_type,media_count,followers_count&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{sid}"
+        },
+        {
+          "path": "user_id",
+          "equals": "{uid}"
+        },
+        {
+          "path": "username",
+          "equals": "heckplungers"
+        },
+        {
+          "path": "account_type",
+          "equals": "Business"
+        },
+        {
+          "path": "media_count",
+          "equals": 0
+        },
+        {
+          "path": "followers_count",
+          "equals": 2140
+        }
+      ]
+    },
+    {
+      "name": "The same, its token as Authorization: Bearer",
+      "method": "GET",
+      "path": "/me?fields=user_id,username",
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "user_id",
+          "equals": "{uid}"
+        }
+      ]
+    },
+    {
+      "name": "With no fields asked, the account answers its id",
+      "method": "GET",
+      "path": "/me?access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{sid}"
+        },
+        {
+          "path": "user_id",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "No token is refused",
+      "method": "GET",
+      "path": "/me?fields=user_id",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 190
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A token Instagram never issued is refused",
+      "method": "GET",
+      "path": "/me?access_token=IGAAnotatokenatall",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 190
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A field the User does not have is refused",
+      "method": "GET",
+      "path": "/me?fields=user_id,shoe_size&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.message",
+          "contains": "shoe_size"
+        }
+      ]
+    },
+    {
+      "name": "The account has no media yet",
+      "method": "GET",
+      "path": "/v26.0/{uid}/media?access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "equals": []
+        },
+        {
+          "path": "paging",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Its publishing usage: none of 50 in 24 hours",
+      "method": "GET",
+      "path": "/{uid}/content_publishing_limit?fields=quota_usage,config&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.quota_usage",
+          "equals": 0
+        },
+        {
+          "path": "data.0.config.quota_total",
+          "equals": 50
+        },
+        {
+          "path": "data.0.config.quota_duration",
+          "equals": 86400
+        }
+      ]
+    },
+    {
+      "name": "With no fields asked, the usage alone",
+      "method": "GET",
+      "path": "/me/content_publishing_limit?access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.quota_usage",
+          "equals": 0
+        },
+        {
+          "path": "data.0.config",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The trailer's Reel container, from the studio's site",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 200,
+      "body": {
+        "media_type": "REELS",
+        "video_url": "https://videogame.ai/media/heck-plungers/trailer.mp4",
+        "caption": "Heck Plungers is out now! Grab a friend and a plunger. #HeckPlungers #indiegame #coop",
+        "share_to_feed": true
+      },
+      "capture": {
+        "reel": "id"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "matches": "^\\d{17}$"
+        }
+      ]
+    },
+    {
+      "name": "Instagram fetched it: the container is FINISHED",
+      "method": "GET",
+      "path": "/{reel}?fields=status_code,status&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "FINISHED"
+        },
+        {
+          "path": "id",
+          "equals": "{reel}"
+        }
+      ]
+    },
+    {
+      "name": "The trailer is published",
+      "method": "POST",
+      "path": "/{uid}/media_publish?creation_id={reel}&access_token={token}",
+      "status": 200,
+      "capture": {
+        "trailer": "id"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "matches": "^\\d{17}$"
+        }
+      ]
+    },
+    {
+      "name": "Its container is PUBLISHED",
+      "method": "GET",
+      "path": "/v26.0/{reel}?fields=status_code&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "PUBLISHED"
+        }
+      ]
+    },
+    {
+      "name": "Publishing the same container again is refused",
+      "method": "POST",
+      "path": "/{uid}/media_publish?creation_id={reel}&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 24
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207008
+        }
+      ]
+    },
+    {
+      "name": "The trailer reads back: a VIDEO on REELS, with its caption, page, owner and counts",
+      "method": "GET",
+      "path": "/{trailer}?fields=id,media_type,media_product_type,caption,permalink,shortcode,timestamp,username,owner,like_count,comments_count,is_comment_enabled,is_shared_to_feed,media_url,thumbnail_url&access_token={token}",
+      "status": 200,
+      "capture": {
+        "trailerUrl": "media_url"
+      },
+      "expect": [
+        {
+          "path": "media_type",
+          "equals": "VIDEO"
+        },
+        {
+          "path": "media_product_type",
+          "equals": "REELS"
+        },
+        {
+          "path": "caption",
+          "contains": "Heck Plungers is out now!"
+        },
+        {
+          "path": "permalink",
+          "matches": "^https://www\\.instagram\\.com/reel/[A-Za-z0-9]{11}/$"
+        },
+        {
+          "path": "timestamp",
+          "matches": "^2026-03-03T10:\\d{2}:\\d{2}\\+0000$"
+        },
+        {
+          "path": "username",
+          "equals": "heckplungers"
+        },
+        {
+          "path": "owner.id",
+          "equals": "{uid}"
+        },
+        {
+          "path": "like_count",
+          "equals": 0
+        },
+        {
+          "path": "comments_count",
+          "equals": 0
+        },
+        {
+          "path": "is_comment_enabled",
+          "equals": true
+        },
+        {
+          "path": "is_shared_to_feed",
+          "equals": true
+        },
+        {
+          "path": "thumbnail_url",
+          "matches": "^https://scontent\\.cdninstagram\\.com/"
+        }
+      ]
+    },
+    {
+      "name": "Instagram's CDN serves the trailer's file",
+      "method": "GET",
+      "path": "{trailerUrl}",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "video/mp4"
+        }
+      ]
+    },
+    {
+      "name": "The account's media list holds it",
+      "method": "GET",
+      "path": "/{uid}/media?fields=id,media_type&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{trailer}"
+        },
+        {
+          "path": "data.0.media_type",
+          "equals": "VIDEO"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "One post published in the last 24 hours",
+      "method": "GET",
+      "path": "/{uid}/content_publishing_limit?access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.quota_usage",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "The account counts one media",
+      "method": "GET",
+      "path": "/me?fields=media_count&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "media_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "A Reel whose video no server in the World holds: its container fails",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 200,
+      "body": {
+        "media_type": "REELS",
+        "video_url": "https://cdn.plungerworks.example/trailer.mp4"
+      },
+      "capture": {
+        "lost": "id"
+      }
+    },
+    {
+      "name": "ERROR, the fetch failure its status",
+      "method": "GET",
+      "path": "/{lost}?fields=status_code,status&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "ERROR"
+        },
+        {
+          "path": "status",
+          "equals": "2207052"
+        }
+      ]
+    },
+    {
+      "name": "A failed container is not published",
+      "method": "POST",
+      "path": "/{uid}/media_publish?access_token={token}",
+      "status": 400,
+      "body": {
+        "creation_id": "{lost}"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 24
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207008
+        }
+      ]
+    },
+    {
+      "name": "A \"video\" that is no MP4: its container fails",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 200,
+      "body": {
+        "media_type": "REELS",
+        "video_url": "https://videogame.ai/media/heck-plungers/teaser.mp4"
+      },
+      "capture": {
+        "teaser": "id"
+      }
+    },
+    {
+      "name": "ERROR, unsupported format",
+      "method": "GET",
+      "path": "/{teaser}?fields=status_code,status&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "ERROR"
+        },
+        {
+          "path": "status",
+          "equals": "2207026"
+        }
+      ]
+    },
+    {
+      "name": "A thumbnail offset past the 30-second video: its container fails",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 200,
+      "body": {
+        "media_type": "REELS",
+        "video_url": "https://videogame.ai/media/heck-plungers/trailer-cutdown.mp4",
+        "thumb_offset": 45000
+      },
+      "capture": {
+        "late": "id"
+      }
+    },
+    {
+      "name": "ERROR, the thumbnail offset out of bounds",
+      "method": "GET",
+      "path": "/{late}?fields=status_code,status&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "ERROR"
+        },
+        {
+          "path": "status",
+          "equals": "2207057"
+        }
+      ]
+    },
+    {
+      "name": "An unknown media type is refused",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 400,
+      "body": {
+        "media_type": "BOOMERANG",
+        "video_url": "https://videogame.ai/media/heck-plungers/trailer.mp4"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207023
+        }
+      ]
+    },
+    {
+      "name": "A caption over 2,200 characters is refused",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 400,
+      "body": {
+        "media_type": "REELS",
+        "video_url": "https://videogame.ai/media/heck-plungers/trailer.mp4",
+        "caption": {
+          "$fill": {
+            "text": "Plunge. ",
+            "bytes": 2201
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 36004
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207010
+        }
+      ]
+    },
+    {
+      "name": "A Reel with no video_url is refused",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 400,
+      "body": {
+        "media_type": "REELS"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A carousel is not served (the gap)",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 400,
+      "body": {
+        "media_type": "CAROUSEL",
+        "children": "1,2"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 1
+        },
+        {
+          "path": "error.message",
+          "equals": "An unknown error has occurred."
+        }
+      ]
+    },
+    {
+      "name": "An image no server in the World holds is refused as it is fetched",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 400,
+      "body": {
+        "image_url": "https://cdn.plungerworks.example/key-art.jpg",
+        "caption": "Key art"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 9004
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207052
+        }
+      ]
+    },
+    {
+      "name": "An image that is no JPEG is refused",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 400,
+      "body": {
+        "image_url": "https://videogame.ai/media/heck-plungers/key-art.svg"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 36001
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207005
+        }
+      ]
+    },
+    {
+      "name": "A container asked for with no token is refused",
+      "method": "POST",
+      "path": "/{uid}/media",
+      "status": 400,
+      "body": {
+        "image_url": "https://videogame.ai/media/heck-plungers/key-art.svg"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 190
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A publish naming no container Instagram made is refused",
+      "method": "POST",
+      "path": "/{uid}/media_publish?access_token={token}",
+      "status": 400,
+      "body": {
+        "creation_id": "17000000000000000"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 24
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207008
+        }
+      ]
+    },
+    {
+      "name": "A publish with no creation_id is refused",
+      "method": "POST",
+      "path": "/{uid}/media_publish?access_token={token}",
+      "status": 400,
+      "body": {},
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "An alternate cut is made and left unpublished",
+      "method": "POST",
+      "path": "/{uid}/media?access_token={token}",
+      "status": 200,
+      "body": {
+        "media_type": "REELS",
+        "video_url": "https://videogame.ai/media/heck-plungers/trailer-alt.mp4",
+        "caption": "Alt cut"
+      },
+      "capture": {
+        "alt": "id"
+      }
+    },
+    {
+      "name": "It is FINISHED",
+      "method": "GET",
+      "path": "/{alt}?fields=status_code&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "FINISHED"
+        }
+      ]
+    },
+    {
+      "name": "Instagram's audience watches, likes, saves and shares the trailer",
+      "method": "POST",
+      "path": "/_twin/media/{trailer}/audience",
+      "status": 200,
+      "body": {
+        "views": 1840,
+        "reach": 1210,
+        "likes": 233,
+        "saved": 41,
+        "shares": 17
+      },
+      "expect": [
+        {
+          "path": "like_count",
+          "equals": 233
+        },
+        {
+          "path": "views",
+          "equals": 1840
+        }
+      ]
+    },
+    {
+      "name": "Mara asks about the Switch port",
+      "method": "POST",
+      "path": "/_twin/media/{trailer}/audience",
+      "status": 200,
+      "body": {
+        "comment": {
+          "username": "mara.loops",
+          "text": "When is the Switch port coming??"
+        }
+      },
+      "capture": {
+        "question": "comment_id"
+      }
+    },
+    {
+      "name": "A troll posts",
+      "method": "POST",
+      "path": "/_twin/media/{trailer}/audience",
+      "status": 200,
+      "body": {
+        "comment": {
+          "username": "plungerhater99",
+          "text": "this game is trash lol"
+        }
+      },
+      "capture": {
+        "troll": "comment_id"
+      }
+    },
+    {
+      "name": "A spammer posts",
+      "method": "POST",
+      "path": "/_twin/media/{trailer}/audience",
+      "status": 200,
+      "body": {
+        "comment": {
+          "username": "cheap.followers.4u",
+          "text": "Buy 10k followers at cheapfollowers dot biz"
+        }
+      },
+      "capture": {
+        "spam": "comment_id"
+      }
+    },
+    {
+      "name": "A count that is no number is refused",
+      "method": "POST",
+      "path": "/_twin/media/{trailer}/audience",
+      "status": 400,
+      "body": {
+        "likes": "many"
+      }
+    },
+    {
+      "name": "An audience for a media Instagram does not hold is refused",
+      "method": "POST",
+      "path": "/_twin/media/17999999999999999/audience",
+      "status": 404,
+      "body": {
+        "likes": 1
+      }
+    },
+    {
+      "name": "The tooling lists the comments, newest first",
+      "method": "GET",
+      "path": "/{trailer}/comments?access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{spam}"
+        },
+        {
+          "path": "data.1.id",
+          "equals": "{troll}"
+        },
+        {
+          "path": "data.2.id",
+          "equals": "{question}"
+        },
+        {
+          "path": "data.2.text",
+          "equals": "When is the Switch port coming??"
+        },
+        {
+          "path": "data.2.timestamp",
+          "matches": "\\+0000$"
+        }
+      ]
+    },
+    {
+      "name": "Two a page",
+      "method": "GET",
+      "path": "/{trailer}/comments?fields=id,text,username,hidden,like_count&limit=2&access_token={token}",
+      "status": 200,
+      "capture": {
+        "after": "paging.cursors.after"
+      },
+      "expect": [
+        {
+          "path": "data.1.id",
+          "equals": "{troll}"
+        },
+        {
+          "path": "data.1.username",
+          "equals": "plungerhater99"
+        },
+        {
+          "path": "data.2",
+          "exists": false
+        },
+        {
+          "path": "paging.next",
+          "matches": "^https://graph\\.instagram\\.com/v26\\.0/"
+        }
+      ]
+    },
+    {
+      "name": "The next page by its cursor, and the last",
+      "method": "GET",
+      "path": "/{trailer}/comments?fields=id,text&limit=2&after={after}&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{question}"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        },
+        {
+          "path": "paging.next",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The studio answers Mara",
+      "method": "POST",
+      "path": "/{question}/replies?access_token={token}",
+      "status": 200,
+      "body": {
+        "message": "Soon! Wishlist on Steam to hear first."
+      },
+      "capture": {
+        "reply": "id"
+      }
+    },
+    {
+      "name": "Mara's thread",
+      "method": "GET",
+      "path": "/{question}/replies?fields=id,text,parent_id,username&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{reply}"
+        },
+        {
+          "path": "data.0.parent_id",
+          "equals": "{question}"
+        },
+        {
+          "path": "data.0.username",
+          "equals": "heckplungers"
+        }
+      ]
+    },
+    {
+      "name": "A reply to its own reply",
+      "method": "POST",
+      "path": "/{reply}/replies?access_token={token}",
+      "status": 200,
+      "body": {
+        "message": "(and itch!)"
+      },
+      "capture": {
+        "reply2": "id"
+      }
+    },
+    {
+      "name": "lands on Mara's comment",
+      "method": "GET",
+      "path": "/{reply2}?fields=parent_id,text&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "parent_id",
+          "equals": "{question}"
+        },
+        {
+          "path": "text",
+          "equals": "(and itch!)"
+        }
+      ]
+    },
+    {
+      "name": "The troll is hidden",
+      "method": "POST",
+      "path": "/{troll}?hide=true&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Hidden",
+      "method": "GET",
+      "path": "/{troll}?fields=hidden&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "hidden",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "A hidden comment takes no reply",
+      "method": "POST",
+      "path": "/{troll}/replies?access_token={token}",
+      "status": 400,
+      "body": {
+        "message": "Please be kind."
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Shown again",
+      "method": "POST",
+      "path": "/{troll}?access_token={token}",
+      "status": 200,
+      "body": {
+        "hide": false
+      }
+    },
+    {
+      "name": "Not hidden",
+      "method": "GET",
+      "path": "/{troll}?fields=hidden&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "hidden",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "And hidden again",
+      "method": "POST",
+      "path": "/{troll}?hide=true&access_token={token}",
+      "status": 200
+    },
+    {
+      "name": "Hidden once more",
+      "method": "GET",
+      "path": "/{troll}?fields=hidden&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "hidden",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The spam is deleted",
+      "method": "DELETE",
+      "path": "/{spam}?access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "It is gone",
+      "method": "GET",
+      "path": "/{spam}?access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Four comments now, replies included",
+      "method": "GET",
+      "path": "/{trailer}?fields=comments_count&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "comments_count",
+          "equals": 4
+        }
+      ]
+    },
+    {
+      "name": "The comments with their replies expanded",
+      "method": "GET",
+      "path": "/{trailer}/comments?fields=id,text,replies{id,text}&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{troll}"
+        },
+        {
+          "path": "data.1.id",
+          "equals": "{question}"
+        },
+        {
+          "path": "data.1.replies.data.0.id",
+          "equals": "{reply2}"
+        },
+        {
+          "path": "data.1.replies.data.1.id",
+          "equals": "{reply}"
+        },
+        {
+          "path": "data.2",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The studio comments on its own trailer",
+      "method": "POST",
+      "path": "/{trailer}/comments?access_token={token}",
+      "status": 200,
+      "body": {
+        "message": "Thanks for 200+ likes on day one!"
+      },
+      "capture": {
+        "own": "id"
+      }
+    },
+    {
+      "name": "The studio made it",
+      "method": "GET",
+      "path": "/{own}?fields=id,user,from,username&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "user.id",
+          "equals": "{uid}"
+        },
+        {
+          "path": "from.username",
+          "equals": "heckplungers"
+        }
+      ]
+    },
+    {
+      "name": "Hiding the owner's own comment",
+      "method": "POST",
+      "path": "/{own}?hide=true&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "leaves it shown",
+      "method": "GET",
+      "path": "/{own}?fields=hidden&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "hidden",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Comments are turned off on the trailer",
+      "method": "POST",
+      "path": "/{trailer}?comment_enabled=false&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "success",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Off",
+      "method": "GET",
+      "path": "/{trailer}?fields=is_comment_enabled&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "is_comment_enabled",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "The audience cannot comment",
+      "method": "POST",
+      "path": "/_twin/media/{trailer}/audience",
+      "status": 403,
+      "body": {
+        "comment": {
+          "username": "mara.loops",
+          "text": "hello?"
+        }
+      }
+    },
+    {
+      "name": "Nor can the studio comment",
+      "method": "POST",
+      "path": "/{trailer}/comments?access_token={token}",
+      "status": 400,
+      "body": {
+        "message": "Back soon."
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Comments are turned on again",
+      "method": "POST",
+      "path": "/{trailer}?access_token={token}",
+      "status": 200,
+      "body": {
+        "comment_enabled": true
+      }
+    },
+    {
+      "name": "On",
+      "method": "GET",
+      "path": "/{trailer}?fields=is_comment_enabled&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "is_comment_enabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Mara's comment's fields",
+      "method": "GET",
+      "path": "/{question}?fields=id,text,timestamp,from,media,username,hidden&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "from.username",
+          "equals": "mara.loops"
+        },
+        {
+          "path": "from.id",
+          "matches": "^\\d{16}$"
+        },
+        {
+          "path": "media.id",
+          "equals": "{trailer}"
+        },
+        {
+          "path": "username",
+          "equals": "mara.loops"
+        },
+        {
+          "path": "hidden",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "A field a comment does not have is refused",
+      "method": "GET",
+      "path": "/{question}?fields=shoe&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A media update naming nothing is refused",
+      "method": "POST",
+      "path": "/{trailer}?access_token={token}",
+      "status": 400,
+      "body": {},
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Deleting the media is the Facebook Login API (the gap)",
+      "method": "DELETE",
+      "path": "/{trailer}?access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 1
+        },
+        {
+          "path": "error.message",
+          "equals": "An unknown error has occurred."
+        }
+      ]
+    },
+    {
+      "name": "The trailer's lifetime insights match the audience's acts",
+      "method": "GET",
+      "path": "/{trailer}/insights?metric=views,reach,likes,comments,saved,shares,total_interactions&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.name",
+          "equals": "views"
+        },
+        {
+          "path": "data.0.values.0.value",
+          "equals": 1840
+        },
+        {
+          "path": "data.0.period",
+          "equals": "lifetime"
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{trailer}/insights/views/lifetime"
+        },
+        {
+          "path": "data.1.values.0.value",
+          "equals": 1210
+        },
+        {
+          "path": "data.2.values.0.value",
+          "equals": 233
+        },
+        {
+          "path": "data.3.values.0.value",
+          "equals": 5
+        },
+        {
+          "path": "data.4.values.0.value",
+          "equals": 41
+        },
+        {
+          "path": "data.5.values.0.value",
+          "equals": 17
+        },
+        {
+          "path": "data.6.name",
+          "equals": "total_interactions"
+        },
+        {
+          "path": "data.6.values.0.value",
+          "equals": 296
+        }
+      ]
+    },
+    {
+      "name": "A period asked stays lifetime",
+      "method": "GET",
+      "path": "/{trailer}/insights?metric=views&period=day&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.period",
+          "equals": "lifetime"
+        },
+        {
+          "path": "data.0.values.0.value",
+          "equals": 1840
+        }
+      ]
+    },
+    {
+      "name": "A metric the twin does not serve answers the gap",
+      "method": "GET",
+      "path": "/{trailer}/insights?metric=follows&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 1
+        },
+        {
+          "path": "error.message",
+          "equals": "An unknown error has occurred."
+        }
+      ]
+    },
+    {
+      "name": "So does a breakdown",
+      "method": "GET",
+      "path": "/{trailer}/insights?metric=views&breakdown=action_type&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 1
+        },
+        {
+          "path": "error.message",
+          "equals": "An unknown error has occurred."
+        }
+      ]
+    },
+    {
+      "name": "An unknown metric is refused",
+      "method": "GET",
+      "path": "/{trailer}/insights?metric=shoes&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "No metric is refused",
+      "method": "GET",
+      "path": "/{trailer}/insights?access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A redirect URI the app never registered is refused on the page",
+      "method": "GET",
+      "path": "https://www.instagram.com/oauth/authorize?client_id={appId}&redirect_uri=https%3A%2F%2Fevil.example%2Fcb&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7",
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Invalid redirect_uri"
+        }
+      ]
+    },
+    {
+      "name": "An unknown app is refused on the page",
+      "method": "GET",
+      "path": "https://www.instagram.com/oauth/authorize?client_id=000&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7",
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Invalid app ID"
+        }
+      ]
+    },
+    {
+      "name": "A retired scope value is refused",
+      "method": "GET",
+      "path": "https://www.instagram.com/oauth/authorize?client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=business_basic&state=juno-7",
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Invalid scope"
+        }
+      ]
+    },
+    {
+      "name": "A scope without instagram_business_basic is refused",
+      "method": "GET",
+      "path": "https://www.instagram.com/oauth/authorize?client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_content_publish&state=juno-7",
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "contains": "instagram_business_basic is required"
+        }
+      ]
+    },
+    {
+      "name": "A response_type other than code is refused",
+      "method": "GET",
+      "path": "https://www.instagram.com/oauth/authorize?client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=token&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7",
+      "status": 400
+    },
+    {
+      "name": "The tooling sends Juno to the authorization window",
+      "method": "GET",
+      "path": "https://www.instagram.com/oauth/authorize?client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to Instagram"
+        }
+      ]
+    },
+    {
+      "name": "She mistypes her password",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 401,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&username=junoplays&password=reel-life",
+      "expect": [
+        {
+          "path": "",
+          "contains": "password was incorrect"
+        }
+      ]
+    },
+    {
+      "name": "Mara cannot log in with a personal account",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 403,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&username=mara.loops&password=plunge-ahead",
+      "expect": [
+        {
+          "path": "",
+          "contains": "professional account"
+        }
+      ]
+    },
+    {
+      "name": "Juno logs in and is shown what the app asks",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&username=junoplays&password=reel-life-2026",
+      "capture": {
+        "session": "header:set-cookie:sessionid=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "is requesting access to"
+        },
+        {
+          "path": "",
+          "contains": "instagram_business_content_publish"
+        },
+        {
+          "path": "",
+          "notContains": "reel-life-2026"
+        },
+        {
+          "header": "set-cookie",
+          "contains": "HttpOnly"
+        }
+      ]
+    },
+    {
+      "name": "She cancels once: back with access_denied and her state",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "sessionid={session}"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&decision=cancel",
+      "expect": [
+        {
+          "path": "redirect.error",
+          "equals": "access_denied"
+        },
+        {
+          "path": "redirect.error_reason",
+          "equals": "user_denied"
+        },
+        {
+          "path": "redirect.error_description",
+          "equals": "The user denied your request"
+        },
+        {
+          "path": "redirect.state",
+          "equals": "juno-7"
+        }
+      ]
+    },
+    {
+      "name": "The cancelled login is spent: Allow on it asks her to log in again",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 401,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "sessionid={session}"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&decision=allow",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in again"
+        }
+      ]
+    },
+    {
+      "name": "Allow with no login is refused the same way",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 401,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&decision=allow",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in again"
+        }
+      ]
+    },
+    {
+      "name": "She logs in again",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&username=junoplays&password=reel-life-2026",
+      "capture": {
+        "session2": "header:set-cookie:sessionid=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "is requesting access to"
+        }
+      ]
+    },
+    {
+      "name": "She allows: back with a code and her state",
+      "method": "POST",
+      "path": "https://www.instagram.com/oauth/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "sessionid={session2}"
+      },
+      "body": "client_id={appId}&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_content_publish&state=juno-7&decision=allow",
+      "capture": {
+        "code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "juno-7"
+        },
+        {
+          "path": "redirect.code",
+          "matches": "^AQ"
+        }
+      ]
+    },
+    {
+      "name": "The code with a wrong secret is refused",
+      "method": "POST",
+      "path": "https://api.instagram.com/oauth/access_token",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&client_secret=wrong&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&code={code}",
+      "expect": [
+        {
+          "path": "error_message",
+          "equals": "Error validating client secret."
+        },
+        {
+          "path": "error_type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Another grant type is refused",
+      "method": "POST",
+      "path": "https://api.instagram.com/oauth/access_token",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&client_secret={appSecret}&grant_type=client_credentials&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&code={code}",
+      "expect": [
+        {
+          "path": "error_message",
+          "contains": "grant_type"
+        }
+      ]
+    },
+    {
+      "name": "Another redirect URI is refused",
+      "method": "POST",
+      "path": "https://api.instagram.com/oauth/access_token",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&client_secret={appSecret}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fother&code={code}",
+      "expect": [
+        {
+          "path": "error_message",
+          "contains": "redirect_uri"
+        }
+      ]
+    },
+    {
+      "name": "The code is traded: a short-lived token, her app-scoped id and the permissions",
+      "method": "POST",
+      "path": "https://api.instagram.com/oauth/access_token",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&client_secret={appSecret}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&code={code}",
+      "capture": {
+        "short": "data.0.access_token",
+        "juno": "data.0.user_id"
+      },
+      "expect": [
+        {
+          "path": "data.0.permissions",
+          "equals": "instagram_business_basic,instagram_business_content_publish"
+        }
+      ]
+    },
+    {
+      "name": "The same code again is refused",
+      "method": "POST",
+      "path": "https://api.instagram.com/oauth/access_token",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={appId}&client_secret={appSecret}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fvideogame.ai%2Fintegrations%2Finstagram%2Fcallback&code={code}",
+      "expect": [
+        {
+          "path": "error_message",
+          "equals": "Matching code was not found or was already used"
+        }
+      ]
+    },
+    {
+      "name": "Her token reads her own account",
+      "method": "GET",
+      "path": "/me?fields=id,username,account_type&access_token={short}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{juno}"
+        },
+        {
+          "path": "username",
+          "equals": "junoplays"
+        },
+        {
+          "path": "account_type",
+          "equals": "Media_Creator"
+        }
+      ]
+    },
+    {
+      "name": "Her publishing usage",
+      "method": "GET",
+      "path": "/me/content_publishing_limit?access_token={short}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.quota_usage",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "Her media: none",
+      "method": "GET",
+      "path": "/{juno}/media?access_token={short}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "She cannot read the studio's trailer",
+      "method": "GET",
+      "path": "/{trailer}?fields=id&access_token={short}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 24
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207006
+        }
+      ]
+    },
+    {
+      "name": "Nor read comments without that permission",
+      "method": "GET",
+      "path": "/{trailer}/comments?access_token={short}",
+      "status": 403,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 10
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A long-lived token with a wrong secret is refused",
+      "method": "GET",
+      "path": "/access_token?grant_type=ig_exchange_token&client_secret=wrong&access_token={short}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "With another grant type too",
+      "method": "GET",
+      "path": "/access_token?grant_type=ig_refresh_token&client_secret={appSecret}&access_token={short}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "The long-lived token, for 60 days",
+      "method": "GET",
+      "path": "/access_token?grant_type=ig_exchange_token&client_secret={appSecret}&access_token={short}",
+      "status": 200,
+      "capture": {
+        "long": "access_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        },
+        {
+          "path": "expires_in",
+          "equals": 5184000
+        }
+      ]
+    },
+    {
+      "name": "A long-lived token is not exchanged again",
+      "method": "GET",
+      "path": "/access_token?grant_type=ig_exchange_token&client_secret={appSecret}&access_token={long}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 190
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "A token younger than 24 hours is not refreshed",
+      "method": "GET",
+      "path": "/refresh_access_token?grant_type=ig_refresh_token&access_token={long}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Nor is a short-lived one",
+      "method": "GET",
+      "path": "/refresh_access_token?grant_type=ig_refresh_token&access_token={short}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 4 March, 11:00",
+      "wait": "1500m"
+    },
+    {
+      "name": "Juno's short-lived token has expired",
+      "method": "GET",
+      "path": "/me?access_token={short}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 190
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Her long-lived token refreshes for another 60 days",
+      "method": "GET",
+      "path": "/refresh_access_token?grant_type=ig_refresh_token&access_token={long}",
+      "status": 200,
+      "capture": {
+        "long2": "access_token"
+      },
+      "expect": [
+        {
+          "path": "expires_in",
+          "equals": 5184000
+        },
+        {
+          "path": "token_type",
+          "equals": "bearer"
+        }
+      ]
+    },
+    {
+      "name": "The new one works",
+      "method": "GET",
+      "path": "/me?fields=username&access_token={long2}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "username",
+          "equals": "junoplays"
+        }
+      ]
+    },
+    {
+      "name": "So does the one it refreshed",
+      "method": "GET",
+      "path": "/me?fields=username&access_token={long}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "username",
+          "equals": "junoplays"
+        }
+      ]
+    },
+    {
+      "name": "The alternate cut was never published: EXPIRED",
+      "method": "GET",
+      "path": "/{alt}?fields=status_code,status&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "EXPIRED"
+        }
+      ]
+    },
+    {
+      "name": "An expired container is not published",
+      "method": "POST",
+      "path": "/{uid}/media_publish?creation_id={alt}&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 24
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207008
+        }
+      ]
+    },
+    {
+      "name": "Nothing published in the last 24 hours",
+      "method": "GET",
+      "path": "/{uid}/content_publishing_limit?fields=quota_usage&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.quota_usage",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "A since older than 24 hours is refused",
+      "method": "GET",
+      "path": "/{uid}/content_publishing_limit?since=1772528400&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 100
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    },
+    {
+      "name": "Media since Wednesday: none",
+      "method": "GET",
+      "path": "/{uid}/media?since=1772582400&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "Media until Wednesday: the trailer",
+      "method": "GET",
+      "path": "/{uid}/media?until=1772582400&access_token={token}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{trailer}"
+        }
+      ]
+    },
+    {
+      "name": "The studio's profile picture",
+      "method": "GET",
+      "path": "/me?fields=profile_picture_url&access_token={token}",
+      "status": 200,
+      "capture": {
+        "picture": "profile_picture_url"
+      }
+    },
+    {
+      "name": "loads from the CDN",
+      "method": "GET",
+      "path": "{picture}",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Juno makes a Reel of her own",
+      "method": "POST",
+      "path": "/{juno}/media?access_token={long2}",
+      "status": 200,
+      "body": {
+        "media_type": "REELS",
+        "video_url": "https://junoplays.example/clips/plunger-fails.mp4",
+        "caption": "Plunger fails, part 1 @heckplungers"
+      },
+      "capture": {
+        "clip": "id"
+      }
+    },
+    {
+      "name": "FINISHED",
+      "method": "GET",
+      "path": "/{clip}?fields=status_code&access_token={long2}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "status_code",
+          "equals": "FINISHED"
+        }
+      ]
+    },
+    {
+      "name": "Published",
+      "method": "POST",
+      "path": "/me/media_publish?creation_id={clip}&access_token={long2}",
+      "status": 200,
+      "capture": {
+        "clipMedia": "id"
+      }
+    },
+    {
+      "name": "In her media list",
+      "method": "GET",
+      "path": "/me/media?access_token={long2}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{clipMedia}"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The studio cannot read it",
+      "method": "GET",
+      "path": "/{clipMedia}?fields=id&access_token={token}",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 24
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        },
+        {
+          "path": "error.error_subcode",
+          "equals": 2207006
+        }
+      ]
+    },
+    {
+      "name": "Nor can she read its insights without that permission",
+      "method": "GET",
+      "path": "/{clipMedia}/insights?metric=views&access_token={long2}",
+      "status": 403,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 10
+        },
+        {
+          "path": "error.type",
+          "equals": "OAuthException"
+        }
+      ]
+    }
+  ],
+  "application": [
+    {
+      "method": "GET",
+      "url": "https://videogame.ai/media/heck-plungers/trailer.mp4",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "body": "\u0000\u0000\u0000\u0018ftypisom\u0000\u0000\u0002\u0000isommp41\u0000\u0000\u0000(moov\u0000\u0000\u0000 mvhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u001e\u0000\u0000\u0000\u0000"
+    },
+    {
+      "method": "GET",
+      "url": "https://videogame.ai/media/heck-plungers/teaser.mp4",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "body": "teaser coming soon"
+    },
+    {
+      "method": "GET",
+      "url": "https://videogame.ai/media/heck-plungers/trailer-cutdown.mp4",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "body": "\u0000\u0000\u0000\u0018ftypisom\u0000\u0000\u0002\u0000isommp41\u0000\u0000\u0000(moov\u0000\u0000\u0000 mvhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u001e\u0000\u0000\u0000\u0000"
+    },
+    {
+      "method": "GET",
+      "url": "https://videogame.ai/media/heck-plungers/key-art.svg",
+      "status": 200,
+      "headers": {
+        "content-type": "image/svg+xml"
+      },
+      "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1080\" height=\"1080\"></svg>"
+    },
+    {
+      "method": "GET",
+      "url": "https://videogame.ai/media/heck-plungers/trailer-alt.mp4",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "body": "\u0000\u0000\u0000\u0018ftypisom\u0000\u0000\u0002\u0000isommp41\u0000\u0000\u0000(moov\u0000\u0000\u0000 mvhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u001e\u0000\u0000\u0000\u0000"
+    },
+    {
+      "method": "GET",
+      "url": "https://junoplays.example/clips/plunger-fails.mp4",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "body": "\u0000\u0000\u0000\u0018ftypisom\u0000\u0000\u0002\u0000isommp41\u0000\u0000\u0000(moov\u0000\u0000\u0000 mvhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u001e\u0000\u0000\u0000\u0000"
+    }
+  ]
+}

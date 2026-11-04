@@ -1,0 +1,162 @@
+{
+  "sha256": "467e24a9a0aebc373c76ed42d89f391869e0a8598e0ffa3d4c3453b34fcd7b34",
+  "bar": "829132787d94a2d4",
+  "plausible": true,
+  "judge": {
+    "agent": "Contributor 9"
+  },
+  "authors": [
+    "Contributor 34",
+    "Contributor 1"
+  ],
+  "rulings": [
+    {
+      "id": "E1",
+      "steps": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "defect": "All published-example replay requests use an account Basic token on the gateway URL documented for OAuth.",
+      "requiredCorrection": "Use the site REST v3 URLs for these Basic requests. Keep captured identifiers and actual published examples.",
+      "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/"
+    },
+    {
+      "id": "E2",
+      "steps": [
+        3,
+        4
+      ],
+      "defect": "The createIssue replay types transition ID 21 without obtaining it from the project workflow, and asserts the generated EX-1 key.",
+      "requiredCorrection": "Prepare a same-project/same-issue-type issue solely to discover its available named transition, inserting setup after step 3, then capture its actual ID for step 4. Capture the created example issue’s key rather than asserting EX-1 (the setup issue can consume the first sequence number). Retain the published transition response shape/status.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:getTransitions, spec:createIssue, spec:CreatedIssue.key; architecture: capture IDs and never pin generated defaults"
+    },
+    {
+      "id": "E3",
+      "steps": [
+        5
+      ],
+      "defect": "The thin create example is read back, but its description, project, issue type and priority values sent in setup are not asserted.",
+      "requiredCorrection": "Assert the created issue’s exact ADF description, project key EX, issue type Bug and priority High as well as the existing summary, labels and transition effect. If actor fields are returned, assert the known acting Maya account for creator/reporter rather than silently accepting another actor.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:createIssue; architecture: Published examples, all setup-decided values asserted and thin writes read back"
+    },
+    {
+      "id": "E4",
+      "steps": [
+        9,
+        10
+      ],
+      "defect": "Deleting the comment fixture and reading its removal are coverage padding: they neither make a published example’s precondition true nor read a published example’s effect.",
+      "requiredCorrection": "Remove these two example setup steps. If deletion is retained, reach it for a believable customer-life cause or vendor-published delete example actually vendored with its source; a reference operation alone does not make fixture cleanup part of the published replay.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:deleteComment; architecture: Published examples, setup steps make preconditions true or read examples’ effects and nothing else"
+    },
+    {
+      "id": "E5",
+      "steps": [
+        "fields"
+      ],
+      "defect": "Component notReplayed reasons wrongly describe component-lead configuration as requiring unmodeled operations, though createComponent itself accepts leadAccountId and assigneeType. The actual unavailable Compass prerequisite is sufficient and should be stated precisely.",
+      "requiredCorrection": "Rewrite createComponent/getProjectComponents reasons to distinguish unmodeled Compass linkage (ari/metadata) from the supported request fields for a plain Jira component. Do not treat optional supported component fields as unavailable setup or silently ignore them. Keep the other justified configuration exclusions and the explicit contradictory object-versus-array reason.",
+      "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:ProjectComponent.ari/metadata/leadAccountId/assigneeType; spec:createComponent request example"
+    }
+  ],
+  "doubts": [
+    "OpenAPI requestBody examples are separate published request samples, but the current extractor counts response examples only. The response replay is judged as such; the uncounted complex createProject/createIssue request-body samples expose a process/extractor blind spot rather than proof those richer requests work.",
+    "searchProjects cannot replay its category/avatar configured sample with the served scope, but insight counters themselves can arise from served issue creation. The reason should not imply every insight prerequisite is unavailable.",
+    "The getTransitions sample’s custom multiselect prerequisites are unmodeled; its first transition hasScreen:false despite fields. This inconsistency reinforces the need to cite actual sample contents, not claim all sample transitions have screens."
+  ],
+  "readAgainst": [
+    "architecture: What a judge rejects",
+    "architecture: Published examples",
+    "auth and platform vendored specs and SOURCE.md",
+    "every current step and notReplayed entry",
+    "README.md, journeys/demand.json, journeys/decisions.json"
+  ],
+  "notReplayedReview": {
+    "createComponent#201 application/json": "Accepted unavailable Compass ari/metadata prerequisite; lead configuration claim must be corrected by E5.",
+    "createIssue#400 application/json": "Accepted: required priority depends on unmodeled project field configuration; current default project does not document that priority is required.",
+    "getIssue#200 application/json": "Accepted: attachment/worklog/watch/link/custom-field prerequisite mutations are outside served scope and the sample cannot be fabricated.",
+    "getTransitions#200 application/json": "Accepted: custom multiselect workflow fields require omitted workflow/custom-field configuration. No excuse for incorrect simple-workflow transitions.",
+    "searchProjects#200 application/json": "Accepted category/avatar prerequisites are unmodeled; missing ordinary nextPage pagination is a separate fidelity finding.",
+    "getProject#200 application/json": "Accepted configured roles/category/Compass components and properties require omitted configuration. Not proof that ordinary create fields may be ignored.",
+    "getProjectComponents#200 application/json": "Accepted unavailable Compass linkage; lead configuration claim must be corrected by E5.",
+    "searchAndReconsileIssuesUsingJql#200 application/json": "Accepted same rich issue attachment/worklog/custom-field prerequisites unavailable.",
+    "searchAndReconsileIssuesUsingJqlPost#200 application/json": "Accepted same rich issue prerequisites unavailable; supported projection/defaults remain required.",
+    "findAssignableUsers#200 application/json": "Accepted actual source contradiction: example decodes to an object; 200 schema is array of User. Array response follows schema."
+  },
+  "applied": {
+    "from": "14eb8af595b9eb63aaab8065fa16571bf7151ac72fe3fefa4880907ce83d2562",
+    "wasPlausible": false,
+    "steps": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "fields"
+    ],
+    "rulings": [
+      {
+        "id": "E1",
+        "steps": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "defect": "All published-example replay requests use an account Basic token on the gateway URL documented for OAuth.",
+        "requiredCorrection": "Use the site REST v3 URLs for these Basic requests. Keep captured identifiers and actual published examples.",
+        "vendorSource": "jira/auth/spec/SOURCE.md; jira/platform/spec/SOURCE.md; https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/ and basic-auth-for-rest-apis/"
+      },
+      {
+        "id": "E2",
+        "steps": [
+          3,
+          4
+        ],
+        "defect": "The createIssue replay types transition ID 21 without obtaining it from the project workflow, and asserts the generated EX-1 key.",
+        "requiredCorrection": "Prepare a same-project/same-issue-type issue solely to discover its available named transition, inserting setup after step 3, then capture its actual ID for step 4. Capture the created example issue’s key rather than asserting EX-1 (the setup issue can consume the first sequence number). Retain the published transition response shape/status.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:getTransitions, spec:createIssue, spec:CreatedIssue.key; architecture: capture IDs and never pin generated defaults"
+      },
+      {
+        "id": "E3",
+        "steps": [
+          5
+        ],
+        "defect": "The thin create example is read back, but its description, project, issue type and priority values sent in setup are not asserted.",
+        "requiredCorrection": "Assert the created issue’s exact ADF description, project key EX, issue type Bug and priority High as well as the existing summary, labels and transition effect. If actor fields are returned, assert the known acting Maya account for creator/reporter rather than silently accepting another actor.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:createIssue; architecture: Published examples, all setup-decided values asserted and thin writes read back"
+      },
+      {
+        "id": "E4",
+        "steps": [
+          9,
+          10
+        ],
+        "defect": "Deleting the comment fixture and reading its removal are coverage padding: they neither make a published example’s precondition true nor read a published example’s effect.",
+        "requiredCorrection": "Remove these two example setup steps. If deletion is retained, reach it for a believable customer-life cause or vendor-published delete example actually vendored with its source; a reference operation alone does not make fixture cleanup part of the published replay.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:deleteComment; architecture: Published examples, setup steps make preconditions true or read examples’ effects and nothing else"
+      },
+      {
+        "id": "E5",
+        "steps": [
+          "fields"
+        ],
+        "defect": "Component notReplayed reasons wrongly describe component-lead configuration as requiring unmodeled operations, though createComponent itself accepts leadAccountId and assigneeType. The actual unavailable Compass prerequisite is sufficient and should be stated precisely.",
+        "requiredCorrection": "Rewrite createComponent/getProjectComponents reasons to distinguish unmodeled Compass linkage (ari/metadata) from the supported request fields for a plain Jira component. Do not treat optional supported component fields as unavailable setup or silently ignore them. Keep the other justified configuration exclusions and the explicit contradictory object-versus-array reason.",
+        "vendorSource": "jira/platform/spec/openapi.json.gz (Atlassian swagger-v3.v3.json, fetched 2026-09-30) spec:ProjectComponent.ari/metadata/leadAccountId/assigneeType; spec:createComponent request example"
+      }
+    ]
+  }
+}

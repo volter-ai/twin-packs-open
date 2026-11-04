@@ -163,15 +163,6 @@ export function organizationFields(ctx: HandlerContext, id: string, input: { nam
     createdAt: ctx.occurredAt, updatedAt: ctx.occurredAt, userCount: 1 };
 }
 
-/** Retained synthetic starters keep their recorded settings; only fields previously absent are initialized. */
-export async function completeStarterOrganization(ctx: HandlerContext, organization: Row): Promise<Row> {
-  const existing = ctx.own(organization);
-  const missing = Object.fromEntries(Object.entries(ORGANIZATION_STARTER_FIELDS).filter(([field]) => existing[field] === undefined));
-  if (!Object.keys(missing).length) return organization;
-  await ctx.change(ORG, String(organization.id), () => missing, 'organization.settings');
-  return ctx.row(ORG, String(organization.id))!;
-}
-
 // The stored response models selected by the demand-pinned SDK. Field names and nullability are the vendored SDL's;
 // values below describe this synthetic workspace, not undocumented production defaults. Optional integrations,
 // cycles, sharing, automation and agent sessions are unconfigured; their mutations remain outside this scope.

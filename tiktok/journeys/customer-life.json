@@ -1,0 +1,2950 @@
+{
+  "vendor": "tiktok",
+  "author": "codex-demand-rule",
+  "about": "Scheduler e0a08a7d9592 connecting Tidewater Yoga’s selected TikTok channel, posting videos and photos, and reading analytics; operations cited in demand.json.",
+  "steps": [
+    {
+      "name": "Tuesday 20 January, 09:00: Tidewater Yoga connects TikTok to Scheduler",
+      "wait": "27900m"
+    },
+    {
+      "name": "The developer site: Scheduler's app, its client key and secret",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "ck": "client_key",
+        "cs": "client_secret"
+      }
+    },
+    {
+      "name": "Its redirect URI and its verified media domain",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 200,
+      "body": {
+        "redirect_uris": [
+          "https://scheduler.tidewater.yoga/integrations/social/tiktok"
+        ],
+        "url_properties": [
+          "media.tidewater.yoga"
+        ]
+      },
+      "expect": [
+        {
+          "path": "redirect_uris.0",
+          "equals": "https://scheduler.tidewater.yoga/integrations/social/tiktok"
+        }
+      ]
+    },
+    {
+      "name": "Maya's TikTok account",
+      "method": "POST",
+      "path": "/_twin/people",
+      "status": 201,
+      "body": {
+        "username": "tidewateryoga",
+        "display_name": "Tidewater Yoga",
+        "password": "savasana-2026",
+        "follower_count": 1240,
+        "following_count": 180,
+        "likes_count": 9800,
+        "max_video_post_duration_sec": 600
+      }
+    },
+    {
+      "name": "A redirect URI the app never registered is refused on the page",
+      "method": "GET",
+      "path": "https://www.tiktok.com/v2/auth/authorize/?client_key={ck}&redirect_uri=https%3A%2F%2Fevil.example%2Fcb&state=x&response_type=code&scope=user.info.basic",
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "contains": "redirect_uri is not registered"
+        }
+      ]
+    },
+    {
+      "name": "Scheduler sends Maya to the authorize page",
+      "method": "GET",
+      "path": "https://www.tiktok.com/v2/auth/authorize/?client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=st4te&response_type=code&scope=video.list%2Cuser.info.basic%2Cvideo.publish%2Cvideo.upload%2Cuser.info.profile%2Cuser.info.stats",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to TikTok"
+        }
+      ]
+    },
+    {
+      "name": "She logs in",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=st4te&response_type=code&scope=video.list%2Cuser.info.basic%2Cvideo.publish%2Cvideo.upload%2Cuser.info.profile%2Cuser.info.stats&username=tidewateryoga&password=savasana-2026",
+      "expect": [
+        {
+          "path": "",
+          "contains": "would like to access your TikTok account"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes: back to Scheduler with a code, the scopes and the state",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=st4te&response_type=code&scope=video.list%2Cuser.info.basic%2Cvideo.publish%2Cvideo.upload%2Cuser.info.profile%2Cuser.info.stats&username=tidewateryoga&password=savasana-2026&decision=authorize",
+      "capture": {
+        "code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "st4te"
+        },
+        {
+          "path": "redirect.scopes",
+          "equals": "video.list,user.info.basic,video.publish,video.upload,user.info.profile,user.info.stats"
+        }
+      ]
+    },
+    {
+      "name": "Scheduler trades the code",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret={cs}&code={code}&grant_type=authorization_code&code_verifier=st4te&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok",
+      "capture": {
+        "at": "access_token",
+        "rt": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        },
+        {
+          "path": "scope",
+          "equals": "video.list,user.info.basic,video.publish,video.upload,user.info.profile,user.info.stats"
+        },
+        {
+          "path": "expires_in",
+          "equals": 86400
+        }
+      ]
+    },
+    {
+      "name": "The same code again is refused",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret={cs}&code={code}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok",
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_grant"
+        }
+      ]
+    },
+    {
+      "name": "Scheduler names the account",
+      "method": "GET",
+      "path": "https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,union_id,username",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "expect": [
+        {
+          "path": "data.user.display_name",
+          "equals": "Tidewater Yoga"
+        },
+        {
+          "path": "data.user.username",
+          "equals": "tidewateryoga"
+        },
+        {
+          "path": "error.code",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "The creator's longest video",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/creator_info/query/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "expect": [
+        {
+          "path": "data.max_video_post_duration_sec",
+          "equals": 600
+        },
+        {
+          "path": "data.privacy_level_options.0",
+          "equals": "PUBLIC_TO_EVERYONE"
+        }
+      ]
+    },
+    {
+      "name": "A privacy level not among the creator's options is refused",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 403,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "post_info": {
+          "title": "Spring flow at sunrise #yoga",
+          "privacy_level": "FOLLOWER_OF_CREATOR",
+          "disable_duet": false,
+          "disable_comment": false,
+          "disable_stitch": false
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 2304,
+          "chunk_size": 2304,
+          "total_chunk_count": 1
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "privacy_level_option_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "A video posted directly, one chunk",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "post_info": {
+          "title": "Spring flow at sunrise #yoga",
+          "privacy_level": "PUBLIC_TO_EVERYONE",
+          "disable_duet": false,
+          "disable_comment": false,
+          "disable_stitch": false
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 2304,
+          "chunk_size": 2304,
+          "total_chunk_count": 1
+        }
+      },
+      "capture": {
+        "pid": "data.publish_id",
+        "uurl": "data.upload_url"
+      },
+      "expect": [
+        {
+          "path": "data.upload_url",
+          "contains": "open-upload.tiktokapis.com/video/"
+        }
+      ]
+    },
+    {
+      "name": "Its bytes to the upload URL",
+      "method": "PUT",
+      "path": "{uurl}",
+      "status": 201,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 0-2303/2304"
+      },
+      "bodyBase64": "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAADYbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAdTAAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAGR0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAdTAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAABDgAAAeAAAAAAAgIbWRhdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "Posted, publicly",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "publish_id": "{pid}"
+      },
+      "capture": {
+        "vid": "data.publicaly_available_post_id.0"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "PUBLISH_COMPLETE"
+        },
+        {
+          "path": "data.uploaded_bytes",
+          "equals": 2304
+        }
+      ]
+    },
+    {
+      "name": "The finished upload takes no more",
+      "method": "PUT",
+      "path": "{uurl}",
+      "status": 416,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 0-2303/2304"
+      },
+      "bodyBase64": "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAADYbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAdTAAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAGR0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAdTAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAABDgAAAeAAAAAAAgIbWRhdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "A second video to Maya's inbox",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 2304,
+          "chunk_size": 2304,
+          "total_chunk_count": 1
+        }
+      },
+      "capture": {
+        "pid2": "data.publish_id",
+        "uurl2": "data.upload_url"
+      }
+    },
+    {
+      "name": "Its bytes",
+      "method": "PUT",
+      "path": "{uurl2}",
+      "status": 201,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 0-2303/2304"
+      },
+      "bodyBase64": "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAADYbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAdTAAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAGR0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAdTAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAABDgAAAeAAAAAAAgIbWRhdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "Sent to the inbox",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "publish_id": "{pid2}"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "SEND_TO_USER_INBOX"
+        },
+        {
+          "path": "data.publicaly_available_post_id",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "Maya asks to review a 65 MiB class recording in her TikTok inbox; Scheduler plans six 10 MiB chunks with the remainder in the last (tiktok.provider.ts:703-718,825-832)",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 68157440,
+          "chunk_size": 10485760,
+          "total_chunk_count": 6
+        }
+      },
+      "capture": {
+        "largePid": "data.publish_id",
+        "largeUrl": "data.upload_url"
+      }
+    },
+    {
+      "name": "Scheduler streams class recording part 1/6; TikTok has more chunks to receive",
+      "method": "PUT",
+      "path": "{largeUrl}",
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 0-10485759/68157440",
+        "content-length": "10485760"
+      },
+      "bodyFill": {
+        "text": "\u0000\u0000\u0000\u0018ftypisom\u0000\u0000\u0000\u0000isommp41\u0000\u0000\u0000$moov\u0000\u0000\u0000\u001cmvhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u001e",
+        "bytes": 10485760
+      }
+    },
+    {
+      "name": "Scheduler streams class recording part 2/6; TikTok has more chunks to receive",
+      "method": "PUT",
+      "path": "{largeUrl}",
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 10485760-20971519/68157440",
+        "content-length": "10485760"
+      },
+      "bodyFill": {
+        "text": "\u0000",
+        "bytes": 10485760
+      }
+    },
+    {
+      "name": "Scheduler streams class recording part 3/6; TikTok has more chunks to receive",
+      "method": "PUT",
+      "path": "{largeUrl}",
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 20971520-31457279/68157440",
+        "content-length": "10485760"
+      },
+      "bodyFill": {
+        "text": "\u0000",
+        "bytes": 10485760
+      }
+    },
+    {
+      "name": "Scheduler streams class recording part 4/6; TikTok has more chunks to receive",
+      "method": "PUT",
+      "path": "{largeUrl}",
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 31457280-41943039/68157440",
+        "content-length": "10485760"
+      },
+      "bodyFill": {
+        "text": "\u0000",
+        "bytes": 10485760
+      }
+    },
+    {
+      "name": "Scheduler streams class recording part 5/6; TikTok has more chunks to receive",
+      "method": "PUT",
+      "path": "{largeUrl}",
+      "status": 206,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 41943040-52428799/68157440",
+        "content-length": "10485760"
+      },
+      "bodyFill": {
+        "text": "\u0000",
+        "bytes": 10485760
+      }
+    },
+    {
+      "name": "Scheduler streams class recording part 6/6; the final part includes the five MiB remainder",
+      "method": "PUT",
+      "path": "{largeUrl}",
+      "status": 201,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 52428800-68157439/68157440",
+        "content-length": "15728640"
+      },
+      "bodyFill": {
+        "text": "\u0000",
+        "bytes": 15728640
+      }
+    },
+    {
+      "name": "The complete large class recording is ready for Maya to finish in TikTok, with every byte uploaded",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "body": {
+        "publish_id": "{largePid}"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "SEND_TO_USER_INBOX"
+        },
+        {
+          "path": "data.uploaded_bytes",
+          "equals": 68157440
+        },
+        {
+          "path": "data.publicaly_available_post_id",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "Photos from a domain the app never verified",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 403,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "title": "Spring",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://cdn.example.org/a.jpg"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "url_ownership_unverified"
+        }
+      ]
+    },
+    {
+      "name": "Photos from the studio's verified domain, whose server the World does not run",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "title": "Spring",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://media.tidewater.yoga/spring/1.jpg",
+            "https://media.tidewater.yoga/spring/2.jpg"
+          ]
+        }
+      },
+      "capture": {
+        "pid3": "data.publish_id"
+      }
+    },
+    {
+      "name": "The pull failed",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "publish_id": "{pid3}"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "FAILED"
+        },
+        {
+          "path": "data.fail_reason",
+          "equals": "photo_pull_failed"
+        }
+      ]
+    },
+    {
+      "name": "TikTok's audience watches the video",
+      "method": "POST",
+      "path": "/_twin/videos/{vid}/stats",
+      "status": 200,
+      "body": {
+        "view_count": 1200,
+        "like_count": 150,
+        "comment_count": 12,
+        "share_count": 8
+      }
+    },
+    {
+      "name": "Scheduler reads the account's stats",
+      "method": "GET",
+      "path": "https://open.tiktokapis.com/v2/user/info/?fields=follower_count,following_count,likes_count,video_count",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}"
+      },
+      "expect": [
+        {
+          "path": "data.user.follower_count",
+          "equals": 1240
+        },
+        {
+          "path": "data.user.video_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "The account's videos: the public one",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/list/?fields=id,cover_image_url,title",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "max_count": 20
+      },
+      "expect": [
+        {
+          "path": "data.videos.0.id",
+          "equals": "{vid}"
+        },
+        {
+          "path": "data.videos.0.title",
+          "equals": "Spring flow at sunrise #yoga"
+        },
+        {
+          "path": "data.videos.1",
+          "exists": false
+        },
+        {
+          "path": "data.has_more",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Its counts, and what its file says",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/query/?fields=id,like_count,comment_count,share_count,view_count,duration,width,height",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {at}",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "filters": {
+          "video_ids": [
+            "{vid}"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "data.videos.0.view_count",
+          "equals": 1200
+        },
+        {
+          "path": "data.videos.0.like_count",
+          "equals": 150
+        },
+        {
+          "path": "data.videos.0.duration",
+          "equals": 30
+        },
+        {
+          "path": "data.videos.0.width",
+          "equals": 1080
+        },
+        {
+          "path": "data.videos.0.height",
+          "equals": 1920
+        }
+      ]
+    },
+    {
+      "name": "Wednesday: the token is refreshed",
+      "wait": "1440m"
+    },
+    {
+      "name": "A new pair",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret={cs}&grant_type=refresh_token&refresh_token={rt}",
+      "capture": {
+        "at2": "access_token",
+        "rat": "access_token"
+      },
+      "expect": [
+        {
+          "path": "expires_in",
+          "equals": 86400
+        }
+      ]
+    },
+    {
+      "name": "The old refresh token no longer works",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret={cs}&grant_type=refresh_token&refresh_token={rt}",
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_grant"
+        }
+      ]
+    },
+    {
+      "name": "Chapter 8, what TikTok refuses: the developer site takes only https redirect URIs",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 400,
+      "body": {
+        "redirect_uris": [
+          "http://scheduler.tidewater.yoga/cb"
+        ]
+      }
+    },
+    {
+      "name": "A username TikTok would not take",
+      "method": "POST",
+      "path": "/_twin/people",
+      "status": 400,
+      "body": {
+        "username": "Not Valid!",
+        "password": "x"
+      }
+    },
+    {
+      "name": "An account with no password",
+      "method": "POST",
+      "path": "/_twin/people",
+      "status": 400,
+      "body": {
+        "username": "someone"
+      }
+    },
+    {
+      "name": "A username already taken",
+      "method": "POST",
+      "path": "/_twin/people",
+      "status": 400,
+      "body": {
+        "username": "tidewateryoga",
+        "password": "x"
+      }
+    },
+    {
+      "name": "Jonah's account (a teacher at the studio)",
+      "method": "POST",
+      "path": "/_twin/people",
+      "status": 201,
+      "body": {
+        "username": "jonah.teaches",
+        "display_name": "Jonah",
+        "password": "warrior-two",
+        "private": true
+      }
+    },
+    {
+      "name": "An unknown client key",
+      "method": "GET",
+      "path": "https://www.tiktok.com/v2/auth/authorize/?client_key=nope&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=s&response_type=code&scope=user.info.basic",
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "contains": "client_key is invalid"
+        }
+      ]
+    },
+    {
+      "name": "A response type other than code",
+      "method": "GET",
+      "path": "https://www.tiktok.com/v2/auth/authorize/?client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=s&response_type=token&scope=user.info.basic",
+      "status": 302,
+      "expect": [
+        {
+          "path": "redirect.error",
+          "equals": "invalid_request"
+        }
+      ]
+    },
+    {
+      "name": "A scope the app is not granted",
+      "method": "GET",
+      "path": "https://www.tiktok.com/v2/auth/authorize/?client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=s&response_type=code&scope=user.info.basic,research.data.basic",
+      "status": 302,
+      "expect": [
+        {
+          "path": "redirect.error",
+          "equals": "invalid_scope"
+        }
+      ]
+    },
+    {
+      "name": "A wrong password",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 401,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=s&response_type=code&scope=user.info.basic&username=jonah.teaches&password=wrong",
+      "expect": [
+        {
+          "path": "",
+          "contains": "Incorrect account or password"
+        }
+      ]
+    },
+    {
+      "name": "Jonah cancels",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=s&response_type=code&scope=user.info.basic&username=jonah.teaches&password=warrior-two&decision=cancel",
+      "expect": [
+        {
+          "path": "redirect.error",
+          "equals": "access_denied"
+        }
+      ]
+    },
+    {
+      "name": "Jonah authorizes his basic profile and posting only",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok&state=j&response_type=code&scope=user.info.basic%2Cvideo.publish&username=jonah.teaches&password=warrior-two&decision=authorize",
+      "capture": {
+        "jcode": "redirect.code"
+      }
+    },
+    {
+      "name": "A wrong client secret",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 401,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret=wrong&code={jcode}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok",
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_client"
+        }
+      ]
+    },
+    {
+      "name": "A redirect URI other than the code's",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret={cs}&code={jcode}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fother",
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_request"
+        }
+      ]
+    },
+    {
+      "name": "A grant type TikTok does not take",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret={cs}&grant_type=client_credentials",
+      "expect": [
+        {
+          "path": "error",
+          "equals": "unsupported_grant_type"
+        }
+      ]
+    },
+    {
+      "name": "Jonah's code traded",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/oauth/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={ck}&client_secret={cs}&code={jcode}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok",
+      "capture": {
+        "jt": "access_token"
+      },
+      "expect": [
+        {
+          "path": "scope",
+          "equals": "user.info.basic,video.publish"
+        }
+      ]
+    },
+    {
+      "name": "His stats need a scope he did not grant",
+      "method": "GET",
+      "path": "https://open.tiktokapis.com/v2/user/info/?fields=follower_count",
+      "status": 401,
+      "headers": {
+        "authorization": "Bearer {jt}"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "scope_not_authorized"
+        }
+      ]
+    },
+    {
+      "name": "His videos too",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/list/?fields=id",
+      "status": 401,
+      "headers": {
+        "authorization": "Bearer {jt}",
+        "content-type": "application/json"
+      },
+      "body": {},
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "scope_not_authorized"
+        }
+      ]
+    },
+    {
+      "name": "Maya's post is not his to read",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {jt}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "publish_id": "{pid}"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "token_not_authorized_for_specified_publish_id"
+        }
+      ]
+    },
+    {
+      "name": "A private account posts only to its followers, friends or itself",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/creator_info/query/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {jt}"
+      },
+      "expect": [
+        {
+          "path": "data.privacy_level_options.0",
+          "equals": "FOLLOWER_OF_CREATOR"
+        },
+        {
+          "path": "data.duet_disabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "A field the user object does not have",
+      "method": "GET",
+      "path": "https://open.tiktokapis.com/v2/user/info/?fields=open_id,shoe_size",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_params"
+        }
+      ]
+    },
+    {
+      "name": "A caption over 2200 characters",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 1000,
+          "chunk_size": 1000,
+          "total_chunk_count": 1
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "A video from a URL is the twin's gap, said so",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "video_url": "https://media.tidewater.yoga/v.mp4"
+        }
+      },
+      "expect": [
+        {
+          "path": "error.message",
+          "contains": "does not model PULL_FROM_URL"
+        }
+      ]
+    },
+    {
+      "name": "No source",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {}
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: no size",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD"
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: over 4 gb",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 5368709120,
+          "chunk_size": 10485760,
+          "total_chunk_count": 512
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: no chunk plan",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 6291456
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: under 5 mb in pieces",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 4194304,
+          "chunk_size": 2097152,
+          "total_chunk_count": 2
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: a count that is not size over chunk",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 50000123,
+          "chunk_size": 10000000,
+          "total_chunk_count": 6
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: over 1000 chunks",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 4294967296,
+          "chunk_size": 4194304,
+          "total_chunk_count": 1024
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: one chunk over 128 MB",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 209715200,
+          "chunk_size": 209715200,
+          "total_chunk_count": 1
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "The chunk plan refused: chunks over 64 mb",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "x",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 209715200,
+          "chunk_size": 104857600,
+          "total_chunk_count": 2
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "An upload URL that names no task",
+      "method": "PUT",
+      "path": "https://open-upload.tiktokapis.com/video/?upload_id=1&upload_token=nope",
+      "status": 404,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 0-3/4"
+      },
+      "body": "abcd"
+    },
+    {
+      "name": "A third video, initialized",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "post_info": {
+          "title": "Hold",
+          "privacy_level": "SELF_ONLY"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD",
+          "video_size": 4,
+          "chunk_size": 4,
+          "total_chunk_count": 1
+        }
+      },
+      "capture": {
+        "uurl3": "data.upload_url"
+      }
+    },
+    {
+      "name": "A chunk with no Content-Range",
+      "method": "PUT",
+      "path": "{uurl3}",
+      "status": 400,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "body": "abcd"
+    },
+    {
+      "name": "A chunk whose bytes are not its range",
+      "method": "PUT",
+      "path": "{uurl3}",
+      "status": 400,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 0-3/4"
+      },
+      "body": "abc"
+    },
+    {
+      "name": "An hour later the upload URL has expired",
+      "wait": "61m"
+    },
+    {
+      "name": "Expired",
+      "method": "PUT",
+      "path": "{uurl3}",
+      "status": 403,
+      "headers": {
+        "content-type": "video/mp4",
+        "content-range": "bytes 0-3/4"
+      },
+      "body": "abcd"
+    },
+    {
+      "name": "Photos: a media type other than PHOTO",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "VIDEO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "title": "Spring",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://media.tidewater.yoga/a.jpg"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "A post mode TikTok does not have",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "LATER",
+        "post_info": {
+          "title": "Spring",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://media.tidewater.yoga/a.jpg"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "Photos uploaded rather than pulled",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "title": "Spring",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "FILE_UPLOAD"
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "No photos",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "title": "Spring",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": []
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "A cover index past the photos",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "title": "Spring",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 3,
+          "photo_images": [
+            "https://media.tidewater.yoga/a.jpg"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "A photo title over 90 characters",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "title": "ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://media.tidewater.yoga/a.jpg"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "A description over 4000 characters",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "description": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "privacy_level": "PUBLIC_TO_EVERYONE"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://media.tidewater.yoga/a.jpg"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_param"
+        }
+      ]
+    },
+    {
+      "name": "A photo post's privacy not among the creator's options",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 403,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "DIRECT_POST",
+        "post_info": {
+          "privacy_level": "FOLLOWER_OF_CREATOR"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://media.tidewater.yoga/a.jpg"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "privacy_level_option_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Photos to the inbox, pulled from the verified domain (the pull fails as before)",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "media_type": "PHOTO",
+        "post_mode": "MEDIA_UPLOAD",
+        "post_info": {
+          "title": "Drafts"
+        },
+        "source_info": {
+          "source": "PULL_FROM_URL",
+          "photo_cover_index": 0,
+          "photo_images": [
+            "https://media.tidewater.yoga/a.jpg"
+          ]
+        }
+      },
+      "capture": {
+        "pid4": "data.publish_id"
+      },
+      "expect": [
+        {
+          "path": "data.publish_id",
+          "contains": "p_inbox_url"
+        }
+      ]
+    },
+    {
+      "name": "A publish_id TikTok never gave",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "publish_id": "v_pub_file~v2.999"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_publish_id"
+        }
+      ]
+    },
+    {
+      "name": "A video field the Video Object does not have",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/list/?fields=id,fps",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {},
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_params"
+        }
+      ]
+    },
+    {
+      "name": "A page of more than 20",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/list/?fields=id",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "max_count": 50
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_params"
+        }
+      ]
+    },
+    {
+      "name": "Videos before the first one's time: none",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/list/?fields=id",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "cursor": 1768800000000
+      },
+      "expect": [
+        {
+          "path": "data.videos",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "A query naming no video",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/query/?fields=id",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "filters": {
+          "video_ids": []
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_params"
+        }
+      ]
+    },
+    {
+      "name": "Its query for a bad field",
+      "method": "POST",
+      "path": "https://open.tiktokapis.com/v2/video/query/?fields=fps",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {rat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "filters": {
+          "video_ids": [
+            "{vid}"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "invalid_params"
+        }
+      ]
+    },
+    {
+      "name": "Stats for a video TikTok does not have",
+      "method": "POST",
+      "path": "/_twin/videos/0/stats",
+      "status": 404,
+      "body": {
+        "view_count": 1
+      }
+    },
+    {
+      "name": "The video's cover, from TikTok's CDN",
+      "method": "GET",
+      "path": "/_twin/media/cover-{vid}.png",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Chapter 9, TikTok Business: the ads portal gives the business app its App ID and secret",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "bid": "business_client_id",
+        "bsec": "business_client_secret"
+      }
+    },
+    {
+      "name": "A business redirect URL without its trailing slash is refused",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 400,
+      "body": {
+        "business_redirect_uris": [
+          "https://scheduler.tidewater.yoga/integrations/social/tiktok-business"
+        ]
+      }
+    },
+    {
+      "name": "One with a port is refused",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 400,
+      "body": {
+        "business_redirect_uris": [
+          "https://scheduler.tidewater.yoga:8443/cb/"
+        ]
+      }
+    },
+    {
+      "name": "One with a query is refused",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 400,
+      "body": {
+        "business_redirect_uris": [
+          "https://scheduler.tidewater.yoga/cb/?x=1"
+        ]
+      }
+    },
+    {
+      "name": "An http one is refused",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 400,
+      "body": {
+        "business_redirect_uris": [
+          "http://scheduler.tidewater.yoga/cb/"
+        ]
+      }
+    },
+    {
+      "name": "A relative one is refused",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 400,
+      "body": {
+        "business_redirect_uris": [
+          "/cb/"
+        ]
+      }
+    },
+    {
+      "name": "Eleven are too many",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 400,
+      "body": {
+        "business_redirect_uris": [
+          "https://scheduler.tidewater.yoga/cb0/",
+          "https://scheduler.tidewater.yoga/cb1/",
+          "https://scheduler.tidewater.yoga/cb2/",
+          "https://scheduler.tidewater.yoga/cb3/",
+          "https://scheduler.tidewater.yoga/cb4/",
+          "https://scheduler.tidewater.yoga/cb5/",
+          "https://scheduler.tidewater.yoga/cb6/",
+          "https://scheduler.tidewater.yoga/cb7/",
+          "https://scheduler.tidewater.yoga/cb8/",
+          "https://scheduler.tidewater.yoga/cb9/",
+          "https://scheduler.tidewater.yoga/cb10/"
+        ]
+      }
+    },
+    {
+      "name": "Scheduler's business redirect URL",
+      "method": "POST",
+      "path": "/_twin/apps",
+      "status": 200,
+      "body": {
+        "business_redirect_uris": [
+          "https://scheduler.tidewater.yoga/integrations/social/tiktok-business/"
+        ]
+      },
+      "expect": [
+        {
+          "path": "business_redirect_uris.0",
+          "equals": "https://scheduler.tidewater.yoga/integrations/social/tiktok-business/"
+        }
+      ]
+    },
+    {
+      "name": "Maya connects the business account: she logs in",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={bid}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok-business%2F&state=b1&response_type=code&disable_auto_auth=1&scope=user.info.basic%2Cuser.info.username%2Cuser.info.stats%2Cvideo.list%2Cvideo.upload%2Cvideo.publish&username=tidewateryoga&password=savasana-2026",
+      "expect": [
+        {
+          "path": "",
+          "contains": "would like to access"
+        }
+      ]
+    },
+    {
+      "name": "She authorizes",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={bid}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok-business%2F&state=b1&response_type=code&disable_auto_auth=1&scope=user.info.basic%2Cuser.info.username%2Cuser.info.stats%2Cvideo.list%2Cvideo.upload%2Cvideo.publish&username=tidewateryoga&password=savasana-2026&decision=authorize",
+      "capture": {
+        "bcode": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.scopes",
+          "equals": "user.info.basic,user.info.username,user.info.stats,video.list,video.upload,video.publish"
+        }
+      ]
+    },
+    {
+      "name": "A wrong secret: 40131",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "wrong",
+        "grant_type": "authorization_code",
+        "auth_code": "{bcode}",
+        "redirect_uri": "https://scheduler.tidewater.yoga/integrations/social/tiktok-business/"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40131
+        }
+      ]
+    },
+    {
+      "name": "A grant type other than authorization_code: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "password",
+        "auth_code": "{bcode}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A code TikTok never gave: 40110",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "authorization_code",
+        "auth_code": "nope"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40110
+        }
+      ]
+    },
+    {
+      "name": "Another redirect URL: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "authorization_code",
+        "auth_code": "{bcode}",
+        "redirect_uri": "https://elsewhere.example/cb/"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "Scheduler trades the code",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "authorization_code",
+        "auth_code": "{bcode}",
+        "redirect_uri": "https://scheduler.tidewater.yoga/integrations/social/tiktok-business/"
+      },
+      "capture": {
+        "bat": "data.access_token",
+        "brt": "data.refresh_token",
+        "bopen": "data.open_id"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 0
+        },
+        {
+          "path": "data.scope",
+          "equals": "user.info.basic,user.info.username,user.info.stats,video.list,video.upload,video.publish"
+        },
+        {
+          "path": "data.expires_in",
+          "equals": 86400
+        }
+      ]
+    },
+    {
+      "name": "An open-platform token is not the business API's",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={bopen}",
+      "status": 200,
+      "headers": {
+        "access-token": "{rat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40105
+        }
+      ]
+    },
+    {
+      "name": "No Access-Token: 40104",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={bopen}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40104
+        }
+      ]
+    },
+    {
+      "name": "Another account's business_id: 40001",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id=someone-else",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40001
+        }
+      ]
+    },
+    {
+      "name": "Fields that are not a JSON array: 40002",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={bopen}&fields=username",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A field the profile does not have: 40002",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={bopen}&fields=%5B%22shoe_size%22%5D",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "The default fields",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={bopen}",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.display_name",
+          "equals": "Tidewater Yoga"
+        },
+        {
+          "path": "data.profile_image",
+          "contains": "/_twin/media/avatar-"
+        }
+      ]
+    },
+    {
+      "name": "Scheduler names the account",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={bopen}&fields=%5B%22username%22%2C%20%22display_name%22%2C%20%22profile_image%22%5D",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.username",
+          "equals": "tidewateryoga"
+        }
+      ]
+    },
+    {
+      "name": "And reads its analytics",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={bopen}&fields=%5B%22followers_count%22%2C%20%22following_count%22%2C%20%22total_likes%22%2C%20%22videos_count%22%5D",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.followers_count",
+          "equals": 1240
+        },
+        {
+          "path": "data.total_likes",
+          "equals": 9800
+        },
+        {
+          "path": "data.videos_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "Its posts' counts",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/list/?business_id={bopen}&fields=%5B%22item_id%22%2C%20%22likes%22%2C%20%22comments%22%2C%20%22shares%22%2C%20%22video_views%22%5D&max_count=20",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.videos.0.item_id",
+          "equals": "{vid}"
+        },
+        {
+          "path": "data.videos.0.video_views",
+          "equals": 1200
+        },
+        {
+          "path": "data.has_more",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Fields without item_id: 40002",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/list/?business_id={bopen}&fields=%5B%22likes%22%5D",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "Fields not a JSON array: 40002",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/list/?business_id={bopen}&fields=item_id",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A page over 20: 40002",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/list/?business_id={bopen}&max_count=50",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "Posts before the first one: none",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/list/?business_id={bopen}&cursor=1768800000",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.videos",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "TikTok knows a location near the studio",
+      "method": "POST",
+      "path": "/_twin/locations",
+      "status": 201,
+      "body": {
+        "location_name": "Tidewater Yoga",
+        "location_address": "12 Harbor Street, Portland ME"
+      }
+    },
+    {
+      "name": "A location needs a name",
+      "method": "POST",
+      "path": "/_twin/locations",
+      "status": 400,
+      "body": {}
+    },
+    {
+      "name": "Two tracks in the Commercial Music Library",
+      "method": "POST",
+      "path": "/_twin/tracks",
+      "status": 201,
+      "body": {
+        "name": "Sunrise Drift",
+        "artist": "Kai Loma",
+        "genre": "ambient",
+        "duration": 62
+      },
+      "capture": {
+        "clip": "song_clip_id"
+      }
+    },
+    {
+      "name": "…the second",
+      "method": "POST",
+      "path": "/_twin/tracks",
+      "status": 201,
+      "body": {
+        "name": "Morning Bounce",
+        "artist": "The Lanterns"
+      }
+    },
+    {
+      "name": "A track needs a name and an artist",
+      "method": "POST",
+      "path": "/_twin/tracks",
+      "status": 400,
+      "body": {
+        "name": "x"
+      }
+    },
+    {
+      "name": "Scheduler searches for the location",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/publish/location/?business_id={bopen}&search_query=harbor",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.locations.0.location_name",
+          "equals": "Tidewater Yoga"
+        }
+      ]
+    },
+    {
+      "name": "A search over 100 characters: 40002",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/publish/location/?business_id={bopen}&search_query=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "Popular tracks (ALL)",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/discovery/cml/trending_list/?business_id={bopen}&genre=ALL",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.list.1.commercial_music_name",
+          "equals": "Morning Bounce"
+        }
+      ]
+    },
+    {
+      "name": "Ambient tracks",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/discovery/cml/trending_list/?business_id={bopen}&genre=ambient",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.list.0.full_duration_song_clip.song_clip_id",
+          "equals": "{clip}"
+        },
+        {
+          "path": "data.list.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "A video with no URL: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "post_info": {}
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A video with no post_info: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "video_url": "https://media.tidewater.yoga/v.mp4"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "post_info without its two required toggles: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "video_url": "https://media.tidewater.yoga/v.mp4",
+        "post_info": {
+          "caption": "x"
+        }
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "Scheduler publishes a video by URL, with its location and track; the studio media transport disconnects",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "video_url": "https://media.tidewater.yoga/spring.mp4",
+        "post_info": {
+          "caption": "Spring flow",
+          "is_brand_organic": false,
+          "is_branded_content": false,
+          "disable_comment": false,
+          "disable_duet": false,
+          "disable_stitch": false,
+          "music_sound_info": {
+            "music_sound_id": "{clip}",
+            "music_sound_volume": 50,
+            "video_original_sound_volume": 50
+          }
+        }
+      },
+      "capture": {
+        "sid": "data.share_id"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "The interrupted media body becomes FAILED with video_pull_failed",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/publish/status/?business_id={bopen}&publish_id={sid}",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "FAILED"
+        },
+        {
+          "path": "data.reason",
+          "equals": "video_pull_failed"
+        }
+      ]
+    },
+    {
+      "name": "Scheduler publishes the studio’s next video; its media server supplies the bytes (tiktok.business.provider.ts:666-691)",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "video_url": "https://media.tidewater.yoga/summer.mp4",
+        "post_info": {
+          "caption": "Summer flow",
+          "is_brand_organic": false,
+          "is_branded_content": false,
+          "disable_comment": false,
+          "disable_duet": false,
+          "disable_stitch": false,
+          "music_sound_info": {
+            "music_sound_id": "{clip}",
+            "music_sound_volume": 50,
+            "video_original_sound_volume": 50
+          }
+        }
+      },
+      "capture": {
+        "summerSid": "data.share_id"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "The Business pull completed and gave Scheduler a public video",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/publish/status/?business_id={bopen}&publish_id={summerSid}",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "PUBLISH_COMPLETE"
+        }
+      ],
+      "capture": {
+        "summerVid": "data.post_ids.0"
+      }
+    },
+    {
+      "name": "Scheduler reads the new public video and its zero initial counts from Business analytics",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/video/list/?business_id={bopen}&fields=[\"item_id\",\"caption\",\"video_views\",\"likes\",\"comments\",\"shares\"]&max_count=20",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.videos.0.item_id",
+          "equals": "{summerVid}"
+        },
+        {
+          "path": "data.videos.0.caption",
+          "equals": "Summer flow"
+        },
+        {
+          "path": "data.videos.0.video_views",
+          "equals": 0
+        },
+        {
+          "path": "data.videos.1.item_id",
+          "equals": "{vid}"
+        }
+      ]
+    },
+    {
+      "name": "A publishing task TikTok never gave: 40002",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/publish/status/?business_id={bopen}&publish_id=v_pub_url~v2.999",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "No photos: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/photo/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "photo_images": [],
+        "post_info": {
+          "is_brand_organic": false,
+          "is_branded_content": false
+        }
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A cover index past the photos: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/photo/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "photo_images": [
+          "https://media.tidewater.yoga/a.jpg"
+        ],
+        "photo_cover_index": 2,
+        "post_info": {
+          "is_brand_organic": false,
+          "is_branded_content": false
+        }
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "Photos without the toggles: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/photo/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "photo_images": [
+          "https://media.tidewater.yoga/a.jpg"
+        ],
+        "post_info": {}
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A title over 90: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/photo/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "photo_images": [
+          "https://media.tidewater.yoga/a.jpg"
+        ],
+        "post_info": {
+          "title": "ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+          "privacy_level": "PUBLIC_TO_EVERYONE",
+          "is_brand_organic": false,
+          "is_branded_content": false
+        }
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A privacy level not offered: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/photo/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "photo_images": [
+          "https://media.tidewater.yoga/a.jpg"
+        ],
+        "post_info": {
+          "privacy_level": "FOLLOWER_OF_CREATOR",
+          "is_brand_organic": false,
+          "is_branded_content": false
+        }
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "Photos saved as a draft",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/photo/publish/",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "business_id": "{bopen}",
+        "photo_images": [
+          "https://media.tidewater.yoga/a.jpg",
+          "https://media.tidewater.yoga/b.jpg"
+        ],
+        "photo_cover_index": 1,
+        "post_info": {
+          "title": "Spring",
+          "caption": "Spring flow",
+          "is_brand_organic": false,
+          "is_branded_content": false,
+          "is_draft": true
+        }
+      },
+      "capture": {
+        "sid2": "data.share_id"
+      },
+      "expect": [
+        {
+          "path": "data.share_id",
+          "contains": "p_pub_url"
+        }
+      ]
+    },
+    {
+      "name": "Its pull failed as well",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/publish/status/?business_id={bopen}&publish_id={sid2}",
+      "status": 200,
+      "headers": {
+        "access-token": "{bat}"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "FAILED"
+        },
+        {
+          "path": "data.reason",
+          "equals": "photo_pull_failed"
+        }
+      ]
+    },
+    {
+      "name": "Jonah connects his business account too",
+      "method": "POST",
+      "path": "https://www.tiktok.com/v2/auth/authorize/",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_key={bid}&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Ftiktok-business%2F&state=j2&response_type=code&disable_auto_auth=1&scope=user.info.basic%2Cuser.info.username%2Cuser.info.stats%2Cvideo.list%2Cvideo.upload%2Cvideo.publish&username=jonah.teaches&password=warrior-two&decision=authorize",
+      "capture": {
+        "jbcode": "redirect.code"
+      }
+    },
+    {
+      "name": "His token",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "authorization_code",
+        "auth_code": "{jbcode}",
+        "redirect_uri": "https://scheduler.tidewater.yoga/integrations/social/tiktok-business/"
+      },
+      "capture": {
+        "jbat": "data.access_token",
+        "jbopen": "data.open_id"
+      }
+    },
+    {
+      "name": "Maya's publishing task is not his: 40001",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/publish/status/?business_id={jbopen}&publish_id={sid}",
+      "status": 200,
+      "headers": {
+        "access-token": "{jbat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40001
+        }
+      ]
+    },
+    {
+      "name": "Scheduler refreshes the business token",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/refresh_token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "refresh_token",
+        "refresh_token": "{brt}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "The spent refresh token: 40107",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/refresh_token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "refresh_token",
+        "refresh_token": "{brt}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40107
+        }
+      ]
+    },
+    {
+      "name": "A refresh with the wrong grant type: 40002",
+      "method": "POST",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/refresh_token/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "client_id": "{bid}",
+        "client_secret": "{bsec}",
+        "grant_type": "authorization_code",
+        "refresh_token": "{brt}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40002
+        }
+      ]
+    },
+    {
+      "name": "A day later",
+      "wait": "1441m"
+    },
+    {
+      "name": "Jonah's unrefreshed token has expired: 40102",
+      "method": "GET",
+      "path": "https://business-api.tiktok.com/open_api/v1.3/business/get/?business_id={jbopen}",
+      "status": 200,
+      "headers": {
+        "access-token": "{jbat}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 40102
+        }
+      ]
+    },
+    {
+      "name": "No token is refused",
+      "method": "GET",
+      "path": "https://open.tiktokapis.com/v2/user/info/?fields=open_id",
+      "status": 401,
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "access_token_invalid"
+        }
+      ]
+    }
+  ],
+  "application": [
+    {
+      "method": "GET",
+      "url": "https://media.tidewater.yoga/spring.mp4",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "bodyError": "The studio media server disconnected during the video download"
+    },
+    {
+      "method": "GET",
+      "url": "https://media.tidewater.yoga/summer.mp4",
+      "status": 200,
+      "headers": {
+        "content-type": "video/mp4"
+      },
+      "body": "\u0000\u0000\u0000\u0018ftypisom\u0000\u0000\u0000\u0000isommp41\u0000\u0000\u0000$moov\u0000\u0000\u0000\u001cmvhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u001e"
+    }
+  ]
+}

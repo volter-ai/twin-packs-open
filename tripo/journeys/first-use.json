@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/docs/API.md",
+  "about": "Volter Editor's Account settings key test for Tripo as it ships (volter-ai/editor b86dde8c5618, packages/editor-core/server/provider-credentials.ts): its own fetch, no Tripo SDK (the official one is Python), reads the balance with the Bearer key the World's credential door issues as TRIPO_API_KEY (an account credited 3000). A mistyped paste is refused (401) and the editor reports it; the issued key connects with code 0 and the account's balance. The readback tests the same key again after the World resumes, its account and credits retained, without issuing another.",
+  "files": {
+    "package.json": "{\n  \"name\": \"tripo-editor-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {}\n}\n",
+    ".env.example": "TRIPO_API_KEY=\n",
+    "connect.mjs": "import assert from 'node:assert/strict';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n// Volter Editor's Account settings key test for Tripo (volter-ai/editor b86dde8c5618,\n// packages/editor-core/server/provider-credentials.ts: PROVIDER_CREDENTIALS and test()), unchanged\nconst provider = {\n  id: 'tripo',\n  label: 'Tripo',\n  environmentVariable: 'TRIPO_API_KEY',\n  test: (key, signal) =>\n    fetch('https://api.tripo3d.ai/v2/openapi/user/balance', {\n      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },\n      signal,\n    }),\n};\nasync function test(key) {\n  if (!key) throw new Error(`${provider.label} is not configured.`);\n  let response;\n  try {\n    response = await provider.test(key, AbortSignal.timeout(15_000));\n  } catch {\n    throw new Error(`Could not reach ${provider.label}.`);\n  }\n  if (!response.ok) {\n    throw new Error(`${provider.label} rejected the credential (${response.status}).`);\n  }\n  const body = await response.json().catch(() => null);\n  if (body?.code !== 0) throw new Error(`${provider.label} rejected the credential.`);\n  return { body, result: { provider: provider.id, ok: true, testedAt: new Date().toISOString() } };\n}\nconst mode = process.argv[2] ?? 'connect';\nconst key = process.env[provider.environmentVariable];\nif (mode === 'connect') {\n  // a paste with an extra character before the key: the editor's test refuses it\n  await assert.rejects(test('x' + key), { message: 'Tripo rejected the credential (401).' });\n}\n// the issued key connects: the artist's account holds its 3000 credits, none frozen\nconst { body, result } = await test(key);\nassert.equal(result.ok, true);\nassert.deepEqual(body, { code: 0, data: { balance: 3000, frozen: 0 } });\nconsole.log(JSON.stringify({ mode, ...result, balance: body.data }));\n"
+  },
+  "run": [
+    "node",
+    "connect.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "connect.mjs",
+      "retest"
+    ]
+  }
+}

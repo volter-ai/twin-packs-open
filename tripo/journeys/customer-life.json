@@ -1,0 +1,135 @@
+{
+  "vendor": "tripo",
+  "author": "Contributor 92",
+  "host": "api.tripo3d.ai",
+  "about": "Two artists connect their separate Tripo keys in the editor Account settings. A later paste mistake is refused before the artist copies the correct key. The editor refuses an absent configured key locally and sends no missing-header request.",
+  "steps": [
+    {
+      "name": "Prepare the artist account with 3000 credits and capture its platform-issued key",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "status": 201,
+      "body": {
+        "balance": 3000
+      },
+      "capture": {
+        "key": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "matches": "^tsk_[A-Za-z0-9]{40,40}$"
+        },
+        {
+          "path": "balance",
+          "equals": 3000
+        }
+      ]
+    },
+    {
+      "name": "The colleague gets a separate new account without a credit allocation",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "status": 201,
+      "capture": {
+        "key2": "api_key"
+      },
+      "expect": [
+        {
+          "path": "balance",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "The artist connects the issued key in editor Account settings",
+      "method": "GET",
+      "path": "/v2/openapi/user/balance",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "code": 0,
+            "data": {
+              "balance": 3000,
+              "frozen": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "The colleague connects their separate new account",
+      "method": "GET",
+      "path": "/v2/openapi/user/balance",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key2}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "code": 0,
+            "data": {
+              "balance": 0,
+              "frozen": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "The next day the artist re-enters their key",
+      "wait": "1d"
+    },
+    {
+      "name": "The artist accidentally prefixes an extra character while pasting the issued key",
+      "method": "GET",
+      "path": "/v2/openapi/user/balance",
+      "status": 401,
+      "headers": {
+        "Authorization": "Bearer x{key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "code": 1002,
+            "message": "Authentication failed",
+            "suggestion": "Check if your credentials is valid, and ensure you set it correctly"
+          }
+        }
+      ]
+    },
+    {
+      "name": "The artist copies the issued key correctly and connects",
+      "method": "GET",
+      "path": "/v2/openapi/user/balance",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "code": 0,
+            "data": {
+              "balance": 3000,
+              "frozen": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

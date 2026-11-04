@@ -2,7 +2,7 @@
 // OAuth application made in settings, a workspace made with its first person, a person joining, and a person's API key.
 // Teams and projects are not doors: they are made through the API (teamCreate, projectCreate).
 import type { HandlerContext } from '@volter/world-core';
-import { ACCESS, APP, appUserFields, completeStarterOrganization, hexToken, obj, ORG, organizationFields, sha256, TEAM, USER, userFields } from './shared.ts';
+import { ACCESS, APP, appUserFields, hexToken, obj, ORG, organizationFields, sha256, TEAM, USER, userFields } from './shared.ts';
 
 const bad = (message: string, status = 400): Response => Response.json({ message }, { status });
 const orgOf = (ctx: HandlerContext, urlKey: unknown): Record<string, unknown> | undefined => ctx.rowsRaw(ORG).find((o) => o.deleted !== true && o.urlKey === urlKey);
@@ -31,13 +31,13 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const name = typeof b.name === 'string' && b.name ? b.name : 'World App';
   const uris = Array.isArray(b.redirect_uris) ? b.redirect_uris.map(String) : [];
   if (uris.some((u) => !/^https?:\/\//.test(u))) return bad('redirect_uris must be http(s) URLs');
-  const secretOf = async (id: string): Promise<string> => (await hexToken(ctx, `linear-client-secret:${id}`)).slice(0, 32);
+  const secretOf = async (app: Record<string, unknown>): Promise<string> => (await hexToken(ctx, String(app._secret_label ?? `linear-client-secret:${app.id}`))).slice(0, 32);
   let app = ctx.rowsRaw(APP).find((a) => a.deleted !== true && a.name === name);
   if (app) app = await redirectUrisEdited(ctx, app, uris);
   else {
     const id = await ctx.issue(APP);
     const clientId = (await hexToken(ctx, `linear-client-id:${id}`)).slice(0, 32);
-    await ctx.record(APP, { name, client_id: clientId, redirect_uris: uris, secret_sha256: sha256(ctx, await secretOf(id)) }, id);
+    await ctx.record(APP, { name, client_id: clientId, redirect_uris: uris, secret_sha256: sha256(ctx, await secretOf({ id })) }, id);
     app = ctx.row(APP, id)!;
   }
   if (b.client_credentials) {
@@ -51,7 +51,7 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
     await ctx.record(APP, { ...app, client_credentials: true, org: org.id, actor_user: actor.id, teamIds: teams }, String(app.id));
   }
   // the secret, drawn again from its label; the row keeps only its SHA-256
-  return Response.json({ client_id: app.client_id, client_secret: await secretOf(String(app.id)) }, { status: 201 });
+  return Response.json({ client_id: app.client_id, client_secret: await secretOf(app) }, { status: 201 });
 }
 
 /** A workspace made in Linear's app, its first person its admin. */
@@ -87,32 +87,68 @@ export async function apiKeys(ctx: HandlerContext): Promise<Response> {
   return Response.json({ key }, { status: 201 });
 }
 
-/** The World's synthetic starter: use the same settings doors for a workspace, personal key and OAuth client. */
+/** The organization's workspace with a deployment OAuth application and independent personal API key. */
 export async function localCredentials(ctx: HandlerContext): Promise<Response> {
-  const urlKey = 'world-linear';
-  let org = orgOf(ctx, urlKey);
-  if (!org) {
-    const made = await workspaces({ ...ctx, body: { name: 'World Linear', urlKey,
-      owner: { name: 'World Owner', email: 'owner@linear-world.invalid', password: 'world-linear-local-password' } } });
-    if (!made.ok) return made;
-    org = orgOf(ctx, urlKey)!;
-  }
-  org = await completeStarterOrganization(ctx, org);
-  const owner = ctx.rowsRaw(USER).find((row) => row.deleted !== true && row._org === org!.id && row.owner === true);
-  if (!owner) return bad('The synthetic starter has no retained owner', 409);
-  // The marker identifies only this World's retained synthetic credential.
-  let held = ctx.rowsRaw(ACCESS).find((row) => row.deleted !== true && row.org === org!.id && row.user === owner.id && row._localCredential === true && row.revoked !== true);
-  if (!held) {
-    const made = await apiKeys({ ...ctx, body: { email: owner.email, label: 'World local SDK' } });
-    if (!made.ok) return made;
-    const { key } = await made.json() as { key: string };
-    held = ctx.rowsRaw(ACCESS).find((row) => row.sha256 === sha256(ctx, key))!;
-    await ctx.record(ACCESS, { ...held, _localCredential: true }, String(held.id));
-  }
-  const key = `lin_api_${ctx.crypto.base62From(await ctx.secret(`linear-api-key:${held.id}`), 40)}`;
-  const app = await appCredentials({ ...ctx, body: { name: 'World App' } });
-  if (!app.ok) return app;
-  return Response.json({ ...await app.json() as Record<string, unknown>, api_key: key }, { status: 201 });
+  try {
+    const b = obj(ctx.body);
+    const uris = Array.isArray(b.redirect_uris) ? b.redirect_uris.map(String) : [];
+    if (uris.some((uri) => !/^https?:\/\//.test(uri))) return bad('redirect_uris must be http(s) URLs');
+    const organization = await ctx.organization();
+    const org = await ctx.tenant(ORG, async (organization) => {
+      const rule = { max: 32, lower: true, allowed: /[a-z0-9-]/ };
+      const label = organization.id.length < 3 ? `workspace-${organization.id}` : organization.id;
+      const create = (suffixed: boolean) => ctx.createUnique(ORG, (id) => organizationFields(ctx, id, { name: organization.label, urlKey: ctx.vendorName(label, rule, { suffixed, identity: organization.id }) }), 'organization.create');
+      let made = await create(false);
+      if (!made.created) made = await create(true);
+      if (!made.created) throw bad(`that workspace URL is taken (${organization.id})`, 409);
+      return String(made.row.id);
+    });
+    const email = organization.members[0]!.toLowerCase();
+    let owner = ctx.rowsRaw(USER).find((row) => row._org === org.id && row.email === email && row.app !== true);
+    if (!owner) {
+      const made = await ctx.createUnique(USER, (id) => userFields(ctx, id, { org: String(org.id), name: organization.label, displayName: email.split('@')[0]!, email, admin: true, owner: true }), 'user.create');
+      owner = ctx.row(USER, String(made.row.id))!;
+    }
+    if (owner.active === false || owner.archivedAt) return bad('Authentication required, not authenticated', 401);
+    const app = await ctx.deploymentObject(`oauth-app:${org.id}`, APP, async (deployment) => {
+      const id = await ctx.issue(APP);
+      const clientId = (await hexToken(ctx, `linear-client-id:${id}`)).slice(0, 32);
+      await ctx.record(APP, { name: deployment || 'World App', client_id: clientId, redirect_uris: uris, org: org.id, _owner: owner!.id }, id);
+      return id;
+    });
+    const clientSecret = await ctx.accountKey('client-secret', APP, {
+      make: async () => {
+        const before = ctx.row(APP, String(app.id))!;
+        const serial = await ctx.issue('_credential_serial');
+        await ctx.change(APP, String(app.id), (row) => row.org === org.id && row._owner === owner!.id && row._secret_pending !== true && row._secret_label === before._secret_label && row.secret_sha256 === before.secret_sha256
+          ? { _secret_label: `linear-client-secret:${serial}`, _secret_pending: true } : undefined, 'application.secret.reserve', { input: 'omit' });
+        const selected = ctx.row(APP, String(app.id))!;
+        const value = (await hexToken(ctx, String(selected._secret_label))).slice(0, 32);
+        await ctx.change(APP, String(app.id), (row) => row.org === org.id && row._owner === owner!.id && row._secret_label === selected._secret_label
+          ? { secret_sha256: sha256(ctx, value), _secret_pending: false } : undefined, 'application.secret.issue', { input: 'omit' });
+        return String(app.id);
+      },
+      read: async (row) => {
+        if (row.id !== app.id || row.org !== org.id || row._owner !== owner!.id || row._secret_pending === true || typeof row._secret_label !== 'string') return undefined;
+        const value = (await hexToken(ctx, row._secret_label)).slice(0, 32);
+        return sha256(ctx, value) === row.secret_sha256 ? value : undefined;
+      },
+    });
+    const key = await ctx.accountKey('api-key', ACCESS, {
+      make: async () => {
+        const id = await ctx.issue(ACCESS);
+        const value = `lin_api_${ctx.crypto.base62From(await ctx.secret(`linear-api-key:${id}`), 40)}`;
+        await ctx.record(ACCESS, { org: org.id, user: owner!.id, scope: 'read write', label: ctx.deployment() || 'world', sha256: sha256(ctx, value) }, id);
+        return id;
+      },
+      read: async (row) => {
+        if (row.org !== org.id || row.user !== owner!.id || row.revoked === true || (row.expires !== undefined && Date.parse(String(row.expires)) <= Date.parse(ctx.occurredAt))) return undefined;
+        const value = `lin_api_${ctx.crypto.base62From(await ctx.secret(`linear-api-key:${row.id}`), 40)}`;
+        return sha256(ctx, value) === row.sha256 ? value : undefined;
+      },
+    });
+    return Response.json({ client_id: app.client_id, client_secret: clientSecret.secret, api_key: key.secret }, { status: 201 });
+  } catch (error) { if (error instanceof Response) return error; throw error; }
 }
 
 /** Validate a whole workspace owner before its organization is written. */

@@ -15,7 +15,7 @@ import { states } from './semantics/states.ts';
 export const manifest: DerivedManifest = {
   vendor: 'polar',
   service: 'polar',
-  tenant: { field: 'organization_id' },
+  tenant: { field: '_organization_namespace', storage: 'namespaced' },
   // source: spec:/components/schemas/MeterCreate "MeterCreate"
   // source: spec:/components/schemas/HTTPValidationError "HTTPValidationError"
   body: { json: 'always', validation: {
@@ -104,6 +104,7 @@ export const manifest: DerivedManifest = {
     { id: 'portal', kind: 'flow', host: 'polar.sh', path: '/{slug}/portal', demand: "a customer session's customer_portal_url (Twin's biller, Manage billing)", status: 'done', controls: [], source: 'https://polar.sh/docs/features/customer-portal' },
   ],
   resources: {
+    organization: { shared: true, idPrefix: '', ids: '{uuid}' },
     _access_token: { idPrefix: 'oat_', ids: '{prefix}{n}' },
     _customer_meter: { idPrefix: '', ids: '{uuid}' },
     _order_item: { idPrefix: '', ids: '{uuid}' },
@@ -138,7 +139,7 @@ export const manifest: DerivedManifest = {
     description: 'Polar twin — meters and products with their prices, checkouts with the hosted checkout page, the orders and subscriptions a paid checkout makes, customers and their state (subscriptions and meters) by the application\'s own id, customer sessions, usage events, webhook endpoints, and webhooks signed as Polar\'s SDK verifies them.',
     adoption: { sdks: ['@polar-sh/sdk'], pypi: ['polar-sdk'], scopes: ['@polar-sh/'], envStems: ['POLAR'] },
     // a World's applications hold an Organization Access Token the settings page made; the API refuses any other
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { POLAR_ACCESS_TOKEN: 'access_token', POLAR_API_KEY: 'access_token', POLAR_ORGANIZATION_TOKEN: 'access_token' } },
+    credentialDoor: { account: { field: 'account', tenancy: 'Organization', source: 'https://polar.sh/docs/api-reference/introduction' }, deployment: { field: 'deployment', object: 'Organization Access Token (production API)', source: 'https://polar.sh/docs/api-reference/introduction' },  path: '/_twin/app-credentials', body: {}, fill: { POLAR_ACCESS_TOKEN: 'access_token', POLAR_API_KEY: 'access_token', POLAR_ORGANIZATION_TOKEN: 'access_token' } },
     // the API (production and sandbox) and the hosted checkout
     hosts: [{ host: 'api.polar.sh' }, { host: 'sandbox-api.polar.sh' }, { host: 'buy.polar.sh' }, { host: 'polar.sh', pathPattern: '^/[^/]+/portal' }, { host: 'sandbox.polar.sh' }],
     endpointEnvNone: '@polar-sh/sdk reads no base-URL variable: its `server` option picks production or sandbox, both claimed by the host rules.',

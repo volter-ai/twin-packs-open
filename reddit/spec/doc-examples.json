@@ -1,0 +1,285 @@
+[
+  {
+    "title": "the code grant's access token answer",
+    "source": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+    "operation": "POST_api_v1_access_token",
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/access_token"
+    },
+    "input": {
+      "grant_type": "authorization_code",
+      "code": "CODE",
+      "redirect_uri": "URI"
+    },
+    "output": {
+      "access_token": "Your access token",
+      "token_type": "bearer",
+      "expires_in": 3600,
+      "scope": "A scope string",
+      "refresh_token": "Your refresh token"
+    },
+    "means": "Retrieving the access token: grant_type=authorization_code&code=CODE&redirect_uri=URI; \"The response from this request, if successful, will be JSON of the following format\"; \"\\\"refresh_token\\\" will only be present if one was requested\""
+  },
+  {
+    "title": "the refreshed access token answer",
+    "source": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+    "operation": "POST_api_v1_access_token",
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/access_token"
+    },
+    "input": {
+      "grant_type": "refresh_token",
+      "refresh_token": "TOKEN"
+    },
+    "output": {
+      "access_token": "Your access token",
+      "token_type": "bearer",
+      "expires_in": 3600,
+      "scope": "A scope string"
+    },
+    "means": "Refreshing the token: grant_type=refresh_token&refresh_token=TOKEN; \"The response will look the same as the initial access token request.\""
+  },
+  {
+    "title": "the application-only access token answer",
+    "source": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+    "operation": "POST_api_v1_access_token",
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/access_token"
+    },
+    "input": {
+      "grant_type": "client_credentials"
+    },
+    "output": {
+      "access_token": "Your access token",
+      "token_type": "bearer",
+      "expires_in": 3600,
+      "scope": "A scope string"
+    },
+    "means": "Application Only OAuth: grant_type=client_credentials; \"App-only OAuth token requests never receive a refresh_token.\""
+  },
+  {
+    "title": "rule: client credentials that are invalid",
+    "source": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+    "operation": "POST_api_v1_access_token",
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/access_token"
+    },
+    "status": 401,
+    "output": {
+      "message": "Unauthorized",
+      "error": 401
+    },
+    "means": "401 response: Client credentials sent as HTTP Basic Authorization were invalid"
+  },
+  {
+    "title": "rule: a grant_type that is not supported",
+    "source": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+    "operation": "POST_api_v1_access_token",
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/access_token"
+    },
+    "output": {
+      "error": "unsupported_grant_type"
+    },
+    "means": "unsupported_grant_type: grant_type parameter was invalid or Http Content type was not set correctly"
+  },
+  {
+    "title": "rule: a link post needs a valid URL",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "POST_api_submit",
+    "request": {
+      "method": "POST",
+      "url": "/api/submit"
+    },
+    "output": {
+      "json": {
+        "errors": [
+          [
+            "BAD_URL",
+            "you should check that url",
+            "url"
+          ]
+        ]
+      }
+    },
+    "means": "If kind is \"link\", then url is expected to be a valid URL to link to."
+  },
+  {
+    "title": "rule: text and richtext_json together",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "POST_api_submit",
+    "request": {
+      "method": "POST",
+      "url": "/api/submit"
+    },
+    "output": {
+      "json": {
+        "errors": [
+          [
+            "INVALID_OPTION",
+            "that option is not valid",
+            "richtext_json"
+          ]
+        ]
+      }
+    },
+    "means": "An error is thrown if both text and richtext_json are present."
+  },
+  {
+    "title": "rule: a title up to 300 characters",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "POST_api_submit",
+    "request": {
+      "method": "POST",
+      "url": "/api/submit"
+    },
+    "output": {
+      "json": {
+        "errors": [
+          [
+            "TOO_LONG",
+            "this is too long (max: 300)",
+            "title"
+          ]
+        ]
+      }
+    },
+    "means": "title: title of the submission. up to 300 characters long"
+  },
+  {
+    "title": "rule: a listing sliced by limit and anchored by after",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "GET_r_subreddit_new",
+    "request": {
+      "method": "GET",
+      "url": "/r/volter/new"
+    },
+    "output": {
+      "kind": "Listing",
+      "data": {
+        "after": "t3_abcdefg",
+        "before": null,
+        "dist": 1,
+        "modhash": null,
+        "geo_filter": "",
+        "children": [
+          {
+            "kind": "t3",
+            "data": {
+              "name": "t3_abcdefg",
+              "title": "a post"
+            }
+          }
+        ]
+      }
+    },
+    "means": "limit - the maximum number of items to return in this slice of the listing. ... The response will contain an after value which you can pass in the next request."
+  },
+  {
+    "title": "rule: the next slice, after the fullname given",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "GET_r_subreddit_new",
+    "request": {
+      "method": "GET",
+      "url": "/r/volter/new"
+    },
+    "output": {
+      "kind": "Listing",
+      "data": {
+        "after": null,
+        "before": "t3_abcdefh",
+        "dist": 1,
+        "modhash": null,
+        "geo_filter": "",
+        "children": [
+          {
+            "kind": "t3",
+            "data": {
+              "name": "t3_abcdefh",
+              "title": "a post"
+            }
+          }
+        ]
+      }
+    },
+    "means": "after / before - only one should be specified. these indicate the fullname of an item in the listing to use as the anchor point of the slice."
+  },
+  {
+    "title": "rule: the legacy encoding of <, > and &",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "GET_r_subreddit_new",
+    "request": {
+      "method": "GET",
+      "url": "/r/volter/new"
+    },
+    "output": {
+      "kind": "Listing",
+      "data": {
+        "after": null,
+        "before": null,
+        "dist": 1,
+        "modhash": null,
+        "geo_filter": "",
+        "children": [
+          {
+            "kind": "t3",
+            "data": {
+              "title": "Q&amp;A"
+            }
+          }
+        ]
+      }
+    },
+    "means": "For legacy reasons, all JSON response bodies currently have <, >, and & replaced with &lt;, &gt;, and &amp;, respectively. If you wish to opt out of this behaviour, add a raw_json=1 parameter to your request."
+  },
+  {
+    "title": "rule: no modhash with OAuth",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "POST_api_vote",
+    "request": {
+      "method": "POST",
+      "url": "/api/vote"
+    },
+    "output": {},
+    "means": "Modhashes are not required when authenticated with OAuth."
+  },
+  {
+    "title": "rule: rich text becomes the self-post body",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "POST_api_submit",
+    "means": "body of the self-post unless richtext_json is present, in which case it will be converted into the body of the self-post."
+  },
+  {
+    "title": "rule: invalid upload policy signature",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/API_Error.html",
+    "operation": "POST_api_media_asset",
+    "means": "SignatureDoesNotMatch",
+    "status": 403
+  },
+  {
+    "title": "rule: uncovered upload form field is access denied",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/API_Error.html",
+    "operation": "POST_api_media_asset",
+    "means": "AccessDenied",
+    "status": 403
+  },
+  {
+    "title": "rule: a private upload object is access denied",
+    "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/API_Error.html",
+    "operation": "POST_api_media_asset",
+    "means": "Access Denied",
+    "status": 403
+  },
+  {
+    "title": "rule: session writes require modhash",
+    "source": "https://www.reddit.com/dev/api",
+    "operation": "POST_api_vote",
+    "means": "The preferred way to send a modhash is to include an X-Modhash custom HTTP header with your requests.",
+    "status": 403
+  }
+]

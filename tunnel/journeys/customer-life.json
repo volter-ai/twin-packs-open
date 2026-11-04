@@ -1,0 +1,741 @@
+{
+ "vendor": "tunnel",
+ "author": "Contributor 71",
+ "host": "voltertest.xyz",
+ "about": "Ada demonstrates Harness remote access to Bob; the local client answers buffered page requests and streams command output. Reconnect, copied configuration, a truncated token and shutdown supply the refusal causes.",
+ "steps": [
+  {
+   "name": "Ada creates her relay account for the shared Harness demo",
+   "method": "POST",
+   "path": "/_twin/accounts",
+   "body": {
+    "slug": "ada"
+   },
+   "status": 201,
+   "capture": {
+    "ada": "token"
+   },
+   "expect": [
+    {
+     "path": "token",
+     "matches": "^vt_[A-Za-z0-9]{40}$"
+    },
+    {
+     "path": "server",
+     "equals": "https://voltertest.xyz"
+    }
+   ]
+  },
+  {
+   "name": "Harness connects its named remote-access tunnel",
+   "socket": "h1",
+   "open": "/ws?id=ada-harness"
+  },
+  {
+   "name": "Harness registers with Ada's token and saves the returned visitor URL",
+   "socket": "h1",
+   "send": {
+    "type": "register",
+    "secret": "{ada}",
+    "authRequired": false,
+    "tunnelId": "ada-harness"
+   },
+   "capture": {
+    "public": "last.url"
+   },
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "registered"
+    },
+    {
+     "path": "last.tunnelId",
+     "equals": "ada-harness"
+    },
+    {
+     "path": "last.url",
+     "equals": "https://ada-harness.voltertest.xyz"
+    }
+   ]
+  },
+  {
+   "name": "Bob mistypes the tunnel name from Ada's invitation",
+   "method": "GET",
+   "path": "https://ada-hanress.voltertest.xyz/demo",
+   "status": 502,
+   "expect": [
+    {
+     "path": "",
+     "equals": "Tunnel not connected"
+    }
+   ]
+  },
+  {
+   "name": "Bob opens the shared demo page",
+   "method": "GET",
+   "path": "{public}/demo?view=remote",
+   "defer": "page"
+  },
+  {
+   "name": "Harness receives Bob's page request",
+   "socket": "h1",
+   "capture": {
+    "page": "last.reqId"
+   },
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "request"
+    },
+    {
+     "path": "last.method",
+     "equals": "GET"
+    },
+    {
+     "path": "last.path",
+     "equals": "/demo?view=remote"
+    },
+    {
+     "path": "last.body",
+     "equals": null
+    },
+    {
+     "path": "last.headers.x-forwarded-for",
+     "equals": "0.0.0.0"
+    }
+   ]
+  },
+  {
+   "name": "The local server returns the remote-access page",
+   "socket": "h1",
+   "send": {
+    "type": "response",
+    "reqId": "{page}",
+    "status": 200,
+    "headers": {
+     "content-type": "text/html",
+     "x-frame-options": "DENY",
+     "content-security-policy": "default-src 'self'; frame-ancestors 'none'"
+    },
+    "body": "PGgxPkFkYSdzIHJlbW90ZSBkZW1vPC9oMT4="
+   }
+  },
+  {
+   "name": "Bob sees the page supplied by Ada's local server",
+   "method": "GET",
+   "path": "{public}/demo?view=remote",
+   "await": "page",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "equals": "<h1>Ada's remote demo</h1>"
+    },
+    {
+     "header": "content-type",
+     "contains": "text/html"
+    },
+    {
+     "header": "x-frame-options",
+     "exists": false
+    },
+    {
+     "header": "content-security-policy",
+     "equals": "default-src 'self'"
+    },
+    {
+     "header": "cache-control",
+     "equals": "private, no-store, max-age=0"
+    }
+   ]
+  },
+  {
+   "name": "Bob's remote viewer requests permission to send its command headers",
+   "method": "OPTIONS",
+   "path": "{public}/command",
+   "headers": {
+    "origin": "https://viewer.example",
+    "access-control-request-headers": "Content-Type, X-Volter-App"
+   },
+   "status": 204,
+   "expect": [
+    {
+     "header": "access-control-allow-origin",
+     "equals": "https://viewer.example"
+    },
+    {
+     "header": "access-control-allow-headers",
+     "equals": "Content-Type, X-Volter-App"
+    }
+   ]
+  },
+  {
+   "name": "Bob asks Harness to run a demo command",
+   "method": "POST",
+   "path": "{public}/command?__volter_token=visitor&mode=demo",
+   "body": "run demo",
+   "headers": {
+    "cookie": "session=bob; __volter_auth=relay",
+    "x-forwarded-for": "127.0.0.1",
+    "origin": "https://viewer.example",
+    "x-volter-app": "demo"
+   },
+   "defer": "command"
+  },
+  {
+   "name": "Harness receives the command without relay authentication data",
+   "socket": "h1",
+   "capture": {
+    "command": "last.reqId"
+   },
+   "expect": [
+    {
+     "path": "last.method",
+     "equals": "POST"
+    },
+    {
+     "path": "last.path",
+     "equals": "/command?mode=demo"
+    },
+    {
+     "path": "last.body",
+     "equals": "cnVuIGRlbW8="
+    },
+    {
+     "path": "last.headers.cookie",
+     "equals": "session=bob"
+    },
+    {
+     "path": "last.headers.x-forwarded-for",
+     "equals": "0.0.0.0"
+    },
+    {
+     "path": "last.headers.x-volter-app",
+     "equals": "demo"
+    }
+   ]
+  },
+  {
+   "name": "Harness starts streaming the command's output",
+   "socket": "h1",
+   "send": {
+    "type": "response-start",
+    "reqId": "{command}",
+    "status": 200,
+    "headers": {
+     "content-type": "text/plain",
+     "x-demo": "Ada"
+    }
+   }
+  },
+  {
+   "name": "The running command reports its progress",
+   "socket": "h1",
+   "send": {
+    "type": "response-chunk",
+    "reqId": "{command}",
+    "data": "U3RhcnRpbmcgZGVtbwo="
+   }
+  },
+  {
+   "name": "The command finishes and the stream ends",
+   "socket": "h1",
+   "send": [
+    {
+     "type": "response-chunk",
+     "reqId": "{command}",
+     "data": "RGVtbyBjb21wbGV0ZQo="
+    },
+    {
+     "type": "response-end",
+     "reqId": "{command}"
+    }
+   ]
+  },
+  {
+   "name": "Bob reads both chunks from the completed command",
+   "method": "POST",
+   "path": "{public}/command?__volter_token=visitor&mode=demo",
+   "await": "command",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "equals": "Starting demo\nDemo complete\n"
+    },
+    {
+     "header": "x-demo",
+     "equals": "Ada"
+    },
+    {
+     "header": "access-control-allow-origin",
+     "equals": "https://viewer.example"
+    }
+   ]
+  },
+  {
+   "name": "Ada opens a separate control-protocol diagnostic while setting up the second Harness connector",
+   "socket": "h2",
+   "open": "/ws?id=ada-harness"
+  },
+  {
+   "name": "Ada's diagnostic omits replacement and receives the relay's live-connector collision refusal",
+   "socket": "h2",
+   "send": {
+    "type": "register",
+    "secret": "{ada}",
+    "authRequired": false,
+    "tunnelId": "ada-harness"
+   },
+   "status": 4002,
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "error"
+    },
+    {
+     "path": "last.message",
+     "contains": "already in use"
+    },
+    {
+     "path": "closed.reason",
+     "equals": "Tunnel ID already in use"
+    }
+   ]
+  },
+  {
+   "name": "Ada starts the actual Harness connector whose SDK requests replacement automatically",
+   "socket": "h3",
+   "open": "/ws?id=ada-harness"
+  },
+  {
+   "name": "Harness's automatic SDK replacement keeps the existing demo URL",
+   "socket": "h3",
+   "send": {
+    "type": "register",
+    "secret": "{ada}",
+    "authRequired": false,
+    "replace": true,
+    "tunnelId": "ada-harness"
+   },
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "registered"
+    },
+    {
+     "path": "last.url",
+     "equals": "{public}"
+    }
+   ]
+  },
+  {
+   "name": "Harness releases the obsolete connector after the relay replaced it",
+   "socket": "h1",
+   "status": 4001,
+   "expect": [
+    {
+     "path": "closed.reason",
+     "equals": "Replaced by new client"
+    }
+   ],
+   "close": true
+  },
+  {
+   "name": "Bob checks that the restarted demo still answers",
+   "method": "HEAD",
+   "path": "{public}/ready",
+   "defer": "ready"
+  },
+  {
+   "name": "The replacement receives the readiness request",
+   "socket": "h3",
+   "capture": {
+    "ready": "last.reqId"
+   },
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "request"
+    },
+    {
+     "path": "last.path",
+     "equals": "/ready"
+    }
+   ]
+  },
+  {
+   "name": "The local readiness endpoint replies",
+   "socket": "h3",
+   "send": [
+    {
+     "type": "response-start",
+     "reqId": "{ready}",
+     "status": 200,
+     "headers": {
+      "x-ready": "Ready"
+     }
+    },
+    {
+     "type": "response-end",
+     "reqId": "{ready}"
+    }
+   ]
+  },
+  {
+   "name": "Bob gets the readiness response through the replacement",
+   "method": "HEAD",
+   "path": "{public}/ready",
+   "await": "ready",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "equals": ""
+    },
+    {
+     "header": "x-ready",
+     "equals": "Ready"
+    }
+   ]
+  },
+  {
+   "name": "Bob runs the demo's export command",
+   "method": "POST",
+   "path": "{public}/command?__volter_token=visitor&mode=export",
+   "body": "run export",
+   "headers": {
+    "cookie": "session=bob; __volter_auth=relay",
+    "x-forwarded-for": "127.0.0.1",
+    "origin": "https://viewer.example",
+    "x-volter-app": "demo"
+   },
+   "defer": "export"
+  },
+  {
+   "name": "The replacement receives the export",
+   "socket": "h3",
+   "capture": {
+    "exportReq": "last.reqId"
+   },
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "request"
+    },
+    {
+     "path": "last.path",
+     "equals": "/command?mode=export"
+    }
+   ]
+  },
+  {
+   "name": "The export starts streaming, writes its first line, and stalls on Ada's laptop",
+   "socket": "h3",
+   "send": [
+    {
+     "type": "response-start",
+     "reqId": "{exportReq}",
+     "status": 200,
+     "headers": {
+      "content-type": "text/plain"
+     }
+    },
+    {
+     "type": "response-chunk",
+     "reqId": "{exportReq}",
+     "data": "RXhwb3J0aW5nCg=="
+    }
+   ]
+  },
+  {
+   "name": "Bob opens the demo's log page to see why; Ada's local log viewer hangs too",
+   "method": "GET",
+   "path": "{public}/logs",
+   "defer": "logs"
+  },
+  {
+   "name": "The replacement receives the log page request, which its local server never answers",
+   "socket": "h3",
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "request"
+    },
+    {
+     "path": "last.path",
+     "equals": "/logs"
+    }
+   ]
+  },
+  {
+   "name": "Two minutes pass with nothing more from the laptop",
+   "wait": "121s"
+  },
+  {
+   "name": "Bob checks whether the demo itself still answers",
+   "method": "HEAD",
+   "path": "{public}/ready",
+   "defer": "ready2"
+  },
+  {
+   "name": "The relay has given up on the stalled export, asking the connector to abort it, and forwards the readiness check",
+   "socket": "h3",
+   "capture": {
+    "ready2": "last.reqId"
+   },
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "request"
+    },
+    {
+     "path": "last.path",
+     "equals": "/ready"
+    }
+   ]
+  },
+  {
+   "name": "The local readiness endpoint replies",
+   "socket": "h3",
+   "send": [
+    {
+     "type": "response-start",
+     "reqId": "{ready2}",
+     "status": 200,
+     "headers": {
+      "x-ready": "Ready"
+     }
+    },
+    {
+     "type": "response-end",
+     "reqId": "{ready2}"
+    }
+   ]
+  },
+  {
+   "name": "Bob gets the readiness response: the demo answers",
+   "method": "HEAD",
+   "path": "{public}/ready",
+   "await": "ready2",
+   "status": 200,
+   "expect": [
+    {
+     "header": "x-ready",
+     "equals": "Ready"
+    }
+   ]
+  },
+  {
+   "name": "The log page reports the relay's timeout",
+   "method": "GET",
+   "path": "{public}/logs",
+   "await": "logs",
+   "status": 504,
+   "expect": [
+    {
+     "path": "",
+     "equals": "Tunnel timeout"
+    }
+   ]
+  },
+  {
+   "name": "and the export's download breaks off after its first line",
+   "method": "POST",
+   "path": "{public}/command?__volter_token=visitor&mode=export",
+   "await": "export",
+   "breaks": "stream idle timeout",
+   "expect": [
+    {
+     "path": "",
+     "equals": "Exporting\n"
+    }
+   ]
+  },
+  {
+   "name": "Bob creates an account to host his own remote session",
+   "method": "POST",
+   "path": "/_twin/accounts",
+   "body": {
+    "slug": "bob"
+   },
+   "status": 201,
+   "capture": {
+    "bob": "token"
+   }
+  },
+  {
+   "name": "Bob copied Ada's tunnel name into his connector configuration",
+   "socket": "b1",
+   "open": "/ws?id=ada-harness"
+  },
+  {
+   "name": "Bob's account cannot claim Ada's reserved name",
+   "socket": "b1",
+   "send": {
+    "type": "register",
+    "secret": "{bob}",
+    "authRequired": false,
+    "tunnelId": "ada-harness",
+    "replace": true
+   },
+   "status": 4002,
+   "expect": [
+    {
+     "path": "last.message",
+     "contains": "reserved by another account"
+    },
+    {
+     "path": "closed.reason",
+     "equals": "Tunnel ID reserved"
+    }
+   ]
+  },
+  {
+   "name": "Bob corrects the name but pastes an incomplete account token",
+   "socket": "b2",
+   "open": "/ws?id=bob-harness"
+  },
+  {
+   "name": "The incomplete token is rejected before any reservation is made",
+   "socket": "b2",
+   "send": {
+    "type": "register",
+    "secret": "vt_incomplete",
+    "authRequired": false,
+    "tunnelId": "bob-harness"
+   },
+   "status": 4003,
+   "expect": [
+    {
+     "path": "last.message",
+     "equals": "Invalid tunnel secret"
+    },
+    {
+     "path": "closed.reason",
+     "equals": "Invalid tunnel secret"
+    }
+   ]
+  },
+  {
+   "name": "Bob reconnects with the token his account actually returned",
+   "socket": "b3",
+   "open": "/ws?id=bob-harness"
+  },
+  {
+   "name": "Bob now has his own public demo URL",
+   "socket": "b3",
+   "send": {
+    "type": "register",
+    "secret": "{bob}",
+    "authRequired": false,
+    "tunnelId": "bob-harness"
+   },
+   "capture": {
+    "bobPublic": "last.url"
+   },
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "registered"
+    },
+    {
+     "path": "last.url",
+     "equals": "https://bob-harness.voltertest.xyz"
+    }
+   ]
+  },
+  {
+   "name": "Bob requests one last local command while Ada is ending the demo",
+   "method": "GET",
+   "path": "{public}/last-command",
+   "defer": "last-command"
+  },
+  {
+   "name": "Harness receives the last command before the laptop disconnects",
+   "socket": "h3",
+   "expect": [
+    {
+     "path": "last.type",
+     "equals": "request"
+    },
+    {
+     "path": "last.path",
+     "equals": "/last-command"
+    }
+   ]
+  },
+  {
+   "name": "Ada ends her demo and closes its connector",
+   "socket": "h3",
+   "close": true,
+   "status": 1000
+  },
+  {
+   "name": "Bob's pending command reports the disconnected connector",
+   "method": "GET",
+   "path": "{public}/last-command",
+   "await": "last-command",
+   "status": 502,
+   "expect": [
+    {
+     "path": "",
+     "equals": "Tunnel disconnected"
+    }
+   ]
+  },
+  {
+   "name": "Bob checks his own local relay connection before closing it",
+   "method": "GET",
+   "path": "http://localhost/check?__tunnel=bob-harness",
+   "defer": "bob-check"
+  },
+  {
+   "name": "Bob's connector receives the direct-host diagnostic with the routing parameter removed",
+   "socket": "b3",
+   "capture": {
+    "bobCheck": "last.reqId"
+   },
+   "expect": [
+    {
+     "path": "last.path",
+     "equals": "/check"
+    },
+    {
+     "path": "last.body",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "Bob's local server answers the diagnostic",
+   "socket": "b3",
+   "send": {
+    "type": "response",
+    "reqId": "{bobCheck}",
+    "status": 200,
+    "headers": {},
+    "body": "Qm9iIGNvbm5lY3RlZA=="
+   }
+  },
+  {
+   "name": "Bob confirms his separate tunnel still works",
+   "method": "GET",
+   "path": "http://localhost/check?__tunnel=bob-harness",
+   "await": "bob-check",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "equals": "Bob connected"
+    }
+   ]
+  },
+  {
+   "name": "Bob closes his own connector after the demo",
+   "socket": "b3",
+   "close": true,
+   "status": 1000
+  }
+ ]
+}

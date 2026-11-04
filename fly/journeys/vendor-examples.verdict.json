@@ -1,0 +1,200 @@
+{
+  "bar": "829132787d94a2d4",
+  "judge": {
+    "agent": "Contributor 7",
+    "name": "Contributor 54",
+    "method": "One exhaustive read of each artifact against the current bar, vendored Machines API schema and primary Fly documentation; no authored files changed and no walk or tests run."
+  },
+  "authors": [
+    "Contributor 2"
+  ],
+  "rounds": 1,
+  "sha256": "370dc41eb7538676ecc032642307cdfc3017e471c8e50af431d3cef2f29fc969",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "R1",
+      "steps": [
+        3,
+        4
+      ],
+      "reason": "These steps assert organization.name equals personal, although setup supplies only org_slug personal. The vendor sample distinguishes organization display name from slug; neither token creation nor app creation chooses the display name. This pins the twin placeholder as vendor truth.",
+      "required": "Remove the organization.name and apps.0.organization.name equality checks. Add undecided entries at those exact paths explaining that the organization display name was not supplied or established by the fixture and any coincidence with its slug is not decided by app creation. Keep the organization.slug assertions.",
+      "evidence": "https://docs.fly.io/machines/api/apps-resource/ (Get app details); vendored schema AppOrganizationInfo has separate name and slug fields."
+    },
+    {
+      "id": "R2",
+      "steps": [
+        8,
+        12,
+        22
+      ],
+      "reason": "Each setup determines an exact two-item list, but these steps only assert its first two entries, permitting extras. Step 8 also leaves creation state and the unmounted second disk unconstrained although setup determined them.",
+      "required": "On each of steps 8,12,22 assert path 2 exists=false (or an equivalent exact length of two). On step 8 assert both disk states are created and the second attached_machine_id is null. Preserve existing IDs, supplied fields, first disk attachment, started machine states, and pending-deletion checks.",
+      "evidence": "Architecture Published examples requires asserting setup-caused counts and statuses. https://docs.fly.io/machines/api/volumes-resource/ and https://docs.fly.io/machines/api/machines-resource/ show the list shapes."
+    },
+    {
+      "id": "R3",
+      "steps": [
+        9,
+        10,
+        12
+      ],
+      "reason": "The image URI chooses image_ref registry, repository and tag, but none of these fields is asserted. The generic example checker checks published key types and cannot infer those determined components from one image string.",
+      "required": "Steps 9 and 10 must assert image_ref.registry=registry-1.docker.io, image_ref.repository=library/ubuntu and image_ref.tag=latest. Step 12 must assert those same three fields for item 0 and registry-1.docker.io, rebelthor/sleep, latest for item 1. Leave digest and labels generated; do not pin their values. Preserve the request-chosen config checks.",
+      "evidence": "https://docs.fly.io/machines/api/machines-resource/ (Create a Machine and Machine properties); the published URI and image_ref sample show this decomposition."
+    },
+    {
+      "id": "R4",
+      "steps": [
+        21
+      ],
+      "reason": "The pending_destroy difference is justified by the application comment and an explicit simulation choice rather than the vendor evidence the Published examples rule asks for. The known deletion state and detach effect also remain unasserted on this example step.",
+      "required": "Replace exampleDiffers.state with the Fly engineer explanation at https://community.fly.io/t/volume-stuck-in-pending-destroy-for-11-hours/14743: volume deletion is initially soft deletion, Machines API lists pending_destroy, and the World chooses its disclosed removal delay. Assert state=pending_destroy and attached_machine_id=null on step 21. Keep the request-chosen id/name/size/region checks. The page sample destroyed remains recorded as a documented sample difference; do not claim a vendor 24h guarantee.",
+      "evidence": "https://community.fly.io/t/volume-stuck-in-pending-destroy-for-11-hours/14743 (MatthewIngwersen, 2023-08-16); https://docs.fly.io/machines/api/volumes-resource/ (Delete a volume permanently sample)."
+    },
+    {
+      "id": "R5",
+      "steps": [
+        "fields"
+      ],
+      "reason": "The served Volumes_create endpoint has another published example, Create a volume from a snapshot, which is absent from doc-examples and the journey accounting. The vendor shell body ends snapshot_id with a trailing comma and is malformed JSON, just as the services example is explicitly recorded.",
+      "required": "Vendor that page example with its source, operation Volumes_create, shown output including restoring, and its literal malformed request evidence in spec/doc-examples.json/SOURCE.md without inventing corrected published bytes. Add notReplayed[\"Volumes_create#doc Create a volume from a snapshot\"] explaining the trailing comma and that snapshot-backed preconditions are outside this workflow. Keep the existing services notReplayed entry. If the example is instead replayed, serve the restoration semantics and supply its real precondition; simply ignoring snapshot_id is not a replay.",
+      "evidence": "https://docs.fly.io/machines/api/volumes-resource/ (Create a volume from a snapshot: request snapshot_id, trailing comma, response state restoring)."
+    }
+  ],
+  "doubts": [
+    {
+      "steps": [
+        7
+      ],
+      "reason": "The first volume is in ord but this setup Machine omits region. The vendor requires a mount on the same physical host and region; the current World fallback region is iad. Set region ord for a deliberately coherent fixture when implementing the required fixes if authorized as this step must also be named for carry-forward. The documentation does not fully state mount-driven placement on omitted region, so this remains a doubt."
+    },
+    {
+      "steps": [
+        9
+      ],
+      "reason": "The omitted image labels differ from the page sample, but optional registry metadata and a mutable latest tag do not justify pinning Ubuntu version labels. The explicit fake-pool mode bounds the recorded difference."
+    },
+    {
+      "steps": [
+        20
+      ],
+      "reason": "The current GET of a destroyed Machine returns a retained record. The lifecycle describes destroyed as no longer existing; the list documents include_deleted, but the get page does not clearly establish historical post-deletion reads. Prefer a live-list absence read for the effect. This is insufficiently explicit to rule a mandatory 404."
+    }
+  ],
+  "reviewed": {
+    "steps": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22
+    ],
+    "fields": [
+      "vendor",
+      "author",
+      "host",
+      "about",
+      "notReplayed"
+    ],
+    "doc_examples": 14,
+    "required_apply_steps": [
+      3,
+      4,
+      8,
+      9,
+      10,
+      12,
+      21,
+      22,
+      "fields"
+    ],
+    "conclusion": "Every setup, example, effect read and recorded exception was checked, rather than sampling endpoints. The malformed services request exception is borne out by the source. Thin stop/start/delete effects are read back. Rulings are one exhaustive pass."
+  },
+  "applied": {
+    "from": "de5f5f2538d9a00a42ff44cca8b3ddfcd1782e08988f5d6e892095d3c9ba7c38",
+    "wasPlausible": false,
+    "steps": [
+      "3",
+      "4",
+      "8",
+      "9",
+      "10",
+      "12",
+      "21",
+      "22",
+      "fields"
+    ],
+    "rulings": [
+      {
+        "id": "R1",
+        "steps": [
+          3,
+          4
+        ],
+        "reason": "These steps assert organization.name equals personal, although setup supplies only org_slug personal. The vendor sample distinguishes organization display name from slug; neither token creation nor app creation chooses the display name. This pins the twin placeholder as vendor truth.",
+        "required": "Remove the organization.name and apps.0.organization.name equality checks. Add undecided entries at those exact paths explaining that the organization display name was not supplied or established by the fixture and any coincidence with its slug is not decided by app creation. Keep the organization.slug assertions.",
+        "evidence": "https://docs.fly.io/machines/api/apps-resource/ (Get app details); vendored schema AppOrganizationInfo has separate name and slug fields."
+      },
+      {
+        "id": "R2",
+        "steps": [
+          8,
+          12,
+          22
+        ],
+        "reason": "Each setup determines an exact two-item list, but these steps only assert its first two entries, permitting extras. Step 8 also leaves creation state and the unmounted second disk unconstrained although setup determined them.",
+        "required": "On each of steps 8,12,22 assert path 2 exists=false (or an equivalent exact length of two). On step 8 assert both disk states are created and the second attached_machine_id is null. Preserve existing IDs, supplied fields, first disk attachment, started machine states, and pending-deletion checks.",
+        "evidence": "Architecture Published examples requires asserting setup-caused counts and statuses. https://docs.fly.io/machines/api/volumes-resource/ and https://docs.fly.io/machines/api/machines-resource/ show the list shapes."
+      },
+      {
+        "id": "R3",
+        "steps": [
+          9,
+          10,
+          12
+        ],
+        "reason": "The image URI chooses image_ref registry, repository and tag, but none of these fields is asserted. The generic example checker checks published key types and cannot infer those determined components from one image string.",
+        "required": "Steps 9 and 10 must assert image_ref.registry=registry-1.docker.io, image_ref.repository=library/ubuntu and image_ref.tag=latest. Step 12 must assert those same three fields for item 0 and registry-1.docker.io, rebelthor/sleep, latest for item 1. Leave digest and labels generated; do not pin their values. Preserve the request-chosen config checks.",
+        "evidence": "https://docs.fly.io/machines/api/machines-resource/ (Create a Machine and Machine properties); the published URI and image_ref sample show this decomposition."
+      },
+      {
+        "id": "R4",
+        "steps": [
+          21
+        ],
+        "reason": "The pending_destroy difference is justified by the application comment and an explicit simulation choice rather than the vendor evidence the Published examples rule asks for. The known deletion state and detach effect also remain unasserted on this example step.",
+        "required": "Replace exampleDiffers.state with the Fly engineer explanation at https://community.fly.io/t/volume-stuck-in-pending-destroy-for-11-hours/14743: volume deletion is initially soft deletion, Machines API lists pending_destroy, and the World chooses its disclosed removal delay. Assert state=pending_destroy and attached_machine_id=null on step 21. Keep the request-chosen id/name/size/region checks. The page sample destroyed remains recorded as a documented sample difference; do not claim a vendor 24h guarantee.",
+        "evidence": "https://community.fly.io/t/volume-stuck-in-pending-destroy-for-11-hours/14743 (MatthewIngwersen, 2023-08-16); https://docs.fly.io/machines/api/volumes-resource/ (Delete a volume permanently sample)."
+      },
+      {
+        "id": "R5",
+        "steps": [
+          "fields"
+        ],
+        "reason": "The served Volumes_create endpoint has another published example, Create a volume from a snapshot, which is absent from doc-examples and the journey accounting. The vendor shell body ends snapshot_id with a trailing comma and is malformed JSON, just as the services example is explicitly recorded.",
+        "required": "Vendor that page example with its source, operation Volumes_create, shown output including restoring, and its literal malformed request evidence in spec/doc-examples.json/SOURCE.md without inventing corrected published bytes. Add notReplayed[\"Volumes_create#doc Create a volume from a snapshot\"] explaining the trailing comma and that snapshot-backed preconditions are outside this workflow. Keep the existing services notReplayed entry. If the example is instead replayed, serve the restoration semantics and supply its real precondition; simply ignoring snapshot_id is not a replay.",
+        "evidence": "https://docs.fly.io/machines/api/volumes-resource/ (Create a volume from a snapshot: request snapshot_id, trailing comma, response state restoring)."
+      }
+    ]
+  }
+}

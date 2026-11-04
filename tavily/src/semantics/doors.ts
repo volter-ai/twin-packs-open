@@ -1,10 +1,17 @@
 // Dashboard credential bootstrap and the synthetic web corpus, which no Tavily operation creates.
 import type { HandlerContext } from '@volter/world-core';
-import { heldKey, makeKey, PAGE, type Row } from './shared.ts';
+import { KEY, makeKey, readKey, PAGE, type Row } from './shared.ts';
 
 // source: https://docs.tavily.com/documentation/rate-limits.md "Create your Development or Production API keys."
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  return Response.json({ api_key: (await heldKey(ctx, 'world-app')) ?? await makeKey(ctx, 'world-app') }, { status: 201 });
+  const account = await ctx.tenant('_account', async (world) => String((await ctx.create('_account', {
+    email: world.members[0]!.toLowerCase(), name: world.label,
+  }, 'account.create')).id));
+  const key = await ctx.accountKey(`api-key:${account.id}`, KEY, {
+    make: () => makeKey(ctx, ctx.deployment() || 'world-app', account),
+    read: (row) => row.account_id === account.id ? readKey(ctx, row) : Promise.resolve(undefined),
+  });
+  return Response.json({ api_key: key.secret }, { status: 201 });
 }
 
 // Door configuration refusals are local World authoring errors, not additional vendor API rules.

@@ -1,0 +1,11 @@
+# @volter/twin-huggingface
+
+A Protocol 3 Hugging Face Hub twin for localrouter's Node and browser artifact caches. The measured callers and their revisions are in [journeys/demand.json](./journeys/demand.json).
+
+It creates model repositories with `POST /api/repos/create`, holds their Git history and LFS objects, and resolves files at a full commit, branch or lightweight tag. Regular files redirect to the resolve cache; LFS pointers redirect to the CDN. Downloads carry the content-derived ETag, repository commit, linked size where applicable, and support Range and If-Range. Git smart HTTP and the basic Git LFS transfer API are content endpoints at the Hub's repository paths, not a fabricated dashboard. This served workflow is driven through APIs and Git; browser repository editing and account settings are outside its scope.
+
+The account door is `POST /_twin/users` with `{ "name": "ada" }`. It issues that account's write token and fills `HF_TOKEN` for a World. Create repositories through the vendor API and seed their contents by Git and LFS upload. A token permits writes only in its account's namespace; private reads require the owner or an issued object-download capability. Stored objects and uploads are scoped to their repository; upload links bind the declared object size and digest.
+
+Other Hub operations and the initial-files creation option answer the gap. The measured publication path is Git/LFS. Browser downloads allow Range/If-Range preflight and expose their validators and range metadata. Dataset and Space repositories, organizations and memberships, Xet reconstruction, inference providers, webhooks and the datasets-server API are outside this pack's measured workflow. Published examples with unavailable upstream Git history or an excluded repository type are recorded with reasons in [journeys/vendor-examples.json](./journeys/vendor-examples.json). The customer life publishes explicitly synthetic transport bytes and claims no inference result.
+
+The patched specification restores the Hub’s documented model read as `GET /api/models/{namespace}/{repo}`. It returns the repository ObjectId as `_id`, its namespace/name as `id`, visibility, main commit and file names. Creation stores the namespace and repository name for the known-subject refresh path; its scope declares `idAs: '_id'`.

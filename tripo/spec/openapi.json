@@ -1,0 +1,2462 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "Tripo SDK-declared API",
+    "version": "0.4.2",
+    "description": "HTTP operations declared by Tripo's official Python SDK at 4115894a0a603c5183c9ed6dc8662745562c8941. See SOURCE.md for translation boundaries."
+  },
+  "servers": [
+    {
+      "url": "https://api.tripo3d.ai"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key must start with tsk_"
+      }
+    },
+    "schemas": {
+      "Balance": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "type": "number",
+            "description": "Available balance"
+          },
+          "frozen": {
+            "type": "number",
+            "description": "Frozen amount"
+          }
+        },
+        "required": [
+          "balance",
+          "frozen"
+        ]
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "success",
+              "failed",
+              "cancelled",
+              "unknown",
+              "banned",
+              "expired"
+            ]
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "output": {
+            "$ref": "#/components/schemas/TaskOutput"
+          },
+          "progress": {
+            "type": "integer"
+          },
+          "create_time": {
+            "type": "integer"
+          },
+          "running_left_time": {
+            "type": "integer",
+            "nullable": true
+          },
+          "queuing_num": {
+            "type": "integer",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "integer",
+            "nullable": true
+          },
+          "error_msg": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "task_id",
+          "type",
+          "status",
+          "input",
+          "output",
+          "progress",
+          "create_time"
+        ]
+      },
+      "TaskOutput": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "base_model": {
+            "type": "string",
+            "nullable": true
+          },
+          "pbr_model": {
+            "type": "string",
+            "nullable": true
+          },
+          "rendered_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "riggable": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "rig_type": {
+            "type": "string",
+            "enum": [
+              "biped",
+              "quadruped",
+              "hexapod",
+              "octopod",
+              "avian",
+              "serpentine",
+              "aquatic",
+              "others"
+            ],
+            "nullable": true
+          },
+          "generated_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          },
+          "generate_multiview_image": {
+            "type": "object",
+            "properties": {
+              "front_view_url": {
+                "type": "string",
+                "nullable": true
+              },
+              "left_view_url": {
+                "type": "string",
+                "nullable": true
+              },
+              "back_view_url": {
+                "type": "string",
+                "nullable": true
+              },
+              "right_view_url": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          }
+        },
+        "required": []
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/v2/openapi/user/balance": {
+      "get": {
+        "operationId": "getBalance",
+        "summary": "Get the user's account balance.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/docs/API.md",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "balance": {
+                          "type": "number",
+                          "description": "Available balance"
+                        },
+                        "frozen": {
+                          "type": "number",
+                          "description": "Frozen amount"
+                        }
+                      },
+                      "required": [
+                        "balance",
+                        "frozen"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "servers": [
+          {
+            "url": "https://api.tripo3d.ai"
+          },
+          {
+            "url": "https://api.tripo3d.com"
+          }
+        ]
+      }
+    },
+    "/v2/openapi/task": {
+      "post": {
+        "operationId": "createTask",
+        "summary": "Create a task.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "task_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "task_id"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "The task kind; create_task also accepts custom task data."
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "negative_prompt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "model_version": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "face_limit": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "texture": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "pbr": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "image_seed": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "model_seed": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "texture_seed": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "texture_quality": {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "detailed"
+                    ],
+                    "nullable": true
+                  },
+                  "geometry_quality": {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "detailed"
+                    ],
+                    "nullable": true
+                  },
+                  "auto_size": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "quad": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "compress": {
+                    "type": "string",
+                    "enum": [
+                      "geometry"
+                    ],
+                    "description": "The SDK translates compress=True to geometry; False is omitted."
+                  },
+                  "generate_parts": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "smart_low_poly": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "export_uv": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "texture_alignment": {
+                    "type": "string",
+                    "enum": [
+                      "original_image",
+                      "geometry"
+                    ],
+                    "nullable": true
+                  },
+                  "orientation": {
+                    "type": "string",
+                    "enum": [
+                      "default",
+                      "align_image"
+                    ],
+                    "nullable": true
+                  },
+                  "enable_image_autofix": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "file": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "file_token": {
+                        "type": "string"
+                      },
+                      "object": {
+                        "type": "object",
+                        "properties": {
+                          "bucket": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "file_token": {
+                          "type": "string"
+                        },
+                        "object": {
+                          "type": "object",
+                          "properties": {
+                            "bucket": {
+                              "type": "string"
+                            },
+                            "key": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "template": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "t_pose": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "sketch_to_render": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "original_task_id": {
+                    "type": "string"
+                  },
+                  "prompts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "original_model_task_id": {
+                    "type": "string"
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "GLTF",
+                      "USDZ",
+                      "FBX",
+                      "OBJ",
+                      "STL",
+                      "3MF"
+                    ]
+                  },
+                  "force_symmetry": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "flatten_bottom": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "flatten_bottom_threshold": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "texture_size": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "texture_format": {
+                    "type": "string",
+                    "enum": [
+                      "BMP",
+                      "DPX",
+                      "HDR",
+                      "JPEG",
+                      "OPEN_EXR",
+                      "PNG",
+                      "TARGA",
+                      "TIFF",
+                      "WEBP"
+                    ],
+                    "nullable": true
+                  },
+                  "scale_factor": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "pivot_to_center_bottom": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "with_animation": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "pack_uv": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "bake": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "part_names": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "nullable": true
+                  },
+                  "export_vertex_colors": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "fbx_preset": {
+                    "type": "string",
+                    "enum": [
+                      "blender",
+                      "mixamo",
+                      "3dsmax"
+                    ],
+                    "nullable": true
+                  },
+                  "export_orientation": {
+                    "type": "string",
+                    "enum": [
+                      "+x",
+                      "+y",
+                      "-x",
+                      "-y"
+                    ],
+                    "nullable": true
+                  },
+                  "animate_in_place": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "style": {
+                    "type": "string",
+                    "enum": [
+                      "lego",
+                      "voxel",
+                      "voronoi",
+                      "minecraft"
+                    ]
+                  },
+                  "block_size": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "texture_prompt": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string"
+                      },
+                      "image": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "file_token": {
+                            "type": "string"
+                          },
+                          "object": {
+                            "type": "object",
+                            "properties": {
+                              "bucket": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "style_image": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "file_token": {
+                            "type": "string"
+                          },
+                          "object": {
+                            "type": "object",
+                            "properties": {
+                              "bucket": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "draft_model_task_id": {
+                    "type": "string"
+                  },
+                  "out_format": {
+                    "type": "string",
+                    "enum": [
+                      "glb",
+                      "fbx"
+                    ],
+                    "nullable": true
+                  },
+                  "rig_type": {
+                    "type": "string",
+                    "enum": [
+                      "biped",
+                      "quadruped",
+                      "hexapod",
+                      "octopod",
+                      "avian",
+                      "serpentine",
+                      "aquatic",
+                      "others"
+                    ],
+                    "nullable": true
+                  },
+                  "spec": {
+                    "type": "string",
+                    "enum": [
+                      "mixamo",
+                      "tripo"
+                    ],
+                    "nullable": true
+                  },
+                  "animation": {
+                    "type": "string",
+                    "enum": [
+                      "preset:idle",
+                      "preset:walk",
+                      "preset:run",
+                      "preset:dive",
+                      "preset:climb",
+                      "preset:jump",
+                      "preset:slash",
+                      "preset:shoot",
+                      "preset:hurt",
+                      "preset:fall",
+                      "preset:turn",
+                      "preset:quadruped:walk",
+                      "preset:hexapod:walk",
+                      "preset:octopod:walk",
+                      "preset:serpentine:march",
+                      "preset:aquatic:march"
+                    ]
+                  },
+                  "bake_animation": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "export_with_geometry": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "animations": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "preset:idle",
+                        "preset:walk",
+                        "preset:run",
+                        "preset:dive",
+                        "preset:climb",
+                        "preset:jump",
+                        "preset:slash",
+                        "preset:shoot",
+                        "preset:hurt",
+                        "preset:fall",
+                        "preset:turn",
+                        "preset:quadruped:walk",
+                        "preset:hexapod:walk",
+                        "preset:octopod:walk",
+                        "preset:serpentine:march",
+                        "preset:aquatic:march"
+                      ]
+                    }
+                  },
+                  "segmentation_granularity": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "ref_image": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "split_by_connectivity": {
+                    "type": "boolean",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "servers": [
+          {
+            "url": "https://api.tripo3d.ai"
+          },
+          {
+            "url": "https://api.tripo3d.com"
+          }
+        ]
+      }
+    },
+    "/v2/openapi/task/{task_id}": {
+      "get": {
+        "operationId": "getTask",
+        "summary": "Get the status of a task.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Task"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "servers": [
+          {
+            "url": "https://api.tripo3d.ai"
+          },
+          {
+            "url": "https://api.tripo3d.com"
+          }
+        ]
+      }
+    },
+    "/v2/openapi/upload": {
+      "post": {
+        "operationId": "uploadFile",
+        "summary": "Upload a file to the API using multipart form data.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client_impl/aiohttp_client_impl.py",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "image_token": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "image_token"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "servers": [
+          {
+            "url": "https://api.tripo3d.ai"
+          },
+          {
+            "url": "https://api.tripo3d.com"
+          }
+        ]
+      }
+    },
+    "/v2/openapi/upload/sts/token": {
+      "post": {
+        "operationId": "createUploadToken",
+        "summary": "Get temporary S3 upload credentials.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "s3_host": {
+                          "type": "string"
+                        },
+                        "sts_ak": {
+                          "type": "string"
+                        },
+                        "sts_sk": {
+                          "type": "string"
+                        },
+                        "session_token": {
+                          "type": "string"
+                        },
+                        "resource_bucket": {
+                          "type": "string"
+                        },
+                        "resource_uri": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "s3_host",
+                        "sts_ak",
+                        "sts_sk",
+                        "session_token",
+                        "resource_bucket",
+                        "resource_uri"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "format"
+                ]
+              }
+            }
+          }
+        },
+        "servers": [
+          {
+            "url": "https://api.tripo3d.ai"
+          },
+          {
+            "url": "https://api.tripo3d.com"
+          }
+        ]
+      }
+    },
+    "/v3/files": {
+      "post": {
+        "operationId": "uploadFileV3",
+        "summary": "Upload via apiv3 POST /v3/files and return file_<uuid> token.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "file_token": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "file_token"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "servers": [
+          {
+            "url": "https://openapi.tripo3d.ai"
+          },
+          {
+            "url": "https://openapi.tripo3d.com"
+          }
+        ]
+      }
+    },
+    "/v3/tasks/{task_id}": {
+      "get": {
+        "operationId": "getTaskV3",
+        "summary": "Query task via apiv3.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "task_id": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "queued",
+                            "running",
+                            "success",
+                            "failed",
+                            "cancelled",
+                            "unknown",
+                            "banned",
+                            "expired"
+                          ]
+                        },
+                        "input": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "output": {
+                          "type": "object",
+                          "properties": {
+                            "model": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "base_model": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "pbr_model": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "rendered_image": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "riggable": {
+                              "type": "boolean",
+                              "nullable": true
+                            },
+                            "rig_type": {
+                              "type": "string",
+                              "enum": [
+                                "biped",
+                                "quadruped",
+                                "hexapod",
+                                "octopod",
+                                "avian",
+                                "serpentine",
+                                "aquatic",
+                                "others"
+                              ],
+                              "nullable": true
+                            },
+                            "generated_image": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "image": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "generate_multiview_image": {
+                              "type": "object",
+                              "properties": {
+                                "front_view_url": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "left_view_url": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "back_view_url": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "right_view_url": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "model_url": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "base_model_url": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "pbr_model_url": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "rendered_image_url": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": []
+                        },
+                        "progress": {
+                          "type": "integer"
+                        },
+                        "create_time": {
+                          "type": "integer"
+                        },
+                        "running_left_time": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "queuing_num": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "error_code": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "error_msg": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "created_at": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "task_id",
+                        "type",
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "servers": [
+          {
+            "url": "https://openapi.tripo3d.ai"
+          },
+          {
+            "url": "https://openapi.tripo3d.com"
+          }
+        ]
+      }
+    },
+    "/v3/mesh/segment": {
+      "post": {
+        "operationId": "segmentMeshV3",
+        "summary": "Segment a 3D model using segment v2.",
+        "x-source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+        "responses": {
+          "200": {
+            "description": "The SDK reads the JSON data envelope; no other success status is specified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "task_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "task_id"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "mesh_segmentation"
+                    ]
+                  },
+                  "model": {
+                    "type": "string",
+                    "enum": [
+                      "v2.0-20260430"
+                    ]
+                  },
+                  "input": {
+                    "type": "string"
+                  },
+                  "segmentation_granularity": {
+                    "type": "string"
+                  },
+                  "ref_image": {
+                    "type": "string"
+                  },
+                  "split_by_connectivity": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "type",
+                  "model",
+                  "input"
+                ]
+              }
+            }
+          }
+        },
+        "servers": [
+          {
+            "url": "https://openapi.tripo3d.ai"
+          },
+          {
+            "url": "https://openapi.tripo3d.com"
+          }
+        ]
+      }
+    }
+  },
+  "x-sdk-task-flows": [
+    {
+      "method": "text_to_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "P1-20260311",
+              "Turbo-v1.0-20250506",
+              "v3.1-20260211",
+              "v3.0-20250812",
+              "v2.5-20250123",
+              "v2.0-20240919",
+              "v1.4-20240625"
+            ]
+          },
+          "face_limit": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "pbr": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "image_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "model_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "nullable": true
+          },
+          "geometry_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "nullable": true
+          },
+          "auto_size": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "quad": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "The SDK translates compress=True to geometry; False is omitted."
+          },
+          "generate_parts": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "smart_low_poly": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "export_uv": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text_to_model"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "image_to_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "P1-20260311",
+              "Turbo-v1.0-20250506",
+              "v3.1-20260211",
+              "v3.0-20250812",
+              "v2.5-20250123",
+              "v2.0-20240919",
+              "v1.4-20240625"
+            ]
+          },
+          "face_limit": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "pbr": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "model_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "nullable": true
+          },
+          "geometry_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "nullable": true
+          },
+          "texture_alignment": {
+            "type": "string",
+            "enum": [
+              "original_image",
+              "geometry"
+            ],
+            "nullable": true
+          },
+          "auto_size": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "default",
+              "align_image"
+            ],
+            "nullable": true
+          },
+          "quad": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "The SDK translates compress=True to geometry; False is omitted."
+          },
+          "generate_parts": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "smart_low_poly": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "enable_image_autofix": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "export_uv": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image_to_model"
+            ]
+          },
+          "file": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "file_token": {
+                "type": "string"
+              },
+              "object": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "multiview_to_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "P1-20260311",
+              "v3.1-20260211",
+              "v3.0-20250812",
+              "v2.5-20250123",
+              "v2.0-20240919"
+            ]
+          },
+          "face_limit": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "pbr": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "model_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "nullable": true
+          },
+          "geometry_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "nullable": true
+          },
+          "texture_alignment": {
+            "type": "string",
+            "enum": [
+              "original_image",
+              "geometry"
+            ],
+            "nullable": true
+          },
+          "auto_size": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "default",
+              "align_image"
+            ],
+            "nullable": true
+          },
+          "quad": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "The SDK translates compress=True to geometry; False is omitted."
+          },
+          "generate_parts": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "smart_low_poly": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "export_uv": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "multiview_to_model"
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "file_token": {
+                  "type": "string"
+                },
+                "object": {
+                  "type": "object",
+                  "properties": {
+                    "bucket": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "text_to_image",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text_to_image"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "generate_image",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "file": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "file_token": {
+                "type": "string"
+              },
+              "object": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "file_token": {
+                  "type": "string"
+                },
+                "object": {
+                  "type": "object",
+                  "properties": {
+                    "bucket": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "template": {
+            "type": "string",
+            "nullable": true
+          },
+          "t_pose": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "sketch_to_render": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "generate_image"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "generate_multiview_image",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "generate_multiview_image"
+            ]
+          },
+          "file": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "file_token": {
+                "type": "string"
+              },
+              "object": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "edit_multiview_image",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_task_id": {
+            "type": "string"
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "edit_multiview_image"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "import_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "file_token": {
+                "type": "string"
+              },
+              "object": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "import_model"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "convert_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "GLTF",
+              "USDZ",
+              "FBX",
+              "OBJ",
+              "STL",
+              "3MF"
+            ]
+          },
+          "quad": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "force_symmetry": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "face_limit": {
+            "type": "integer",
+            "nullable": true
+          },
+          "flatten_bottom": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "flatten_bottom_threshold": {
+            "type": "number",
+            "nullable": true
+          },
+          "texture_size": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_format": {
+            "type": "string",
+            "enum": [
+              "BMP",
+              "DPX",
+              "HDR",
+              "JPEG",
+              "OPEN_EXR",
+              "PNG",
+              "TARGA",
+              "TIFF",
+              "WEBP"
+            ],
+            "nullable": true
+          },
+          "scale_factor": {
+            "type": "number",
+            "nullable": true
+          },
+          "pivot_to_center_bottom": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "with_animation": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "pack_uv": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "bake": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "export_vertex_colors": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "fbx_preset": {
+            "type": "string",
+            "enum": [
+              "blender",
+              "mixamo",
+              "3dsmax"
+            ],
+            "nullable": true
+          },
+          "export_orientation": {
+            "type": "string",
+            "enum": [
+              "+x",
+              "+y",
+              "-x",
+              "-y"
+            ],
+            "nullable": true
+          },
+          "animate_in_place": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "convert_model"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "stylize_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "lego",
+              "voxel",
+              "voronoi",
+              "minecraft"
+            ]
+          },
+          "block_size": {
+            "type": "integer",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "stylize_model"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "texture_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "texture": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "pbr": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "model_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_seed": {
+            "type": "integer",
+            "nullable": true
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "nullable": true
+          },
+          "texture_alignment": {
+            "type": "string",
+            "enum": [
+              "original_image",
+              "geometry"
+            ],
+            "nullable": true
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "The SDK translates compress=True to geometry; False is omitted."
+          },
+          "bake": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "v2.5-20250123",
+              "v3.0-20250812"
+            ],
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "texture_model"
+            ]
+          },
+          "texture_prompt": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "image": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "file_token": {
+                    "type": "string"
+                  },
+                  "object": {
+                    "type": "object",
+                    "properties": {
+                      "bucket": {
+                        "type": "string"
+                      },
+                      "key": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "style_image": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "file_token": {
+                    "type": "string"
+                  },
+                  "object": {
+                    "type": "object",
+                    "properties": {
+                      "bucket": {
+                        "type": "string"
+                      },
+                      "key": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "refine_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "draft_model_task_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "refine_model"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "check_riggable",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "animate_prerigcheck"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "rig_model",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "v1.0-20240301",
+              "v2.0-20250506"
+            ],
+            "nullable": true
+          },
+          "out_format": {
+            "type": "string",
+            "enum": [
+              "glb",
+              "fbx"
+            ],
+            "nullable": true
+          },
+          "rig_type": {
+            "type": "string",
+            "enum": [
+              "biped",
+              "quadruped",
+              "hexapod",
+              "octopod",
+              "avian",
+              "serpentine",
+              "aquatic",
+              "others"
+            ],
+            "nullable": true
+          },
+          "spec": {
+            "type": "string",
+            "enum": [
+              "mixamo",
+              "tripo"
+            ],
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "animate_rig"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "retarget_animation",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "animation": {
+            "type": "string",
+            "enum": [
+              "preset:idle",
+              "preset:walk",
+              "preset:run",
+              "preset:dive",
+              "preset:climb",
+              "preset:jump",
+              "preset:slash",
+              "preset:shoot",
+              "preset:hurt",
+              "preset:fall",
+              "preset:turn",
+              "preset:quadruped:walk",
+              "preset:hexapod:walk",
+              "preset:octopod:walk",
+              "preset:serpentine:march",
+              "preset:aquatic:march"
+            ]
+          },
+          "out_format": {
+            "type": "string",
+            "enum": [
+              "glb",
+              "fbx"
+            ],
+            "nullable": true
+          },
+          "bake_animation": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "export_with_geometry": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "animate_in_place": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "animate_retarget"
+            ]
+          },
+          "animations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "preset:idle",
+                "preset:walk",
+                "preset:run",
+                "preset:dive",
+                "preset:climb",
+                "preset:jump",
+                "preset:slash",
+                "preset:shoot",
+                "preset:hurt",
+                "preset:fall",
+                "preset:turn",
+                "preset:quadruped:walk",
+                "preset:hexapod:walk",
+                "preset:octopod:walk",
+                "preset:serpentine:march",
+                "preset:aquatic:march"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "mesh_segmentation",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "v1.0-20250506",
+              "v2.0-20260430"
+            ],
+            "nullable": true
+          },
+          "segmentation_granularity": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "split_by_connectivity": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "mesh_segmentation"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "mesh_completion",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "v1.0-20250506"
+            ],
+            "nullable": true
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "mesh_completion"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "method": "smart_lowpoly",
+      "source": "https://raw.githubusercontent.com/VAST-AI-Research/tripo-python-sdk/4115894a0a603c5183c9ed6dc8662745562c8941/tripo3d/client.py",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "original_model_task_id": {
+            "type": "string"
+          },
+          "model_version": {
+            "type": "string",
+            "enum": [
+              "P-v2.0-20251226"
+            ],
+            "nullable": true
+          },
+          "quad": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "face_limit": {
+            "type": "integer",
+            "nullable": true
+          },
+          "bake": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "highpoly_to_lowpoly"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

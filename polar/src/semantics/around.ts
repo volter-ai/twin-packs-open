@@ -9,7 +9,7 @@
 // in its path, as the confirm's credential, as the page's other client operations do.
 // source: spec:/components/securitySchemes/oat "Organization Access Token"
 import { sha256, type HandlerContext } from '@volter/world-core';
-import { environment, SESSION } from './shared.ts';
+import { environment } from './shared.ts';
 
 const unauthorized = (): Response => Response.json({ error: 'Unauthorized', detail: 'Unauthorized' }, { status: 401 });
 

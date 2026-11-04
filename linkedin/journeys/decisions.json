@@ -1,0 +1,144 @@
+{
+ "about": "linkedin's decision table (the P3 procedure). Every served operation is a handler: a create answers 201 with its URN in a header and no body, every call is checked against its token's scopes and its member's page roles, an upload's file is kept as a blob and LinkedIn's processing moves its status on the World clock, and a post waits on its media; the derived core owns none. The share box's Post makes the same writes as the API (shared.ts createPostAs, startImageUpload, putImage, startVideoUpload, putVideoPart, finishVideoUpload). Every operation of the written spec no row names is the gap, LinkedIn's 404.",
+ "decisions": [
+  {
+   "operation": "createPost",
+   "demand": "media senders/linkedin.mjs:52; the share box's Post (feed screen)",
+   "mechanism": "handler",
+   "why": "a post as a member or a page the caller holds a posting role on, with its media checked as the author's and still processing or ready; 201 with x-restli-id and no body; a post whose media is processing is PUBLISH_REQUESTED until LinkedIn publishes it"
+  },
+  {
+   "operation": "getPost",
+   "demand": "the Posts page's get by URN (READER and AUTHOR), replayed from its examples; the refresh of a post the World holds",
+   "mechanism": "handler",
+   "why": "the post in the view asked for (READER: published only), for a caller with r_organization_social and a role on the author page"
+  },
+  {
+   "operation": "findPostsByAuthor",
+   "demand": "the life's look over the page's posts the week after launch, and the analytics collector the daily limit meets",
+   "mechanism": "handler",
+   "why": "an author's posts, newest by lastModifiedAt or createdAt, paged by start and count with a next link"
+  },
+  {
+   "operation": "deletePost",
+   "demand": "the life's rehearsal post, taken down before launch",
+   "mechanism": "handler",
+   "why": "the post gone through the kernel's remove; a second delete answers 204 again, as LinkedIn's deletes are idempotent"
+  },
+  {
+   "operation": "initializeImageUpload",
+   "demand": "the share box's Photo (feed screen); the life's teaser card",
+   "mechanism": "handler",
+   "why": "an image registered WAITING_UPLOAD for an owner the caller may act as, with its upload URL and its expiry"
+  },
+  {
+   "operation": "uploadImage",
+   "demand": "the share box's Photo (feed screen); the life's teaser card",
+   "mechanism": "handler",
+   "why": "the bytes PUT with the caller's token to the URL initializeUpload answered: kept as a blob, the image PROCESSING until LinkedIn makes it AVAILABLE or fails a file that is no JPG, GIF or PNG; https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api?view=li-lms-2026-09 states WAITING_UPLOAD waits for upload and PROCESSING generates artifacts, but documents no repeated PUT/finalize refusal. Where documentation stops, a request after WAITING_UPLOAD is refused with HTTP 400 in the LinkedIn error envelope and INVALID_VALUE_FOR_FIELD; the upload-retry acts in the life walk this ruling, without claiming the message is vendor-published."
+  },
+  {
+   "operation": "getImage",
+   "demand": "the life's check that the teaser card is AVAILABLE",
+   "mechanism": "handler",
+   "why": "the image and its downloadUrl once processed, for a caller whose scopes may read images"
+  },
+  {
+   "operation": "initializeVideoUpload",
+   "demand": "media senders/linkedin.mjs:24; the share box's Video (feed screen)",
+   "mechanism": "handler",
+   "why": "a video registered WAITING_UPLOAD, its file split into 4 MB parts each with its upload URL; over 5 GB refused"
+  },
+  {
+   "operation": "uploadVideoPart",
+   "demand": "media senders/linkedin.mjs:28; the share box's Video (feed screen)",
+   "mechanism": "handler",
+   "why": "a part's bytes PUT without a token to its signed URL, its length checked against its byte range, answered with its ETag; https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 states WAITING_UPLOAD waits for upload and PROCESSING generates artifacts, but documents no repeated PUT/finalize refusal. Where documentation stops, a request after WAITING_UPLOAD is refused with HTTP 400 in the LinkedIn error envelope and INVALID_VALUE_FOR_FIELD; the upload-retry acts in the life walk this ruling, without claiming the message is vendor-published."
+  },
+  {
+   "operation": "finalizeVideoUpload",
+   "demand": "media senders/linkedin.mjs:32; the share box's Video (feed screen)",
+   "mechanism": "handler",
+   "why": "the parts named by their ETags in order joined into the file, kept as a blob, and the video PROCESSING until LinkedIn makes it AVAILABLE or fails a file that is no MP4 of three seconds to 30 minutes; https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 states WAITING_UPLOAD waits for upload and PROCESSING generates artifacts, but documents no repeated PUT/finalize refusal. Where documentation stops, a request after WAITING_UPLOAD is refused with HTTP 400 in the LinkedIn error envelope and INVALID_VALUE_FOR_FIELD; the upload-retry acts in the life walk this ruling, without claiming the message is vendor-published."
+  },
+  {
+   "operation": "getVideo",
+   "demand": "media senders/linkedin.mjs:34",
+   "mechanism": "handler",
+   "why": "the video and its status, with its length, aspect ratio and downloadUrl once AVAILABLE (its thumbnail where its owner uploaded one; the twin makes no system cover), or its processingFailureReason"
+  },
+  {
+   "operation": "uploadVideoThumbnail",
+   "demand": "the Videos API page's uploadThumbnail option, which the life's captioned cut uses for its cover",
+   "mechanism": "handler",
+   "why": "the cover image PUT to the thumbnailUploadUrl, kept, and served as the video's thumbnail"
+  },
+  {
+   "operation": "uploadVideoCaptions",
+   "demand": "the Videos API page's uploadCaptions option, which the life's captioned cut uses for its captions",
+   "mechanism": "handler",
+   "why": "the captions file POSTed as multipart with its metadata, kept, and named as the video's captions"
+  },
+  {
+   "operation": "findOrganizationAclsByRoleAssignee",
+   "demand": "the life's first identity call: which pages the launch's member, Aaron, administers",
+   "mechanism": "handler",
+   "why": "the caller's own approved and requested roles, filtered by role and state"
+  },
+  {
+   "operation": "findOrganizationAclsByOrganization",
+   "demand": "the Organization Access Control page's find by organization (who administers a page), replayed from its examples",
+   "mechanism": "handler",
+   "why": "a page's roles, for its administrator"
+  },
+  {
+   "operation": "getOrganization",
+   "demand": "the life's check that urn:li:organization:100000001 is videogame.ai's page, the one the sender posts as",
+   "mechanism": "handler",
+   "why": "the page with every field, for its administrator; anyone else 403"
+  },
+  {
+   "operation": "userinfo",
+   "demand": "Mira's who-posted tool asking whose sign-in token it holds (the life); Sign In with LinkedIn's userinfo",
+   "mechanism": "handler",
+   "why": "the member's subject, names and locale, and their email with the email scope; unversioned at /v2"
+  }
+ ],
+ "unservedDemand": [
+  {
+   "call": "Hosted OAuth authorization/consent and code/refresh exchange; the twin does not serve this connection flow.",
+   "operation": "unmodeled OAuth connection",
+   "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:136,184,219; libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:48,126,231"
+  },
+  {
+   "call": "Read legacy /v2/me for vanityName; absent from the twin.",
+   "operation": "unmodeled legacy member identity",
+   "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:151,243; libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:63,255"
+  },
+  {
+   "call": "Pick administered pages using legacy /v2/organizationalEntityAcls, then read /v2/organizations/{id}; these legacy paths are unserved.",
+   "operation": "unmodeled legacy page picker",
+   "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:141,191"
+  },
+  {
+   "call": "Find a company by vanity name at legacy /v2/organizations?q=vanityName.",
+   "operation": "unmodeled legacy organization lookup",
+   "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:272,1211"
+  },
+  {
+   "call": "Upload and poll PDF documents for carousel attachments; not served by the twin.",
+   "operation": "unmodeled documents upload and read",
+   "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:328,482"
+  },
+  {
+   "call": "Read/write reactions and comments at /rest/socialActions; not served by the twin.",
+   "operation": "unmodeled social actions",
+   "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:793"
+  },
+  {
+   "call": "Read legacy page/follower/share statistics and /v2/socialActions; not served by the twin.",
+   "operation": "unmodeled page analytics and social actions",
+   "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:330,345,360,454,472,596,674,690"
+  }
+ ]
+}

@@ -1,0 +1,131 @@
+{
+ "about": "telegram's decision table (the P3 procedure: demand, then this table, then the code): each method the pack serves, the demand it answers (journeys/demand.json, or the manifest's refresh scope) and the mechanism that serves it. The Bot API is an RPC wire (POST /bot<token>/<method>, every answer {ok, result}), so no method is a create, read, update or delete the derived core could serve: each is a handler over the bot the token names (./src/semantics/around.ts resolves it, before routing, as the Bot API server does). Every other method of the page answers the server's unknown method (the manifest's gap), the URL-media sends included: a URL the World cannot reach is refused as Telegram refuses one it cannot download. People, bots and chats are made through the World's doors (the Telegram app and BotFather, which no Bot API method stands for).",
+ "decisions": [
+  {
+   "operation": "getMe",
+   "demand": "Volter Harness's adapter reads its bot as it starts",
+   "mechanism": "handler",
+   "why": "a computed read: the bot the token names, its User with the bot-only fields (can_join_groups, can_read_all_group_messages for privacy mode, supports_inline_queries, …)"
+  },
+  {
+   "operation": "deleteWebhook",
+   "demand": "Volter Harness's adapter removes any webhook before it polls (drop_pending_updates false)",
+   "mechanism": "handler",
+   "why": "an action on the bot: its webhook URL cleared (none was set: 'Webhook is already deleted'), and its waiting updates dropped when asked"
+  },
+  {
+   "operation": "getUpdates",
+   "demand": "Volter Harness's adapter polls in a loop (timeout 30, limit 100)",
+   "mechanism": "handler",
+   "why": "an action: the bot's queue read from the offset (confirming, and so deleting, every update below it), filtered by the allowed_updates in force when each was made, at most limit; with nothing waiting and a timeout, the read held until an update is written (the kernel's held read)"
+  },
+  {
+   "operation": "sendChatAction",
+   "demand": "Volter Harness's adapter shows its bot typing when a person writes in private",
+   "mechanism": "handler",
+   "why": "an action that stores nothing: the chat's access checked as the server checks it, True"
+  },
+  {
+   "operation": "sendMessage",
+   "demand": "Volter Harness posts its answers and its scheduled reports",
+   "mechanism": "handler",
+   "why": "a message made in a chat the bot may write in: its message_id counted per chat, its text parsed for the parse_mode's entities (HTML, MarkdownV2 or Markdown), checked for length (1-4096 after parsing), a reply resolved; it writes no update for its own bot (bots do not receive their own messages)",
+   "sourceRules": [
+    {
+     "source": "https://raw.githubusercontent.com/tdlib/telegram-bot-api/e3e9dd8e5b3d7ab8537cd5a10dc31d5ffa8f82d1/telegram-bot-api/Client.cpp",
+     "means": "Unsupported parse_mode"
+    }
+   ]
+  },
+  {
+   "operation": "sendPhoto",
+   "demand": "No scanned application calls it; the customer life walks it.",
+   "mechanism": "handler",
+   "why": "a message with a photo: the upload's bytes stored as a file (its width and height read from the image), the caption parsed and checked (0-1024); a URL the World cannot reach is refused as the server refuses one it cannot download"
+  },
+  {
+   "operation": "sendVideo",
+   "demand": "No scanned application calls it; the customer life walks it.",
+   "mechanism": "handler",
+   "why": "a message with a video: the bytes stored, its width, height and duration read from the file's own header where it is an MP4"
+  },
+  {
+   "operation": "sendDocument",
+   "demand": "Volter Harness's board sends a done card's artifact with its notice as a MarkdownV2 caption",
+   "mechanism": "handler",
+   "why": "a message with a document: the bytes stored with its name and media type; its caption parsed as sendMessage's text is (HTML, MarkdownV2 or Markdown) and checked (0-1024)"
+  },
+  {
+   "operation": "sendMediaGroup",
+   "demand": "Volter Harness's board sends a done card's several artifacts as one album of documents",
+   "mechanism": "handler",
+   "why": "2-10 messages sharing one media_group_id, each its own file; the array of sent messages answered"
+  },
+  {
+   "operation": "deleteMessage",
+   "demand": "No scanned application calls it; the customer life walks it.",
+   "mechanism": "handler",
+   "why": "a message deleted where the bot may delete it: its own, or another's in a channel or group where it is an administrator with can_delete_messages; 'message to delete not found' for one that is not there"
+  },
+  {
+   "operation": "getChat",
+   "demand": "the vendor-backed refresh reads each chat again (the manifest's refresh of chat)",
+   "mechanism": "handler",
+   "why": "a computed read: the chat as ChatFullInfo, its access checked as the server checks a read"
+  },
+  {
+   "operation": "getChatMember",
+   "demand": "No scanned application calls it; the customer life walks it.",
+   "mechanism": "handler",
+   "why": "a computed read: the member's status and rights with its user"
+  },
+  {
+   "operation": "getFile",
+   "demand": "No scanned application calls it; the customer life walks it.",
+   "mechanism": "handler",
+   "why": "an action: the file's download path issued (file_path), valid for the bot that asked"
+  },
+  {
+   "operation": "downloadFile",
+   "demand": "No scanned application calls it; the customer life walks it.",
+   "mechanism": "handler",
+   "why": "the stored bytes of the file a getFile path names, for the bot whose token is in the path"
+  },
+  {
+   "operation": "door:people",
+   "demand": "the World's own door, POST /_twin/people: { first_name, last_name?, username?, language_code? }: a Telegram account, as a person signs up in the app",
+   "mechanism": "door",
+   "why": "{ first_name, last_name?, username?, language_code? }: a Telegram account, as a person signs up in the app, which no vendor API makes."
+  },
+  {
+   "operation": "door:bots",
+   "demand": "the World's own door, POST /_twin/bots: { owner?, name?, username? }: BotFather's /newbot, for the person `owner` (a user id): the bot and its token; the same username answers the same bot",
+   "mechanism": "door",
+   "why": "{ owner?, name?, username? }: BotFather's /newbot, for the person `owner` (a user id): the bot and its token; the same username answers the same bot, which no vendor API makes."
+  },
+  {
+   "operation": "door:botToken",
+   "demand": "the World's own door, POST /_twin/bots/{username}/token: { owner }: BotFather's /token: a new token, the old one revoked",
+   "mechanism": "door",
+   "why": "{ owner }: BotFather's /token: a new token, the old one revoked, which no vendor API makes."
+  },
+  {
+   "operation": "door:chats",
+   "demand": "the World's own door, POST /_twin/chats: { creator, type: group | supergroup | channel, title, username?, description?, photo? (base64 bytes), members?: [{ user, status?: member | administrator, rights? }] }: a person makes a chat in the app",
+   "mechanism": "door",
+   "why": "{ creator, type: group | supergroup | channel, title, username?, description?, photo? (base64 bytes), members?: [{ user, status?: member | administrator, rights? }] }: a person makes a chat in the app, which no vendor API makes."
+  },
+  {
+   "operation": "door:members",
+   "demand": "the World's own door, POST /_twin/chats/{chat_id}/members: { by, user, status: member | administrator | kicked, rights? }: a person adds, promotes or removes a member in the app",
+   "mechanism": "door",
+   "why": "{ by, user, status: member | administrator | kicked, rights? }: a person adds, promotes or removes a member in the app, which no vendor API makes."
+  },
+  {
+   "operation": "door:messages",
+   "demand": "the World's own door, POST /_twin/messages: { from, chat (a chat id, a chat's @username, or a bot's @username for a private chat with it), text, reply_to_message_id? }: a person writes in the app",
+   "mechanism": "door",
+   "why": "{ from, chat (a chat id, a chat's @username, or a bot's @username for a private chat with it), text, reply_to_message_id? }: a person writes in the app, which no vendor API makes."
+  }
+ ]
+}
