@@ -79,7 +79,7 @@ export const manifest: DerivedManifest = {
     { id: 'webhookMessages', method: 'GET', path: '/_twin/webhook-messages', note: 'what Svix delivered (?type=), oldest first' },
     { id: 'secretKeys', method: 'POST', path: '/_twin/secret-keys', note: 'a secret key, as the API Keys page shows it once' },
     { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: 'the keys the World\'s application holds (secret, publishable, JWT verification key, webhook secret), as the runtime issues them at every boot' },
-    { id: 'webhookEndpoints', method: 'POST', path: '/_twin/webhook-endpoints', note: 'an endpoint and the signing secret the Webhooks page shows' },
+    { id: 'webhookEndpoints', method: 'POST', path: '/_twin/webhook-endpoints', note: '{ url, events?, signing_secret?, account?, deployment? } creates an endpoint; { id, url?, events?, signing_secret?, disabled? } updates or rotates it; { id, delete: true } removes it' },
     { id: 'nativeApplications', method: 'POST', path: '/_twin/native-applications', note: 'an app on the Native applications page' },
     { id: 'instance', method: 'POST', path: '/_twin/instance', note: "the instance's settings (User & authentication, Domains, Organizations Settings, SSO connections, Native API)" },
   ],
@@ -169,7 +169,6 @@ export const manifest: DerivedManifest = {
     _workspace: { idPrefix: 'ws', shared: true },
     _application: { idPrefix: 'app', ids: '{prefix}_{letters:27}', shared: true },
 
-    _webhook_signing_key: { idPrefix: 'whkey', ids: '{prefix}_{n}', unique: [{ fields: ['_instance'], refusal: { status: 409, message: 'The instance already has a webhook signing key' } }] },
     _secret_key: { idPrefix: '_sk_', ids: '{prefix}{n}' },
     _credential_serial: { idPrefix: '', ids: '{n}' },
     _native_application: { idPrefix: '_native_app_', ids: '{prefix}{n}' },
