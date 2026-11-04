@@ -16,7 +16,7 @@ body { background: #fafafa; color: #18181b; }
 .portal-primary { background: #10b981; border-color: #10b981; color: #ffffff; }
 `;
 
-export const toLogin = (path: string, ctx?: HandlerContext): Response => toSignIn(ctx ? consolePath(ctx, '/login') : '/login', path);
+export const toLogin = (path: string, ctx: HandlerContext): Response => toSignIn(consolePath(ctx, '/login').split('?')[0]!, path);
 
 /** Navigation stays under the public mount that served this vendor page. */
 export function consolePath(ctx: HandlerContext, path: string): string {
