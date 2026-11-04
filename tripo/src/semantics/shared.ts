@@ -14,11 +14,6 @@ export function balanceHost(ctx: HandlerContext): boolean {
   return host === 'api.tripo3d.ai' || host === 'api.tripo3d.com';
 }
 
-// No SDK or editor balance request addresses a v3-only host. A misaddressed peer gets the gap.
-export async function wrongBalanceHost(_ctx: HandlerContext): Promise<Response> {
-  return frontNotFound();
-}
-
 // source: spec:getBalance "Get the user's account balance."
 // Native key ownership selects the account whose balance is read.
 export function accountOf(ctx: HandlerContext): Row | undefined {
