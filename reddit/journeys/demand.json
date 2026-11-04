@@ -1,0 +1,130 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/media (the campaign's Reddit sender)",
+      "commit": "f6a2a08",
+      "client": "Node's fetch, no SDK: a bearer token from REDDIT_ACCESS_TOKEN on oauth.reddit.com, User-Agent volter-media/1.0 (by /u/volter); the upload lease's S3 form POSTed with FormData",
+      "backend": [
+        {
+          "call": "POST https://oauth.reddit.com/api/media/asset.json {filepath, mimetype: video/mp4}, then {filepath, mimetype: image/png} for the poster",
+          "operation": "POST_api_media_asset_json",
+          "evidence": "senders/reddit.mjs:21"
+        },
+        {
+          "call": "POST the lease's args.action (https: prefixed) as multipart/form-data: every args.fields entry, then the file; 201 and the XML's <Location>",
+          "operation": "uploads (screen: the S3 form upload)",
+          "evidence": "senders/reddit.mjs:26"
+        },
+        {
+          "call": "POST https://oauth.reddit.com/api/submit {api_type: json, kind: video, sr, title, url, video_poster_url, sendreplies, resubmit}; reads json.errors",
+          "operation": "POST_api_submit",
+          "evidence": "senders/reddit.mjs:37"
+        },
+        {
+          "call": "GET https://oauth.reddit.com/api/v1/me; reads name",
+          "operation": "GET_api_v1_me",
+          "evidence": "senders/reddit.mjs:40"
+        },
+        {
+          "call": "GET https://oauth.reddit.com/user/{name}/submitted?limit=10&raw_json=1; reads data.children[].data.title, .subreddit and .name",
+          "operation": "GET_user_username_where",
+          "evidence": "senders/reddit.mjs:41"
+        },
+        {
+          "call": "the campaign's reddit channel: postReddit(REDDIT_ACCESS_TOKEN, { sr: volter, title, video, poster })",
+          "operation": "POST_api_media_asset_json; POST_api_submit; GET_api_v1_me; GET_user_username_where",
+          "evidence": "campaigns/2026-09-28-model-editor/send.mjs:52"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "the launch's Reddit post, made by a person signed in as Volter on reddit.com (owner, 2026-10-02): r/volter, titled as the campaign's Reddit section says (\"Model Editor by VideoGame AI, open source: …\"), with the video (renders/hero-horizontal.mp4, campaign.md:22)",
+          "operation": "login (screen); subreddit (screen); submit (screen): POST_api_media_asset_json, uploads (screen), POST_api_submit",
+          "evidence": "campaigns/2026-09-28-model-editor/campaign.md:138"
+        },
+        {
+          "call": "the launch World performs the posts into its twins, and reviewers see each post as its platform shows it, signed in as Volter's account (owner, 2026-10-02): the post's comments page with its video playing, and r/volter's listing",
+          "operation": "post (screen): GET_r_subreddit_comments_article; subreddit (screen): GET_r_subreddit_hot, GET_r_subreddit_new; media (screen)",
+          "evidence": "campaigns/2026-09-28-model-editor/campaign.md:23"
+        },
+        {
+          "call": "a person comments on the post and votes on it from its comments page (owner: comment on it)",
+          "operation": "post (screen): POST_api_comment, POST_api_vote",
+          "evidence": "owner, 2026-10-02 (no file states it)"
+        },
+        {
+          "call": "a link post to the editor's page, https://model-editor.videogame.ai, which every post of the campaign links (campaign.md:6), made on reddit.com's Create Post (owner: a link post to it), titled without what the campaign's Strategy forbids (campaign.md:39)",
+          "operation": "submit (screen): POST_api_submit (kind link)",
+          "evidence": "campaigns/2026-09-28-model-editor/campaign.md:6"
+        }
+      ]
+    },
+    {
+      "name": "volter-ai/videogame-ai-landing (the videogame.ai site)",
+      "commit": "63e3e96daef5",
+      "client": "the browser: window.open of reddit.com/submit with the page's url and title",
+      "frontend": [
+        {
+          "call": "the share dialog's Reddit link: https://reddit.com/submit?url=<page>&title=<title>",
+          "operation": "submit (screen: reddit.com/submit, a link post prefilled); login (screen) for a visitor signed out",
+          "evidence": "src/components/ui/ShareDialog.tsx:29"
+        },
+        {
+          "call": "handleShare('reddit'): window.open(link, '_blank')",
+          "operation": "submit (screen)",
+          "evidence": "src/components/ui/ShareDialog.tsx:33"
+        }
+      ]
+    },
+    {
+      "name": "volter-ai/videogame-ai (the games sandbox's simulated people, e2e/people)",
+      "commit": "e569033",
+      "client": "Node's fetch, no SDK: each person's own script app and its password grant on www.reddit.com, then a bearer token on oauth.reddit.com, signed in again when Reddit refuses an expired one",
+      "backend": [
+        {
+          "call": "POST https://www.reddit.com/api/v1/access_token {grant_type: password, username, password} with the app's Basic credentials",
+          "operation": "POST_api_v1_access_token",
+          "evidence": "e2e/people/platforms.mjs:36"
+        },
+        {
+          "call": "GET https://oauth.reddit.com/r/{community}/new?limit=10; reads data.children[].data.name, author, title and selftext",
+          "operation": "GET_r_subreddit_new",
+          "evidence": "e2e/people/platforms.mjs:52"
+        },
+        {
+          "call": "POST https://oauth.reddit.com/api/submit {api_type: json, sr, kind: self, title, text}",
+          "operation": "POST_api_submit",
+          "evidence": "e2e/people/platforms.mjs:56"
+        },
+        {
+          "call": "POST https://oauth.reddit.com/api/comment {api_type: json, thing_id, text}",
+          "operation": "POST_api_comment",
+          "evidence": "e2e/people/platforms.mjs:57"
+        },
+        {
+          "call": "POST https://oauth.reddit.com/api/vote {api_type: json, id, dir: 1 or -1}",
+          "operation": "POST_api_vote",
+          "evidence": "e2e/people/platforms.mjs:58"
+        },
+        {
+          "call": "POST https://oauth.reddit.com/api/remove {api_type: json, id, spam: false}",
+          "operation": "POST_api_remove",
+          "evidence": "e2e/people/platforms.mjs:60"
+        },
+        {
+          "call": "POST https://oauth.reddit.com/r/{community}/api/friend {api_type: json, name, type: moderator_invite, permissions: +all}",
+          "operation": "POST_r_subreddit_api_friend",
+          "evidence": "e2e/people/run.mjs:66"
+        },
+        {
+          "call": "POST https://oauth.reddit.com/r/{community}/api/accept_moderator_invite {api_type: json}",
+          "operation": "POST_r_subreddit_api_accept_moderator_invite",
+          "evidence": "e2e/people/run.mjs:67"
+        }
+      ]
+    }
+  ],
+  "optional": [],
+  "unservedDemand": []
+}

@@ -1,0 +1,117 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/media",
+      "commit": "f6a2a0816e53",
+      "client": "plain fetch (Node 22) with Authorization: Bearer LINKEDIN_ACCESS_TOKEN, Linkedin-Version: 202609 and X-Restli-Protocol-Version: 2.0.0 on every https://api.linkedin.com/rest call; the part PUTs carry no token",
+      "backend": [
+        {
+          "call": "POST /rest/videos?action=initializeUpload { initializeUploadRequest: { owner, fileSizeBytes, uploadCaptions: false, uploadThumbnail: false } }, reading value.uploadInstructions, value.video and value.uploadToken",
+          "operation": "initializeVideoUpload",
+          "evidence": "senders/linkedin.mjs:24"
+        },
+        {
+          "call": "PUT part.uploadUrl with each part's bytes (firstByte..lastByte), content-type application/octet-stream and no Authorization, reading the answer's etag",
+          "operation": "uploadVideoPart",
+          "evidence": "senders/linkedin.mjs:28"
+        },
+        {
+          "call": "POST /rest/videos?action=finalizeUpload { finalizeUploadRequest: { video, uploadToken, uploadedPartIds: the etags in order } }",
+          "operation": "finalizeVideoUpload",
+          "evidence": "senders/linkedin.mjs:32"
+        },
+        {
+          "call": "GET /rest/videos/{encodeURIComponent(video)} up to 30 times a second apart, until status is AVAILABLE; PROCESSING_FAILED stops the send",
+          "operation": "getVideo",
+          "evidence": "senders/linkedin.mjs:34"
+        },
+        {
+          "call": "POST /rest/posts { author: urn:li:organization:100000001, commentary (little text, every reserved character escaped), visibility PUBLIC, distribution MAIN_FEED, lifecycleState PUBLISHED, isReshareDisabledByAuthor false, content.media { id, title } }, reading the x-restli-id header",
+          "operation": "createPost",
+          "evidence": "senders/linkedin.mjs:52"
+        },
+        {
+          "call": "every call's refusal: any status >= 400 is thrown with its body (a bad or expired token, a missing scope, an unknown version, a refused upload, the rate limit)",
+          "operation": "initializeVideoUpload; finalizeVideoUpload; getVideo; createPost",
+          "evidence": "senders/linkedin.mjs:24,32,34,52"
+        },
+        {
+          "call": "the token from LINKEDIN_ACCESS_TOKEN and the organization urn:li:organization:100000001 the send posts as, with the title 'Model Editor by VideoGame AI'",
+          "operation": "credentialDoor (/_twin/app-credentials); the organizations door",
+          "evidence": "campaigns/2026-09-28-model-editor/send.mjs:33"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "owner's launch-scope ruling: the campaign is posted by a person through linkedin.com; the LinkedIn post is linkedin-aaron's, by the owner's hand: sign in as Aaron (and sign out from the Me menu, so another can sign in on the same browser)",
+          "operation": "home (screen); login (screen); login-submit (screen); logout (screen)",
+          "evidence": "the owner: \"it's primarily going to be UI since posting is not really automated\"; gtm/channels.yaml:51-57 (hand: owner)"
+        },
+        {
+          "call": "open the feed and start a post as himself (Start a post, Video, Post as), choosing who can see it (Who can see your post?)",
+          "operation": "feed (screen)",
+          "evidence": "campaigns/2026-09-28-model-editor/campaign.md:14 (linkedin-aaron); gtm/channels.yaml:57 (a personal post)"
+        },
+        {
+          "call": "paste the campaign's LinkedIn copy, attach the horizontal render from his machine (Add media), and Post: the Videos API's initializeUpload, part uploads and finalizeUpload, then the Posts API's create; a photo through the Images API's",
+          "operation": "feed (screen): initializeImageUpload, uploadImage, initializeVideoUpload, uploadVideoPart, finalizeVideoUpload, createPost",
+          "evidence": "campaigns/2026-09-28-model-editor/campaign.md:111-125 (## LinkedIn); campaigns/2026-09-28-model-editor/campaign.md:20-22 (renders/hero-horizontal.mp4 for LinkedIn)"
+        },
+        {
+          "call": "see it on the post's own page (/feed/update/urn:li:\u2026/), its video playable",
+          "operation": "post (screen); media (screen)",
+          "evidence": "the owner, 2026-10-02"
+        },
+        {
+          "call": "post as the page he administers from the same share box (Post as), and see the page's posts on its Posts tab",
+          "operation": "feed (screen); company (screen)",
+          "evidence": "the owner, 2026-10-02; campaigns/2026-09-28-model-editor/send.mjs:33 (the page the sender posts as)"
+        },
+        {
+          "call": "a reviewer opens each post as its platform shows it: the post's page and the page's posts",
+          "operation": "post (screen); company (screen); login (screen)",
+          "evidence": "campaigns/2026-09-28-model-editor/campaign.md:18-25 (Review and post)"
+        }
+      ]
+    }
+  ],
+  "unservedDemand": [
+    {
+      "call": "Hosted OAuth authorization/consent and code/refresh exchange; the twin does not serve this connection flow.",
+      "operation": "unmodeled OAuth connection",
+      "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:136,184,219; libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:48,126,231"
+    },
+    {
+      "call": "Read legacy /v2/me for vanityName; absent from the twin.",
+      "operation": "unmodeled legacy member identity",
+      "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:151,243; libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:63,255"
+    },
+    {
+      "call": "Pick administered pages using legacy /v2/organizationalEntityAcls, then read /v2/organizations/{id}; these legacy paths are unserved.",
+      "operation": "unmodeled legacy page picker",
+      "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:141,191"
+    },
+    {
+      "call": "Find a company by vanity name at legacy /v2/organizations?q=vanityName.",
+      "operation": "unmodeled legacy organization lookup",
+      "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:272,1211"
+    },
+    {
+      "call": "Upload and poll PDF documents for carousel attachments; not served by the twin.",
+      "operation": "unmodeled documents upload and read",
+      "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:328,482"
+    },
+    {
+      "call": "Read/write reactions and comments at /rest/socialActions; not served by the twin.",
+      "operation": "unmodeled social actions",
+      "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts:793"
+    },
+    {
+      "call": "Read legacy page/follower/share statistics and /v2/socialActions; not served by the twin.",
+      "operation": "unmodeled page analytics and social actions",
+      "evidence": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts:330,345,360,454,472,596,674,690"
+    }
+  ],
+  "optional": []
+}

@@ -54,11 +54,39 @@ export async function secret(ctx: Pick<HandlerContext, 'secret'>, prefix: string
   return `${prefix}${`${a}${b}`.replace(/[^A-Za-z0-9]/g, '').slice(0, 43)}`;
 }
 
-/** The World's one organization: the one its token names. */
-export const ORG_ID = '1dbfc517-0bbf-4301-9ba8-555ca42b9737';
-export const orgId = (ctx: Pick<HandlerContext, 'call'>): string => environment(ctx) === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID;
+/** Production and sandbox each have their own native organization. */
+const ORG_ID = '1dbfc517-0bbf-4301-9ba8-555ca42b9737';
+export async function nativeOrganization(ctx: HandlerContext): Promise<Row> {
+  const world = await ctx.organization();
+  const nativeEnvironment = environment(ctx);
+  const make = async (): Promise<string> => {
+    const held = ctx.rowsRaw(ORGANIZATION).find((row) => row._world_organization === world.id && row._environment === nativeEnvironment);
+    if (held) return String(held.id);
+    const label = world.id === 'default' ? 'twin' : world.id;
+    for (const suffixed of [false, true]) {
+      const slug = ctx.vendorName(label.length < 3 ? `world-${label}` : label,
+        { max: 64, lower: true, allowed: /[a-z0-9-]/, first: /[a-z0-9]/ }, { suffixed, identity: world.id });
+      const id = await ctx.atomically((rows) => {
+        const same = rows(ORGANIZATION).find((row) => row._world_organization === world.id && row._environment === nativeEnvironment);
+        if (same) return { value: String(same.id) };
+        if (rows(ORGANIZATION).some((row) => row.slug === slug && row._environment === nativeEnvironment)) return { value: undefined };
+        const id = world.id === 'default' ? nativeEnvironment === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID : ctx.mint(ORGANIZATION);
+        return { value: id, write: { resource: ORGANIZATION, id, fields: { name: world.label.length < 3 ? `World ${world.label}` : world.label,
+          slug, created_at: ctx.occurredAt, _owner_email: world.members[0]!.toLowerCase(), _world_organization: world.id,
+          _environment: nativeEnvironment, _namespace: world.id === 'default' ? 'default' : id }, operation: 'organization.create' } };
+      });
+      if (id) return id;
+    }
+    throw fail(409, 'Conflict', `An organization slug already exists for ${world.id}.`);
+  };
+  if (nativeEnvironment === 'production') return ctx.tenant(ORGANIZATION, make);
+  return ctx.row(ORGANIZATION, await make())!;
+}
+export const orgId = (ctx: Reader): string => String(ctx.rowsRaw('_access_token', { withDeleted: true })
+  .find((row) => row._environment === environment(ctx) && typeof row._organization_id === 'string')?._organization_id
+  ?? (environment(ctx) === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID));
 export const organizationView = (ctx: Reader): Row => {
-  const o = rowOf(ctx, ORGANIZATION, 'org') ?? {};
+  const o = ctx.row(ORGANIZATION, orgId(ctx)) ?? {};
   return {
     created_at: o.created_at ?? '2026-01-01T00:00:00Z', modified_at: null, id: orgId(ctx), name: o.name ?? 'Twin organization', slug: o.slug ?? 'twin',
     avatar_url: null, proration_behavior: 'prorate', allow_customer_updates: true, email: null, website: null, socials: [], status: 'active',

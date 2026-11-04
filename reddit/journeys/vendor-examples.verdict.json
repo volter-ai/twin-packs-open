@@ -1,0 +1,132 @@
+{
+  "sha256": "3c4662143d4ef77b88e5ee371039401c9d835014b8414ea2474f90ff7dd973c2",
+  "plausible": true,
+  "judge": {
+    "agent": "Contributor 181",
+    "name": "Contributor 181",
+    "model": "claude-opus-5-5"
+  },
+  "authors": [
+    "Contributor 178",
+    "reddit-pack-author-bcad066a"
+  ],
+  "bar": "829132787d94a2d4",
+  "judgedAt": "2026-10-02",
+  "method": "By reading only: no walk, no test, no browser, no write to any host. Read twin-world's docs/contributing/architecture.md (Published examples, with Journeys, What a judge rejects and Rules the lives have taught the twins). Read all 16 steps (indexes 0 to 15) of journeys/vendor-examples.json in full against spec/doc-examples.json's ten entries (each example step's name, request and assertions against its entry and its source), README.md, spec/SOURCE.md, spec/patches.json, and the twin's code for each answer (src/semantics/api.ts, around.ts, shared.ts slice and sortLinks, r.ts). Counted step 8's title: 301 characters. Vendor pages read: Reddit's OAuth2 wiki (its raw markdown: the three token requests and answers it publishes, its error table, 'All bearer tokens expire after 1 hour'); r2's controllers/oauth2.py (POST_access_token's unsupported_grant_type, _access_token_password's scope default, the client's 401 with WWW-Authenticate Basic realm=\"reddit\"); r2's models/listing.py (before only when bcount > 1) and models/builder.py (before_count = start_count + 1); PRAW v8.0.3's TestSubmission.test_hide_multiple cassette (recorded 2026-04-13: expires_in 86400, scope *). Not read: www.reddit.com/dev/api itself (this session's fetch of www.reddit.com is refused): the submit rules' words were checked against the page as vendored in spec/openapi.json (POST /api/submit's description and its title parameter hold all three), and the listing, legacy-encoding and modhash sentences only against spec/sources.json's checked quotes and the entries' own `means`.",
+  "rulings": [
+    {
+      "id": "token-example-not-sent-as-published",
+      "steps": [
+        2
+      ],
+      "barItem": "an example is sent as published; an example of an operation the twin does not serve is counted, not replayed (Published examples)",
+      "reason": "Step 2 carries the example 'POST_api_v1_access_token#doc the access token answer' and sends grant_type=password&username=example_dev&password=example-pass-1. The OAuth2 wiki publishes that answer under 'Retrieving the access token' for the request it states beside it, grant_type=authorization_code&code=CODE&redirect_uri=URI (the answer with refresh_token), and two more answers for two more stated requests: grant_type=refresh_token&refresh_token=TOKEN under 'Refreshing the token', and grant_type=client_credentials (or the installed_client grant with device_id) under 'Application Only OAuth'. It publishes no request or answer for the password grant. The twin serves none of the three grants the page's examples are for (api.ts otherGrant answers each 404), so the step replays no published example: it sends another request and labels its answer as the page's. The script's sent-as-published check passes only because spec/doc-examples.json's entry holds the method and path and leaves out the body the page states. The step's own name admits the difference; the label is still untrue, and the page's other two examples are neither replayed nor recorded, against README's 'Reddit publishes no other examples'.",
+      "fix": "Step 2 loses its `example` and its `exampleDiffers` and becomes a setup step: name \"Setup: the developer's token, a script app's password grant\", the same request, capture and expectation (token_type bearer). The wiki's three token examples (the code grant's, the refresh's, the application-only grant's), each with the request body the page states, are vendored in spec/doc-examples.json and recorded as not replayed, each with its reason: the twin serves only a script app's password grant, and that grant answers the gap. The journey's `about` then names no published example as replayed."
+    },
+    {
+      "id": "newest-of-two-posts-made-in-one-second",
+      "steps": [
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "barItem": "nothing is asserted that pins the twin's guess as the vendor's answer; a step name untrue of its content (Published examples)",
+      "reason": "Steps 9 and 10 make the two posts with no wait between them, so both carry the same created_utc. Step 11 is named 'the newest one' and asserts children.0 is {second} with after {second}; steps 12 and 13 assert the other slice is {first}. Which of two posts of one second /new lists first is the twin's own tie-break (shared.ts sortLinks: 'Two made in the same second keep the order they were made in, the later first', with no source); Reddit's new sort orders by date alone, and neither post is the newer. The assertions hold only by that guess.",
+      "fix": "A wait step is inserted between steps 9 and 10 (\"wait\": \"1m\", named \"Setup: a minute passes, so the second post is the newer\"), so the order steps 11 to 13 assert is the one the dates give. Steps 9 to 13 are otherwise unchanged."
+    },
+    {
+      "id": "decided-values-not-asserted",
+      "steps": [
+        11,
+        12,
+        13
+      ],
+      "barItem": "a decided value not asserted (Published examples)",
+      "reason": "Step 12 reads the first post with raw_json=1 and asserts its name, id, selftext, subreddit, author and type, but not its title, which step 9 decided (title=Q%26A) and which is the value the next example turns on: raw, it is \"Q&A\"; step 13 asserts the same slice's \"Q&amp;A\". Step 11's entry publishes before null for the first slice, which the request causes (no count, nothing seen: r2's listing gives before only when bcount > 1), and the step does not assert it. Step 13 repeats step 12's slice and asserts neither its dist (1, caused by limit=1) nor its after (null, caused by there being two posts), both of which step 12 asserts.",
+      "fix": "Step 12 adds {\"path\": \"data.children.0.data.title\", \"equals\": \"Q&A\"}. Step 11 adds {\"path\": \"data.before\", \"equals\": null}. Step 13 adds {\"path\": \"data.dist\", \"equals\": 1} and {\"path\": \"data.after\", \"equals\": null}. Nothing else in the three steps changes."
+    }
+  ],
+  "doubts": [
+    {
+      "steps": [
+        7
+      ],
+      "reason": "dev/api says only 'An error is thrown if both text and richtext_json are present'. The step rightly asserts no more than that an error is answered; but spec/doc-examples.json writes the twin's guess (INVALID_OPTION, 'that option is not valid', richtext_json, at HTTP 200) as the entry's output, as if the page published it."
+    },
+    {
+      "steps": [
+        3
+      ],
+      "reason": "The wiki states only '401 response'. The entry's body ({message: Unauthorized, error: 401}) is Reddit's recorded error form and the asserted header (WWW-Authenticate: Basic realm=\"reddit\") is r2's (oauth2.py _get_client_auth), both the vendor's but neither the page's; the entry's source names the wiki alone."
+    },
+    {
+      "steps": [
+        14
+      ],
+      "reason": "The vote sends api_type=json, which dev/api's table for /api/vote (as vendored: dir, id, uh) does not list; and it is a script's token downvoting its own post, where the same page says 'votes must be cast by humans'. The rule replayed (no modhash with OAuth) holds either way."
+    },
+    {
+      "steps": [
+        15
+      ],
+      "reason": "The read-back asserts likes false. The post's score after the vote (the author's own upvote replaced by a downvote) is also caused by the setup and is not asserted; whether Reddit answers it unfuzzed is not documented, so it is left as a doubt."
+    },
+    {
+      "steps": [
+        11,
+        12,
+        13
+      ],
+      "reason": "The listing, legacy-encoding and modhash sentences the entries quote were not checked against www.reddit.com/dev/api in this session (its fetch is refused); spec/sources.json records only parts of them as checked."
+    }
+  ],
+  "applied": {
+    "from": "c7c945ad051e96e19597af0d74786d679ae78b0180e43748d91c5e27942456f3",
+    "wasPlausible": false,
+    "steps": [
+      "2",
+      "9",
+      "11",
+      "12",
+      "13",
+      "fields"
+    ],
+    "rulings": [
+      {
+        "id": "token-example-not-sent-as-published",
+        "steps": [
+          2
+        ],
+        "barItem": "an example is sent as published; an example of an operation the twin does not serve is counted, not replayed (Published examples)",
+        "reason": "Step 2 carries the example 'POST_api_v1_access_token#doc the access token answer' and sends grant_type=password&username=example_dev&password=example-pass-1. The OAuth2 wiki publishes that answer under 'Retrieving the access token' for the request it states beside it, grant_type=authorization_code&code=CODE&redirect_uri=URI (the answer with refresh_token), and two more answers for two more stated requests: grant_type=refresh_token&refresh_token=TOKEN under 'Refreshing the token', and grant_type=client_credentials (or the installed_client grant with device_id) under 'Application Only OAuth'. It publishes no request or answer for the password grant. The twin serves none of the three grants the page's examples are for (api.ts otherGrant answers each 404), so the step replays no published example: it sends another request and labels its answer as the page's. The script's sent-as-published check passes only because spec/doc-examples.json's entry holds the method and path and leaves out the body the page states. The step's own name admits the difference; the label is still untrue, and the page's other two examples are neither replayed nor recorded, against README's 'Reddit publishes no other examples'.",
+        "fix": "Step 2 loses its `example` and its `exampleDiffers` and becomes a setup step: name \"Setup: the developer's token, a script app's password grant\", the same request, capture and expectation (token_type bearer). The wiki's three token examples (the code grant's, the refresh's, the application-only grant's), each with the request body the page states, are vendored in spec/doc-examples.json and recorded as not replayed, each with its reason: the twin serves only a script app's password grant, and that grant answers the gap. The journey's `about` then names no published example as replayed."
+      },
+      {
+        "id": "newest-of-two-posts-made-in-one-second",
+        "steps": [
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "barItem": "nothing is asserted that pins the twin's guess as the vendor's answer; a step name untrue of its content (Published examples)",
+        "reason": "Steps 9 and 10 make the two posts with no wait between them, so both carry the same created_utc. Step 11 is named 'the newest one' and asserts children.0 is {second} with after {second}; steps 12 and 13 assert the other slice is {first}. Which of two posts of one second /new lists first is the twin's own tie-break (shared.ts sortLinks: 'Two made in the same second keep the order they were made in, the later first', with no source); Reddit's new sort orders by date alone, and neither post is the newer. The assertions hold only by that guess.",
+        "fix": "A wait step is inserted between steps 9 and 10 (\"wait\": \"1m\", named \"Setup: a minute passes, so the second post is the newer\"), so the order steps 11 to 13 assert is the one the dates give. Steps 9 to 13 are otherwise unchanged."
+      },
+      {
+        "id": "decided-values-not-asserted",
+        "steps": [
+          11,
+          12,
+          13
+        ],
+        "barItem": "a decided value not asserted (Published examples)",
+        "reason": "Step 12 reads the first post with raw_json=1 and asserts its name, id, selftext, subreddit, author and type, but not its title, which step 9 decided (title=Q%26A) and which is the value the next example turns on: raw, it is \"Q&A\"; step 13 asserts the same slice's \"Q&amp;A\". Step 11's entry publishes before null for the first slice, which the request causes (no count, nothing seen: r2's listing gives before only when bcount > 1), and the step does not assert it. Step 13 repeats step 12's slice and asserts neither its dist (1, caused by limit=1) nor its after (null, caused by there being two posts), both of which step 12 asserts.",
+        "fix": "Step 12 adds {\"path\": \"data.children.0.data.title\", \"equals\": \"Q&A\"}. Step 11 adds {\"path\": \"data.before\", \"equals\": null}. Step 13 adds {\"path\": \"data.dist\", \"equals\": 1} and {\"path\": \"data.after\", \"equals\": null}. Nothing else in the three steps changes."
+      }
+    ]
+  }
+}

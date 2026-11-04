@@ -1,0 +1,1170 @@
+{
+  "vendor": "openrouter",
+  "author": "Contributor 66",
+  "host": "openrouter.ai",
+  "about": "Northwind Studio connects its four demanded application flows in late September and early October 2026. Scenario turns are synthetic; tool results are supplied by the applications, and credential mistakes and the expired code have shown causes.",
+  "scenario": "scenario.json",
+  "steps": [
+    {
+      "name": "Monday 28 September, 09:00: Northwind Studio configures its applications",
+      "wait": "389340m"
+    },
+    {
+      "name": "The World issues the applications' OpenRouter key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "app": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "contains": "sk-or-v1-"
+        }
+      ]
+    },
+    {
+      "name": "Kai Brandt, who builds with vibecode and Volter Harness, has an OpenRouter account",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "email": "kai@studio.test",
+        "name": "Kai Brandt"
+      }
+    },
+    {
+      "name": "Mara Quist, who codes in Volter Editor, has an OpenRouter account",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "email": "mara@northwind.test",
+        "name": "Mara Quist"
+      }
+    },
+    {
+      "name": "She makes a key on Settings > Keys for Volter Editor",
+      "method": "POST",
+      "path": "/_twin/keys",
+      "status": 201,
+      "body": {
+        "email": "mara@northwind.test",
+        "name": "Volter Editor"
+      },
+      "capture": {
+        "mara": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "sk-or-v1-"
+        }
+      ]
+    },
+    {
+      "name": "LibreChat was launched before its OPENROUTER_KEY was copied into its environment",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 401,
+      "body": {
+        "model": "openai/gpt-4o",
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 401
+        }
+      ]
+    },
+    {
+      "name": "10:00: Northwind relaunches LibreChat with the issued key",
+      "wait": "60m"
+    },
+    {
+      "name": "LibreChat fetches the models and their prices (no key needed)",
+      "method": "GET",
+      "path": "https://openrouter.ai/api/v1/models",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "openai/gpt-4o"
+        },
+        {
+          "path": "data.0.pricing.prompt",
+          "equals": "0.0000025"
+        },
+        {
+          "path": "data.0.pricing.completion",
+          "equals": "0.00001"
+        },
+        {
+          "path": "data.0.context_length",
+          "equals": 128000
+        },
+        {
+          "path": "data.1.id",
+          "equals": "z-ai/glm-5.2"
+        },
+        {
+          "path": "data.1.pricing.prompt",
+          "equals": "0.000000176"
+        },
+        {
+          "path": "data.2.id",
+          "equals": "anthropic/claude-opus-4.8"
+        },
+        {
+          "path": "links.next",
+          "equals": null
+        },
+        {
+          "path": "total_count",
+          "equals": 7
+        }
+      ]
+    },
+    {
+      "name": "Kai asks LibreChat for an offsite announcement with its attribution headers",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {app}",
+        "http-referer": "https://librechat.ai",
+        "x-title": "LibreChat",
+        "x-openrouter-title": "LibreChat",
+        "x-openrouter-categories": "general-chat,personal-agent,programming-app"
+      },
+      "body": {
+        "model": "openai/gpt-4o",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Draft a two-line note: the offsite moved to 14 March."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "id",
+          "contains": "gen-"
+        },
+        {
+          "path": "provider",
+          "equals": "OpenAI"
+        },
+        {
+          "path": "model",
+          "equals": "openai/gpt-4o"
+        },
+        {
+          "path": "object",
+          "equals": "chat.completion"
+        },
+        {
+          "path": "choices.0.message.content",
+          "contains": "[twin-stub:openai/gpt-4o]"
+        },
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "choices.0.native_finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "usage.cost",
+          "equals": 0
+        },
+        {
+          "path": "usage.total_tokens",
+          "exists": true
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ],
+      "capture": {
+        "offsite_reply": "choices.0.message.content"
+      }
+    },
+    {
+      "name": "He asks a follow-up and LibreChat displays the streamed reply",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {app}",
+        "http-referer": "https://librechat.ai",
+        "x-title": "LibreChat",
+        "x-openrouter-title": "LibreChat",
+        "x-openrouter-categories": "general-chat,personal-agent,programming-app"
+      },
+      "body": {
+        "model": "openai/gpt-4o",
+        "stream": true,
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Draft a two-line note: the offsite moved to 14 March."
+          },
+          {
+            "role": "assistant",
+            "content": "{offsite_reply}"
+          },
+          {
+            "role": "user",
+            "content": "And who should hear about it first?"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": ": OPENROUTER PROCESSING"
+        },
+        {
+          "path": "",
+          "contains": "\"object\":\"chat.completion.chunk\""
+        },
+        {
+          "path": "",
+          "contains": "\"usage\":{"
+        },
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 29 September, 10:00: Kai connects his account to vibecode",
+      "wait": "1440m"
+    },
+    {
+      "name": "vibecode shows Kai the authorization page for his callback",
+      "method": "GET",
+      "path": "https://openrouter.ai/auth?callback_url=https%3A%2F%2Fvibecode.studio.test%2Fopenrouter%2Fcallback&code_challenge=Ttqg8y_cRPF0jfxSHtMdSaFndMlheVOWp2njqPCC8_Q&code_challenge_method=S256&key_label=Vibecode",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize as Kai Brandt"
+        },
+        {
+          "path": "",
+          "contains": "vibecode.studio.test"
+        }
+      ]
+    },
+    {
+      "name": "He authorizes it; OpenRouter sends him back with a code",
+      "method": "POST",
+      "path": "https://openrouter.ai/auth",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "callback_url=https%3A%2F%2Fvibecode.studio.test%2Fopenrouter%2Fcallback&code_challenge=Ttqg8y_cRPF0jfxSHtMdSaFndMlheVOWp2njqPCC8_Q&code_challenge_method=S256&key_label=Vibecode&email=kai%40studio.test",
+      "capture": {
+        "code": "redirect.code"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "https://vibecode.studio.test/openrouter/callback"
+        }
+      ]
+    },
+    {
+      "name": "vibecode exchanges the code with its verifier for a key of his",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/auth/keys",
+      "status": 200,
+      "body": {
+        "code": "{code}",
+        "code_verifier": "ErqRN55giDBlLBR5Y9sFQsb1qAomIuNvvF39Qd-OVjw",
+        "code_challenge_method": "S256"
+      },
+      "capture": {
+        "kai": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "sk-or-v1-"
+        },
+        {
+          "path": "user_id",
+          "contains": "user_"
+        }
+      ]
+    },
+    {
+      "name": "His authorized key powers the first streamed turn in Substrate chat",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {kai}"
+      },
+      "body": {
+        "model": "openai/gpt-4o",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a coding assistant."
+          },
+          {
+            "role": "user",
+            "content": "Hello from vibecode"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "Hello from vibecode"
+        },
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 30 September, 09:00: Kai signs Volter Harness into his laptop",
+      "wait": "1380m"
+    },
+    {
+      "name": "The CLI opens the /auth page with its loopback callback",
+      "method": "GET",
+      "path": "https://openrouter.ai/auth?code_challenge=wd1Qay3v0O5280hxinkscHF4jMiARlsstf-AJG4Ofi4&code_challenge_method=S256&key_label=Volter+Harness&callback_url=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback%2FqT7mW2xZ9vL4nR8kP1sD6fH3jB5cG0yE",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize as Kai Brandt"
+        },
+        {
+          "path": "",
+          "contains": "127.0.0.1:53682"
+        }
+      ]
+    },
+    {
+      "name": "He authorizes; OpenRouter sends the browser to the loopback with a code",
+      "method": "POST",
+      "path": "https://openrouter.ai/auth",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "code_challenge=wd1Qay3v0O5280hxinkscHF4jMiARlsstf-AJG4Ofi4&code_challenge_method=S256&key_label=Volter+Harness&callback_url=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback%2FqT7mW2xZ9vL4nR8kP1sD6fH3jB5cG0yE&email=kai%40studio.test",
+      "capture": {
+        "cli": "redirect.code"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "http://127.0.0.1:53682/callback/qT7mW2xZ9vL4nR8kP1sD6fH3jB5cG0yE?code="
+        }
+      ]
+    },
+    {
+      "name": "The CLI exchanges the code with its verifier",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/auth/keys",
+      "status": 200,
+      "body": {
+        "code": "{cli}",
+        "code_verifier": "kQ3vV8mZr2pL6xN0tW9yB4cD7fH1jS5uE8gA3iK6oM2",
+        "code_challenge_method": "S256"
+      },
+      "capture": {
+        "harness": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "sk-or-v1-"
+        }
+      ]
+    },
+    {
+      "name": "The CLI first checks a mistyped key Kai pasted from an old note",
+      "method": "GET",
+      "path": "https://openrouter.ai/api/v1/key",
+      "status": 401,
+      "headers": {
+        "authorization": "Bearer invalid-openrouter-key"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": 401
+        }
+      ]
+    },
+    {
+      "name": "He replaces the mistyped key with the OAuth key the CLI saved and checks it",
+      "method": "GET",
+      "path": "https://openrouter.ai/api/v1/key",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {harness}"
+      },
+      "expect": [
+        {
+          "path": "data.label",
+          "matches": "^sk-or-v1-[0-9a-f]{3}\\.\\.\\.[0-9a-f]{3}$"
+        },
+        {
+          "path": "data.creator_user_id",
+          "contains": "user_"
+        },
+        {
+          "path": "data.usage",
+          "equals": 0
+        },
+        {
+          "path": "data.limit",
+          "equals": null
+        },
+        {
+          "path": "data.limit_remaining",
+          "equals": null
+        },
+        {
+          "path": "data.is_management_key",
+          "equals": false
+        },
+        {
+          "path": "data.rate_limit.requests",
+          "equals": -1
+        }
+      ]
+    },
+    {
+      "name": "The harness asks to inspect src; its streamed model turn calls list_files",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {harness}"
+      },
+      "body": {
+        "model": "anthropic/claude-opus-4.8",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "List the files in src."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "list_files",
+              "description": "List files in a directory",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "\"tool_calls\""
+        },
+        {
+          "path": "",
+          "contains": "list_files"
+        },
+        {
+          "path": "",
+          "contains": "\"finish_reason\":\"tool_calls\""
+        },
+        {
+          "path": "",
+          "contains": "\"usage\":{"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ],
+      "capture": {
+        "files_call": "text:\"id\":\"(call_[a-f0-9]+)\""
+      }
+    },
+    {
+      "name": "The harness returns the actual directory listing and receives the next assistant turn",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {harness}"
+      },
+      "body": {
+        "model": "anthropic/claude-opus-4.8",
+        "messages": [
+          {
+            "role": "user",
+            "content": "List the files in src."
+          },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "{files_call}",
+                "type": "function",
+                "function": {
+                  "name": "list_files",
+                  "arguments": "{\"path\":\"src\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "{files_call}",
+            "name": "list_files",
+            "content": "[\"scene.json\",\"player.ts\"]"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "choices.0.message.content",
+          "contains": "directory listing"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "10:00: on a remote box, login --oauth --headless",
+      "wait": "60m"
+    },
+    {
+      "name": "On his remote box he authorizes headless login and copies the displayed code",
+      "method": "POST",
+      "path": "https://openrouter.ai/auth",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "code_challenge=C9MwlPi5-ulAHVLU2uULoOw7ZzcxtjDrzaV-mlcsfBg&code_challenge_method=S256&key_label=Volter+Harness&email=kai%40studio.test",
+      "capture": {
+        "shown": "text:<code id=\"code\">([A-Za-z0-9]+)</code>"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "expires in 10 minutes"
+        }
+      ]
+    },
+    {
+      "name": "He pastes it; the CLI exchanges it",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/auth/keys",
+      "status": 200,
+      "body": {
+        "code": "{shown}",
+        "code_verifier": "AXlk9P-RNrpzyDd0oJAuBhiNkKn42BSRJD9tq5Vss30",
+        "code_challenge_method": "S256"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "sk-or-v1-"
+        }
+      ]
+    },
+    {
+      "name": "He also starts a fresh vibecode authorization but leaves that tab while answering a call",
+      "method": "POST",
+      "path": "https://openrouter.ai/auth",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "callback_url=https%3A%2F%2Fvibecode.studio.test%2Fopenrouter%2Fcallback&code_challenge=oztD28_d6soreGoTAislSO5BeymHdj5i33GJPuDK-s4&code_challenge_method=S256&email=kai%40studio.test",
+      "capture": {
+        "late": "redirect.code"
+      }
+    },
+    {
+      "name": "11 minutes later",
+      "wait": "11m"
+    },
+    {
+      "name": "vibecode finally exchanges the stale code after the call; it has expired",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/auth/keys",
+      "status": 403,
+      "body": {
+        "code": "{late}",
+        "code_verifier": "Eun5ol5RwjZR0na9Wr1ycpMmlULI4mHsjSluh6WpCIo",
+        "code_challenge_method": "S256"
+      },
+      "expect": [
+        {
+          "path": "error.message",
+          "equals": "Authorization code expired"
+        }
+      ]
+    },
+    {
+      "name": "Thursday 1 October, 09:00: Mara configures Volter Editor with her own key",
+      "wait": "1369m"
+    },
+    {
+      "name": "Volter Editor checks the key she saved",
+      "method": "GET",
+      "path": "https://openrouter.ai/api/v1/key",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}"
+      },
+      "expect": [
+        {
+          "path": "data.label",
+          "contains": "sk-or-v1-"
+        },
+        {
+          "path": "data.usage",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "The Claude Code launch initially omitted ANTHROPIC_AUTH_TOKEN",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/messages?beta=true",
+      "status": 401,
+      "headers": {
+        "anthropic-version": "2023-06-01"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "error"
+        },
+        {
+          "path": "error.type",
+          "equals": "authentication_error"
+        },
+        {
+          "path": "error.message",
+          "equals": "Invalid API key"
+        },
+        {
+          "path": "error.error_type",
+          "equals": "authentication"
+        }
+      ]
+    },
+    {
+      "name": "Mara corrects the launch environment and Claude Code streams the requested sprite change",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/messages?beta=true",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "max_tokens": 32000,
+        "stream": true,
+        "system": "You are Claude Code.",
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Rename the player sprite."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "\"type\":\"text_delta\""
+        },
+        {
+          "path": "",
+          "contains": "Rename the player sprite."
+        },
+        {
+          "path": "",
+          "contains": "\"stop_reason\":\"end_turn\""
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Claude Code needs to read the scene before continuing; its model calls Read",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/messages?beta=true",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "max_tokens": 32000,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Read the scene file."
+          }
+        ],
+        "tools": [
+          {
+            "name": "Read",
+            "description": "Read a file",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "message"
+        },
+        {
+          "path": "id",
+          "contains": "msg_"
+        },
+        {
+          "path": "model",
+          "equals": "z-ai/glm-5.2"
+        },
+        {
+          "path": "stop_reason",
+          "equals": "tool_use"
+        },
+        {
+          "path": "content.0.type",
+          "equals": "tool_use"
+        },
+        {
+          "path": "content.0.name",
+          "equals": "Read"
+        },
+        {
+          "path": "content.0.id",
+          "contains": "toolu_"
+        },
+        {
+          "path": "usage.service_tier",
+          "equals": "standard"
+        },
+        {
+          "path": "content.0.input.file_path",
+          "equals": "src/scene.json"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ],
+      "capture": {
+        "scene_call": "content.0.id"
+      }
+    },
+    {
+      "name": "Claude Code returns the scene content so the assistant can finish",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/messages?beta=true",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}",
+        "anthropic-version": "2023-06-01"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Read the scene file."
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{scene_call}",
+                "name": "Read",
+                "input": {
+                  "file_path": "src/scene.json"
+                }
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "{scene_call}",
+                "content": "{\"player\":{\"sprite\":\"hero.png\"}}"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "stop_reason",
+          "equals": "end_turn"
+        },
+        {
+          "path": "content.0.text",
+          "contains": "scene content"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "For the next task Mara chooses Codex, which streams a Responses turn",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/responses",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "stream": true,
+        "instructions": "You are Codex.",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "Add a jump to the player."
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "event: response.created"
+        },
+        {
+          "path": "",
+          "contains": "response.output_text.delta"
+        },
+        {
+          "path": "",
+          "contains": "event: response.completed"
+        },
+        {
+          "path": "",
+          "contains": "resp_"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Codex asks shell to run the scene tests",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/responses",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "input": "Run the tests.",
+        "tools": [
+          {
+            "type": "function",
+            "name": "shell",
+            "description": "Run a command",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "response"
+        },
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "id",
+          "contains": "resp_"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "function_call"
+        },
+        {
+          "path": "output.0.name",
+          "equals": "shell"
+        },
+        {
+          "path": "output.0.call_id",
+          "contains": "call_"
+        },
+        {
+          "path": "usage.total_tokens",
+          "exists": true
+        },
+        {
+          "path": "output.0.arguments",
+          "equals": "{\"command\":\"npm test\"}"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ],
+      "capture": {
+        "tests_call": "output.0.call_id"
+      }
+    },
+    {
+      "name": "Codex includes the shell result with the full stateless history and finishes",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/responses",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Run the tests."
+          },
+          {
+            "type": "function_call",
+            "call_id": "{tests_call}",
+            "name": "shell",
+            "arguments": "{\"command\":\"npm test\"}"
+          },
+          {
+            "type": "function_call_output",
+            "call_id": "{tests_call}",
+            "output": "Scene tests: 12 passed."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "output.0.content.0.text",
+          "contains": "12 passed"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Mara asks OpenCode about the supplied scene and test result and receives a streamed labeled answer",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {mara}"
+      },
+      "body": {
+        "model": "z-ai/glm-5.2",
+        "stream": true,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Explain the scene graph and this test result. Scene: {\"player\":{\"sprite\":\"hero.png\"}}. Result: Scene tests: 12 passed."
+          }
+        ]
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "\"provider\":\"Z.ai\""
+        },
+        {
+          "path": "",
+          "contains": "this test result."
+        },
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        },
+        {
+          "header": "x-generation-id",
+          "exists": true
+        },
+        {
+          "path": "",
+          "contains": "Scene tests: 12 passed."
+        }
+      ]
+    },
+    {
+      "name": "The World resumes LibreChat and provisions the same application key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "expect": [
+        {
+          "path": "api_key",
+          "equals": "{app}"
+        }
+      ]
+    }
+  ]
+}

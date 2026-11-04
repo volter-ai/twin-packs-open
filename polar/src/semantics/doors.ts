@@ -2,15 +2,16 @@
 // `doors`: the organization's access tokens, as its settings page makes them (the API makes none), and the webhooks
 // the World sent the application's server, as that server received them.
 import { sha256, type HandlerContext } from '@volter/world-core';
-import { bodyOf, environment, secret } from './shared.ts';
+import { bodyOf, environment, nativeOrganization, secret } from './shared.ts';
 
 /** An Organization Access Token as the settings page makes it (`polar_oat_…`, shown once): its name, scopes and
  *  expiration (none: it does not expire), kept by its SHA-256. */
 // source: spec:/components/securitySchemes/oat "You can generate an **Organization Access Token** from your organization's settings."
 async function makeToken(ctx: HandlerContext, comment: string, expiresInDays: number | null): Promise<{ token: string; id: string }> {
-  const id = ctx.mint('_access_token');
+  const organization = await nativeOrganization(ctx);
+  const id = await ctx.issue('_access_token');
   const token = await secret(ctx, 'polar_oat_', `access-token:${id}`);
-  await ctx.record('_access_token', { comment, _environment: environment(ctx), _sha256: sha256(token), created_at: ctx.occurredAt, expires_at: expiresInDays === null ? null : new Date(Date.parse(ctx.occurredAt) + expiresInDays * 86_400_000).toISOString(), deleted: false }, id);
+  await ctx.record('_access_token', { comment, _organization_id: organization.id, _environment: environment(ctx), _sha256: sha256(token), created_at: ctx.occurredAt, expires_at: expiresInDays === null ? null : new Date(Date.parse(ctx.occurredAt) + expiresInDays * 86_400_000).toISOString(), deleted: false }, id);
   return { token, id };
 }
 
@@ -32,12 +33,17 @@ export async function revokeToken(ctx: HandlerContext): Promise<Response> {
 /** POST /_twin/app-credentials: the access token an application holds, as the runtime issues it (the descriptor's
  *  credentialDoor). */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  // the application's one token, made the first time the runtime asks and the same at every boot after
-  const token = await secret(ctx, 'polar_oat_', `access-token:app:${environment(ctx)}`);
-  if (!ctx.rowsRaw('_access_token', { withDeleted: true }).some((t) => t.id === `oat_app_${environment(ctx)}` && t._sha256 === sha256(token))) {
-    await ctx.record('_access_token', { comment: 'world', _environment: environment(ctx), _sha256: sha256(token), created_at: ctx.occurredAt, expires_at: null, deleted: false }, `oat_app_${environment(ctx)}`);
-  }
-  return Response.json({ access_token: token }, { status: 201 });
+  const organization = await nativeOrganization(ctx);
+  const key = await ctx.accountKey(`organization-token:${organization.id}`, '_access_token', {
+    make: async () => (await makeToken(ctx, ctx.deployment() || 'world', null)).id,
+    read: async (row) => {
+      if (row._organization_id !== organization.id || row._environment !== environment(ctx) || row.deleted === true
+        || (row.expires_at !== null && Date.parse(String(row.expires_at)) <= Date.parse(ctx.occurredAt))) return undefined;
+      const value = await secret(ctx, 'polar_oat_', `access-token:${row.id}`);
+      return row._sha256 === sha256(value) ? value : undefined;
+    },
+  });
+  return Response.json({ access_token: key.secret }, { status: 201 });
 }
 
 /** GET /_twin/deliveries[?to=<url>][&type=<event>]: every webhook Polar sent (the kernel's record of each delivery, in
