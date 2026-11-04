@@ -30,6 +30,8 @@ The mirror reads the pack's existing stored Git objects for its branch selector,
 
 ## Credential-like example values
 
+SHA-256 of the packaged uncompressed `openapi.json.gz` after the listed replacements: `c542080203c49494518ef0d9b9b6ff4c21b2d40a2170dafbaddcf0d97bb4fe62`.
+
 The exact keys sweep flags 75 string values in the pinned public REST examples. Each listed value is replaced by an explicit inert string of the same JSON type. Every other byte of the uncompressed document, including operations, schemas, field names and the pinned upstream locator, stays unchanged. The original captured bytes remain outside the package beside the release custody record for comparison.
 
 The twin does not serve these spec samples as response data. GitHub App creation and manifest conversion issue private PEM keys through `ctx.signingKey` (`src/semantics/doors.ts` and `src/semantics/apps.ts`); supported Actions public-key responses use `ctx.crypto.sealedBoxKeyPair` (`src/semantics/actions.ts`). Stored user keys come from the caller. Their runtime formats are independent of the inert spec markers.
