@@ -6,7 +6,7 @@ and [decisions](journeys/decisions.json). The vendored Machines specification ow
 
 The World doors issue organization/app-scoped throwaway tokens (`POST /_twin/tokens`, `{ org, app? }`),
 enroll the kernel machine pool (`POST /_twin/machine-pool`, `{ kind: "fake" | "none" | "docker" }`),
-and represent a process exiting (`POST /_twin/machines/{id}/exit`). Credentials fill `FLY_API_TOKEN`;
+and represent a process exiting (`POST /_twin/machines/{id}/exit`). Credentials fill `FLY_API_TOKEN`, `FLY_APP` and `FLY_ORG`;
 Substrate reads the endpoint from `FLY_API_HOSTNAME`. A fake pool verifies calls without running an
 image; Docker executes supported image/env/command/ports through the World-owned pool. Volumes are
 API state; this pack does not claim to mount their bytes into Docker guests. `twin_local_ports` is
