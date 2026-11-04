@@ -1,0 +1,119 @@
+{
+  "about": "The Instagram API with Instagram Login as a game studio's launch tooling and a creator's connection use it: Business Login's tokens, the professional account, a Reel and an image published through containers, the media, their insights, and the community's comments. Every operation of the spec has a handler; carousels, stories, resumable uploads, tags and partnership labels, and the insights metrics no story reads are the manifest's variants, answered as the gap.",
+  "decisions": [
+    {
+      "operation": "oauthAccessToken",
+      "demand": "videogame-ai: a creator connects through Business Login (demand.json); the life's act 6 trades the code.",
+      "mechanism": "handler",
+      "why": "an action: a code is spent once within its hour, after its app's secret and its redirect URI are checked, and a short-lived token is issued (drawn from ctx.secret, kept by SHA-256), answered { data: [{ access_token, user_id, permissions }] } as the Business Login page shows; the life asserts the token works on /me and that the same code is refused after"
+    },
+    {
+      "operation": "accessToken",
+      "demand": "videogame-ai: the tooling keeps a long-lived token (demand.json); life act 6.",
+      "mechanism": "handler",
+      "why": "an action: a live short-lived token and the app's secret are traded for a long-lived token of 60 days ({ access_token, token_type: bearer, expires_in })"
+    },
+    {
+      "operation": "refreshAccessToken",
+      "demand": "videogame-ai: the tooling renews the long-lived token (demand.json); life act 7.",
+      "mechanism": "handler",
+      "why": "an action: a long-lived token at least 24 hours old and unexpired is renewed for another 60 days; a younger one is refused"
+    },
+    {
+      "operation": "getMe",
+      "demand": "videogame-ai: the tooling reads the professional account (demand.json); first-use.json's account.mjs asserts its user_id, username, account_type, media_count and followers_count; life acts 2 and 6.",
+      "mechanism": "handler",
+      "why": "a computed read: the token's account projected to the fields asked (id is the app-scoped ID, user_id the professional account's), media_count counted from its media"
+    },
+    {
+      "operation": "getUserMedia",
+      "demand": "videogame-ai: the tooling lists the account's media (demand.json); first-use.json asserts the list; life acts 2 and 3.",
+      "mechanism": "handler",
+      "why": "a computed read: the caller's own media newest first, projected to the fields asked, by since and until, in pages of the Graph API's cursors with a next link while more follow"
+    },
+    {
+      "operation": "createUserMedia",
+      "demand": "videogame-ai: the trailer Reel and the key art (demand.json, STACK.md:721); life act 3.",
+      "mechanism": "handler",
+      "why": "an action: Instagram fetches the media through the World (ctx.vendorFetch); an image is checked as it is fetched (reached, 8 MiB, JPEG, aspect ratio) and its container made FINISHED, a Reel's container is made IN_PROGRESS and moved FINISHED or ERROR with the failure's subcode in status (states.ts); the file is kept in the World's blobs"
+    },
+    {
+      "operation": "publishUserMedia",
+      "demand": "videogame-ai: publishing the trailer and the key art (demand.json); life act 3.",
+      "mechanism": "handler",
+      "why": "an action: a FINISHED container of the caller's is published (FINISHED to PUBLISHED, states.ts), within 50 posts a rolling 24 hours, and its IG Media made; IN_PROGRESS, ERROR, EXPIRED and PUBLISHED containers are each refused by their transition"
+    },
+    {
+      "operation": "getContentPublishingLimit",
+      "demand": "videogame-ai: the publishing rate limit (demand.json); first-use.json asserts the usage and config; life act 3.",
+      "mechanism": "handler",
+      "why": "a computed read: the posts published since `since` (no older than 24 hours) or in the last 24 hours, and the quota's config"
+    },
+    {
+      "operation": "getNode",
+      "demand": "videogame-ai: a container's status_code, a media's fields and a comment's fields (demand.json); life acts 3 to 5; the refresh of every stored resource reads by it.",
+      "mechanism": "handler",
+      "why": "a computed read over the node an ID names for the caller: its own account (the User fields), its container (settled to EXPIRED past 24 hours, the vendor's move), its media (another account's is not found), a comment on its media; each projected to the fields asked, with field expansion"
+    },
+    {
+      "operation": "updateNode",
+      "demand": "videogame-ai: comment moderation (demand.json, STACK.md:722-723); life act 4.",
+      "mechanism": "handler",
+      "why": "an action: a media's comments turned on or off (comment_enabled), a comment hidden or shown (hide), a comment the media's owner made staying shown"
+    },
+    {
+      "operation": "deleteNode",
+      "demand": "videogame-ai: comment moderation (demand.json); life act 4.",
+      "mechanism": "handler",
+      "why": "an action: a comment on the caller's media deleted with its replies (the comment resource's cascade); a media's delete is the Instagram API with Facebook Login's and answers the gap"
+    },
+    {
+      "operation": "getMediaInsights",
+      "demand": "videogame-ai: the trailer's insights (demand.json); life act 5.",
+      "mechanism": "handler",
+      "why": "a computed read: the lifetime value of each metric asked (comments, likes, reach, saved, shares, total_interactions, views) from the media's counts the audience moved"
+    },
+    {
+      "operation": "getMediaComments",
+      "demand": "videogame-ai: the community's comments (demand.json); life act 4.",
+      "mechanism": "handler",
+      "why": "a computed read: the media's top-level comments newest first, at most 50 a page, each projected to the fields asked (replies by field expansion)"
+    },
+    {
+      "operation": "createMediaComment",
+      "demand": "videogame-ai: the studio's own comment (demand.json); life act 4.",
+      "mechanism": "handler",
+      "why": "an action: a comment made by the media's owner on its own media"
+    },
+    {
+      "operation": "getCommentReplies",
+      "demand": "videogame-ai: a comment's thread (demand.json); life act 4.",
+      "mechanism": "handler",
+      "why": "a computed read: a live comment's replies newest first"
+    },
+    {
+      "operation": "createCommentReply",
+      "demand": "videogame-ai: answering a comment (demand.json); life act 4.",
+      "mechanism": "handler",
+      "why": "an action: a reply to a top-level comment (a reply to a reply is the top-level comment's); a hidden comment takes none"
+    },
+    {
+      "operation": "door:appCredentials",
+      "demand": "the credential door: the World application's INSTAGRAM_APP_ID, INSTAGRAM_APP_SECRET, INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID; first-use.json and life act 1.",
+      "mechanism": "door",
+      "why": "the App Dashboard makes the app, lists its OAuth redirect URIs and generates the long-lived token of the studio's account; no API call does, and no call is possible before the first credential"
+    },
+    {
+      "operation": "door:accounts",
+      "demand": "life act 1 and 6: the creator and the audience's people sign up.",
+      "mechanism": "door",
+      "why": "an Instagram account is made on instagram.com's sign-up, which no API offers"
+    },
+    {
+      "operation": "door:audience",
+      "demand": "life act 4: the audience watches, likes, saves, shares and comments on the trailer (the TikTok person of e2e/people/platforms.mjs is the model).",
+      "mechanism": "door",
+      "why": "people's acts in the Instagram app (views, reach, likes, saves, shares, a comment by someone the API does not serve) are no API call"
+    }
+  ]
+}

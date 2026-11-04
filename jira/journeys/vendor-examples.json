@@ -1,0 +1,483 @@
+{
+  "vendor": "jira",
+  "host": "api.atlassian.com",
+  "author": "Contributor 75",
+  "about": "Replay reachable Atlassian response examples after account/API-token/project/issue setup; record examples needing unmodeled vendor configuration, plus the contradictory user-array example.",
+  "steps": [
+    {
+      "name": "Chapter 1: Maya signs Tidewater up for Jira Cloud",
+      "method": "POST",
+      "path": "/_twin/sites",
+      "status": 201,
+      "body": {
+        "name": "tidewater",
+        "admin": {
+          "name": "Maya Chen",
+          "email": "maya@tidewater.yoga",
+          "password": "savasana-2026"
+        }
+      },
+      "capture": {
+        "cloud": "cloudid",
+        "maya": "admin"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://tidewater.atlassian.net"
+        }
+      ]
+    },
+    {
+      "name": "Maya creates an account API token for the on-call agent",
+      "method": "POST",
+      "path": "/_twin/api-token",
+      "status": 201,
+      "body": {
+        "site": "tidewater",
+        "email": "maya@tidewater.yoga",
+        "password": "savasana-2026"
+      },
+      "capture": {
+        "basic": "authorization",
+        "apitoken": "apiToken"
+      }
+    },
+    {
+      "name": "The account behind the token: Atlassian's current-user example",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/myself",
+      "status": 200,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "example": "getCurrentUser#200 application/json",
+      "expect": [
+        {
+          "path": "accountId",
+          "equals": "{maya}"
+        },
+        {
+          "path": "emailAddress",
+          "equals": "maya@tidewater.yoga"
+        },
+        {
+          "path": "displayName",
+          "equals": "Maya Chen"
+        },
+        {
+          "path": "active",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Create the project in Atlassian’s project example",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/project",
+      "status": 201,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "body": {
+        "key": "EX",
+        "name": "Example",
+        "projectTypeKey": "software",
+        "leadAccountId": "{maya}"
+      },
+      "capture": {
+        "proj": "id"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "EX"
+        },
+        {
+          "path": "id",
+          "exists": true
+        }
+      ],
+      "example": "createProject#201 application/json"
+    },
+    {
+      "name": "Read the created project to verify its supplied name and lead",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/project/EX",
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "name",
+          "equals": "Example"
+        },
+        {
+          "path": "key",
+          "equals": "EX"
+        },
+        {
+          "path": "lead.accountId",
+          "equals": "{maya}"
+        }
+      ]
+    },
+    {
+      "name": "Prepare an issue only to discover the example workflow transition",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue",
+      "status": 201,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "body": {
+        "fields": {
+          "project": {
+            "key": "EX"
+          },
+          "issuetype": {
+            "name": "Bug"
+          },
+          "summary": "Workflow precondition for published create response"
+        }
+      },
+      "capture": {
+        "workflowIssue": "id"
+      }
+    },
+    {
+      "name": "Read the workflow ID used by the published transition result",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{workflowIssue}/transitions",
+      "status": 200,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "capture": {
+        "exampleTransition": "transitions.0.id"
+      },
+      "expect": [
+        {
+          "path": "transitions.0.to.name",
+          "equals": "In Progress"
+        }
+      ]
+    },
+    {
+      "name": "Create the issue with the optional transition result in the published example",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue",
+      "status": 201,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "body": {
+        "fields": {
+          "project": {
+            "key": "EX"
+          },
+          "issuetype": {
+            "name": "Bug"
+          },
+          "summary": "Checkout button does nothing on Safari",
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Steps: open /book, pick a class, press Checkout."
+                  }
+                ]
+              }
+            ]
+          },
+          "labels": [
+            "performance",
+            "security"
+          ],
+          "priority": {
+            "name": "High"
+          }
+        },
+        "transition": {
+          "id": "{exampleTransition}"
+        }
+      },
+      "capture": {
+        "i1": "id",
+        "exampleKey": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "EX-"
+        },
+        {
+          "path": "transition.status",
+          "equals": 200
+        }
+      ],
+      "example": "createIssue#201 application/json"
+    },
+    {
+      "name": "Read back the created issue and transition effect",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{i1}",
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "fields.summary",
+          "equals": "Checkout button does nothing on Safari"
+        },
+        {
+          "path": "fields.status.name",
+          "equals": "In Progress"
+        },
+        {
+          "path": "fields.labels",
+          "equals": [
+            "performance",
+            "security"
+          ]
+        },
+        {
+          "path": "key",
+          "equals": "{exampleKey}"
+        },
+        {
+          "path": "fields.description",
+          "equals": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Steps: open /book, pick a class, press Checkout."
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "path": "fields.project.key",
+          "equals": "EX"
+        },
+        {
+          "path": "fields.issuetype.name",
+          "equals": "Bug"
+        },
+        {
+          "path": "fields.priority.name",
+          "equals": "High"
+        },
+        {
+          "path": "fields.creator.accountId",
+          "equals": "{maya}"
+        },
+        {
+          "path": "fields.reporter.accountId",
+          "equals": "{maya}"
+        }
+      ]
+    },
+    {
+      "name": "The published label page over the issue’s two labels",
+      "example": "getAllLabels#200 application/json",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/label?maxResults=2",
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "values",
+          "equals": [
+            "performance",
+            "security"
+          ]
+        },
+        {
+          "path": "total",
+          "equals": 2
+        },
+        {
+          "path": "isLast",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Publish the administrator comment shown in the reference",
+      "example": "addComment#201 application/json",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{i1}/comment",
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "status": 201,
+      "body": {
+        "body": {
+          "type": "doc",
+          "version": 1,
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque eget venenatis elit. Duis eu justo eget augue iaculis fermentum. Sed semper quam laoreet nisi egestas at posuere augue semper."
+                }
+              ]
+            }
+          ]
+        },
+        "visibility": {
+          "type": "role",
+          "value": "Administrators"
+        }
+      },
+      "capture": {
+        "comment": "id"
+      },
+      "expect": [
+        {
+          "path": "author.accountId",
+          "equals": "{maya}"
+        },
+        {
+          "path": "body",
+          "equals": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque eget venenatis elit. Duis eu justo eget augue iaculis fermentum. Sed semper quam laoreet nisi egestas at posuere augue semper."
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "path": "visibility.value",
+          "equals": "Administrators"
+        },
+        {
+          "path": "updateAuthor.accountId",
+          "equals": "{maya}"
+        },
+        {
+          "path": "author.displayName",
+          "equals": "Maya Chen"
+        },
+        {
+          "path": "updateAuthor.displayName",
+          "equals": "Maya Chen"
+        },
+        {
+          "path": "visibility.type",
+          "equals": "role"
+        },
+        {
+          "path": "visibility.identifier",
+          "equals": "Administrators"
+        }
+      ]
+    },
+    {
+      "name": "Read the comment collection shown in the reference",
+      "example": "getComments#200 application/json",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{i1}/comment?maxResults=1",
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "total",
+          "equals": 1
+        },
+        {
+          "path": "comments.0.id",
+          "equals": "{comment}"
+        },
+        {
+          "path": "comments.0.body",
+          "equals": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque eget venenatis elit. Duis eu justo eget augue iaculis fermentum. Sed semper quam laoreet nisi egestas at posuere augue semper."
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "path": "comments.0.author.accountId",
+          "equals": "{maya}"
+        },
+        {
+          "path": "comments.0.visibility.type",
+          "equals": "role"
+        },
+        {
+          "path": "comments.0.author.displayName",
+          "equals": "Maya Chen"
+        },
+        {
+          "path": "comments.0.updateAuthor.accountId",
+          "equals": "{maya}"
+        },
+        {
+          "path": "comments.0.updateAuthor.displayName",
+          "equals": "Maya Chen"
+        },
+        {
+          "path": "comments.0.visibility.value",
+          "equals": "Administrators"
+        },
+        {
+          "path": "comments.0.visibility.identifier",
+          "equals": "Administrators"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "createComponent#201 application/json": "The response requires a Compass-linked component's read-only ari and metadata. The Compass linkage API is unmodeled, so no served setup creates that integration. Ordinary leadAccountId and assigneeType are supported by createComponent and are not a reason to exclude this example.",
+    "createIssue#400 application/json": "This sample assumes a project field configuration making priority required. The local project has the default priority scheme and priority is optional. The field-configuration APIs that create the prerequisite are unmodeled. The createIssue description explicitly makes available/required fields depend on create metadata and project configuration.",
+    "getIssue#200 application/json": "This example assumes issue attachments, worklogs, watches, issue links and custom fields already exist. Their mutation APIs are unmodeled in this measured on-call filing pack, so no served setup can create this complete sample. See spec getIssue response example and the literal unmodeled operations.",
+    "getTransitions#200 application/json": "The example assumes a company-managed custom workflow with transition screen fields for a custom multiselect. The life models a simple team-managed To Do/In Progress/Done workflow with no transition screen. Workflow and custom-field configuration operations are unmodeled; spec getTransitions documents that transitions depend on the issue status.",
+    "searchProjects#200 application/json": "The sample includes company-managed project categories, avatars and insight counters; the project category, avatar and issue insight prerequisites have no served setup APIs in this pack. Plain projects from the life remain searchable, but cannot reproduce this configured response sample.",
+    "getProject#200 application/json": "The example assumes a configured company-managed project with categories, versions, custom roles, avatar assets and insight. The pack serves team-managed project creation and taxonomy only, and the APIs creating these sample prerequisites are unmodeled.",
+    "getProjectComponents#200 application/json": "This collection contains Compass-linked components with read-only ari and metadata. No served setup establishes Compass linkage. Plain Jira components and their lead/assignee fields are supported; those fields are not unavailable configuration.",
+    "searchAndReconsileIssuesUsingJql#200 application/json": "The published result assumes the same attachment, worklog, watch and custom-field setup as getIssue, whose prerequisite APIs are unmodeled. The local searchable issue shape has no fabricated values for those unavailable resources.",
+    "searchAndReconsileIssuesUsingJqlPost#200 application/json": "The published result assumes the same attachment, worklog, watch and custom-field setup as getIssue, whose prerequisite APIs are unmodeled. The POST search in the customer life covers the supported searchable shape.",
+    "findAssignableUsers#200 application/json": "The upstream example is a single User object, while its own 200 response schema is type array with User items. A successful response cannot both be the published object and comply with the declared array. The pack returns the documented array; no successful request can replay this contradictory sample."
+  }
+}

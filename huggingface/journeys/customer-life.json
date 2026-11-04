@@ -1,0 +1,451 @@
+{
+  "vendor": "huggingface",
+  "author": "Contributor 78",
+  "host": "huggingface.co",
+  "about": "Ada publishes explicitly synthetic transport bytes in a public model-type repository to reproduce localrouter\u2019s pinned downloads. Bob reads them anonymously; no inference is claimed.",
+  "steps": [
+    {
+      "name": "Ada creates her Hub account and a write token for publishing a public transfer fixture",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "name": "ada"
+      },
+      "capture": {
+        "ada": "token",
+        "adaName": "name"
+      },
+      "expect": [
+        {
+          "path": "token",
+          "matches": "^hf_[A-Za-z]{34}$"
+        }
+      ]
+    },
+    {
+      "name": "Bob creates a separate account; he has no grant to Ada\u2019s repository",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "name": "bob"
+      },
+      "capture": {
+        "bob": "token",
+        "bobName": "name"
+      }
+    },
+    {
+      "name": "Ada creates ada/tiny-embed to reproduce a localrouter cache transfer problem",
+      "method": "POST",
+      "path": "/api/repos/create",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ada}"
+      },
+      "body": {
+        "name": "tiny-embed",
+        "type": "model"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "ada/tiny-embed"
+        },
+        {
+          "path": "url",
+          "equals": "https://huggingface.co/ada/tiny-embed"
+        },
+        {
+          "path": "id",
+          "matches": "^[0-9a-f]{24}$"
+        }
+      ]
+    },
+    {
+      "name": "Ada\u2019s setup job was interrupted after creation; she resumes it on the next day",
+      "wait": "1d"
+    },
+    {
+      "name": "The resumed setup retries creation and learns that Ada\u2019s repository already exists",
+      "method": "POST",
+      "path": "/api/repos/create",
+      "status": 409,
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ada}"
+      },
+      "body": {
+        "name": "tiny-embed",
+        "type": "model"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "You already created this model repo"
+        },
+        {
+          "path": "url",
+          "equals": "https://huggingface.co/ada/tiny-embed"
+        }
+      ]
+    },
+    {
+      "name": "Ada asks Git LFS where to upload the binary transfer fixture",
+      "method": "POST",
+      "path": "/ada/tiny-embed.git/info/lfs/objects/batch",
+      "status": 200,
+      "headers": {
+        "Authorization": "{basic:adaName:ada}",
+        "Content-Type": "application/vnd.git-lfs+json",
+        "Accept": "application/vnd.git-lfs+json"
+      },
+      "body": {
+        "operation": "upload",
+        "transfers": [
+          "basic"
+        ],
+        "objects": [
+          {
+            "oid": "ba8941895eec54370f5083cf4b8e2b335822945c1a2c3c16371a1e96ae0d3f8b",
+            "size": 4096
+          }
+        ]
+      },
+      "capture": {
+        "up": "objects.0.actions.upload.href"
+      },
+      "expect": [
+        {
+          "path": "transfer",
+          "equals": "basic"
+        },
+        {
+          "path": "objects.0.actions.upload.href",
+          "matches": "^https://us\\.aws\\.cdn\\.hf\\.co/upload/ada/tiny-embed/ba8941895eec54370f5083cf4b8e2b335822945c1a2c3c16371a1e96ae0d3f8b\\?token="
+        }
+      ]
+    },
+    {
+      "name": "The uploader sends a truncated payload after reading the wrong local file; it is rejected",
+      "method": "PUT",
+      "path": "{up}",
+      "status": 422,
+      "headers": {
+        "Content-Type": "application/octet-stream"
+      },
+      "bodyBase64": "YnJva2Vu"
+    },
+    {
+      "name": "Ada selects the complete 4096-byte fixture and uploads it to the returned URL",
+      "method": "PUT",
+      "path": "{up}",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/octet-stream"
+      },
+      "bodyBase64": "SHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYW5zZmVyIGZpeHR1cmUKSHVnZ2luZyBGYWNlIHRyYQ=="
+    },
+    {
+      "name": "The restarted LFS uploader checks its batch; the completed object needs no second transfer",
+      "method": "POST",
+      "path": "/ada/tiny-embed.git/info/lfs/objects/batch",
+      "status": 200,
+      "headers": {
+        "Authorization": "{basic:adaName:ada}",
+        "Content-Type": "application/vnd.git-lfs+json",
+        "Accept": "application/vnd.git-lfs+json"
+      },
+      "body": {
+        "operation": "upload",
+        "objects": [
+          {
+            "oid": "ba8941895eec54370f5083cf4b8e2b335822945c1a2c3c16371a1e96ae0d3f8b",
+            "size": 4096
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "objects.0.actions",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Ada publishes the transfer manifest and LFS pointer on main",
+      "git": "push",
+      "repo": "ada/tiny-embed",
+      "ref": "refs/heads/main",
+      "headers": {
+        "Authorization": "{basic:adaName:ada}"
+      },
+      "files": {
+        "config.json": "{\"fixture\":\"transfer-v1\",\"bytes\":4096}",
+        "tokenizer.json": "{\"version\":\"1.0\",\"fixture\":true}",
+        "README.md": "# Transfer fixture\nSynthetic bytes for a localrouter download diagnostic. This repository does not contain an inference model.\n",
+        "artifacts/download-fixture.bin": "version https://git-lfs.github.com/spec/v1\noid sha256:ba8941895eec54370f5083cf4b8e2b335822945c1a2c3c16371a1e96ae0d3f8b\nsize 4096\n"
+      },
+      "message": "Publish the cache diagnostic fixture",
+      "author": "Ada <ada@volter.ai>",
+      "capture": {
+        "commit": "sha"
+      },
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Bob clones the public fixture so he can reproduce the transfer problem without Ada\u2019s credentials",
+      "git": "clone",
+      "repo": "ada/tiny-embed",
+      "ref": "refs/heads/main",
+      "expect": [
+        {
+          "path": "sha",
+          "equals": "{commit}"
+        },
+        {
+          "path": "paths",
+          "members": [
+            "README.md",
+            "artifacts/download-fixture.bin",
+            "config.json",
+            "tokenizer.json"
+          ]
+        },
+        {
+          "path": "message",
+          "equals": "Publish the cache diagnostic fixture"
+        }
+      ]
+    },
+    {
+      "name": "The diagnostic cache pins the published commit and resolves its transfer manifest",
+      "method": "GET",
+      "path": "/ada/tiny-embed/resolve/{commit}/config.json",
+      "status": 307,
+      "capture": {
+        "cfg": "header:location",
+        "cfgTag": "header:x-linked-etag"
+      },
+      "expect": [
+        {
+          "header": "x-repo-commit",
+          "equals": "{commit}"
+        },
+        {
+          "header": "x-linked-etag",
+          "equals": "\"8c48c4b5ca7389c50fc6568eb3dbb70af27f8d9e\""
+        },
+        {
+          "header": "location",
+          "matches": "^/api/resolve-cache/models/ada/tiny-embed/{commit}/config\\.json\\?"
+        }
+      ]
+    },
+    {
+      "name": "The cache follows the returned resolve-cache URL and reads the manifest",
+      "method": "GET",
+      "path": "{cfg}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "fixture",
+          "equals": "transfer-v1"
+        },
+        {
+          "path": "bytes",
+          "equals": 4096
+        },
+        {
+          "header": "etag",
+          "equals": "{cfgTag}"
+        },
+        {
+          "header": "content-length",
+          "equals": "38"
+        }
+      ]
+    },
+    {
+      "name": "After a connection interruption at byte 10, the cache resumes the manifest with its saved ETag",
+      "method": "GET",
+      "path": "{cfg}",
+      "status": 206,
+      "headers": {
+        "Range": "bytes=10-",
+        "If-Range": "{cfgTag}"
+      },
+      "expect": [
+        {
+          "header": "content-range",
+          "equals": "bytes 10-37/38"
+        },
+        {
+          "path": "",
+          "equals": ":\"transfer-v1\",\"bytes\":4096}"
+        }
+      ]
+    },
+    {
+      "name": "The cache resolves the pinned binary fixture and saves the returned CDN URL",
+      "method": "GET",
+      "path": "/ada/tiny-embed/resolve/{commit}/artifacts/download-fixture.bin",
+      "status": 302,
+      "capture": {
+        "cdn": "header:location",
+        "binaryTag": "header:x-linked-etag"
+      },
+      "expect": [
+        {
+          "header": "x-linked-size",
+          "equals": "4096"
+        },
+        {
+          "header": "x-linked-etag",
+          "equals": "\"ba8941895eec54370f5083cf4b8e2b335822945c1a2c3c16371a1e96ae0d3f8b\""
+        }
+      ]
+    },
+    {
+      "name": "The cache downloads the binary fixture; its bytes are exactly what Ada uploaded",
+      "method": "GET",
+      "path": "{cdn}",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-length",
+          "equals": "4096"
+        },
+        {
+          "header": "etag",
+          "equals": "\"ba8941895eec54370f5083cf4b8e2b335822945c1a2c3c16371a1e96ae0d3f8b\""
+        },
+        {
+          "path": "",
+          "equals": "Hugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face tra"
+        }
+      ]
+    },
+    {
+      "name": "After another worker retains the first 4000 bytes, its retry fetches exactly the remaining 96 bytes",
+      "method": "GET",
+      "path": "{cdn}",
+      "status": 206,
+      "headers": {
+        "Range": "bytes=4000-",
+        "If-Range": "{binaryTag}"
+      },
+      "expect": [
+        {
+          "header": "content-range",
+          "equals": "bytes 4000-4095/4096"
+        },
+        {
+          "header": "content-length",
+          "equals": "96"
+        },
+        {
+          "path": "",
+          "equals": "ce transfer fixture\nHugging Face transfer fixture\nHugging Face transfer fixture\nHugging Face tra"
+        }
+      ]
+    },
+    {
+      "name": "A restart finds the entire fixture in its partial file and asks at offset 4096; the cache can verify and adopt it",
+      "method": "GET",
+      "path": "{cdn}",
+      "status": 416,
+      "headers": {
+        "Range": "bytes=4096-"
+      },
+      "expect": [
+        {
+          "header": "content-range",
+          "equals": "bytes */4096"
+        }
+      ]
+    },
+    {
+      "name": "The fixture remains published; Bob returns with the cache\u2019s next-day diagnostic",
+      "wait": "1d"
+    },
+    {
+      "name": "With the repository name corrected, the cache resolves the current manifest from main",
+      "method": "GET",
+      "path": "/ada/tiny-embed/resolve/main/config.json",
+      "status": 307,
+      "expect": [
+        {
+          "header": "x-repo-commit",
+          "equals": "{commit}"
+        }
+      ],
+      "capture": {
+        "latest": "header:location"
+      }
+    },
+    {
+      "name": "The cache follows the corrected manifest\u2019s returned URL",
+      "method": "GET",
+      "path": "{latest}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "fixture",
+          "equals": "transfer-v1"
+        },
+        {
+          "path": "bytes",
+          "equals": 4096
+        }
+      ]
+    },
+    {
+      "name": "Bob checks the model repository information behind the corrected download name",
+      "method": "GET",
+      "path": "/api/models/ada/tiny-embed",
+      "status": 200,
+      "expect": [
+        {
+          "path": "id",
+          "equals": "ada/tiny-embed"
+        },
+        {
+          "path": "author",
+          "equals": "ada"
+        },
+        {
+          "path": "private",
+          "equals": false
+        },
+        {
+          "path": "sha",
+          "equals": "{commit}"
+        },
+        {
+          "path": "siblings.0.rfilename",
+          "equals": "README.md"
+        }
+      ]
+    },
+    {
+      "name": "The same repository-information check refuses the copied typo",
+      "method": "GET",
+      "path": "/api/models/ada/tiny-embde",
+      "status": 404,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "Repository Not Found"
+        }
+      ]
+    }
+  ]
+}
