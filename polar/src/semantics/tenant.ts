@@ -1,13 +1,16 @@
 // Native credentials, customer sessions and checkout secrets select their organization before data access.
 import type { HandlerContext } from '@volter/world-core';
-import { environment, nativeOrganization } from './shared.ts';
+import { accessToken, nativeOrganization, settingsOrganization } from './shared.ts';
 
 export async function tenant(ctx: HandlerContext): Promise<string> {
   const request = ctx.call.request, url = new URL(request.url);
-  if (url.pathname.startsWith('/_twin/')) return String((await nativeOrganization(ctx))._namespace);
+  if (url.pathname.startsWith('/_twin/')) {
+    const organization = url.pathname === '/_twin/app-credentials' ? await nativeOrganization(ctx) : await settingsOrganization(ctx);
+    return String(organization?._namespace ?? '__unselected__');
+  }
   const bearer = /^Bearer\s+(\S+)/i.exec(request.headers.get('authorization') ?? '')?.[1];
   if (bearer) {
-    const key = ctx.rowsRaw('_access_token', { withDeleted: true }).find((row) => row._sha256 === ctx.crypto.sha256(bearer) && (row._environment ?? 'production') === environment(ctx));
+    const key = accessToken(ctx, bearer);
     const session = ctx.rowsRaw('customer_session').find((row) => row.token === bearer);
     return String(key?._organization_namespace ?? session?._organization_namespace ?? '__unselected__');
   }
