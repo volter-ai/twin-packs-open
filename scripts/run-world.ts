@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { runOwnedCommand } from './commands.mjs';
@@ -24,6 +24,7 @@ catch (error) {
   throw new Error(`Another vendor owns qualification; inspect ${join(active, 'owner.json')} before resuming`);
 }
 let session: string | undefined;
+let commandFailed = false;
 try {
   writeFileSync(join(active, 'owner.json'), JSON.stringify({ pid: process.pid, vendor: process.env.PACK_VENDOR ?? 'tavily', mode }));
   session = mkdtempSync(join(workRoot, 'catalog-qualification-'));
@@ -52,8 +53,28 @@ try {
   const result = await runOwnedCommand(process.execPath, [join(runtimeRoot, 'node_modules/@volter/world-runtime/src/cli.ts'), 'run', config, '--root', work, '--env-out', join(work, 'world.env'), '--owner', 'catalog-publisher-' + (process.env.PACK_VENDOR ?? 'tavily') + '-' + mode, '--', process.execPath, resolve('scripts/' + mode + '.ts'), ...(preparedPath ? [preparedPath] : []), ...process.argv.slice(3)], { env: candidateEnv, stdio: 'inherit' });
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;
+} catch (error) {
+  commandFailed = true;
+  throw error;
 } finally {
-  // Archives, dependency locks and the verdict are retained in release/<vendor>; installs are disposable.
-  if (session) rmSync(session, { recursive: true, force: true });
-  rmSync(active, { recursive: true });
+  // Native Node removes disposable trees and settles each owned path independently.
+  try {
+    const cleanup = await runOwnedCommand('node', ['-e', `
+    const { rmSync } = require('node:fs');
+    process.on('SIGTERM', () => { process.exitCode = 143; });
+    process.on('SIGINT', () => { process.exitCode = 130; });
+    for (const path of process.argv.slice(1)) {
+      try { rmSync(path, { recursive: true, force: true }); }
+      catch (error) {
+        console.error('Qualification cleanup failed at ' + path + ':', error);
+        process.exitCode = 1;
+      }
+    }
+  `, ...[session, active].filter((path): path is string => path !== undefined)], { env: candidateEnv, stdio: ['ignore', 'ignore', 'inherit'] });
+    if (cleanup.error || cleanup.status !== 0) throw new Error(`Native qualification cleanup failed: ${cleanup.error?.message ?? `node exited ${cleanup.status}`}`, { cause: cleanup.error });
+  } catch (error) {
+    process.exitCode = 1;
+    if (!commandFailed) throw error;
+    console.error(error);
+  }
 }

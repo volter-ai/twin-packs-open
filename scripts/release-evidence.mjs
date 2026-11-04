@@ -58,9 +58,11 @@ export function verifyPreparation(directory, expectedDigest, expectedSource) {
   assert.match(preparation.vendor, /^[a-z][a-z0-9-]*$/);
   assert.ok(Array.isArray(preparation.files) && preparation.files.length > 0);
   for (const required of ['pack-inventory.json', 'qualification.json', 'prepared-assessment.json', 'keys-sweep.json',
-    'assessment-package-lock.json', 'publisher-bun.lock', 'publisher-package.json']) {
+    'publisher-bun.lock', 'publisher-package.json']) {
     assert.ok(preparation.files.some(file => file.name === required), `Preparation omits ${required}`);
   }
+  const evaluatorLocks = preparation.files.filter(file => /^assessment-(package-lock\.json|pnpm-lock\.yaml)$/.test(file.name));
+  assert.equal(evaluatorLocks.length, 1, 'Preparation must retain exactly one installed evaluator lock');
   assert.ok(preparation.files.some(file => /^consumer-(package-lock\.json|pnpm-lock\.yaml)$/.test(file.name)), 'Preparation omits its installed consumer lock');
   assert.equal(new Set(preparation.files.map(file => file.name)).size, preparation.files.length, 'Repeated preparation file');
   for (const file of preparation.files) {
@@ -88,7 +90,7 @@ export function verifyPreparation(directory, expectedDigest, expectedSource) {
   assert.equal(assessment.integrity, preparation.integrity);
   assert.deepEqual(assessment.tools, preparation.tools);
   const sha512 = bytes => createHash('sha512').update(bytes).digest('hex');
-  assert.equal(sha512(readFileSync(join(directory, 'assessment-package-lock.json'))), assessment.dependencyLockSha512);
+  assert.equal(sha512(readFileSync(join(directory, evaluatorLocks[0].name))), assessment.dependencyLockSha512);
   assert.equal(preparation.dependencyLockSha512, assessment.dependencyLockSha512);
   const consumerLock = preparation.files.find(file => /^consumer-(package-lock\.json|pnpm-lock\.yaml)$/.test(file.name));
   assert.equal(sha512(readFileSync(join(directory, consumerLock.name))), assessment.consumerDependencyLockSha512);
