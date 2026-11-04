@@ -11,7 +11,8 @@
 // turning at each tenth minute of the clock, as Reddit's answers count it (x-ratelimit-used and -remaining summing to
 // 1,000, -reset the seconds to the next ten-minute mark, recorded on 2025-05-07 and 2025-06-19); a call past it is 429.
 import { isReadOnlyRequest, type HandlerContext } from '@volter/world-core';
-import { accountOfPerson, CALLER_HEADER, err, hasScope, hostOf, httpError, jsonAnswer, legacyEncoded, modhashFor, nowSeconds, personSignedIn, RATE_WINDOW, sessionCookie, TOKEN, type Caller } from './shared.ts';
+import { cookieOf, signedIn } from '@volter/world-ui';
+import { accountOfPerson, CALLER_HEADER, err, hasScope, hostOf, httpError, jsonAnswer, legacyEncoded, modhashFor, nowSeconds, RATE_WINDOW, SESSION_COOKIE, TOKEN, type Caller } from './shared.ts';
 
 /** The calls a person may make on www.reddit.com with no one signed in: reads of what anyone may read. */
 const PUBLIC_READS = new Set(['GET_r_subreddit_hot', 'GET_r_subreddit_new', 'GET_r_subreddit_about', 'GET_comments_article', 'GET_r_subreddit_comments_article', 'GET_user_username_where']);
@@ -37,10 +38,10 @@ function bearerCaller(ctx: HandlerContext, token: string): Caller | 'invalid' {
 
 /** A person signed in on reddit.com, with the modhash their page sends back on a write. */
 async function sessionCaller(ctx: HandlerContext): Promise<{ caller: Caller; modhashOk: boolean } | undefined> {
-  const cookie = sessionCookie(ctx);
-  const email = cookie ? personSignedIn(ctx, cookie) : undefined;
-  const account = email ? accountOfPerson(ctx, email) : undefined;
-  if (!account) return undefined;
+  const cookie = cookieOf(ctx.call.request, SESSION_COOKIE);
+  const person = signedIn(ctx, SESSION_COOKIE);
+  const account = person ? accountOfPerson(ctx, person.email) : undefined;
+  if (!cookie || !account) return undefined;
   const sent = ctx.call.request.headers.get('x-modhash') ?? String(ctx.params.uh ?? '');
   const modhashOk = sent !== '' && sent === (await modhashFor(ctx, cookie));
   return { caller: { account: String(account.id), name: String(account.name), scopes: ['*'], client: `session:${String(account.id)}`, via: 'session' }, modhashOk };

@@ -4,9 +4,8 @@
 // uploaded file, for the twin transcodes nothing, so its DASH and HLS playlists are not there; an image, its previews
 // and its thumbnail are the uploaded image, at any of the sizes Reddit names.
 import { bytesResponse, type HandlerContext } from '@volter/world-core';
-import { ASSET, LINK } from '../semantics/shared.ts';
+import { ASSET, hostOf, LINK } from '../semantics/shared.ts';
 
-const hostOf = (request: Request): string => (request.headers.get('x-volter-twin-original-host') ?? request.headers.get('host') ?? new URL(request.url).host).replace(/:\d+$/, '').toLowerCase();
 const notFound = (): Response => new Response('Not Found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 
 /** The uploaded bytes of an asset whose file arrived, with its media type. */

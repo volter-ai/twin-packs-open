@@ -3,7 +3,7 @@
 // author, its little text, its image, video or link card), and how a page reached at a World's place names its links
 // and media on the twin's own base. Authored from LinkedIn's documented flow and its pages' structure under LinkedIn's
 // colours; nothing of LinkedIn's pages is copied.
-import { personOf, twinVendorUrl, type HandlerContext } from '@volter/world-core';
+import { twinVendorUrl, type HandlerContext } from '@volter/world-core';
 import { flowPage, signedIn } from '@volter/world-ui';
 import { ACL, audiencesFor, IMAGE, MEMBER, mediaSigner, ORGANIZATION, POST, POSTING_ROLES, urnOf, VIDEO, type Row } from '../semantics/shared.ts';
 
@@ -15,8 +15,7 @@ export const COOKIE = 'li_at';
 /** The member signed in at linkedin.com, or undefined. */
 export function memberOf(ctx: HandlerContext): Row | undefined {
   const person = signedIn(ctx, COOKIE);
-  const held = person ? personOf(ctx, person.email) : undefined;
-  return held ? ctx.row(MEMBER, String(held.sub)) : undefined;
+  return person ? ctx.row(MEMBER, String(person.sub)) : undefined;
 }
 
 // Where a visitor is sent, as linkedin.com answers a signed-out GET (read 2026-10-03; no LinkedIn page documents it):

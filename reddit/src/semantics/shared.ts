@@ -1,6 +1,6 @@
 // What Reddit's handlers, doors and pages share: who is calling, the stored shapes and the views Reddit answers them in
 // (an account, a community, a post, a comment, a listing), the media an upload leaves, and Reddit's answers.
-import { personOf, sha256, type HandlerContext } from '@volter/world-core';
+import { imageDimensions, readMp4Header, personOf, sha256, type HandlerContext } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
 export type { HandlerContext };
@@ -17,7 +17,7 @@ export const RATE_WINDOW = '_rate_window';
 export const VOTE = '_vote';
 export const MEMBERSHIP = '_membership';
 /** The session cookie reddit.com names its person by. */
-const SESSION_COOKIE = 'reddit_session';
+export const SESSION_COOKIE = 'reddit_session';
 /** The caller this pack's front resolved (./around.ts), named to a handler in a header only that front sets. */
 export const CALLER_HEADER = 'x-twin-reddit-caller';
 
@@ -122,15 +122,6 @@ export function personByLogin(ctx: HandlerContext, login: string): { email: stri
   if (!account) return undefined;
   const email = String(account._email);
   return personOf(ctx, email) ? { email, account } : undefined;
-}
-
-/** The `reddit_session` cookie a request carries, or ''. */
-export const sessionCookie = (ctx: HandlerContext): string => new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`).exec(ctx.call.request.headers.get('cookie') ?? '')?.[1] ?? '';
-
-/** The email of the person a session cookie signed in (world-ui's session kit records the session as `_web_session`). */
-export function personSignedIn(ctx: HandlerContext, cookie: string): string | undefined {
-  const session = ctx.rowsRaw('_web_session').find((s) => s.token === cookie);
-  return session && personOf(ctx, String(session.email)) ? String(session.email) : undefined;
 }
 
 /** The modhash a session's pages carry and its own API calls send back (dev/api: "A modhash is a token that the reddit
@@ -281,6 +272,17 @@ export function sortLinks(ctx: HandlerContext, links: Row[], sort: 'hot' | 'new'
   return [...links].sort((a, b) => key(b) - key(a));
 }
 
+/** The front page's Hot posts: joined or moderated communities, else every public community. */
+export function homeFeed(ctx: HandlerContext, viewer: string | undefined): { posts: Row[]; personalized: boolean } {
+  const open = ctx.rowsRaw(SUBREDDIT).filter((sr) => sr._profile_of === undefined && sr.subreddit_type !== 'private');
+  const joined = viewer ? open.filter((sr) => { const m = membership(ctx, String(sr.id), viewer); return m.subscriber || m.moderator; }) : [];
+  const feed = joined.length ? joined : open;
+  return {
+    posts: sortLinks(ctx, feed.flatMap((sr) => linksOf(ctx, String(sr.id))), 'hot').map((l) => linkView(ctx, l, viewer)),
+    personalized: joined.length > 0,
+  };
+}
+
 /** A post as Reddit answers its `data`, to the account reading it: its stored facts, its votes and comments counted
  *  now, what the reader's own vote is, and the fields Reddit answers with every post (the 2025-05-07 recording's set,
  *  with a moderator's own fields where the reader moderates the community, as the 2020-12-03 recording shows). */
@@ -413,61 +415,22 @@ export const bucketHost = (bucket: string): string => `${bucket}.s3-accelerate.a
 export const IMAGE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif' };
 export const VIDEO_TYPES: Record<string, string> = { 'video/mp4': 'mp4', 'video/quicktime': 'mov' };
 
-/** The size an uploaded file says it is: an image's width and height, a video's and its duration. */
+/** Reddit reads the leased MIME type's dimensions and rounds video duration to whole seconds. */
 export function mediaFacts(bytes: Uint8Array, mimetype: string): { width?: number; height?: number; duration?: number } {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const reader = mimetype in VIDEO_TYPES ? mp4Facts : READERS[mimetype];
-  return reader ? reader(bytes, view) : {};
-}
-
-type Facts = { width?: number; height?: number; duration?: number };
-/** A PNG's header chunk holds its width and height. */
-const pngFacts = (bytes: Uint8Array, view: DataView): Facts => (bytes.length > 24 ? { width: view.getUint32(16), height: view.getUint32(20) } : {});
-/** A GIF's screen descriptor holds its width and height, little-endian. */
-const gifFacts = (bytes: Uint8Array, view: DataView): Facts => (bytes.length > 10 ? { width: view.getUint16(6, true), height: view.getUint16(8, true) } : {});
-const READERS: Record<string, (bytes: Uint8Array, view: DataView) => Facts> = { 'image/png': pngFacts, 'image/gif': gifFacts, 'image/jpeg': jpegFacts };
-
-/** A JPEG's start-of-frame segment holds its height and width: its segments walked to the first frame header. */
-function jpegFacts(bytes: Uint8Array, view: DataView): Facts {
-  let at = 2;
-  while (at + 9 < bytes.length && bytes[at] === 0xff && !isFrameHeader(bytes[at + 1]!)) at += 2 + view.getUint16(at + 2);
-  return at + 9 < bytes.length && bytes[at] === 0xff ? { height: view.getUint16(at + 5), width: view.getUint16(at + 7) } : {};
-}
-/** A JPEG marker that starts a frame (SOF0 to SOF15, not DHT, JPG or DAC). */
-const isFrameHeader = (marker: number): boolean => marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
-
-/** An MP4's duration (its movie header's duration over its timescale) and its first video track's width and height
- *  (the track header's, 16.16 fixed point). */
-function mp4Facts(bytes: Uint8Array, view: DataView): { width?: number; height?: number; duration?: number } {
-  const out: { width?: number; height?: number; duration?: number } = {};
-  const walk = (from: number, to: number): void => {
-    let at = from;
-    while (at + 8 <= to) {
-      let size = view.getUint32(at);
-      const type = String.fromCharCode(bytes[at + 4]!, bytes[at + 5]!, bytes[at + 6]!, bytes[at + 7]!);
-      let header = 8;
-      if (size === 1 && at + 16 <= to) { size = Number(view.getBigUint64(at + 8)); header = 16; }
-      if (size === 0) size = to - at;
-      if (size < header || at + size > to) return;
-      if (type === 'moov' || type === 'trak') walk(at + header, at + size);
-      if (type === 'mvhd') {
-        const v = bytes[at + header]!;
-        const timescale = v === 1 ? view.getUint32(at + header + 20) : view.getUint32(at + header + 12);
-        const duration = v === 1 ? Number(view.getBigUint64(at + header + 24)) : view.getUint32(at + header + 16);
-        if (timescale) out.duration = Math.round(duration / timescale);
-      }
-      if (type === 'tkhd' && out.width === undefined) {
-        const v = bytes[at + header]!;
-        const base = at + header + (v === 1 ? 88 : 76);
-        const w = view.getUint32(base) / 65536;
-        const h = view.getUint32(base + 4) / 65536;
-        if (w > 0 && h > 0) { out.width = Math.round(w); out.height = Math.round(h); }
-      }
-      at += size;
-    }
-  };
-  walk(0, bytes.length);
-  return out;
+  if (mimetype in VIDEO_TYPES) {
+    const file = readMp4Header(bytes);
+    const header = file.movies.flatMap((movie) => movie.headers).filter((movie) => movie.timescale > 0).at(-1);
+    const track = file.movies.flatMap((movie) => movie.tracks)[0];
+    return {
+      ...(header ? { duration: Math.round(header.duration / header.timescale) } : {}),
+      ...(track ? { width: Math.round(track.width), height: Math.round(track.height) } : {}),
+    };
+  }
+  if (mimetype !== 'image/png' && mimetype !== 'image/gif' && mimetype !== 'image/jpeg') return {};
+  if ((mimetype === 'image/png' && bytes.length <= 24) || (mimetype === 'image/gif' && bytes.length <= 10)) return {};
+  const image = imageDimensions(bytes, mimetype);
+  if (!image || (image.jpeg && (image.jpeg.frameEnd >= bytes.length || image.jpeg.nonMarkerBytes || image.jpeg.standaloneMarkers || image.jpeg.fillBytes))) return {};
+  return { width: image.width, height: image.height };
 }
 
 /** The rendition height Reddit names a hosted video's file by (DASH_<height>.mp4): the smallest of its ladder that holds
