@@ -298,7 +298,7 @@ export function issueView(ctx: Reader, raw: Row): Row {
 
 /** Stored vendor fields, including the API's own _meta; private association/payload fields stay in the tree. */
 export function wire(ctx: Reader, row: Row): Row {
-  return Object.fromEntries(Object.entries(ctx.own(row)).filter(([key]) => !key.startsWith('_') || key === '_meta'));
+  return Object.fromEntries(Object.entries({ id: row.id, ...ctx.own(row) }).filter(([key]) => !key.startsWith('_') || key === '_meta'));
 }
 
 export const ORG = 'organization';

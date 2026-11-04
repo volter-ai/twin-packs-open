@@ -2347,13 +2347,12 @@ export async function codexCredentials(ctx: HandlerContext): Promise<Row> {
 async function subscriptionCredentials(ctx: HandlerContext, account: Row): Promise<Row> {
   const active = (row: Row): boolean => row._account === account.id && row.status === 'active' && Number(row._expires) > epoch(ctx);
   if (!ctx.rowsRaw('_codex_grant').some(active)) await codexTokens(ctx, account);
-  const id = await ctx.atomically((rows) => {
-    const native = rows('_codex_account').find((row) => row.id === account.id)!;
-    const held = rows('_codex_grant').find((row) => row.id === native._credential_grant && active(row)) ?? rows('_codex_grant').find(active)!;
-    return native._credential_grant === held.id ? { value: String(held.id) }
-      : { value: String(held.id), write: { resource: '_codex_account', id: String(account.id), fields: { _credential_grant: held.id }, operation: 'codex.account.grant' } };
-  });
-  const grant = ctx.row('_codex_grant', id)!;
+  let grant!: Row;
+  await ctx.change('_codex_account', String(account.id), (native) => {
+    const grants = ctx.rowsRaw('_codex_grant');
+    grant = grants.find((row) => row.id === native._credential_grant && active(row)) ?? grants.find(active)!;
+    return native._credential_grant === grant.id ? undefined : { _credential_grant: grant.id };
+  }, 'codex.account.grant', { input: 'omit' });
   const tokens = { access_token: grant._access, id_token: grant._id_token, refresh_token: grant._refresh };
   const auth = { auth_mode: 'chatgpt', OPENAI_API_KEY: null, tokens: { ...tokens, account_id: account.id },
     last_refresh: grant._issued_at ?? new Date((Number(grant._expires) - 3600) * 1000).toISOString() };
@@ -2420,4 +2419,24 @@ export function codexShape(ctx: HandlerContext, body: Row, turn: CodexWire.WireT
   const id = ctx.mint('_codex_call');
   return { id, model: String(body.model), createdAt: epoch(ctx), body: { store: false, ...body }, turn,
     itemId: (kind: string, i: number) => `${kind}_${base62From(`${id}:${kind}:${i}`, 24)}`, defaults: { store: false } };
+}
+
+/** API keys and signed media select a project. Codex grants are shared user-login custody. */
+export async function tenantFor(ctx: HandlerContext): Promise<string> {
+  const request = ctx.call.request, url = new URL(request.url);
+  if (url.pathname === '/_twin/app-credentials') return String((await credentialProject(ctx))._namespace);
+  const offered = (request.headers.get('sec-websocket-protocol') ?? '').split(',').map((part) => part.trim()).find((part) => part.startsWith('openai-insecure-api-key.'));
+  const bearer = /^Bearer\s+(\S+)$/i.exec(request.headers.get('authorization') ?? '')?.[1] ?? offered?.slice('openai-insecure-api-key.'.length);
+  if (bearer) {
+    const key = ctx.rowsRaw('ProjectApiKey', { withDeleted: true }).find((row) => row._sha256 === ctx.crypto.sha256(bearer));
+    return (key?._project_namespace as string | undefined) ?? '__unselected__';
+  }
+  const projectId = /^\/settings\/(proj[-_][A-Za-z0-9_-]+)\/api-keys/.exec(url.pathname)?.[1];
+  if (projectId) return (ctx.row('Project', projectId)?._namespace as string | undefined) ?? 'default';
+  if (url.pathname.includes('/generated-images/')) {
+    const id = url.pathname.split('/').pop()!.replace(/\.png$/, '');
+    const image = ctx.rowsRaw('_generated_image').find((row) => row.id === id && row._sig === url.searchParams.get('sig'));
+    return (image?._project_namespace as string | undefined) ?? '__unselected__';
+  }
+  return 'default';
 }
