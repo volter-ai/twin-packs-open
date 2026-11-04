@@ -5,10 +5,9 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { selectedPack } from './selected-pack.mjs';
-import { npmCommand } from './commands.mjs';
+import { npmCommand, runOwnedCommand } from './commands.mjs';
 import { sourceCommit } from './release-evidence.mjs';
 
 const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
@@ -40,13 +39,13 @@ write(join(work, 'package.json'), {
   name: 'packed-customer-assessment', private: true, type: 'module',
   dependencies: { ...selected.manifest.devDependencies, ...standard.devDependencies, ...tools, [inventory.name]: `file:${archive}` },
 });
-const run = (command, args, cwd) => {
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
-  if (result.status !== 0) throw new Error(`${command} ${args[0]} failed: ${result.stderr || result.stdout}`);
+const run = async (command, args, cwd) => {
+  const result = await runOwnedCommand(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], terminationGraceMs: 1000 });
+  if (result.error || result.status !== 0) throw new Error(`${command} ${args[0]} failed: ${result.error?.message ?? (result.stderr || result.stdout)}`);
 };
 process.stderr.write('Preparing locked evaluator dependencies and the exact candidate archive\n');
 const installing = npmCommand(['install', '--ignore-scripts', '--no-audit', '--no-fund']);
-run(installing.command, installing.args, work);
+await run(installing.command, installing.args, work);
 const lock = read(join(work, 'package-lock.json'));
 assert.equal(lock.packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Installed candidate bytes differ from packed release');
 for (const [name, version] of Object.entries(tools)) {
@@ -69,13 +68,13 @@ for (const directory of standard.assessmentClientSdks ?? []) {
   const bunLock = existsSync(join(sdkRoot, 'bun.lock'));
   const lockFile = join(sdkRoot, bunLock ? 'bun.lock' : 'pnpm-lock.yaml');
   const before = readFileSync(lockFile, 'utf8');
-  if (bunLock) run(process.argv[2], ['install', '--frozen-lockfile', '--ignore-scripts'], sdkRoot);
+  if (bunLock) await run(process.argv[2], ['install', '--frozen-lockfile', '--ignore-scripts'], sdkRoot);
   else {
     const pnpm = /^pnpm@(\d+\.\d+\.\d+)$/.exec(sdkManifest.packageManager ?? '')?.[1];
     assert.ok(pnpm, `${directory} locks with pnpm-lock.yaml but names no exact pnpm in packageManager`);
     // (npm runs pnpm from outside the fixture: npm refuses a directory whose devEngines names another package manager)
     const installing = npmCommand(['exec', '--yes', `--package=pnpm@${pnpm}`, '--', 'pnpm', '--dir', sdkRoot, 'install', '--frozen-lockfile', '--ignore-scripts']);
-    run(installing.command, installing.args, work);
+    await run(installing.command, installing.args, work);
   }
   assert.equal(readFileSync(lockFile, 'utf8'), before);
   clientSdkLocks.push({ directory, manifest: sdkManifest, lockSha512: hash(before) });
@@ -104,12 +103,12 @@ const appPnpm = /^pnpm@(\d+\.\d+\.\d+)$/.exec(appManifest.packageManager ?? '')?
 let appLockFile;
 if (appPnpm) {
   const installingApp = npmCommand(['exec', '--yes', `--package=pnpm@${appPnpm}`, '--', 'pnpm', '--dir', appDir, 'install', '--ignore-scripts']);
-  run(installingApp.command, installingApp.args, work);
+  await run(installingApp.command, installingApp.args, work);
   appLockFile = join(appDir, 'pnpm-lock.yaml');
   const lockText = readFileSync(appLockFile, 'utf8');
   assert.ok(lockText.includes(`integrity: ${integrity}`), 'Customer candidate bytes differ from the packed release');
 } else {
-  run(installing.command, installing.args, appDir);
+  await run(installing.command, installing.args, appDir);
   appLockFile = join(appDir, 'package-lock.json');
   assert.equal(read(appLockFile).packages[`node_modules/${inventory.name}`]?.integrity, integrity, 'Customer candidate bytes differ from the packed release');
 }
