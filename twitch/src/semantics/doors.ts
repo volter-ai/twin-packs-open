@@ -4,8 +4,6 @@
 import { personOf, personWith, recordPerson, type HandlerContext } from '@volter/world-core';
 import { CLIENT_SECRET, credentialString, digestOf, liveStreamOf, loginOf, STREAM_KEY, streamKeyOf, userByLogin, userView, type Row } from './shared.ts';
 
-export type { HandlerContext };
-
 const refuse = (status: number, message: string): Response => Response.json({ error: message }, { status });
 
 /** Native user/channel provisioning is shared by sign-up and metadata credential issuance. */

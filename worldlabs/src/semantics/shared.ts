@@ -2,7 +2,6 @@
 import type { HandlerContext } from '@volter/world-core';
 
 type Row = Record<string, unknown>;
-export type { HandlerContext };
 export const ACCOUNT = '_account';
 
 export const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string => ctx.crypto.digest('sha256', v);

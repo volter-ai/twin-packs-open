@@ -5,7 +5,6 @@
 import { personOf, type HandlerContext } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
-export type { HandlerContext };
 
 // ── Twitch's answers ────────────────────────────────────────────────────────────────────────────────────────────────
 

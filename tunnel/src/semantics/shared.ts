@@ -3,7 +3,6 @@
 import type { HandlerContext, SocketSession } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
-export type { HandlerContext };
 export const ACCOUNT = '_account';
 export const TUNNEL = '_tunnel';
 // source: spec:/x-reference/domain "voltertest.xyz"
