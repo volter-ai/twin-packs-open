@@ -1,0 +1,92 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [],
+  "notDemanded": "every other operation of Sentry's API (dashboards, alerts, detectors, members, teams, integrations, issue changes, the organization's events and discover queries, replays' and profiles' reads, release files, deploys): no application here calls them.",
+  "optional": [
+    {
+      "commit": "3e63239dbdec9949ea0b4c82e28828c5498464a0",
+      "client": "@sentry/nextjs 10.38 (bundler plugin 4.9, sentry-cli 2.58.4)",
+      "backend": [
+        {
+          "call": "errors, transactions and logs from the server and edge; errors and Session Replay from the browser",
+          "operation": "sendEnvelope",
+          "evidence": "apps/web/sentry.server.config.ts:9"
+        },
+        {
+          "call": "withSentryConfig at build: release, source maps, finalize",
+          "operation": "createProjectRelease; getChunkUploadOptions; uploadChunks; assembleArtifactBundle; updateProjectRelease",
+          "evidence": "apps/web/next.config.ts:194"
+        }
+      ],
+      "application": "lukevella/rallly",
+      "what": "@sentry/nextjs 10.38 (bundler plugin 4.9, sentry-cli 2.58.4)",
+      "setting": "Configuration: operator instrumentation is a setting that turns the reporting provider on; operator error reporting uses SENTRY_DSN/NEXT_PUBLIC_SENTRY_DSN; no person uses the reporting flow (apps/web/instrumentation-client.ts:9-12).",
+      "evidence": "apps/web/instrumentation-client.ts:9-12"
+    },
+    {
+      "commit": "1d561b8c73c984058a5121ec229f4805a2424a91",
+      "client": "@sentry/nestjs and @sentry/node 10.73 with profiling, @sentry/react 10.59.0 (lockfile resolution of ^10.51.0)",
+      "backend": [
+        {
+          "call": "errors, transactions and profiles from the server",
+          "operation": "sendEnvelope",
+          "evidence": "packages/twenty-server/src/instrument.ts:67"
+        },
+        {
+          "call": "its cron jobs as monitors: check-ins in progress, ok or error, with the schedule (captureCheckIn)",
+          "operation": "sendEnvelope",
+          "evidence": "packages/twenty-server/src/engine/core-modules/cron/sentry-cron-monitor.decorator.ts:29"
+        },
+        {
+          "call": "the front: errors and Session Replay",
+          "operation": "sendEnvelope",
+          "evidence": "packages/twenty-front/src/modules/error-handler/components/SentryInitEffect.tsx:51"
+        }
+      ],
+      "application": "twentyhq/twenty",
+      "what": "@sentry/nestjs and @sentry/node 10.73 with profiling, @sentry/react 10.59.0 (lockfile resolution of ^10.51.0)",
+      "setting": "Configuration: operator instrumentation is a setting that turns the reporting provider on; EXCEPTION_HANDLER_DRIVER=SENTRY replaces CONSOLE; optional frontend DSN configures operator error reporting (packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:1224-1225; packages/twenty-server/src/instrument.ts:61).",
+      "evidence": "packages/twenty-server/.env.example:50-51; packages/twenty-server/src/instrument.ts:61; packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:1224-1225"
+    },
+    {
+      "commit": "54343aa685ae8f33159d2f485ec4a57bad5c574a",
+      "client": "@sentry/nextjs 10.33, @sentry/nestjs and @sentry/node 9.46 with @sentry/profiling-node; sentry-cli in its release script",
+      "backend": [
+        {
+          "call": "errors and transactions from the web app (server, edge, browser): event and transaction items, with sessions and client reports from the browser",
+          "operation": "sendEnvelope",
+          "evidence": "apps/web/sentry.server.config.ts:9"
+        },
+        {
+          "call": "the API v2 service: errors, transactions and profiles",
+          "operation": "sendEnvelope",
+          "evidence": "apps/api/v2/src/instrument.ts:9"
+        },
+        {
+          "call": "sentry-cli releases new (one project: the project release path)",
+          "operation": "createProjectRelease",
+          "evidence": "apps/web/scripts/create-sentry-release.js:19"
+        },
+        {
+          "call": "sentry-cli releases set-commits --auto --ignore-missing: the organization repositories, then the refs",
+          "operation": "listOrganizationRepos; getPreviousReleaseWithCommits; updateOrganizationRelease",
+          "evidence": "apps/web/scripts/create-sentry-release.js:22"
+        },
+        {
+          "call": "sentry-cli sourcemaps upload: chunk options, chunks, the artifact bundle assembled",
+          "operation": "getChunkUploadOptions; uploadChunks; assembleArtifactBundle",
+          "evidence": "apps/web/scripts/create-sentry-release.js:31"
+        },
+        {
+          "call": "sentry-cli releases finalize",
+          "operation": "updateProjectRelease",
+          "evidence": "apps/web/scripts/create-sentry-release.js:39"
+        }
+      ],
+      "application": "calcom/cal.diy",
+      "what": "@sentry/nextjs 10.33, @sentry/nestjs and @sentry/node 9.46 with @sentry/profiling-node; sentry-cli in its release script",
+      "setting": "Configuration: operator instrumentation is a setting that turns the reporting provider on; operator error reporting requires DSN/sampling; the plain callback is the default (packages/lib/sentryWrapper.ts:27; .env.example:165-166).",
+      "evidence": ".env.example:165-166"
+    }
+  ]
+}

@@ -1,0 +1,611 @@
+{
+  "vendor": "xai",
+  "author": "Contributor 61",
+  "host": "api.x.ai",
+  "about": "Orbit CRM integration and legacy chat migration; model turns are labelled synthetic outputs and API credentials belong to their clients.",
+  "scenario": "scenario.json",
+  "steps": [
+    {
+      "name": "1 October: Mira connects the CRM",
+      "wait": "273d"
+    },
+    {
+      "name": "A pasted key was not issued by this account",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 401,
+      "body": {
+        "model": "grok-4.7",
+        "input": "Orbit deal?"
+      },
+      "headers": {
+        "authorization": "Bearer xai-pasted-wrong"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Mira obtains the CRM application key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "expect": [
+        {
+          "path": "api_key",
+          "contains": "xai-"
+        }
+      ],
+      "capture": {
+        "app": "api_key"
+      }
+    },
+    {
+      "name": "The CRM asks about Orbit",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": "Which stage is Orbit in?"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "grok-4.7"
+        },
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "output.0.encrypted_content",
+          "contains": "[twin-stub]"
+        },
+        {
+          "path": "output.1.content.0.text",
+          "contains": "[twin-stub:"
+        }
+      ]
+    },
+    {
+      "name": "A follow-up with the workspace search tools configured",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": "Orbit market context",
+        "stream": true,
+        "tools": [
+          {
+            "type": "web_search"
+          },
+          {
+            "type": "x_search"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: response.completed"
+        },
+        {
+          "path": "",
+          "contains": "[twin-stub] Orbit market context"
+        }
+      ]
+    },
+    {
+      "name": "The CRM checks its parser with a labelled synthetic stage fixture",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.20-0309-non-reasoning",
+        "input": "Extract the stage from this synthetic onboarding export: Orbit deal / Lead.",
+        "text": {
+          "format": {
+            "type": "json_schema",
+            "name": "stage",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "enum": [
+                    "Lead",
+                    "Won"
+                  ]
+                },
+                "fixture": {
+                  "type": "string",
+                  "enum": [
+                    "[twin-stub]"
+                  ]
+                }
+              },
+              "required": [
+                "stage",
+                "fixture"
+              ]
+            },
+            "strict": true
+          }
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "output.0.content.0.text",
+          "equals": "{\"stage\":\"Lead\",\"fixture\":\"[twin-stub]\"}"
+        }
+      ]
+    },
+    {
+      "name": "The agent asks the CRM to set Orbit to Won",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.20-0309-non-reasoning",
+        "input": "Set Orbit to Won",
+        "tools": [
+          {
+            "type": "function",
+            "name": "update_deal",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "enum": [
+                    "Lead",
+                    "Won"
+                  ]
+                }
+              },
+              "required": [
+                "stage"
+              ]
+            }
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "output.0.type",
+          "equals": "function_call"
+        },
+        {
+          "path": "output.0.arguments",
+          "equals": "{\"stage\":\"Won\"}"
+        }
+      ],
+      "capture": {
+        "call": "output.0.call_id",
+        "toolItem": "output.0"
+      }
+    },
+    {
+      "name": "The CRM returns its function result",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.20-0309-non-reasoning",
+        "input": [
+          {
+            "role": "user",
+            "content": "Set Orbit to Won"
+          },
+          "{toolItem}",
+          {
+            "type": "function_call_output",
+            "call_id": "{call}",
+            "output": "{\"ok\":true}"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "name": "update_deal",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "enum": [
+                    "Lead",
+                    "Won"
+                  ]
+                }
+              },
+              "required": [
+                "stage"
+              ]
+            }
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        }
+      ]
+    },
+    {
+      "name": "An empty form prompt cannot be sent",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 422,
+      "body": {
+        "model": "grok-4.7",
+        "input": []
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "2 October: the runtime restarts; the form is repaired",
+      "wait": "1d"
+    },
+    {
+      "name": "The restarted runtime recovers its existing key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "expect": [
+        {
+          "path": "api_key",
+          "equals": "{app}"
+        }
+      ]
+    },
+    {
+      "name": "The repaired form sends a valid prompt",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": "Summarize Orbit"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "name": "Mira creates a separate key for the legacy chat client",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "body": {
+        "name": "legacy-chat"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "xai-"
+        }
+      ],
+      "capture": {
+        "legacy": "key"
+      }
+    },
+    {
+      "name": "The legacy client asks for a summary",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarize the Orbit deal"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {legacy}"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "chat.completion"
+        },
+        {
+          "path": "choices.0.message.content",
+          "contains": "[twin-stub:grok-4.7]"
+        },
+        {
+          "path": "service_tier",
+          "equals": "default"
+        }
+      ]
+    },
+    {
+      "name": "The legacy client streams a follow-up",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Next steps for Orbit?"
+          }
+        ],
+        "stream": true
+      },
+      "headers": {
+        "authorization": "Bearer {legacy}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        },
+        {
+          "path": "",
+          "contains": "reasoning_content"
+        }
+      ]
+    },
+    {
+      "name": "The legacy client offers its summary function",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Use summarize_deal for Orbit"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "summarize_deal",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "deal": {
+                    "type": "string",
+                    "enum": [
+                      "Orbit"
+                    ]
+                  }
+                },
+                "required": [
+                  "deal"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {legacy}"
+      },
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "tool_calls"
+        }
+      ],
+      "capture": {
+        "chatCall": "choices.0.message.tool_calls.0.id",
+        "chatMessage": "choices.0.message"
+      }
+    },
+    {
+      "name": "The legacy client returns the summary function output",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Use summarize_deal for Orbit"
+          },
+          "{chatMessage}",
+          {
+            "role": "tool",
+            "tool_call_id": "{chatCall}",
+            "content": "{\"stage\":\"Won\"}"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "summarize_deal",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "deal": {
+                    "type": "string",
+                    "enum": [
+                      "Orbit"
+                    ]
+                  }
+                },
+                "required": [
+                  "deal"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {legacy}"
+      },
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "stop"
+        }
+      ]
+    },
+    {
+      "name": "A misspelled deployment model is refused",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 404,
+      "body": {
+        "model": "grok-typo",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Orbit handover"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {legacy}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "contains": "grok-typo"
+        }
+      ]
+    },
+    {
+      "name": "3 October: Mira corrects the model setting",
+      "wait": "1d"
+    },
+    {
+      "name": "The corrected legacy setting works",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "model": "grok-4.20-0309-non-reasoning",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Orbit handover"
+          }
+        ]
+      },
+      "headers": {
+        "authorization": "Bearer {legacy}"
+      },
+      "expect": [
+        {
+          "path": "choices.0.message.reasoning_content",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Capacity temporarily refuses the end-of-week summary",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 429,
+      "body": {
+        "model": "grok-4.7",
+        "input": "capacity summary"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": "Too many requests"
+        }
+      ]
+    },
+    {
+      "name": "The CRM waits a minute before retrying",
+      "wait": "1m"
+    },
+    {
+      "name": "The delayed summary succeeds",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": "capacity summary"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "name": "Mira sends a final goodbye before ceasing integration use",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.20-0309-non-reasoning",
+        "input": "The Orbit integration session is over. Goodbye."
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        },
+        {
+          "path": "output.0.content.0.text",
+          "contains": "[twin-stub:"
+        }
+      ]
+    }
+  ]
+}

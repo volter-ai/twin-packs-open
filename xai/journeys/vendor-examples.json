@@ -1,0 +1,289 @@
+{
+  "vendor": "xai",
+  "author": "Contributor 61",
+  "host": "api.x.ai",
+  "about": "xAI OpenAPI and served inference reference examples; shapes and request-selected values are verified, model prose remains a labelled stub.",
+  "steps": [
+    {
+      "name": "Use a Console API key for the published inference examples",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "app": "api_key"
+      }
+    },
+    {
+      "name": "Use the current catalogue snapshot",
+      "wait": "273d"
+    },
+    {
+      "name": "handle_generic_completion_request response 200 example",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant that can answer questions and help with tasks."
+          },
+          {
+            "role": "user",
+            "content": "What is 101*3?"
+          }
+        ],
+        "model": "latest"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "latest"
+        }
+      ],
+      "example": "handle_generic_completion_request#200 application/json"
+    },
+    {
+      "name": "handle_generic_model_request response 200 example",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "input": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant that can answer questions and help with tasks."
+          },
+          {
+            "role": "user",
+            "content": "What is 101*3?"
+          }
+        ],
+        "model": "latest"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "latest"
+        }
+      ],
+      "example": "handle_generic_model_request#200 application/json",
+      "exampleDiffers": {
+        "output[].content[].logprobs": "The reference sample prints a text's logprobs as null, but the spec's OutputMessageContent types them as an array of TokenLogProb, and the unchanged @ai-sdk/xai 4.0.54 (Twenty's provider) refuses a null there; the twin answers the empty array, no model having run."
+      }
+    },
+    {
+      "name": "Chat Completions request and response",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant that can answer questions and help with tasks."
+          },
+          {
+            "role": "user",
+            "content": "What is 101*3?"
+          }
+        ],
+        "model": "latest"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "latest"
+        }
+      ],
+      "example": "handle_generic_completion_request#doc Chat Completions request and response"
+    },
+    {
+      "name": "Responses text generation",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": "What is the meaning of life?"
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "grok-4.7"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "reasoning"
+        },
+        {
+          "path": "output.0.encrypted_content",
+          "exists": true
+        },
+        {
+          "path": "output.1.type",
+          "equals": "message"
+        },
+        {
+          "path": "output.1.role",
+          "equals": "assistant"
+        },
+        {
+          "path": "output.1.content.0.type",
+          "equals": "output_text"
+        }
+      ],
+      "example": "handle_generic_model_request#doc Responses text generation",
+      "exampleDiffers": {
+        "output[].content": "The reference pairs a grok-4.7 request with an older latest-model message-only sample; current models.md says grok-4.7 always returns an encrypted reasoning item, before the message. The full response still contains the documented message shape.",
+        "output[].role": "The first output is the current model reasoning item, not the older latest sample message; see models.md encrypted reasoning rule.",
+        "output": "The reference's sample answers an older latest-model request with its message alone; grok-4.7 always returns an encrypted reasoning item before the message (models.md, as output[].role says), so the output holds two items."
+      }
+    },
+    {
+      "name": "Reasoning effort high proof",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": [
+          {
+            "role": "system",
+            "content": "You are a highly intelligent AI assistant."
+          },
+          {
+            "role": "user",
+            "content": "Find all prime numbers p such that p^2 + 2 is also prime. Prove your answer."
+          }
+        ],
+        "reasoning": {
+          "effort": "high"
+        }
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "grok-4.7"
+        },
+        {
+          "path": "reasoning.effort",
+          "equals": "high"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "reasoning"
+        },
+        {
+          "path": "output.0.encrypted_content",
+          "exists": true
+        },
+        {
+          "path": "output.1.type",
+          "equals": "message"
+        },
+        {
+          "path": "output.1.role",
+          "equals": "assistant"
+        },
+        {
+          "path": "output.1.content.0.type",
+          "equals": "output_text"
+        }
+      ],
+      "example": "handle_generic_model_request#doc Reasoning effort high proof"
+    },
+    {
+      "name": "Stream summarized reasoning projectile with system prompt",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": [
+          {
+            "role": "system",
+            "content": "You are a highly intelligent AI assistant."
+          },
+          {
+            "role": "user",
+            "content": "A projectile is launched at 30 m/s at 37° above horizontal from a 45 m cliff. Find its speed on impact. (g=10 m/s²)"
+          }
+        ],
+        "stream": true
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: response.reasoning_summary_text.delta"
+        },
+        {
+          "path": "",
+          "contains": "event: response.completed"
+        },
+        {
+          "path": "",
+          "contains": "[twin-stub]"
+        }
+      ],
+      "example": "handle_generic_model_request#doc Stream summarized reasoning projectile with system prompt"
+    },
+    {
+      "name": "Stream summarized reasoning ball with system prompt",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "grok-4.7",
+        "input": [
+          {
+            "role": "system",
+            "content": "You are a highly intelligent AI assistant."
+          },
+          {
+            "role": "user",
+            "content": "A ball is thrown upward at 25 m/s from the top of a 60 m building. Find the maximum height above the ground. (g=10 m/s²)"
+          }
+        ],
+        "stream": true
+      },
+      "headers": {
+        "authorization": "Bearer {app}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: response.reasoning_summary_text.delta"
+        },
+        {
+          "path": "",
+          "contains": "event: response.completed"
+        },
+        {
+          "path": "",
+          "contains": "[twin-stub]"
+        }
+      ],
+      "example": "handle_generic_model_request#doc Stream summarized reasoning ball with system prompt"
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+// Offline envelope specification: the pinned reference bytes named in SOURCE.md own the facts.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
+const reference = (name: string) => gunzipSync(readFileSync(new URL(name + '.mdx.gz', import.meta.url))).toString();
+const envelopes = reference('envelopes');
+const transport = reference('transport');
+const authentication = reference('authentication');
+const items = reference('envelope-items');
+const compression = reference('compression');
+reference('rate-limiting');
+for (const [text, words] of [[envelopes, 'POST /api/<project_id>/envelope/'], [envelopes, '403 Forbidden'], [envelopes, '200 MiB'], [authentication, 'sentry_key'], [items, 'check_in'], [transport, '200'], [compression, 'zstd']]) {
+  if (!text.includes(words)) throw new Error('Pinned reference does not hold: ' + words);
+}
+const document = {
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Sentry ingest (Relay): the envelope endpoint",
+    "version": "sentry-docs 3ec4e139",
+    "description": "Written from Sentry's SDK developer documentation (spec/SOURCE.md): the one endpoint every Sentry SDK sends its data to. Sentry publishes no OpenAPI document for it."
+  },
+  "servers": [
+    {
+      "url": "https://o0.ingest.us.sentry.io",
+      "description": "the DSN's host: o<org id>.ingest[.<region>].sentry.io"
+    }
+  ],
+  "paths": {
+    "/api/{project_id}/envelope/": {
+      "post": {
+        "operationId": "sendEnvelope",
+        "summary": "Ingest an envelope",
+        "description": "The main ingestion endpoint for Envelopes. An envelope is a header line and items, each an item header line and its payload (an event, a transaction, a session, an attachment, a replay, a profile, a check-in, feedback, logs, a client report).",
+        "tags": [
+          "Ingest"
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "description": "The DSN's project id"
+          },
+          {
+            "name": "sentry_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The DSN's public key, where the X-Sentry-Auth header cannot be sent"
+          },
+          {
+            "name": "sentry_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sentry_client",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Sentry-Auth",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Sentry sentry_version=7, sentry_client=<name/version>, sentry_key=<public key>"
+          },
+          {
+            "name": "Content-Encoding",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "gzip",
+                "deflate",
+                "br",
+                "zstd"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-sentry-envelope": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The envelope was accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "the envelope's event_id, when it has one"
+                    }
+                  }
+                },
+                "example": {
+                  "id": "fc6d8c0c43fc4630ad850ee518f1b9d0"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The envelope could not be read",
+            "headers": {
+              "X-Sentry-Error": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "causes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No authentication, or a key the project does not have"
+          },
+          "413": {
+            "description": "The envelope or an item exceeds its size limit"
+          },
+          "429": {
+            "description": "Rate limited",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Sentry-Rate-Limits": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Ingest"
+    }
+  ]
+};
+writeFileSync(new URL('openapi.json', import.meta.url), JSON.stringify(document, null, 2) + '\n');

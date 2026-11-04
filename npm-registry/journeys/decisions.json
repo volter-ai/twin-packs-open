@@ -1,0 +1,65 @@
+{
+ "about": "npm-registry's decision table (the P3 procedure). The registry is CouchDB-shaped: a package is one document a publish rewrites, its versions and tarballs beside it, so no operation is the core's create, read, update or delete and every served one is a handler (src/manifest.ts). Served is what the demand reaches (journeys/demand.json): installs' document and tarball reads, one version by number or tag, a version's attestations, dist-tag ls, search, and publish; accounts and scopes are made through the doors npmjs.com's pages stand for. Every other operation is unmodeled.",
+ "decisions": [
+  {
+   "operation": "pacote.packument",
+   "demand": "tabnode's abbreviated document (src/npm/registry.ts:144); Substrate's companion install (companions.ts:234); Twin's pack-release npm view (scripts/pack-release.ts:68), the catalog check (scripts/twin-catalog.ts:77) and the release walk (walk.ts:169)",
+   "mechanism": "handler",
+   "why": "a read assembled from the package and its versions: the full document (_rev, time, maintainers, readme) or the abbreviated install form when Accept asks for application/vnd.npm.install-v1+json; a restricted package the caller may not read is not found"
+  },
+  {
+   "operation": "pacote.tarballFromResolved",
+   "demand": "tabnode's tarball downloads (registry.ts:207, tarball.ts:232); Substrate's plan tarballs (plan-tarballs.ts:53) and companion install; Twenty's app install (application-package-fetcher.service.ts:377); Twin's npm install in the release walk (walk.ts:312)",
+   "mechanism": "handler",
+   "why": "the published bytes from the pack's blobs at the version's dist.tarball path, the scope's slash kept (around.ts)"
+  },
+  {
+   "operation": "registry.version",
+   "demand": "Volter Harness's update check, GET /@volter/supercode/latest (crates/cli/src/main.rs:8384); tabnode's pinned version (registry.ts:131); Twenty's app resolution and registration claim (application-package-fetcher.service.ts:319, application-registration-claim.service.ts:387)",
+   "mechanism": "handler",
+   "why": "one version's manifest with its dist, by number or by a dist-tag the document holds; an unknown version or tag is not found"
+  },
+  {
+   "operation": "pacote.manifest",
+   "demand": "Twenty's provenance check of a registration claim (application-registration-claim.service.ts:296); Twin's catalog check (scripts/twin-catalog.ts:82) and release walk (walk.ts:197)",
+   "mechanism": "handler",
+   "why": "the Sigstore bundle a publish carried, kept when the publish checked it, at the URL the version's dist.attestations names; a version published without provenance is not found, the answer Twenty reads as no provenance"
+  },
+  {
+   "operation": "dist-tag.fetchTags",
+   "demand": "Volter Harness's latest channel, GET /-/package/@volter/supercode/dist-tags (crates/cli/src/main.rs:8405)",
+   "mechanism": "handler",
+   "why": "the package's dist-tags object; the scope's slash in the path is the encoded name (around.ts)"
+  },
+  {
+   "operation": "libnpmsearch.searchStream",
+   "demand": "Twenty's app marketplace, GET /-/v1/search?text=keywords:twenty-app&size=250&from=<n> (marketplace.service.ts:178)",
+   "mechanism": "handler",
+   "why": "a query over the packages the caller may read, with the documented qualifiers (keywords with OR, AND and exclusion; author, maintainer, scope, is/not unstable), paged by from and size; the twin keeps no popularity or quality signals, so every score is 1"
+  },
+  {
+   "operation": "libnpmpublish.publish",
+   "demand": "Twin's pack-release npm publish (scripts/pack-release.ts:107) and the sealed World's seed (cookbook/catalog-release/seed-npm.ts:117)",
+   "mechanism": "handler",
+   "why": "an action on the package document: the caller's permission by maintainers and scope, each version's attached tarball kept with its sha1 and sha512, a provenance bundle checked against the World's Fulcio and kept, the dist-tags merged; publishing over a version is refused"
+  },
+  {
+   "operation": "door:users",
+   "demand": "Twin's release walk, the release's npm account (cookbook/catalog-release/walk.ts:96)",
+   "mechanism": "door",
+   "why": "npmjs.com's sign-up page: a user and a publish token for it; the registry's API makes no account"
+  },
+  {
+   "operation": "door:orgs",
+   "demand": "Twin's release walk and seed, the @volter scope and the seeded packages' scopes (walk.ts:97, seed-npm.ts:49)",
+   "mechanism": "door",
+   "why": "npmjs.com's \"create an organization\" page: an org owning its scope, its owner a user the World holds; the registry's API makes no organization"
+  },
+  {
+   "operation": "door:appCredentials",
+   "demand": "the World runtime's credentialDoor at boot, NPM_TOKEN and NODE_AUTH_TOKEN (packages/world-runtime/src/init.ts:839)",
+   "mechanism": "door",
+   "why": "the token an application holds, the World user world's, the same at every boot; the registry's API issues a token only to a user who already holds one"
+  }
+ ]
+}

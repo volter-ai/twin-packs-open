@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://www.npmjs.com/package/twitter-api-v2/v/1.29.1",
+  "about": "The unchanged twitter-api-v2 1.29.1 (an SDK the descriptor's adoption names, the version twin-standard's x client case drives; no demanded application pins an X SDK: Dub calls X with its own fetch) as a User Context client on the App's API Key and Secret and its owner's personal Access Token and Secret, which X's Developer Console gives an App's owner and the World's credential door issues as TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN and TWITTER_ACCESS_SECRET (the TWITTER_ names are the entry's synthetic choice beside Dub's TWITTER_CLIENT_ID). It reads the account (v2.me), posts (v2.tweet), reads the post back by id with its author and time, and finds it on the account's timeline; readback reads the same post and timeline again without posting.",
+  "files": {
+    "package.json": "{\n  \"name\": \"x-post-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"twitter-api-v2\": \"1.29.1\"\n  }\n}\n",
+    ".env.example": "TWITTER_API_KEY=\nTWITTER_API_SECRET=\nTWITTER_ACCESS_TOKEN=\nTWITTER_ACCESS_SECRET=\n",
+    "post.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync, writeFileSync } from 'node:fs';\nimport { TwitterApi } from 'twitter-api-v2';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst client = new TwitterApi({\n  appKey: process.env.TWITTER_API_KEY ?? '',\n  appSecret: process.env.TWITTER_API_SECRET ?? '',\n  accessToken: process.env.TWITTER_ACCESS_TOKEN ?? '',\n  accessSecret: process.env.TWITTER_ACCESS_SECRET ?? '',\n});\nconst receiptFile = 'x-post.json';\nconst text = 'The Model Editor opens a .blend in the browser: Blender 5.2, compiled to WebAssembly.';\nconst me = await client.v2.me();\nif (process.argv[2] === 'readback') {\n  const saved = JSON.parse(readFileSync(receiptFile, 'utf8'));\n  assert.equal(me.data.id, saved.account);\n  const post = await client.v2.singleTweet(saved.post, { 'tweet.fields': ['author_id', 'created_at'] });\n  assert.equal(post.data.text, text);\n  assert.equal(post.data.author_id, saved.account);\n  assert.equal(post.data.created_at, saved.created_at);\n  const timeline = await client.v2.userTimeline(me.data.id, { max_results: 5 });\n  assert.deepEqual(timeline.tweets.map((t) => t.id), [saved.post]);\n  console.log(JSON.stringify({ retained: true, ...saved }));\n} else {\n  assert.ok(/^\\d+$/.test(me.data.id) && me.data.username, 'v2.me answered ' + JSON.stringify(me));\n  const made = await client.v2.tweet(text);\n  assert.ok(/^\\d+$/.test(made.data.id), 'v2.tweet answered ' + JSON.stringify(made));\n  assert.equal(made.data.text, text);\n  const post = await client.v2.singleTweet(made.data.id, { 'tweet.fields': ['author_id', 'created_at'] });\n  assert.equal(post.data.text, text);\n  assert.equal(post.data.author_id, me.data.id);\n  assert.ok(post.data.created_at, 'the post reads back no created_at');\n  const timeline = await client.v2.userTimeline(me.data.id, { max_results: 5 });\n  assert.deepEqual(timeline.tweets.map((t) => t.id), [made.data.id]);\n  const saved = { account: me.data.id, username: me.data.username, post: made.data.id, created_at: post.data.created_at };\n  writeFileSync(receiptFile, JSON.stringify(saved) + '\\n');\n  console.log(JSON.stringify({ posted: true, ...saved }));\n}\n"
+  },
+  "run": [
+    "node",
+    "post.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "post.mjs",
+      "readback"
+    ]
+  }
+}

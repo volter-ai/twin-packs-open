@@ -7,12 +7,12 @@ import type { HandlerContext } from '@volter/world-core';
 export const COOKIE = 'platform_session';
 
 /** A person of the organization, as the dashboard knows them: OpenAI's user (organization.user). */
-export type User = { id: string; email: string; name: string; role: 'owner' | 'reader'; added_at: number };
+export type User = { id: string; email: string; name: string; role: 'owner' | 'reader'; added_at: number; organizationId?: string };
 
 /** The user the request's session cookie names, or undefined when nobody is signed in. */
 export function userOf(ctx: HandlerContext): User | undefined {
   const person = signedIn(ctx, COOKIE);
-  return person ? { id: String(person.user_id), email: person.email, name: String(person.name), role: person.role === 'owner' ? 'owner' : 'reader', added_at: Number(person.added_at) } : undefined;
+  return person ? { id: String(person.user_id), email: person.email, name: String(person.name), role: person.role === 'owner' ? 'owner' : 'reader', added_at: Number(person.added_at), ...(typeof person._organization_id === 'string' ? { organizationId: person._organization_id } : {}) } : undefined;
 }
 
 /** A return_to the log-in follows: a path on the dashboard, never another site. */
