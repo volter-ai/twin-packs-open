@@ -2,6 +2,10 @@
 // error body, and the pages a scrape reads. THE TWIN BROWSES NO WEB: a page is one the World put in (the pages door).
 import type { HandlerContext } from '@volter/world-core';
 
+export function accountFor(ctx: HandlerContext): Promise<Record<string, unknown>> {
+  return ctx.tenant('_team', (organization) => ctx.record('_team', { name: organization.label, owner: organization.members[0]!, members: organization.members }));
+}
+
 export type Row = Record<string, unknown>;
 export const KEY = '_api_key';
 export const PAGE = '_web_page';

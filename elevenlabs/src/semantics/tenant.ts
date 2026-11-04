@@ -1,8 +1,5 @@
 import type { HandlerContext } from '@volter/world-core';
-
-export function accountFor(ctx: HandlerContext): Promise<Record<string, unknown>> {
-  return ctx.tenant('_workspace', (organization) => ctx.record('_workspace', { name: organization.label, owner: organization.members[0]!, members: organization.members }));
-}
+import { accountFor } from './shared.ts';
 
 export async function tenant(ctx: HandlerContext): Promise<string | undefined> {
   const request = ctx.call.request;
