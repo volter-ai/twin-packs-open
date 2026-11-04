@@ -13,6 +13,9 @@ const candidateEnv = Object.fromEntries(Object.entries(process.env).filter(([nam
   'VOLTER_WORLD_POSTGRES_BIN', 'VOLTER_WORLD_BACKEND', 'VOLTER_WORLD_MACHINE',
 ].includes(name)));
 const workRoot = resolve(process.env.PACK_ASSESSMENT_ROOT ?? tmpdir());
+// Keep cancellation handled while disposable trees are removed, after command forwarding has ended.
+process.on('SIGTERM', () => { process.exitCode = 143; });
+process.on('SIGINT', () => { process.exitCode = 130; });
 mkdirSync(workRoot, { recursive: true });
 const active = join(workRoot, 'qualification-active');
 try { mkdirSync(active); }
