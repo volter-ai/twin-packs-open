@@ -94,7 +94,7 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
     };
     const secret = await credential(SECRET, 'client-secret');
     const token = await credential(BOT_TOKEN, 'bot-token');
-    return json({ application_id: app.id, client_id: app.id, client_secret: secret, bot_token: token,
+    return json({ application_id: app.id, client_id: app.id, client_secret: secret, bot_token: token, authorization: `Bot ${token}`, url: 'https://discord.com/api/v10',
       public_key: app.verify_key, bot_user_id: app._bot, redirect_uris: app.redirect_uris }, 201);
   } catch (error) { if (error instanceof Response) return error; throw error; }
 }

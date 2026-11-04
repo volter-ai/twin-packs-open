@@ -11,7 +11,7 @@ function withStatistics(ctx: HandlerContext, channel: Row): Row {
   // source: https://developers.google.com/youtube/v3/docs/channels "Note that the value reflects the count of"
   const count = videos.filter((v) => obj(ctx.own(v).status).privacyStatus === 'public' && obj(ctx.own(v).status).uploadStatus === 'processed').length;
   const stats = obj(ctx.own(channel).statistics);
-  return { ...channel, statistics: { viewCount: String(views), subscriberCount: String(stats.subscriberCount ?? '0'), hiddenSubscriberCount: stats.hiddenSubscriberCount === true, videoCount: String(count) } };
+  return { ...ctx.render(channel, CHANNEL), statistics: { viewCount: String(views), subscriberCount: String(stats.subscriberCount ?? '0'), hiddenSubscriberCount: stats.hiddenSubscriberCount === true, videoCount: String(count) } };
 }
 
 // source: https://developers.google.com/youtube/v3/docs/channels/list "A maximum of one of the following filters may be specified:"
