@@ -1,0 +1,310 @@
+{
+  "vendor": "mistral",
+  "author": "Contributor 94",
+  "host": "api.mistral.ai",
+  "about": "Maya connects the built-in CRM provider and writes a follow-up with stateless chat, streaming and tools; no model runs.",
+  "steps": [
+    {
+      "name": "Obtain the CRM application key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "body": {},
+      "status": 201,
+      "capture": {
+        "key": "api_key"
+      }
+    },
+    {
+      "name": "Draft a follow-up",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft a follow-up to Northwind."
+          }
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.message.content",
+          "contains": "[twin-stub:"
+        }
+      ]
+    },
+    {
+      "name": "Stream the follow-up",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft a follow-up to Northwind."
+          }
+        ],
+        "stream": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        }
+      ]
+    },
+    {
+      "name": "Stream two short follow-ups and charge the prompt once",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "scripted follow-up"
+          }
+        ],
+        "stream": true,
+        "n": 2,
+        "max_tokens": 1
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"index\":0"
+        },
+        {
+          "path": "",
+          "contains": "\"index\":1"
+        },
+        {
+          "path": "",
+          "contains": "\"finish_reason\":\"length\""
+        },
+        {
+          "path": "",
+          "contains": "\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7"
+        },
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        }
+      ]
+    },
+    {
+      "name": "Ask the CRM company tool",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft a follow-up to Northwind."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "find_company",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "tool_calls"
+        }
+      ]
+    },
+    {
+      "name": "Read the tool result",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "company01",
+            "content": "Northwind"
+          }
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "stop"
+        }
+      ]
+    },
+    {
+      "name": "Produce a structured follow-up",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft a follow-up to Northwind."
+          }
+        ],
+        "response_format": {
+          "type": "json_object"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.message.content",
+          "contains": "twin_stub"
+        }
+      ]
+    },
+    {
+      "name": "Respect a short output budget",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft a follow-up to Northwind."
+          }
+        ],
+        "max_tokens": 1
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "length"
+        }
+      ]
+    },
+    {
+      "name": "Reject an unissued credential",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer not-issued"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Draft"
+          }
+        ]
+      },
+      "status": 401
+    },
+    {
+      "name": "A capacity refusal leaves no completion",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "quota refusal"
+          }
+        ]
+      },
+      "status": 429,
+      "expect": [
+        {
+          "path": "type",
+          "equals": "rate_limit_error"
+        }
+      ]
+    },
+    {
+      "name": "The operator-scripted follow-up",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "scripted follow-up"
+          }
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.message.content",
+          "equals": "[twin-stub] Northwind: please review the proposal."
+        }
+      ]
+    },
+    {
+      "name": "Reconnect with the same application credential",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "body": {},
+      "status": 201,
+      "expect": [
+        {
+          "path": "api_key",
+          "equals": "{key}"
+        }
+      ]
+    }
+  ],
+  "scenario": "scenario.json"
+}

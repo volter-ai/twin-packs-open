@@ -74,7 +74,7 @@ export const manifest: DerivedManifest = {
   ],
   resources: {
     // accounts: a person or an organization is refreshed by its own read (the World keeps accounts by their login)
-    'private-user': { storedAs: 'user', idPrefix: '', alternateKeys: ['login'], refresh: { none: 'accounts are kept by their login, and a read names an account by its numeric id: the root\'s own is read with users/get-authenticated as it signs in' } },
+    'private-user': { storedAs: 'user', unique: [{ fields: ['login'], refusal: { status: 409, message: 'login is taken' } }], idPrefix: '', alternateKeys: ['login'], refresh: { none: 'accounts are kept by their login, and a read names an account by its numeric id: the root\'s own is read with users/get-authenticated as it signs in' } },
     'public-user': { storedAs: 'user', idPrefix: '', alternateKeys: ['login'], refresh: { none: 'an account other than the root\'s own is read one login at a time (users/get-by-username); the root\'s is private-user\'s' } },
     'simple-user': { storedAs: 'user', idPrefix: '', alternateKeys: ['login'], refresh: { none: 'the form other objects embed an account in, read with them' } },
     email: { storedAs: 'user_email', idPrefix: '', refresh: { none: 'an address has no id of its own (the World keeps it as <login>::<email>); the root reads its own with users/list-emails-for-authenticated-user' } },
@@ -355,7 +355,7 @@ export const manifest: DerivedManifest = {
       envStems: ['GITHUB', 'GH', 'BACKENDGITHUB', 'INFAPPCONNECTIONGITHUBAPP', 'INFAPPCONNECTIONGITHUBOAUTH', 'INFAPPCONNECTIONGITHUBRADARAPP', 'APPSMITHOAUTH2GITHUB'],
     },
     // the application's GITHUB_TOKEN, issued once the twin is up (./semantics/doors.ts appCredentials)
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { GITHUB_TOKEN: 'token', GH_TOKEN: 'token', GITHUB_PAT: 'token', GITHUB_ACCESS_TOKEN: 'token' } },
+    credentialDoor: { account: { field: 'account', tenancy: 'user account', source: 'https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api' }, deployment: { field: 'deployment', object: 'personal access token', source: 'https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens' }, path: '/_twin/app-credentials', body: {}, fill: { GITHUB_TOKEN: 'token', GH_TOKEN: 'token', GITHUB_PAT: 'token', GITHUB_ACCESS_TOKEN: 'token' } },
     hosts: [
       { host: 'api.github.com' }, { host: 'uploads.github.com' }, { host: 'raw.githubusercontent.com' }, { host: 'token.actions.githubusercontent.com' },
       // source: https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository "git clone https://github.com/YOUR-USERNAME/YOUR-REPOSITORY"

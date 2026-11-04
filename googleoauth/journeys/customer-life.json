@@ -1,0 +1,418 @@
+{
+ "vendor": "googleoauth",
+ "author": "twin-packs-p3",
+ "about": "Noordkant Fysio's year with Google sign-in (journeys/customer-life.outline.md): the practice's OAuth client, cal.com's sign-in (discovery, the chooser, the code exchanged once, the id_token's keys, userinfo), an offline Calendar grant refreshed, Rallly's sign-in and a revoked grant.",
+ "steps": [
+  {
+   "name": "Monday 5 January: the practice's OAuth client",
+   "wait": "6300m"
+  },
+  {
+   "name": "The World: Ilse's OAuth client in the Google Cloud console, with cal.com's and Rallly's callbacks",
+   "method": "POST",
+   "path": "/_twin/clients",
+   "status": 201,
+   "body": {
+    "client_id": "482716093455-noordkant7k2d.apps.googleusercontent.com",
+    "client_secret": "GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd",
+    "redirect_uris": [
+     "https://cal.noordkant.test/api/auth/callback/google",
+     "https://cal.noordkant.test/api/integrations/googlecalendar/callback",
+     "https://meet.noordkant.test/api/auth/callback/google"
+    ],
+    "name": "Noordkant Fysio"
+   }
+  },
+  {
+   "name": "The World: Ruben Smit's Google account",
+   "method": "POST",
+   "path": "/_twin/accounts",
+   "status": 201,
+   "body": {
+    "sub": "104729384756102938475",
+    "email": "ruben.smit@noordkantfysio.nl",
+    "name": "Ruben Smit",
+    "given_name": "Ruben",
+    "family_name": "Smit"
+   }
+  },
+  {
+   "name": "The World: Femke Mulder's Google account",
+   "method": "POST",
+   "path": "/_twin/accounts",
+   "status": 201,
+   "body": {
+    "sub": "108273645510293847561",
+    "email": "femke.mulder@noordkantfysio.nl",
+    "name": "Femke Mulder",
+    "given_name": "Femke",
+    "family_name": "Mulder"
+   }
+  },
+  {
+   "name": "The World: Ilse Bakker's Google account",
+   "method": "POST",
+   "path": "/_twin/accounts",
+   "status": 201,
+   "body": {
+    "sub": "112093847561029384756",
+    "email": "ilse.bakker@noordkantfysio.nl",
+    "name": "Ilse Bakker",
+    "given_name": "Ilse",
+    "family_name": "Bakker"
+   }
+  },
+  {
+   "name": "cal.com reads Google's discovery document",
+   "method": "GET",
+   "path": "https://accounts.google.com/.well-known/openid-configuration",
+   "status": 200,
+   "expect": [
+    {
+     "path": "issuer",
+     "equals": "https://accounts.google.com"
+    },
+    {
+     "path": "token_endpoint",
+     "equals": "https://oauth2.googleapis.com/token"
+    },
+    {
+     "path": "jwks_uri",
+     "equals": "https://www.googleapis.com/oauth2/v3/certs"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 6 January: Ruben signs in to cal.com",
+   "wait": "1410m"
+  },
+  {
+   "name": "Ruben is sent to Google's account chooser",
+   "method": "GET",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth?client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fcal.noordkant.test%2Fapi%2Fauth%2Fcallback%2Fgoogle&response_type=code&scope=openid+email+profile&state=cal-1&nonce=n-cal-1",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "ruben.smit@noordkantfysio.nl"
+    }
+   ]
+  },
+  {
+   "name": "Ruben chooses their account; Google returns to the callback with a code",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "request=client_id%3D482716093455-noordkant7k2d.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Fcal.noordkant.test%252Fapi%252Fauth%252Fcallback%252Fgoogle%26response_type%3Dcode%26scope%3Dopenid%2Bemail%2Bprofile%26state%3Dcal-1%26nonce%3Dn-cal-1&sub=104729384756102938475",
+   "capture": {
+    "code1": "header:location:code=([^&]+)"
+   },
+   "expect": [
+    {
+     "path": "location",
+     "contains": "state=cal-1"
+    }
+   ]
+  },
+  {
+   "name": "cal.com exchanges the code",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code1}&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd&redirect_uri=https%3A%2F%2Fcal.noordkant.test%2Fapi%2Fauth%2Fcallback%2Fgoogle",
+   "capture": {
+    "access1": "access_token"
+   },
+   "expect": [
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "expires_in",
+     "equals": 3599
+    },
+    {
+     "path": "id_token",
+     "exists": true
+    },
+    {
+     "path": "access_token",
+     "contains": "ya29.a0"
+    }
+   ]
+  },
+  {
+   "name": "The same code again is refused",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code1}&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd&redirect_uri=https%3A%2F%2Fcal.noordkant.test%2Fapi%2Fauth%2Fcallback%2Fgoogle",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "invalid_grant"
+    }
+   ]
+  },
+  {
+   "name": "cal.com fetches Google's keys to verify the id_token",
+   "method": "GET",
+   "path": "https://www.googleapis.com/oauth2/v3/certs",
+   "status": 200,
+   "expect": [
+    {
+     "path": "keys.0.alg",
+     "equals": "RS256"
+    },
+    {
+     "path": "keys.0.kid",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "and reads Ruben's profile",
+   "method": "GET",
+   "path": "https://www.googleapis.com/oauth2/v3/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {access1}"
+   },
+   "expect": [
+    {
+     "path": "email",
+     "equals": "ruben.smit@noordkantfysio.nl"
+    },
+    {
+     "path": "sub",
+     "equals": "104729384756102938475"
+    },
+    {
+     "path": "given_name",
+     "equals": "Ruben"
+    }
+   ]
+  },
+  {
+   "name": "An exchange with a wrong client secret is refused",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 401,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code=x&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-wrong&redirect_uri=https%3A%2F%2Fcal.noordkant.test%2Fapi%2Fauth%2Fcallback%2Fgoogle",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "invalid_client"
+    }
+   ]
+  },
+  {
+   "name": "fifteen minutes later: Ruben connects Google Calendar",
+   "wait": "15m"
+  },
+  {
+   "name": "Ruben is sent to Google's account chooser",
+   "method": "GET",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth?client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fcal.noordkant.test%2Fapi%2Fintegrations%2Fgooglecalendar%2Fcallback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&state=gcal-1&access_type=offline&prompt=consent",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "ruben.smit@noordkantfysio.nl"
+    }
+   ]
+  },
+  {
+   "name": "Ruben chooses their account; Google returns to the callback with a code",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "request=client_id%3D482716093455-noordkant7k2d.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Fcal.noordkant.test%252Fapi%252Fintegrations%252Fgooglecalendar%252Fcallback%26response_type%3Dcode%26scope%3Dhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fcalendar.events%2Bhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fuserinfo.profile%26state%3Dgcal-1%26access_type%3Doffline%26prompt%3Dconsent&sub=104729384756102938475",
+   "capture": {
+    "code2": "header:location:code=([^&]+)"
+   },
+   "expect": [
+    {
+     "path": "location",
+     "contains": "state=gcal-1"
+    }
+   ]
+  },
+  {
+   "name": "cal.com exchanges it for an offline grant",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code2}&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd&redirect_uri=https%3A%2F%2Fcal.noordkant.test%2Fapi%2Fintegrations%2Fgooglecalendar%2Fcallback",
+   "capture": {
+    "refresh1": "refresh_token",
+    "access2": "access_token"
+   },
+   "expect": [
+    {
+     "path": "refresh_token",
+     "contains": "1//0"
+    },
+    {
+     "path": "scope",
+     "contains": "calendar.events"
+    }
+   ]
+  },
+  {
+   "name": "seventy minutes later: the access token has expired",
+   "wait": "70m"
+  },
+  {
+   "name": "cal.com refreshes it",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={refresh1}&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd",
+   "capture": {
+    "access3": "access_token"
+   },
+   "expect": [
+    {
+     "path": "expires_in",
+     "equals": 3599
+    }
+   ]
+  },
+  {
+   "name": "and reads the account's profile photo (the OAuth2 API v2's userinfo)",
+   "method": "GET",
+   "path": "https://www.googleapis.com/oauth2/v2/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {access3}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "104729384756102938475"
+    },
+    {
+     "path": "name",
+     "equals": "Ruben Smit"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 10 February: Femke signs in to Rallly",
+   "wait": "50585m"
+  },
+  {
+   "name": "Femke is sent to Google's account chooser",
+   "method": "GET",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth?client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fmeet.noordkant.test%2Fapi%2Fauth%2Fcallback%2Fgoogle&response_type=code&scope=openid+email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.readonly&state=ral-1&access_type=offline&prompt=consent",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "femke.mulder@noordkantfysio.nl"
+    }
+   ]
+  },
+  {
+   "name": "Femke chooses their account; Google returns to the callback with a code",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "request=client_id%3D482716093455-noordkant7k2d.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Fmeet.noordkant.test%252Fapi%252Fauth%252Fcallback%252Fgoogle%26response_type%3Dcode%26scope%3Dopenid%2Bemail%2Bprofile%2Bhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fcalendar.readonly%26state%3Dral-1%26access_type%3Doffline%26prompt%3Dconsent&sub=108273645510293847561",
+   "capture": {
+    "code3": "header:location:code=([^&]+)"
+   },
+   "expect": [
+    {
+     "path": "location",
+     "contains": "state=ral-1"
+    }
+   ]
+  },
+  {
+   "name": "Rallly exchanges the code",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code3}&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd&redirect_uri=https%3A%2F%2Fmeet.noordkant.test%2Fapi%2Fauth%2Fcallback%2Fgoogle",
+   "capture": {
+    "refresh2": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "id_token",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Monday 16 March: Femke disconnects her calendar in Rallly",
+   "wait": "49200m"
+  },
+  {
+   "name": "Rallly revokes the grant",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/revoke",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "token={refresh2}"
+  },
+  {
+   "name": "Its refresh token is refused from then on",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={refresh2}&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "invalid_grant"
+    }
+   ]
+  },
+  {
+   "name": "Ruben's grant still works",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={refresh1}&client_id=482716093455-noordkant7k2d.apps.googleusercontent.com&client_secret=GOCSPX-nk7Q2vRt9LmW4xZp1BcE8sHd"
+  }
+ ]
+}

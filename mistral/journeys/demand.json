@@ -1,0 +1,78 @@
+{
+  "measured": "Twenty at 1d561b8c73c984058a5121ec229f4805a2424a91 ships Mistral in its built-in model picker. LibreChat custom endpoint configuration and OCR strategy remain optional.",
+  "optional": [
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "Mistral custom chat endpoint",
+      "setting": "Configuration (1): the operator adds endpoints.custom with baseURL=https://api.mistral.ai/v1 and MISTRAL_API_KEY; absent custom config returns no custom models (packages/api/src/app/loader.ts:174,215-222; packages/api/src/endpoints/config/models.ts:59-61,80-82).",
+      "evidence": "librechat.example.yaml:995-999; .env.example:426; packages/api/src/app/loader.ts:174,215-222; packages/api/src/endpoints/config/models.ts:59-61,80-82",
+      "commit": "f10b1d91f1eee3a2c82d5247bf620351486b7c1b",
+      "client": "axios for models and OCR; @librechat/agents@4.0.1 src/llm/openai/index.ts:2164 for custom endpoint streaming (packages/api/src/endpoints/openai/llm.ts:598,644; api/server/controllers/agents/openai.js:1094,1135). No official Mistral SDK.",
+      "calls": [
+        {
+          "call": "configured custom endpoint model discovery",
+          "operation": "list_models_v1_models_get",
+          "evidence": "packages/api/src/endpoints/models.ts:288"
+        },
+        {
+          "call": "configured custom endpoint streamed conversation and title",
+          "operation": "chat_completion_v1_chat_completions_post",
+          "evidence": "api/server/controllers/agents/openai.js:1135"
+        }
+      ]
+    },
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "Mistral OCR",
+      "setting": "Configuration (1): the operator supplies ocr.strategy=mistral_ocr and OCR_API_KEY; absent appConfig.ocr selects the document parser (api/server/services/Files/process.js:1018,1031).",
+      "evidence": "api/server/services/Files/process.js:1018,1031; .env.example:426 (commented MISTRAL_API_KEY)",
+      "commit": "f10b1d91f1eee3a2c82d5247bf620351486b7c1b",
+      "client": "axios for models and OCR; @librechat/agents@4.0.1 src/llm/openai/index.ts:2164 for custom endpoint streaming (packages/api/src/endpoints/openai/llm.ts:598,644; api/server/controllers/agents/openai.js:1094,1135). No official Mistral SDK.",
+      "calls": [
+        {
+          "call": "OCR multipart upload purpose=ocr",
+          "operation": "files_api_routes_upload_file",
+          "evidence": "packages/api/src/files/mistral/crud.ts:114"
+        },
+        {
+          "call": "signed URL with default expiry=24",
+          "operation": "files_api_routes_get_signed_url",
+          "evidence": "packages/api/src/files/mistral/crud.ts:147"
+        },
+        {
+          "call": "document_url or image_url OCR, image_limit=0 and include_image_base64=false",
+          "operation": "ocr_v1_ocr_post",
+          "evidence": "packages/api/src/files/mistral/crud.ts:204"
+        },
+        {
+          "call": "delete the temporary upload after OCR or on failure",
+          "operation": "files_api_routes_delete_file",
+          "evidence": "packages/api/src/files/mistral/crud.ts:262"
+        }
+      ]
+    }
+  ],
+  "standIns": "Console application credentials and completion IDs are World bookkeeping; model turns are scripted or labeled deterministic stubs.",
+  "notDemanded": "All other spec operations, including model discovery, files, OCR and agents, remain outside the demanded calls.",
+  "applications": [
+    {
+      "name": "twentyhq/twenty",
+      "commit": "1d561b8c73c984058a5121ec229f4805a2424a91",
+      "client": "@ai-sdk/mistral@4.0.39 src/mistral-chat-language-model.ts:240,352 (request args 163-225), through sdk-provider-factory.service.ts:135. Third-party provider, no official Mistral SDK.",
+      "backend": [
+        {
+          "call": "configured workflow text generation with system instructions and user prompt",
+          "operation": "chat_completion_v1_chat_completions_post",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-generate-text/controllers/ai-generate-text.controller.ts:95"
+        },
+        {
+          "call": "configured agent stream, tools and subsequent tool results",
+          "operation": "chat_completion_v1_chat_completions_post",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-chat/services/chat-execution.service.ts:602"
+        }
+      ],
+      "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/provider-config.service.ts:28 merges the shipped catalog; ai-providers.json:1966 ships Mistral. Credentials enable access, not an optional installation.",
+      "gate": "The built-in catalog contains OpenAI, Google, Anthropic, xAI and Mistral; default tiers try them in that order according to available credentials, with no disabled models. This is automatic credential resolution, not an operator provider switch (packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/default-ai-catalog.service.ts:19-37; services/provider-config.service.ts:28-41; utils/load-default-model-preferences.util.ts:14-19,58)."
+    }
+  ]
+}
