@@ -325,7 +325,7 @@ export function Update({ ctx, post, member, now, sign }: { ctx: HandlerContext; 
  *  carry, so it answers the gap. Volter Browsers' frontline presses Comment and refuses the rest (volter-ai/lucarne
  *  83c544c packages/lucarne-sites/src/policy.ts:20-22). Where the documentation stops: the accessible names are LinkedIn's
  *  visible words; its own markup was not read (reading it needs an account). */
-export function Social({ urn }: { urn: string }): Body {
+function Social({ urn }: { urn: string }): Body {
   return (
     <form method="post" action={`/feed/update/${urn}/`} className="update__social">
       <button type="submit" name="intent" value="like" aria-label="Like">Like</button>

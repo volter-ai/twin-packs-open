@@ -73,4 +73,3 @@ export const states = {
   Organization: { notState: ['organizationType', 'primaryOrganizationType', 'staffCountRange'] },
   _access_token: { state: { invalidated: tokenInvalidated } },
 };
-

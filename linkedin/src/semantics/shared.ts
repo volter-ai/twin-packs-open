@@ -214,7 +214,7 @@ export function postByUrn(ctx: HandlerContext, urn: string): Row | undefined {
 // ── tokens the World issues ──────────────────────────────────────────────────────────────────
 
 /** An opaque value LinkedIn issues (an access token, an upload URL's signature), from the World's secret for its label. */
-export async function issued(ctx: HandlerContext, label: string, length = 64): Promise<string> {
+async function issued(ctx: HandlerContext, label: string, length: number): Promise<string> {
   const secret = await ctx.secret(label);
   let out = '';
   for (let round = 0; out.length < length; round += 1) out += ctx.crypto.digest('sha512', `${secret}:${round}`, 'base64url');
@@ -358,7 +358,7 @@ export function makeApp(ctx: HandlerContext, name: string, products: string[], o
 const UPLOAD_URL_LIFETIME_MS = 30 * 86_400_000;
 
 /** An upload URL's token, kept by its digest with what it uploads: the asset, the part and its byte range. */
-export async function uploadToken(ctx: HandlerContext, label: string, fields: Row): Promise<string> {
+async function uploadToken(ctx: HandlerContext, label: string, fields: Row): Promise<string> {
   const token = await issued(ctx, `upload:${label}`, 40);
   await ctx.record(UPLOAD, { ...fields, expires_at: nowMs(ctx) + UPLOAD_URL_LIFETIME_MS }, `upload:${ctx.crypto.sha256(token)}`);
   return token;
@@ -943,4 +943,3 @@ export async function putImage(ctx: HandlerContext, asset: string, ut: string | 
  *  hashtag sign, so a `#word` they type stays a hashtag (HashtagElement). */
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format?view=li-lms-2026-09 "All reserved characters need to be escaped with a backslash, even if those characters are not used in one of the supported elements or templates."
 export const littleText = (typed: string): string => typed.replace(/[|{}@[\]()<>\\*_~]/g, (c) => `\\${c}`);
-
