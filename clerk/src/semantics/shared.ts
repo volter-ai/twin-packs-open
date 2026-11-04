@@ -23,6 +23,28 @@ export async function applicationFor(ctx: HandlerContext): Promise<Record<string
   });
 }
 
+/** Select the application by its server key or configured Frontend API host. */
+export async function tenantFor(ctx: HandlerContext): Promise<string | undefined> {
+  const request = ctx.call.request;
+  const url = new URL(request.url);
+  const body = ctx.body as Record<string, unknown> | undefined;
+  if (url.pathname === '/_twin/app-credentials' || (url.pathname.startsWith('/_twin/') && (body?.account !== undefined || body?.deployment !== undefined))) {
+    const application = await applicationFor(ctx);
+    return await ctx.account() === 'default' && ctx.deployment() === '' ? 'default' : String(application.id);
+  }
+  const secret = request.headers.get('Clerk-Secret-Key') ?? request.headers.get('authorization')?.replace(/^Bearer /i, '');
+  if (secret?.startsWith('sk_')) {
+    const key = ctx.rowsRaw('_secret_key').find((row) => row.sha256 === ctx.crypto.sha256(secret));
+    return typeof key?._application_scope === 'string' ? key._application_scope : undefined;
+  }
+  if (url.pathname.startsWith('/_twin/')) return 'default';
+  const host = (request.headers.get('x-volter-twin-original-host') ?? request.headers.get('host') ?? url.hostname).split(':')[0];
+  const instance = ctx.rowsRaw('_instance').find((row) => (row._auth as Record<string, unknown> | undefined)?.frontend_api === host);
+  if (typeof instance?._application_scope === 'string') return instance._application_scope;
+  if (host === 'twin.clerk.accounts.dev' || host === 'frontend-api.clerk.dev' || host === 'api.clerk.com' || host === 'dashboard.clerk.com' || host === 'img.clerk.com') return 'default';
+  return undefined;
+}
+
 export async function makeSecretKey(ctx: HandlerContext, name: string | null): Promise<string> {
   const id = await ctx.issue('_secret_key');
   const mode = instanceEnvironment(ctx) === 'production' ? 'live' : 'test';
@@ -220,7 +242,7 @@ export function organizationSettingsView(ctx: WriteHookContext): Row {
   const legacy = deepMerge(DEFAULT_ORGANIZATION_SETTINGS, (ctx.rowsRaw('instance')[0]?.organization_settings as Row | undefined) ?? {});
   const domains = legacy.domains as Row;
   const stored = ctx.rowsRaw('OrganizationSettings')[0] ?? {};
-  const { id: _id, type: _type, updatedAt: _updatedAt, ...fields } = stored;
+  const fields = Object.fromEntries(Object.entries(ctx.own(stored)).filter(([key]) => key !== 'id' && !key.startsWith('_')));
   return {
     object: 'organization_settings', enabled: legacy.enabled === true, max_allowed_memberships: legacy.max_allowed_memberships,
     // spec:/components/schemas/OrganizationSettings; default limits retain the pack's existing documented reading.
