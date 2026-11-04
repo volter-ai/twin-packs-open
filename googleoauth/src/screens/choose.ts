@@ -16,8 +16,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const redirect = q.get('redirect_uri') ?? '';
   if (!client || !account || !((client.redirect_uris as string[] | undefined) ?? []).includes(redirect)) return new Response('Error 400: invalid_request', { status: 400 });
   const scopes = (q.get('scope') ?? 'openid').split(/\s+/).filter(Boolean);
-  const code = await credential(ctx as never, '4/0A', `code:${String(client.client_id)}:${String(account.id)}:${ctx.occurredAt}:${await serial(ctx as never, 'code')}`, 70);
-  await ctx.record(CODE, { clientId: client.client_id, sub: account.id, redirect_uri: redirect, scopes, offline: q.get('access_type') === 'offline', nonce: q.get('nonce'), challenge: q.get('code_challenge'), method: q.get('code_challenge_method') ?? 'plain', expires: nowSeconds(ctx as never) + 600 }, ctx.crypto.digest('sha256', code, 'hex'));
+  const code = await credential(ctx, '4/0A', `code:${String(client.client_id)}:${String(account.id)}:${ctx.occurredAt}:${await serial(ctx)}`, 70);
+  await ctx.record(CODE, { clientId: client.client_id, sub: account.id, redirect_uri: redirect, scopes, offline: q.get('access_type') === 'offline', nonce: q.get('nonce'), challenge: q.get('code_challenge'), method: q.get('code_challenge_method') ?? 'plain', expires: nowSeconds(ctx) + 600 }, ctx.crypto.digest('sha256', code, 'hex'));
   const back = new URL(redirect);
   if (q.get('state') !== null) back.searchParams.set('state', q.get('state')!);
   back.searchParams.set('code', code);

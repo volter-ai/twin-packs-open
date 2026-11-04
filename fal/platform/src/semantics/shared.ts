@@ -1,1 +1,1 @@
-export * from '../../../src/semantics/shared.ts';
+export { platformError, pricingScenario } from '../../../src/semantics/shared.ts';

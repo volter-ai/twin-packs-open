@@ -377,7 +377,7 @@ export const conversation: SocketEngine<HandlerContext> = { open, message, close
 // (../engine/audio.ts), and its alignment spreads that length evenly over the text's characters.
 // source: https://elevenlabs.io/docs/api-reference/text-to-speech/v-1-text-to-speech-voice-id-stream-input "The Text-to-Speech WebSockets API is designed to generate audio from partial text input"
 
-type Stream = { voice?: string; model?: string; format?: string; auto?: boolean; aligned?: boolean; inited?: boolean; keyed?: boolean; buffer: string; schedule: number[]; made: number };
+type Stream = { format?: string; auto?: boolean; aligned?: boolean; inited?: boolean; keyed?: boolean; buffer: string; schedule: number[]; made: number };
 const stream = (s: SocketSession): Stream => s.state as Stream;
 
 // source: https://elevenlabs.io/docs/api-reference/text-to-speech/v-1-text-to-speech-voice-id-stream-input "model_id string Optional Defaults to eleven_multilingual_v2"
@@ -425,7 +425,7 @@ async function streamOpen(s: SocketSession, ctx: HandlerContext): Promise<void> 
   if (!speechOf(format, 'x')) return s.close(1008, `The twin writes PCM alone on this socket; ${format} is not modeled.`);
   // source: https://elevenlabs.io/docs/api-reference/text-to-speech/v-1-text-to-speech-voice-id-stream-input "It is only recommended when sending full sentences"
   // the query's sync_alignment (a boolean, false by default): a chunk carries its characters' timings only when asked
-  Object.assign(stream(s), { voice: voiceId, model, format, auto: q.get('auto_mode') === 'true', aligned: q.get('sync_alignment') === 'true', keyed: streamKeyed(ctx) });
+  Object.assign(stream(s), { format, auto: q.get('auto_mode') === 'true', aligned: q.get('sync_alignment') === 'true', keyed: streamKeyed(ctx) });
 }
 
 /** The audio for the text buffered so far, sent chunk by chunk, each with the timings of the characters it holds (the

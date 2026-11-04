@@ -10,7 +10,7 @@ const ERRORS = 'https://developers.facebook.com/documentation/instagram-platform
  *  fetch ends, PUBLISHED by media_publish, EXPIRED 24 hours after it was made when still unpublished. Each refusal of
  *  media_publish is its own transition, by the state it meets (error codes 9007 and 24; their subcodes 2207027 and
  *  2207008 are added by the handler, the refusal's body naming no subcode). */
-export const containerStatus: StateField = {
+const containerStatus: StateField = {
   initial: 'IN_PROGRESS',
   transitions: [
     { actor: 'vendor', from: ['IN_PROGRESS'], to: 'FINISHED', source: `${CONTAINER} "The container and its media object are ready to be published."` },
@@ -22,7 +22,7 @@ export const containerStatus: StateField = {
   ],
 };
 
-export const container = { state: { status_code: containerStatus }, notState: ['status'] };
-export const media = { notState: ['media_type', 'media_product_type', 'is_comment_enabled', 'is_shared_to_feed', 'is_ai_generated'] };
+const container = { state: { status_code: containerStatus }, notState: ['status'] };
+const media = { notState: ['media_type', 'media_product_type', 'is_comment_enabled', 'is_shared_to_feed', 'is_ai_generated'] };
 
 export const states = { container, media };

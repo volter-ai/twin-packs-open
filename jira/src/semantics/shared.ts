@@ -31,12 +31,12 @@ export const jiraError = (status: number, messages: string[], errors: Row = {}):
 // Where the documentation stops: an access token lives an hour, as Atlassian's do in practice
 export const ACCESS_TTL = 3600;
 
-export type Grant = { sites: string[]; person: string; scopes: string[]; token: Row };
+type Grant = { sites: string[]; person: string; scopes: string[] };
 /** The grant a request's `Authorization: Bearer` names, while it lives. */
 export function grantOf(ctx: HandlerContext): Grant | undefined {
   const value = /^Bearer\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
   const t = value ? ctx.rowsRaw(ACCESS).find((r) => r.sha256 === sha256(ctx, value) && r.revoked !== true) : undefined;
   if (!t || Date.parse(String(t.expires)) <= Date.parse(ctx.occurredAt)) return undefined;
-  return { sites: arr<string>(t.sites), person: String(t.person), scopes: String(t.scope).split(' '), token: t };
+  return { sites: arr<string>(t.sites), person: String(t.person), scopes: String(t.scope).split(' ') };
 }
 

@@ -15,7 +15,7 @@ export function fail(status: number, error: string): Response {
   return Response.json({ error }, { status });
 }
 
-export type Caller = { org: string; app?: string };
+type Caller = { org: string; app?: string };
 /** The caller `Authorization` names (`Bearer`, or flyctl's `FlyV1`): its organization, and its app when a deploy token. */
 export function callerOf(ctx: HandlerContext): Caller | Response {
   const value = /^(?:Bearer|FlyV1)\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];

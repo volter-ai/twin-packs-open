@@ -3,7 +3,6 @@
 import { git, type HandlerContext } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
-export type { HandlerContext };
 export const USER = '_user';
 export const TOKEN = '_access_token';
 export const REPO = 'ModelInfo';
@@ -12,7 +11,7 @@ export const CDN = 'https://us.aws.cdn.hf.co';
 export const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string => ctx.crypto.digest('sha256', v);
 
 /** An error as huggingface.co answers a file request: text, with the Hub's `x-error-code` and `x-error-message`. */
-export function hubText(status: number, message: string, code?: string): Response {
+function hubText(status: number, message: string, code?: string): Response {
   return new Response(message, { status, headers: { 'content-type': 'text/plain; charset=utf-8', 'x-error-message': message, ...(code ? { 'x-error-code': code } : {}) } });
 }
 
@@ -38,7 +37,7 @@ export function repoNamed(ctx: HandlerContext, namespace: string, name: string):
 export const gitOf = (ctx: HandlerContext, repo: Row): { store: InstanceType<typeof git.GitObjectStore>; refs: InstanceType<typeof git.GitRefs> } => ctx.git(`r${String(repo.id)}`);
 
 /** The commit a revision names: a branch, a tag, or a full commit sha the repository holds. */
-export async function commitOf(ctx: HandlerContext, repo: Row, rev: string): Promise<string | null> {
+async function commitOf(ctx: HandlerContext, repo: Row, rev: string): Promise<string | null> {
   const { store, refs } = gitOf(ctx, repo);
   const ref = (rev.startsWith('refs/') ? refs.get(rev) : undefined) ?? refs.get(`refs/heads/${rev}`) ?? refs.get(`refs/tags/${rev}`);
   if (ref) return ref;
@@ -49,7 +48,7 @@ export async function commitOf(ctx: HandlerContext, repo: Row, rev: string): Pro
 /** A file's bytes as a download host answers them: whole (200), or from `Range: bytes=<a>-[<b>]` (206, 416 past the
  *  end), the range honoured only when `If-Range` is absent or names this ETag. */
 // source: https://www.rfc-editor.org/rfc/rfc9110 "A server MUST ignore a Range header field received with a request method that is unrecognized or for which range handling is not defined."
-export function ranged(request: Request, bytes: Uint8Array, etag: string, headers: Record<string, string> = {}): Response {
+export function ranged(request: Request, bytes: Uint8Array, etag: string, headers: Record<string, string>): Response {
   const tag = `"${etag}"`;
   const base = { 'accept-ranges': 'bytes', etag: tag, 'content-type': 'application/octet-stream', ...headers };
   const range = /^bytes=(\d+)-(\d*)$/.exec(request.headers.get('range') ?? '');

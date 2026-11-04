@@ -92,7 +92,7 @@ export async function getIssue(ctx: HandlerContext): Promise<Response> {
   if (c instanceof Response) return c;
   const i = issueOf(ctx, c, ctx.call.params.issueIdOrKey);
   if (i instanceof Response) return i;
-  return Response.json(issueView(ctx, c, i, fieldsAsked(new URL(ctx.call.request.url).searchParams.getAll('fields').join(','))));
+  return Response.json(issueView(ctx, i, fieldsAsked(new URL(ctx.call.request.url).searchParams.getAll('fields').join(','))));
 }
 
 // source: spec:editIssue "Edits an issue."
@@ -145,7 +145,7 @@ export async function getComments(ctx: HandlerContext): Promise<Response> {
   const q = new URL(ctx.call.request.url).searchParams;
   const startAt = Number(q.get('startAt') ?? 0);
   const maxResults = Math.min(5000, Number(q.get('maxResults') ?? 5000));
-  return Response.json({ comments: all.slice(startAt, startAt + maxResults).map((m) => commentView(ctx, c, m)), maxResults, total: all.length, startAt });
+  return Response.json({ comments: all.slice(startAt, startAt + maxResults).map((m) => commentView(ctx, m)), maxResults, total: all.length, startAt });
 }
 
 // source: spec:addComment "Adds a comment to an issue."
@@ -164,7 +164,7 @@ export async function addComment(ctx: HandlerContext): Promise<Response> {
   const id = ctx.mint(COMMENT);
   await ctx.write(COMMENT, id, { id, self: `${base(c)}/issue/${i.id}/comment/${id}`, body, ...(visibility.value ? { visibility: { type: 'role', value: 'Administrators', identifier: 'Administrators' } } : {}), author: userView(ctx, c.site, c.person), updateAuthor: userView(ctx, c.site, c.person), jsdPublic: true, created: now(ctx), updated: now(ctx), _issue: i.id, _author: c.person, _site: c.site }, 'addComment');
   await ctx.write(ISSUE, String(i.id), { fields: { ...obj(i.fields), updated: now(ctx) } }, 'issue.commented');
-  return Response.json(commentView(ctx, c, ctx.row(COMMENT, id)!), { status: 201 });
+  return Response.json(commentView(ctx, ctx.row(COMMENT, id)!), { status: 201 });
 }
 
 /** The transitions the issue's workflow offers from where it is: every status but its own. */
@@ -266,7 +266,7 @@ export async function getProjectComponents(ctx: HandlerContext): Promise<Respons
   if (c instanceof Response) return c;
   const p = projectOf(ctx, c, ctx.call.params.projectIdOrKey);
   if (p instanceof Response) return p;
-  return Response.json(ctx.rowsRaw(COMPONENT).filter((k) => k.deleted !== true && String(k._project ?? k.projectId) === String(p.id)).map((k) => componentView(ctx, c, k)));
+  return Response.json(ctx.rowsRaw(COMPONENT).filter((k) => k.deleted !== true && String(k._project ?? k.projectId) === String(p.id)).map((k) => componentView(ctx, k)));
 }
 
 // source: spec:createComponent "Creates a component."
@@ -294,7 +294,7 @@ export async function createComponent(ctx: HandlerContext): Promise<Response> {
   const leadView = lead ? { lead: userView(ctx, c.site, lead.id) } : {};
   const assigned = { assignee: userView(ctx, c.site, nominal), realAssignee: userView(ctx, c.site, actual) };
   await ctx.write(COMPONENT, id, { ...view, ...leadView, ...assigned, assigneeType, isAssigneeTypeValid, realAssigneeType, _project: p.id, _site: c.site }, 'createComponent');
-  return Response.json(componentView(ctx, c, ctx.row(COMPONENT, id)!), { status: 201 });
+  return Response.json(componentView(ctx, ctx.row(COMPONENT, id)!), { status: 201 });
 }
 
 // source: spec:getAllLabels "list of labels."
@@ -389,7 +389,7 @@ async function search(ctx: HandlerContext, input: Row): Promise<Response> {
   const max = Math.min(5000, Number(input.maxResults ?? 50));
   const pageOf = hits.slice(start, start + max);
   const next = start + pageOf.length < hits.length ? Buffer.from(String(start + pageOf.length)).toString('base64url') : undefined;
-  return Response.json({ issues: pageOf.map((i) => issueView(ctx, c, i, fieldsAsked(input.fields) ?? ['id'])), ...(next ? { nextPageToken: next } : {}), isLast: !next });
+  return Response.json({ issues: pageOf.map((i) => issueView(ctx, i, fieldsAsked(input.fields) ?? ['id'])), ...(next ? { nextPageToken: next } : {}), isLast: !next });
 }
 
 // source: spec:searchAndReconsileIssuesUsingJqlPost "Searches for issues using"

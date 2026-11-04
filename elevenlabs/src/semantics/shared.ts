@@ -14,7 +14,6 @@ export const AGENT = 'agent';
 export const CONVERSATION = 'conversation';
 export const WORKSPACE_SECRET = 'workspace_secret';
 export const SIGNATURE = '_conversation_signature';
-const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string => ctx.crypto.digest('sha256', v, 'hex');
 
 export const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 export const bodyOf = (ctx: HandlerContext): Row => obj(ctx.body);

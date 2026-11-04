@@ -3,7 +3,7 @@
 // it calls. Pure computation over the answer's text.
 
 type Row = Record<string, unknown>;
-export type ChatTurn = { text: string; toolCalls: Array<{ id?: string; name: string; arguments: Row }> };
+type ChatTurn = { text: string; toolCalls: Array<{ id?: string; name: string; arguments: Row }> };
 
 const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 const parse = (text: string): unknown => { try { return JSON.parse(text); } catch { return undefined; } };

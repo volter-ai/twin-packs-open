@@ -1,6 +1,5 @@
 // Vendor wire facts; the surface is derived from the retained spec.
 import type { DerivedManifest } from '@volter/world-core';
-import { notState } from './semantics/states.ts';
 export const manifest: DerivedManifest = {
   vendor: 'googlefonts', service: 'googlefonts', body: { json: 'always' },
   ids: { template: '{uuid}' }, time: 'iso',
