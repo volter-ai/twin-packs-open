@@ -1,6 +1,5 @@
-import { platformAccountId } from '../engine/connect.ts';
 import type { HandlerContext } from '@volter/world-core';
-import { actingAccount, accountMissing } from './shared.ts';
+import { platformAccountId, actingAccount, accountMissing } from './shared.ts';
 
 // source: spec:GetAccount "Retrieves the details of an account."
 export async function GetAccount(ctx: HandlerContext): Promise<Response> {

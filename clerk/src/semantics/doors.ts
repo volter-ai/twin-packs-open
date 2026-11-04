@@ -4,9 +4,8 @@
 // Domains, Organizations Settings and SSO connections pages (the instance's settings); and what a person outside the
 // vendor holds: the recipient's inbox (what Clerk emailed) and the receiver's requests (what Svix delivered).
 import type { HandlerContext } from '@volter/world-core';
-import { makeSecretKey, readSecretKey, webhookKey } from './account-credentials.ts';
 import { applicationFor } from './tenant.ts';
-import { ensureInstanceKey, instanceRow, publishableKey, instanceKey, INSTANCE_SUBJECT, ms, sha256, instanceId } from './shared.ts';
+import { makeSecretKey, readSecretKey, webhookKey, ensureInstanceKey, instanceRow, publishableKey, instanceKey, INSTANCE_SUBJECT, ms, sha256, instanceId } from './shared.ts';
 
 type Row = Record<string, unknown>;
 const bodyOf = (ctx: HandlerContext): Row => (ctx.body && typeof ctx.body === 'object' && !Array.isArray(ctx.body) ? (ctx.body as Row) : {});

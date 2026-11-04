@@ -4,11 +4,11 @@
 import type { HandlerContext } from '@volter/world-core';
 import { formOf, signedIn } from '@volter/world-ui';
 import { openQStash, QSTASH_USER, resetQStashToken, rollSigningKeys } from '../semantics/shared.ts';
-import { COOKIE, consolePage, consolePath, notAllowed, type Row, toLogin } from './shared.tsx';
+import { COOKIE, consoleCustomer, consolePage, consolePath, notAllowed, type Row, toLogin } from './shared.tsx';
 
 const REGIONS = ['eu-central-1', 'us-east-1'];
 
-function page(ctx: HandlerContext, person: Row, q: Row | undefined, notice?: string, status = 200): Response {
+async function page(ctx: HandlerContext, person: Row, q: Row | undefined, notice?: string, status = 200): Promise<Response> {
   const fields = q ? [
     { id: 'qstash-url', name: 'QSTASH_URL', value: q._url, secret: false },
     { id: 'qstash-token', name: 'QSTASH_TOKEN', value: q.token, secret: true },
@@ -31,8 +31,10 @@ function page(ctx: HandlerContext, person: Row, q: Row | undefined, notice?: str
 export async function screen(ctx: HandlerContext): Promise<Response> {
   const request = ctx.call.request;
   const person = signedIn(ctx, COOKIE);
-  if (!person) return toLogin('/qstash', ctx);
-  const mine = (): Row | undefined => ctx.rowsRaw(QSTASH_USER).find((x) => x.customer_id === person.email && x.deleted !== true);
+  if (!person) return toLogin(`/qstash${new URL(request.url).search}`, ctx);
+  const customer = await consoleCustomer(ctx, person);
+  if (!customer) return new Response('Not Found', { status: 404 });
+  const mine = (): Row | undefined => ctx.rowsRaw(QSTASH_USER).find((x) => x.customer_id === customer.id && x.deleted !== true);
   if (request.method === 'GET') return page(ctx, person, mine());
   if (request.method !== 'POST') return notAllowed();
   const act = new URL(request.url).searchParams.get('do');
@@ -41,7 +43,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     if (q) return page(ctx, person, q);
     const region = formOf(ctx).region ?? '';
     if (!REGIONS.includes(region)) return page(ctx, person, undefined, 'Choose a region.', 422);
-    return page(ctx, person, await openQStash(ctx, { owner: String(person.email), region }));
+    return page(ctx, person, await openQStash(ctx, { customer, region }));
   }
   if (!q) return page(ctx, person, undefined, 'Select a region first.', 422);
   if (act === 'reset') { await resetQStashToken(ctx, q); return page(ctx, person, mine(), 'Your token was reset. Update QSTASH_TOKEN wherever you use it.'); }

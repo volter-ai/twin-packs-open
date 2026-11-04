@@ -2,9 +2,9 @@
 // handler contract's context, computing with the engine (../engine/).
 import type { HandlerContext } from '@volter/world-core';
 import { externalList } from '../engine/common.ts';
-import { controllerOf, expressRequirements, keptKyc, platformAccountId } from '../engine/connect.ts';
+import { controllerOf, expressRequirements, keptKyc } from '../engine/connect.ts';
 import { ACCOUNT_TYPES, accountCapabilities, accountRequirements, accountSettings, nowUnix } from '../engine/stripe.ts';
-import { accountMissing, accountRow, at, connectReview, created, fail, list, newest } from './shared.ts';
+import { platformAccountId, accountMissing, accountRow, at, connectReview, created, fail, list, newest } from './shared.ts';
 
 /** The Connect list contains connected accounts; the merchant is retrieved with GET /v1/account. */
 export async function GetAccounts(ctx: HandlerContext): Promise<Response> {

@@ -7,13 +7,14 @@
 import { redis, type HandlerContext } from '@volter/world-core';
 import { formOf, redirect, signedIn } from '@volter/world-ui';
 import { DATABASE, DIALECT, makeDatabase } from '../semantics/shared.ts';
-import { COOKIE, consolePage, consolePath, notAllowed, type Row, toLogin } from './shared.tsx';
+import { COOKIE, consoleCustomer, consolePage, consolePath, notAllowed, type Row, toLogin } from './shared.tsx';
 
 // source: https://upstash.com/docs/redis/overall/getstarted "Create Database"
 const REGIONS = ['us-east-1', 'us-west-1', 'us-west-2', 'eu-west-1', 'eu-central-1', 'ap-southeast-1', 'ap-northeast-1', 'sa-east-1'];
 
-function listPage(person: Row, ctx: HandlerContext, notice?: string, status = 200): Response {
-  const mine = ctx.rowsRaw(DATABASE).filter((d) => d.user_email === person.email && d.deleted !== true);
+async function listPage(person: Row, ctx: HandlerContext, notice?: string, status = 200): Promise<Response> {
+  const customer = (await consoleCustomer(ctx, person))!;
+  const mine = ctx.rowsRaw(DATABASE).filter((d) => d.customer_id === customer.id && d.deleted !== true);
   return consolePage(ctx, person, <>
     <div className="up-banner"><div className="up-banner-inner"><div className="up-heading"><h1>Redis</h1><button className="up-primary" type="button" data-open-dialog="create-database">+ Create Database</button></div></div></div>
     <main className="up-main"><nav className="up-tabs" aria-label="Redis navigation"><span aria-current="page">Databases</span></nav>{mine.length ? <><label><span className="up-muted">Search databases</span><br/><input className="up-search" data-database-search placeholder="Search databases"/></label><div className="up-grid">{mine.map(d => <a className="up-database" key={String(d.database_id)} data-database-name={String(d.database_name).toLowerCase()} href={consolePath(ctx, `/redis/${String(d.database_id)}`)}><strong>{String(d.database_name)}</strong><span className="up-muted">{String(d.primary_region)} · Free</span></a>)}</div></> : <section className="up-card"><h2>Create your first database</h2><p className="up-muted">No databases yet.</p><button className="up-primary" type="button" data-open-dialog="create-database">Create Database</button></section>}</main>
@@ -97,6 +98,7 @@ async function dataBrowserPage(ctx: HandlerContext, person: Row, d: Row): Promis
       <div className="up-browser" aria-label="Data Browser">
         <aside className="up-browser-sidebar" aria-label="Redis keys">
           <form className="up-browser-search" method="get" action={consolePath(ctx, base)}>
+            {query.has('customer') ? <input type="hidden" name="customer" value={query.get('customer')!}/> : null}
             <input name="pattern" aria-label="Search" placeholder="Search" title="Redis key pattern, for example app:*" defaultValue={pattern}/>
             <select name="type" aria-label="Key type" defaultValue={kind}><option value="">All Types</option>{KEY_TYPES.map(([name, label]) => <option key={name} value={name}>{label}</option>)}</select>
             <button type="submit" aria-label="Search keys">Search</button>
@@ -121,7 +123,7 @@ async function dataBrowserPage(ctx: HandlerContext, person: Row, d: Row): Promis
   </>);
 }
 
-function databasePage(ctx: HandlerContext, person: Row, d: Row, notice?: string, status = 200): Response {
+async function databasePage(ctx: HandlerContext, person: Row, d: Row, notice?: string, status = 200): Promise<Response> {
   const url = `https://${String(d.endpoint)}.upstash.io`;
   return consolePage(ctx, person, <>
     {databaseHeading(ctx, d)}
@@ -139,6 +141,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const path = url.pathname.replace(/\/+$/, '');
   const person = signedIn(ctx, COOKIE);
   if (!person) return toLogin(`${path}${url.search}`, ctx);
+  const customer = await consoleCustomer(ctx, person);
+  if (!customer) return new Response('Not Found', { status: 404 });
   if (path === '/redis') {
     if (request.method === 'GET') return listPage(person, ctx);
     if (request.method !== 'POST') return notAllowed();
@@ -146,12 +150,12 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     const name = (f.name ?? '').trim();
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(name)) return listPage(person, ctx, 'A name of letters, digits, hyphens and underscores is required.', 422);
     if (!REGIONS.includes(f.region ?? '')) return listPage(person, ctx, 'Choose a primary region.', 422);
-    if (ctx.rowsRaw(DATABASE).some((d) => d.user_email === person.email && d.database_name === name && d.deleted !== true)) return listPage(person, ctx, `A database named ${name} exists.`, 409);
-    const d = await makeDatabase(ctx, { owner: String(person.email), name, region: f.region! });
+    if (ctx.rowsRaw(DATABASE).some((d) => d.customer_id === customer.id && d.database_name === name && d.deleted !== true)) return listPage(person, ctx, `A database named ${name} exists.`, 409);
+    const d = await makeDatabase(ctx, { customer, name, region: f.region! });
     return redirect(consolePath(ctx, `/redis/${String(d.database_id)}`));
   }
   const m = /^\/redis\/([0-9a-f-]{36})(\/delete|\/data-browser)?$/.exec(path);
-  const d = m ? ctx.rowsRaw(DATABASE).find((x) => x.database_id === m[1] && x.user_email === person.email && x.deleted !== true) : undefined;
+  const d = m ? ctx.rowsRaw(DATABASE).find((x) => x.database_id === m[1] && x.customer_id === customer.id && x.deleted !== true) : undefined;
   if (!m || !d) return new Response('Not Found', { status: 404, headers: { 'content-type': 'text/plain' } });
   if (m[2] === '/data-browser') return request.method === 'GET' ? dataBrowserPage(ctx, person, d) : new Response('Method Not Allowed', { status: 405, headers: { 'content-type': 'text/plain', allow: 'GET' } });
   if (!m[2]) return request.method === 'GET' ? databasePage(ctx, person, d) : notAllowed();
