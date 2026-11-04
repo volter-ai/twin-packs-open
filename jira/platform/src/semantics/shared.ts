@@ -1,13 +1,13 @@
 // What the platform lane shares: the caller (a 3LO grant that covers the path's site), Jira's views of a project, an
 // issue and a comment (each with its `self` URL), a new project's issue types and statuses, and the priorities.
 import type { HandlerContext } from '@volter/world-core';
-import { API_TOKEN, COMMENT, grantOf, ISSUE, jiraError, obj, PERSON, PROJECT, type Row, SITE, arr } from '../../../src/semantics/shared.ts';
+import { API_TOKEN, grantOf, ISSUE, jiraError, obj, PERSON, PROJECT, type Row, SITE, arr } from '../../../src/semantics/shared.ts';
 
-export * from '../../../src/semantics/shared.ts';
+export { arr, COMMENT, COMPONENT, ISSUE, jiraError, obj, PERSON, PROJECT, type Row } from '../../../src/semantics/shared.ts';
 
-export type Caller = { site: string; siteUrl: string; person: string; scopes: string[] };
+export type Caller = { site: string; siteUrl: string; person: string };
 /** The caller: a grant that covers the site the path names (`/ex/jira/{cloudId}`), or Jira's refusal. */
-export function callerOf(ctx: HandlerContext, scope?: string): Caller | Response {
+export function callerOf(ctx: HandlerContext, scope: string): Caller | Response {
   const g = grantOf(ctx);
   // source: spec:getIssue "Returned if the authentication credentials are incorrect or missing."
   // Where the documentation stops: the messages are the twin's, in Jira's error form
@@ -25,14 +25,14 @@ export function callerOf(ctx: HandlerContext, scope?: string): Caller | Response
     const siteHost = new URL(String(ctx.row(SITE, site)!.url)).hostname;
     if (hostname !== siteHost && !['127.0.0.1', 'localhost', '[::1]'].includes(hostname)) return jiraError(401, ['Unauthorized; scope does not match']);
     if (scope === 'manage:jira-project' && !(person.admin_of as string[]).includes(site)) return jiraError(403, ['You do not have permission to administer this site.']);
-    return { site, siteUrl: String(ctx.row(SITE, site)!.url), person: String(basic.person), scopes: ['read:jira-work', 'write:jira-work', 'read:jira-user', ...(scope === 'manage:jira-project' ? [scope] : [])] };
+    return { site, siteUrl: String(ctx.row(SITE, site)!.url), person: String(basic.person) };
   }
   const site = String(ctx.call.params.cloudId ?? '');
   if (!g!.sites.includes(site) || !ctx.row(SITE, site)) return jiraError(401, ['Unauthorized; scope does not match']);
-  if (scope && !g!.scopes.includes(scope)) return jiraError(401, ['Unauthorized; scope does not match']);
+  if (!g!.scopes.includes(scope)) return jiraError(401, ['Unauthorized; scope does not match']);
   // source: spec:createProject "Administer Jira"
   if (scope === 'manage:jira-project' && !arr<string>(ctx.row(PERSON, g!.person)?.admin_of).includes(site)) return jiraError(403, ['You do not have permission to administer this site.']);
-  return { site, siteUrl: String(ctx.row(SITE, site)!.url), person: g!.person, scopes: g!.scopes };
+  return { site, siteUrl: String(ctx.row(SITE, site)!.url), person: g!.person };
 }
 
 /** The API's base for a site, as its `self` URLs name it. */
@@ -96,13 +96,13 @@ export function issueOf(ctx: HandlerContext, c: Caller, idOrKey: unknown): Row |
   return i ?? jiraError(404, ['Issue does not exist or you do not have permission to see it.']);
 }
 
-export const newProjectView = (c: Caller, p: Row, expandTypes = false): Row => ({
+export const newProjectView = (c: Caller, p: Row): Row => ({
   self: `${base(c)}/project/${String(p.id)}`, id: String(p.id), key: p.key, name: p.name, projectTypeKey: p.projectTypeKey, simplified: true, style: 'next-gen',
-  isPrivate: false, archived: false, description: p.description ?? '', avatarUrls: {}, ...(expandTypes ? { issueTypes: ISSUE_TYPES.map((t) => ({ self: `${base(c)}/issuetype/${t.id}`, ...t, description: '' })) } : {}),
+  isPrivate: false, archived: false, description: p.description ?? '', avatarUrls: {},
 });
 
 /** An issue as the API answers it, with only the fields asked when some are (`fields=status,labels`). */
-export function issueView(ctx: HandlerContext, c: Caller, i: Row, fields?: string[]): Row {
+export function issueView(ctx: HandlerContext, i: Row, fields?: string[]): Row {
   const own = publicOwn(ctx, i);
   const all = obj(own.fields);
   // source: spec:getIssue "Any issue field, prefixed with a minus to exclude."
@@ -113,10 +113,10 @@ export function issueView(ctx: HandlerContext, c: Caller, i: Row, fields?: strin
   return { ...own, fields: Object.fromEntries(want.filter((f) => f in all && !excludes.has(f)).map((f) => [f, all[f]])) };
 }
 
-export const commentView = (ctx: HandlerContext, _c: Caller, m: Row): Row => publicOwn(ctx, m);
-export const projectView = (ctx: HandlerContext, _c: Caller, p: Row, expandTypes = false): Row => {
+export const commentView = (ctx: HandlerContext, m: Row): Row => publicOwn(ctx, m);
+export const projectView = (ctx: HandlerContext, c: Caller, p: Row, expandTypes = false): Row => {
   const own = publicOwn(ctx, p);
-  return { ...own, ...(expandTypes ? { issueTypes: ISSUE_TYPES.map((t) => ({ self: `${base(_c)}/issuetype/${t.id}`, ...t, description: '' })) } : {}) };
+  return { ...own, ...(expandTypes ? { issueTypes: ISSUE_TYPES.map((t) => ({ self: `${base(c)}/issuetype/${t.id}`, ...t, description: '' })) } : {}) };
 };
 
 /** The fields a request asks for: `fields` as a comma list (a query) or an array (a body). */
@@ -125,6 +125,6 @@ export const fieldsAsked = (v: unknown): string[] | undefined => (Array.isArray(
 /** A component as the API answers it (its project by key and id). */
 export const newComponentView = (c: Caller, k: Row): Row => ({ self: `${base(c)}/component/${String(k.id)}`, id: String(k.id), name: k.name, description: k.description ?? '', project: k._projectKey, projectId: Number(k._project), assigneeType: 'PROJECT_DEFAULT' });
 
-export const componentView = (ctx: HandlerContext, _c: Caller, k: Row): Row => publicOwn(ctx, k);
+export const componentView = (ctx: HandlerContext, k: Row): Row => publicOwn(ctx, k);
 
-export const publicOwn = (ctx: HandlerContext, row: Row): Row => Object.fromEntries(Object.entries(ctx.own(row)).filter(([k]) => !k.startsWith('_')));
+const publicOwn = (ctx: HandlerContext, row: Row): Row => Object.fromEntries(Object.entries(ctx.own(row)).filter(([k]) => !k.startsWith('_')));

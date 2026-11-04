@@ -54,7 +54,7 @@ export function jsonAnswer(errors: Array<[string, string, string | null]>, data?
 }
 
 /** Reddit's error words by code (r2's errors.py; the vendor's own server source). */
-export const ERRORS: Record<string, string> = {
+const ERRORS: Record<string, string> = {
   USER_REQUIRED: 'Please log in to do that.',
   NO_URL: 'a url is required',
   BAD_URL: 'you should check that url',
@@ -236,12 +236,12 @@ export function slugOf(title: string): string {
 // ── votes and scores ────────────────────────────────────────────────────────────────────────────
 
 /** An account's vote on a thing: 1, -1, or 0 for none. */
-export function voteOf(ctx: HandlerContext, fullname: string, accountId: string | undefined): number {
+function voteOf(ctx: HandlerContext, fullname: string, accountId: string | undefined): number {
   if (!accountId) return 0;
   return Number(ctx.row(VOTE, `${accountId}:${fullname}`)?.dir ?? 0);
 }
 /** A thing's ups and downs: every account's vote on it. */
-export function tally(ctx: HandlerContext, fullname: string): { ups: number; downs: number } {
+function tally(ctx: HandlerContext, fullname: string): { ups: number; downs: number } {
   let ups = 0;
   let downs = 0;
   for (const v of ctx.rowsRaw(VOTE)) {
@@ -255,7 +255,7 @@ export function tally(ctx: HandlerContext, fullname: string): { ups: number; dow
 /** Reddit's hot rank of a post: the order of magnitude of its score, signed, plus its age over 45,000 seconds since
  *  Reddit's epoch.
  *  source: https://raw.githubusercontent.com/reddit-archive/reddit/master/r2/r2/lib/db/_sorts.pyx "return round(sign * order + seconds / 45000, 7)" */
-export function hotRank(score: number, createdUtc: number): number {
+function hotRank(score: number, createdUtc: number): number {
   const order = Math.log10(Math.max(Math.abs(score), 1));
   const sign = score > 0 ? 1 : score < 0 ? -1 : 0;
   // source: https://raw.githubusercontent.com/reddit-archive/reddit/master/r2/r2/lib/db/_sorts.pyx "seconds = date - 1134028003"
@@ -480,7 +480,7 @@ export function renditionHeight(height: number | undefined): number {
 }
 
 /** A signature Reddit's preview URLs carry (`s=`): a digest the World draws from its secret, so a URL is the World's. */
-export async function previewSignature(ctx: HandlerContext, path: string): Promise<string> {
+async function previewSignature(ctx: HandlerContext, path: string): Promise<string> {
   return sha256(`${await ctx.secret('preview-signature')}:${path}`).slice(0, 40);
 }
 

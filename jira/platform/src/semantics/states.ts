@@ -6,7 +6,7 @@ import type { StateField } from '@volter/world-core';
  *  Where the documentation stops: a new project's workflow is its template's; the twin's is the simplified one, each
  *  status reached from each. A move the workflow does not offer never reaches here: the transition
  *  is looked up first, and one the issue does not have is refused by id. */
-export const issueStatus: StateField = {
+const issueStatus: StateField = {
   initial: 'To Do',
   transitions: [
     { operation: 'createIssue', from: ['To Do'], to: 'In Progress', source: 'spec:createIssue "A transition may be applied"' },

@@ -31,7 +31,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const person = personByEmail(ctx, q.get('email') ?? '');
   if (!person) return page('<p>Sign in to OpenRouter first.</p>', 401);
   // a code is a credential until it is exchanged: drawn from the World's secret, kept by its SHA-256
-  const code = (await ctx.secret(`openrouter-auth-code:${String(person.id)}:${ctx.occurredAt}:${await serial(ctx, 'auth-code')}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 32);
+  const code = (await ctx.secret(`openrouter-auth-code:${String(person.id)}:${ctx.occurredAt}:${await serial(ctx)}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 32);
   await ctx.record(CODE, { user: person.id, challenge, method, key_label: label, callback, issued: ctx.occurredAt, status: 'active' }, sha256(ctx, code));
   if (!back) return page(`<h1>Your code</h1><p><code id="code">${esc(code)}</code></p><p>Paste it into your application. It expires in 10 minutes.</p>`);
   back.searchParams.set('code', code);

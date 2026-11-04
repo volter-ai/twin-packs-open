@@ -21,12 +21,12 @@ export const SESSION = '_upload_session';
 export const LIVE_CHAT = '_live_chat';
 export const COMMENT_BAN = '_comment_ban';
 /** A Google Cloud project's API key, as the googleoauth twin keeps it (its contract: `api_key`, by the key's SHA-256). */
-export const API_KEY = 'api_key';
+const API_KEY = 'api_key';
 
 /** Google's OAuth tokens, as the googleoauth pack keeps them (its contract: `access_token`, by the token, with
  *  `clientId`, `sub`, `scope`, `expiresAt` and `revoked`). */
-export const TOKEN_OWNER = 'googleoauth';
-export const TOKEN = 'access_token';
+const TOKEN_OWNER = 'googleoauth';
+const TOKEN = 'access_token';
 
 /** YouTube's refusal: Google's error body with the error's domain and reason (manifest `error`). */
 export const refuse = (ctx: Pick<HandlerContext, 'refuse'>, status: number, domain: string, reason: string, message: string): Response =>
@@ -35,7 +35,7 @@ export const refuse = (ctx: Pick<HandlerContext, 'refuse'>, status: number, doma
 export const live = (r: Row | undefined): Row | undefined => (r && r.deleted !== true ? r : undefined);
 
 /** A stored row as YouTube answers it: its own fields, without the twin's bookkeeping. */
-export function vendorView(ctx: Pick<HandlerContext, 'own'>, row: Row): Row {
+function vendorView(ctx: Pick<HandlerContext, 'own'>, row: Row): Row {
   const own = ctx.own(row);
   return Object.fromEntries(Object.entries(own).filter(([k]) => !k.startsWith('_')));
 }
@@ -77,15 +77,15 @@ export function offsetOf(token: string | undefined): number | undefined {
   try { const m = /^CA(\d+)QAA$/.exec(atob(token)); return m ? Number(m[1]) : undefined; } catch { return undefined; }
 }
 
-/** A list answer, YouTube's envelope: `kind`, `etag`, the page tokens, `pageInfo` and `items`, `extra` merged in. */
-export function listAnswer(ctx: Pick<HandlerContext, 'crypto'>, kind: string, all: Row[], offset: number, size: number, extra: Row = {}): Response {
+/** A list answer, YouTube's envelope: `kind`, `etag`, the page tokens, `pageInfo` and `items`. */
+export function listAnswer(ctx: Pick<HandlerContext, 'crypto'>, kind: string, all: Row[], offset: number, size: number): Response {
   const items = all.slice(offset, offset + size);
   const body: Row = { kind, etag: '' };
   // a page of no items (maxResults=0, which the methods' ranges allow) names no other page: a token is never the page
   // just served, so a client following nextPageToken always moves on
   if (size > 0 && offset + size < all.length) body.nextPageToken = pageToken(offset + size);
   if (size > 0 && offset > 0) body.prevPageToken = pageToken(Math.max(0, offset - size));
-  Object.assign(body, extra, { pageInfo: { totalResults: all.length, resultsPerPage: size }, items });
+  Object.assign(body, { pageInfo: { totalResults: all.length, resultsPerPage: size }, items });
   body.etag = etagOf(ctx, items);
   return Response.json(body);
 }
@@ -109,7 +109,7 @@ export function offsetFor(ctx: HandlerContext): number | Response {
 
 // ── who is calling ────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type Caller = { token: string; sub: string; clientId: string; scopes: string[] };
+type Caller = { sub: string; scopes: string[] };
 
 /** The access token a request bears: the Authorization header's Bearer token, else the access_token or oauth_token
  *  query parameter. */
@@ -131,7 +131,7 @@ export function callerOf(ctx: HandlerContext): Caller | Response {
   if (!row || row.revoked === true || typeof row.sub !== 'string') return refuse(ctx, 401, 'global', 'authError', 'The authorization credentials provided for the request are invalid. Check the value of the Authorization HTTP request header.');
   // source: https://developers.google.com/youtube/v3/docs/core_errors "Session Expired. Check the value of the Authorization HTTP request header."
   if (Number(row.expiresAt) <= Math.floor(Date.parse(ctx.occurredAt) / 1000)) return refuse(ctx, 401, 'global', 'expired', 'Session Expired. Check the value of the Authorization HTTP request header.');
-  return { token, sub: row.sub, clientId: String(row.clientId ?? ''), scopes: String(row.scope ?? '').split(' ').filter(Boolean) };
+  return { sub: row.sub, scopes: String(row.scope ?? '').split(' ').filter(Boolean) };
 }
 
 /** The API key a request bears: the key query parameter, else the X-Goog-Api-Key header. */
@@ -184,7 +184,7 @@ export const idOf = (ctx: Pick<HandlerContext, 'own'>, row: Row): string => Stri
 export const channelTitle = (ctx: Pick<HandlerContext, 'own'>, channel: Row | undefined): string => String(obj(channel ? ctx.own(channel).snippet : undefined).title ?? '');
 
 /** The author fields a comment or a chat message carries for a channel. */
-export function authorOf(ctx: Pick<HandlerContext, 'own'>, channel: Row): { channelId: string; displayName: string; channelUrl: string; profileImageUrl: string } {
+function authorOf(ctx: Pick<HandlerContext, 'own'>, channel: Row): { channelId: string; displayName: string; channelUrl: string; profileImageUrl: string } {
   const v = ctx.own(channel);
   const snippet = obj(v.snippet);
   const thumbs = obj(snippet.thumbnails);
@@ -197,7 +197,7 @@ export function authorOf(ctx: Pick<HandlerContext, 'own'>, channel: Row): { chan
 
 /** A comment's text as the request's textFormat asks it: HTML (the default) escapes it. */
 // source: https://developers.google.com/youtube/v3/docs/commentThreads/list "Set this parameter's value to html or plainText to instruct the API to return the comments left by users in html formatted or in plain text."
-export const textDisplay = (text: string, format: string | undefined): string =>
+const textDisplay = (text: string, format: string | undefined): string =>
   format === 'plainText' ? text : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, '<br>');
 
 /** The thumbnails YouTube names for a video, by its id. */
@@ -208,12 +208,6 @@ export function videoThumbnails(id: string): Row {
     medium: { url: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, width: 320, height: 180 },
     high: { url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, width: 480, height: 360 },
   };
-}
-
-/** A video's counts, as the audience moved them. */
-export function videoStats(ctx: Pick<HandlerContext, 'own'>, video: Row): { views: number; likes: number; comments: number } {
-  const s = obj(ctx.own(video).statistics);
-  return { views: Number(s.viewCount ?? 0), likes: Number(s.likeCount ?? 0), comments: Number(s.commentCount ?? 0) };
 }
 
 /** The live chat a broadcast holds, by its liveChatId, and the broadcast. */
@@ -299,7 +293,7 @@ export const videoOwner = (ctx: Pick<HandlerContext, 'row'>, videoId: string): R
 };
 
 /** Whether an author is banned from a channel's comments (comments.setModerationStatus with banAuthor). */
-export const bannedFrom = (ctx: Pick<HandlerContext, 'row'>, channelId: string, authorId: string): boolean => !!live(ctx.row(COMMENT_BAN, `${channelId}:${authorId}`));
+const bannedFrom = (ctx: Pick<HandlerContext, 'row'>, channelId: string, authorId: string): boolean => !!live(ctx.row(COMMENT_BAN, `${channelId}:${authorId}`));
 
 /** A comment written by a channel (an author outside the World included) on a video: a top-level comment (its thread's
  *  id) or a reply (`parentId`). An author the video's channel banned is rejected as the comment arrives. */
@@ -346,7 +340,7 @@ export function commentAnswer(ctx: HandlerContext, comment: Row, viewer: { chann
 }
 
 /** The replies to a top-level comment the caller may see: published ones, and the owner's view of the held ones. */
-export function repliesTo(ctx: HandlerContext, threadId: string): Row[] {
+function repliesTo(ctx: HandlerContext, threadId: string): Row[] {
   return ctx.rowsRaw(COMMENT).filter((c) => c.deleted !== true && c._thread === threadId && c.id !== threadId && ctx.own(c).id !== threadId);
 }
 
