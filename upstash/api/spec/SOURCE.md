@@ -34,6 +34,36 @@
   ("Your API key is wrong") is specific to this API, the other rows' texts are template text (a "kitten" for 403, 404, 405
   and 429). Each refusal's status is the twin's reading of that page.
 
+## Captured example sanitation
+
+The unsanitized `doc-examples.json` capture is retained outside the package at
+`/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/upstash/api/spec/doc-examples.json`.
+The following captured string values matched the exact-archive sweep's `generic-api-key` rule. Each is replaced with
+the inert string `"INERT"`; all other capture bytes and every upstream page locator remain unchanged. The OpenAPI
+document is unchanged. These Developer API operations have no served response handler; the captured output fields
+remain JSON strings, and console-issued credentials still come from native stored rows.
+
+| JSON pointer in `doc-examples.json` | Reason |
+| --- | --- |
+| `/2/output/token` | Credential-like QStash token example; captured line 37. |
+| `/2/output/read_only_token` | Credential-like QStash read-only token example; captured line 38. |
+| `/5/output/0/token` | Credential-like QStash token example; captured line 196. |
+| `/5/output/0/read_only_token` | Credential-like QStash read-only token example; captured line 197. |
+| `/7/output/token` | Credential-like QStash token example; captured line 264. |
+| `/7/output/read_only_token` | Credential-like QStash read-only token example; captured line 265. |
+| `/10/output/token` | Credential-like Search token example; captured line 355. |
+| `/10/output/read_only_token` | Credential-like Search read-only token example; captured line 356. |
+| `/13/output/token` | Credential-like Search token example; captured line 533. |
+| `/13/output/read_only_token` | Credential-like Search read-only token example; captured line 534. |
+| `/15/output/0/token` | Credential-like Search token example; captured line 592. |
+| `/15/output/0/read_only_token` | Credential-like Search read-only token example; captured line 593. |
+| `/50/output/token` | Credential-like Vector token example; captured line 1770. |
+| `/50/output/read_only_token` | Credential-like Vector read-only token example; captured line 1771. |
+| `/52/output/token` | Credential-like Vector token example; captured line 1829. |
+| `/52/output/read_only_token` | Credential-like Vector read-only token example; captured line 1830. |
+| `/53/output/0/token` | Credential-like Vector token example; captured line 1877. |
+| `/53/output/0/read_only_token` | Credential-like Vector read-only token example; captured line 1878. |
+
 Authored Redis console navigation and credential presentation, reference read 2026-10-08: https://upstash.com/docs/redis/overall/getstarted and its published database screenshot (capture date unspecified), plus https://upstash.com/docs/redis/features/restapi. Stored databases, credentials and existing create/delete rules remain the behavior. Usage/billing charts, read regions, paid plans and other products are not fabricated; unavailable tabs are marked. No reference image, DOM or scripts are shipped.
 
 Authored QStash console layout and mounted navigation, reference read 2026-10-08: https://upstash.com/docs/qstash/overall/getstarted and its published Quickstart environment image, https://upstash.com/docs/qstash/howto/reset-token and https://upstash.com/docs/qstash/howto/roll-signing-keys and their action images (capture dates unspecified). The existing region selection, stored endpoint/credentials, token reset and signing-key rotation remain the behavior. Credentials are masked with explicit Show/Copy controls; Reset token opens a confirmation dialog. Redis and QStash navigation and forms stay under the serving World mount. Message, usage and cost charts are omitted; unserved tabs are unavailable. The vendor's read-only-token switch is not reproduced. No vendor image, DOM, scripts or sign-in session is shipped.

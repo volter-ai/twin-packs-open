@@ -15,7 +15,7 @@ export type Row = Record<string, unknown>;
 export const BUCKET = 'Bucket';
 export const OBJECT = 's3_object';
 export const UPLOAD = 's3_upload';
-export const PART = 's3_part';
+const PART = 's3_part';
 
 // source: https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html "Part size 5 MiB to 5 GiB. There is no minimum size limit on the last part of your multipart upload."
 export const MIN_PART = 5 * 1024 * 1024;
@@ -48,14 +48,14 @@ export const objectOf = (ctx: HandlerContext, bucket: string, key: string): Row 
 export const objectsIn = (ctx: HandlerContext, bucket: string): Row[] => ctx.rowsRaw(OBJECT).filter((o) => o._bucket === bucket && o.deleted !== true).sort((a, b) => lexical(String(a.Key), String(b.Key)));
 // source: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html "ListObjectsV2 returns objects in lexicographical order based on their key names."
 export const lexical = (a: string, b: string): number => Buffer.compare(Buffer.from(a), Buffer.from(b));
-export const httpDate = (iso: unknown): string => new Date(String(iso)).toUTCString();
+const httpDate = (iso: unknown): string => new Date(String(iso)).toUTCString();
 
 /** The account's canonical user ID: 64 hex digits drawn from a secret the World holds (where the documentation stops: its
  *  form, as ListBuckets' Owner shows it). */
 export const canonicalId = async (ctx: HandlerContext): Promise<string> => sha256(await ctx.secret('s3-canonical-user'));
 
 // source: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html "The response headers that you can override for the GetObject response are Cache-Control , Content-Disposition , Content-Encoding , Content-Language , Content-Type , and Expires ."
-export const SYSTEM_HEADERS = ['cache-control', 'content-disposition', 'content-encoding', 'content-language', 'content-type', 'expires'];
+const SYSTEM_HEADERS = ['cache-control', 'content-disposition', 'content-encoding', 'content-language', 'content-type', 'expires'];
 /** The checksums S3 checks and keeps with an object (x-amz-checksum-<algorithm>), those the kernel's S3 wire computes. */
 // source: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html "You can provide a precalculated MD5 checksum using the x-amz-checksum-md5 header."
 const CHECKSUMS = ['CRC32', 'CRC32C', 'CRC64NVME', 'SHA1', 'SHA256', 'MD5'] as const;

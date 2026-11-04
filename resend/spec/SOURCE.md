@@ -15,6 +15,18 @@
 
 Credential-shaped values in documentation example outputs are redacted to explicit placeholders. The examples retain their source URLs and identify the redaction; no example key is a World credential.
 
+## Credential example redactions
+
+The upstream locator and capture hash above describe the original document. The packaged copy replaces only the
+following string scalars; all other uncompressed bytes are preserved. Unmodified captures are retained outside the package.
+
+| File | JSON pointer | Replacement | Reason |
+| --- | --- | --- | --- |
+| `openapi.json.gz` | `/components/schemas/ShareEmailResponse/properties/url/example` | `https://resend.com/shared?token=<example-share-token>` | The captured share URL's bearer token is credential-shaped. The inert example keeps the URL's scheme, host, path and query field. |
+| `doc-examples.json` | `/62/output/url` | `https://resend.com/shared?token=<example-share-token>` | The API-reference answer repeats the captured share token. Its source URL and every other example field are retained. |
+
+These values are documentation examples. The email handlers do not load them as runtime credentials or responses.
+
 ## Emails workspace references
 
 The read-only Emails workspace is authored from Resend's public [manage-emails guide](https://resend.com/docs/dashboard/emails/manage-emails), its published Email Details image, the [List Sent Emails Endpoint](https://resend.com/changelog/list-sent-emails-endpoint) Emails table image, and the [Email Events Timeline](https://resend.com/changelog/email-events-timeline). It lists stored sent emails and opens the same email fields the API returns, with Preview, Plain Text and HTML views. It uses the kernel's stored rows and history; only recorded events appear. Preview uses a browser-native sandbox and blocks external assets. No dashboard login, sending controls, share links, logs or engagement totals are modeled by this screen.

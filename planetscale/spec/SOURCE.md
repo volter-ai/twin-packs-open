@@ -85,3 +85,7 @@ the manual's sentences in `means` (each also a `// source:` line in `../src/sema
 reads it); MySQL section names above resolve under
 `https://dev.mysql.com/doc/refman/8.0/en/<section>.html`. Pages were read through twin-standard's `read-page`. The
 setup statements create only the preconditions those rules need, and later reads assert their effects.
+
+## Generated journey sign-in password
+
+The exact archive sweep flagged the password at `journeys/customer-life.json` `/steps/0/body/password`. The journey now omits that value, captures the password issued at runtime by the existing `/_twin/users/{email}` admin door at `/steps/0/capture/signup_password`, and uses it in `/steps/4/body`. The World retains the generated secret; explicit password callers keep their response shape. The original journey is retained outside the archive beside the release custody record. Sign-in and every subsequent journey step remain covered.
