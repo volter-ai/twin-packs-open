@@ -15,3 +15,13 @@ Other pages read: https://dev.bitly.com/docs/getting-started/rate-limits/ for bu
 https://dev.bitly.com/api-reference/ for published request/response examples. Checked citations
 are recorded by the standard in `sources.json`. There are no captured real-vendor exchanges.
 The signup fixture, deterministic opaque ids and conservative account limits are explicit local choices.
+
+## Credential-like example value
+
+The captured authentication-page response in `doc-examples.json` uses the inert string below in place of the token-like sample flagged by the pinned keys sweep. Its JSON type is unchanged; every other byte of that file and the upstream locators stays unchanged. The original captured bytes remain outside the package beside the release custody record for comparison. `openapi.json` is unchanged.
+
+The sample is reference data. `src/semantics/oauth.ts` obtains response tokens from the World's retained-secret issuance in `src/semantics/shared.ts`.
+
+| File | JSON path (RFC 6901) | Inert replacement | Reason |
+| --- | --- | --- | --- |
+| `doc-examples.json` | `/14/output/access_token` | `<example-access-token>` | Captured OAuth access-token sample; runtime responses issue their own token. |
