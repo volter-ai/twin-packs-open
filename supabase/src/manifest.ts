@@ -14,7 +14,6 @@
 // THE STATE is the World's project, the door's own bookkeeping (`_project`); the database's rows are the World's
 // Postgres, never the tree.
 import type { DerivedManifest } from '@volter/world-core';
-import { states } from './semantics/states.ts';
 
 export const manifest: DerivedManifest = {
   vendor: 'supabase',
@@ -50,7 +49,6 @@ export const manifest: DerivedManifest = {
     _project: { idPrefix: '', ids: '{letters:20}' },
     _database_credential: { idPrefix: '', ids: '{uuid}', unique: [{ fields: ['project_id'], refusal: { status: 409, message: 'Project already has a database credential' } }] },
   },
-  ...states,
   // Supabase's gateway in front of a project's data plane: `/rest/v1` to PostgREST (../rest), `/storage/v1` to Storage
   // (../storage) and `/auth/v1` to Auth (../auth), each at a project's host or the twin's own address, each answering its
   // own gap; the Management API's host keeps those paths (it has none of them, so they answer its gap).
