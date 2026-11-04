@@ -6,7 +6,7 @@
 - **OAuth:** `openapi.json`, written from https://linear.app/developers/oauth-2-0-authentication (Linear publishes no
   OpenAPI document): the token URL and the revoke URL. The authorize page (linear.app/oauth/authorize) is a screen.
   SHA-256: `5ee78cc5a9fd3d614f96150ccc8c63d5d75e540a09c35b93ca6515e9d7691d29`.
-- **Corrections:** none.
+- **Schema corrections:** none. Packaged example-only substitutions are recorded below.
 - **Read:** from the vendored SDL and the linked reference pages.
 
 - **Documented examples:** `doc-examples.json`, transcribed from the published GraphQL,
@@ -86,3 +86,21 @@ pinned-SDL argument names the user identifier. This root reads the existing work
 user resource through native identifier aliases, preserving authentication and Entity not found
 refusals; the existing default User fields and current-caller `isMe` resolver remain unchanged.
 It adds no membership, invitation, profile mutation or broader permission behavior.
+
+## Packaged example scalars
+
+The exact-archive keys sweep flags five OAuth token output samples in `doc-examples.json` as `generic-api-key`. Only those five scalar strings are replaced with explicit inert markers. These are published documentation samples, never credentials issued by the twin; token type, scopes, expiry and the native OAuth journey remain unchanged.
+
+The original captured files remain outside the package at `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/linear/spec/doc-examples.json`. Every other uncompressed byte stays unchanged; operations, schemas, field names and response assertions are preserved. JSON pointers use RFC 6901 and are relative to the uncompressed file.
+
+| File | Original SHA-256 | Packaged SHA-256 |
+| --- | --- | --- |
+| `spec/doc-examples.json` | `c2f79d04323f5562493647bb5f60ec2b9eafaa0c81213829035d79a4f43b85b4` | `4cf37845104a2f46a89e5ed5e0815073477d63d8b4905b12a669f688aaea03c3` |
+
+| File and pointer | Packaged value | Reason |
+| --- | --- | --- |
+| `spec/doc-examples.json#/0/output/access_token` | `<example-access-token>` | Published OAuth access-token output sample; inert marker. |
+| `spec/doc-examples.json#/0/output/refresh_token` | `<example-refresh-token>` | Published OAuth refresh-token output sample; inert marker. |
+| `spec/doc-examples.json#/30/output/access_token` | `<example-access-token>` | Published OAuth access-token output sample; inert marker. |
+| `spec/doc-examples.json#/30/output/refresh_token` | `<example-refresh-token>` | Published OAuth refresh-token output sample; inert marker. |
+| `spec/doc-examples.json#/31/output/access_token` | `<example-access-token>` | Published OAuth access-token output sample; inert marker. |
