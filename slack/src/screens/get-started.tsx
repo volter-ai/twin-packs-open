@@ -5,8 +5,8 @@
 // has a default channel", https://slack.com/help/articles/360047512554).
 //
 // Where the documentation stops and the twin decides: the World's first workspace is `T0VOLTER01`;
-// it is named for the email's domain (`kiln.studio` → Kiln, domain `kiln`); the person's id is the one their client
-// token names. Each workspace has a unique URL.
+// it is named for the email's domain (`kiln.studio` → Kiln, domain `kiln`). Each workspace has its own member id
+// and a unique URL.
 import { startBrowserSession, type HandlerContext } from '@volter/world-core';
 import { HOME_TEAM } from '../engine/wire.ts';
 import { makeWorkspace } from '../semantics/shared.ts';
