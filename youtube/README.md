@@ -26,9 +26,10 @@ the access token the refresh token renews (processed). Readback reads the video 
 
 Environment: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `YOUTUBE_API_KEY` are googleoauth's credential door's, as
 Google Cloud's Credentials page issues them (the application's OAuth client with its loopback redirect
-`http://localhost:3000/oauth2callback`, the World's person, sub `100000000000000000001`, and the project's API key,
-which Dub's partner-statistics cron sends as `X-Goog-Api-Key`). `YOUTUBE_CHANNEL_ID` is this twin's credential door's,
-that person's channel. YouTube issues no credential: it reads Google's tokens and keys across packs, and takes a key
+`http://localhost:3000/oauth2callback` and the project's API key, which Dub's partner-statistics cron sends as
+`X-Goog-Api-Key`). The Google account is the organization's first member, with a subject derived from their email.
+`YOUTUBE_CHANNEL_ID` is this twin's credential door's, that member's retained channel, shared by the organization's
+deployments. YouTube issues no credential: it reads Google's tokens and keys across packs, and takes a key
 only on the list methods that read public data (`channels.list`, `videos.list`, `commentThreads.list`). Every other person
 signs in the same way; their Google account is googleoauth's account door's and their channel this twin's
 (`POST /_twin/channels { sub, title, handle? }`), as YouTube asks of an account before it uploads or streams. Each
@@ -62,5 +63,5 @@ The catalog's Evidence tab records actual measured journeys and their exact tool
 ## Package facts
 
 Protocol 3; the vendor's Discovery document and its OpenAPI conversion are in spec/, provenance in spec/SOURCE.md.
-Apache-2.0, Node 22.3 or later, `@volter/world-core` as its peer; issues at https://github.com/volter-ai/twin-packs-p3.
+Apache-2.0, Node 22.3 or later, `@volter/world-core` as its peer; issues at https://github.com/volter-ai/twin-packs-open/issues.
 Contributor mechanics belong to the [pack procedure](https://world-docs.volter.ai/docs/contributing/architecture#creating-a-pack).
