@@ -1,7 +1,7 @@
 // An MP4's duration and picture size, read from its boxes (ISO/IEC 14496-12: `moov`'s `mvhd` holds the timescale and
 // duration; a video `trak`'s `tkhd` its width and height, 16.16 fixed point). The twin decodes no media: a file that
 // holds no such boxes answers zeros. Pure: it takes bytes and answers numbers.
-export type Mp4Facts = { duration: number; width: number; height: number };
+type Mp4Facts = { duration: number; width: number; height: number };
 
 function boxes(b: Uint8Array, from: number, to: number): Array<{ type: string; start: number; end: number }> {
   const out: Array<{ type: string; start: number; end: number }> = [];

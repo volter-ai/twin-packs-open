@@ -1,6 +1,6 @@
 // Git and git-lfs over HTTP at a model repository's own path, and the CDN its LFS objects go up to and come down from:
 // the kernel's git library (smart HTTP, `git/lfs.ts`) over the repository's git data (ctx.git) and the pack's resource
-// blobs (LFS objects, by oid). Reading is anyone's (the twin's repositories are public); pushing and uploading need the
+// blobs (LFS objects, by oid). Reading a public repository is anyone's; private reads, pushes and uploads need the
 // owner's token, which git and git-lfs send as a Basic password.
 import { git, type HandlerContext } from '@volter/world-core';
 import { CDN, downloadHref, gitOf, objectResponse, repoNamed, type Row, userOf } from '../semantics/shared.ts';
@@ -10,7 +10,7 @@ const challenge = (): Response => new Response('Invalid username or password.\n'
 const text = (status: number, body: string): Response => new Response(body, { status, headers: { 'content-type': 'text/plain' } });
 
 /** The pack's LFS objects, by oid. */
-export const objects = (ctx: HandlerContext, repo: Row): git.LfsStore => ({
+const objects = (ctx: HandlerContext, repo: Row): git.LfsStore => ({
   size: (oid) => ctx.blobs.size(`lfs/${repo.id}/${oid}`), put: (oid, bytes) => ctx.blobs.put(`lfs/${repo.id}/${oid}`, bytes),
   putStream: (oid, chunks, accept) => ctx.blobs.putStream(`lfs/${repo.id}/${oid}`, chunks, accept),
 });
@@ -56,7 +56,7 @@ export async function lfsBatch(ctx: HandlerContext): Promise<Response> {
     if (!upload) hrefs.set(oid, await downloadHref(ctx, t.repo, oid));
     if (upload) hrefs.set(oid, `${CDN}/upload/${name}/${oid}?token=${await uploadToken(ctx, name, oid, size)}&size=${size}`);
   }
-  return git.lfsBatch(body, { store: objects(ctx, t.repo), href: (op, o) => hrefs.get(o.oid)! });
+  return git.lfsBatch(body, { store: objects(ctx, t.repo), href: (_operation, o) => hrefs.get(o.oid)! });
 }
 
 /** The token an upload's href carries for one object of one repository. */

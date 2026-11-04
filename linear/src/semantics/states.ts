@@ -4,7 +4,7 @@ import type { StateField } from '@volter/world-core';
 
 /** An issue archived (`archivedAt` set) is out of every list; archiving it again is refused. Where the documentation
  *  stops: the refusal's message is the twin's. */
-export const archival: StateField = {
+const archival: StateField = {
   initial: 'active',
   derive: [{ state: 'archived', when: { truthy: true } }],
   transitions: [

@@ -31,7 +31,7 @@ export const falError = (status: number, detail: unknown): Response => Response.
 export const platformError = (status: number, type: string, message: string): Response => Response.json({ error: { type, message } }, { status });
 
 // Placeholder dimensions are a deterministic stub choice, not a promise of the model's exact pixel dimensions.
-export function sizeOf(aspect: string): { width: number; height: number } {
+function sizeOf(aspect: string): { width: number; height: number } {
   const [w, h] = aspect.split(':').map(Number);
   const ratio = w! / h!;
   const width = Math.round(Math.sqrt(1048576 * ratio) / 16) * 16;
@@ -51,7 +51,7 @@ export const imageUrl = (ctx: HandlerContext, id: string, bytes: Uint8Array, syn
 
 // Stateless prices can be scripted; stored mutations are never accepted through this adapter.
 // source: https://fal.ai/docs/platform-apis/v1/models/pricing.md "Pricing information for requested endpoints"
-export function validatePrices(respond: unknown): string | null {
+function validatePrices(respond: unknown): string | null {
   if (!respond || typeof respond !== 'object' || Array.isArray(respond)) return 'Pricing response is an object.';
   const r = respond as Row;
   if (!Array.isArray(r.prices) || typeof r.has_more !== 'boolean' || !(r.next_cursor === null || typeof r.next_cursor === 'string')) return 'Pricing requires prices, has_more and next_cursor.';
@@ -60,7 +60,7 @@ export function validatePrices(respond: unknown): string | null {
     && typeof p.unit === 'string' && typeof p.currency === 'string' && p.currency.length === 3) ? null : 'Malformed pricing item.';
 }
 // source: https://fal.ai/docs/platform-apis/v1/models/pricing.md "Standard error response format"
-export function pricingFault(status: number): { type: string; message: string } {
+function pricingFault(status: number): { type: string; message: string } {
   const defaults: Record<number, { type: string; message: string }> = {
     400: { type: 'validation_error', message: 'Invalid request parameters' },
     401: { type: 'authorization_error', message: 'Authentication required' },

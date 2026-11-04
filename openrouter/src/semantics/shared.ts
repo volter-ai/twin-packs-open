@@ -147,8 +147,8 @@ export function publicModel(m: Model): Row {
 }
 
 /** The World's next number (a nonce in a secret's label, a numeric id), issued from the tree over `_serial` (ctx.issue),
- *  never a row count; `what` names what it is for where it is called. */
-export const serial = async (ctx: Pick<HandlerContext, 'issue'>, _what: string): Promise<number> => Number(await ctx.issue('_serial'));
+ *  never a row count. */
+export const serial = async (ctx: Pick<HandlerContext, 'issue'>): Promise<number> => Number(await ctx.issue('_serial'));
 
 /** A scenario's post-admission provider failure: no model runs and no resource mutation is faked. */
 // source: https://openrouter.ai/docs/api_reference/errors-and-debugging "Skin-specific error formats"

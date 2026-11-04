@@ -5,12 +5,6 @@ import { isReadOnlyRequest, recordPerson, personOf, type HandlerContext } from '
 export type Row = Record<string, unknown>;
 export type { HandlerContext };
 
-// ── the pages this pack reads ────────────────────────────────────────────────────────────────
-
-export const POSTS_API = 'https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-09';
-export const IMAGES_API = 'https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api?view=li-lms-2026-09';
-export const VIDEOS_API = 'https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09';
-
 // ── stored types ─────────────────────────────────────────────────────────────────────────────
 
 export const POST = 'Post';
@@ -22,7 +16,7 @@ export const ACL = 'organization_acl';
 export const APP = 'developer_app';
 export const TOKEN = '_access_token';
 export const USAGE = '_usage';
-export const UPLOAD = '_upload';
+const UPLOAD = '_upload';
 
 /** A stored row as LinkedIn answers it: its own fields, without the kernel's and the pack's bookkeeping. */
 export function view(ctx: HandlerContext, row: Row): Row {
@@ -65,7 +59,7 @@ export const invalidUrnId = (field: string, value: unknown): Response => refuse(
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-09 "{field} cannot be set to {value}. Verify that enum values for fields such as visibility, feedDistribution, and lifecycleState are valid."
 export const invalidValue = (field: string, value: unknown): Response => refuse(400, `${field} cannot be set to ${String(value)}`, 'INVALID_VALUE_FOR_FIELD');
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-09 "The request was well-formed but could not be processed due to semantic errors. Review field values for logical consistency."
-export const unprocessable = (message: string): Response => refuse(422, message, 'UNPROCESSABLE_ENTITY');
+const unprocessable = (message: string): Response => refuse(422, message, 'UNPROCESSABLE_ENTITY');
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-09 "The requested post was not found. Verify that the URN provided in the request is correct."
 export const notFound = (what: string): Response => refuse(404, `${what} was not found`, 'NOT_FOUND');
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-09 "Insufficient permissions to perform the requested action. Ensure the required OAuth scope (w_organization_social, w_member_social, r_organization_social, or r_member_social) is granted and that the authenticated member has the necessary company page role."
@@ -102,7 +96,7 @@ export const holds = (who: Caller, scopes: string[]): boolean => who.scopes.incl
 
 /** What a member signed in at linkedin.com holds: LinkedIn's own pages act for them in full, a page's roles still
  *  deciding what they may do as the page. */
-export const FIRST_PARTY = 'linkedin.com';
+const FIRST_PARTY = 'linkedin.com';
 
 /** The member signed in at linkedin.com, as a caller of LinkedIn's own operations. */
 export const memberCaller = (member: Row): Caller => ({ member, person: `urn:li:person:${String(member.sub)}`, app: FIRST_PARTY, scopes: [FIRST_PARTY], token: {} });
@@ -128,7 +122,7 @@ export function mayActAs(ctx: HandlerContext, who: Caller, owner: string, scopes
 // ── the API version ──────────────────────────────────────────────────────────────────────────
 
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/versioning?view=li-lms-2026-09 "September 2026 202609"
-export const LATEST_VERSION = 202609;
+const LATEST_VERSION = 202609;
 
 /** LinkedIn's refusal of a request's Linkedin-Version, or nothing: the header is required on every versioned call, and
  *  a version is answered from its release until it is sunset. Where the documentation stops: one sunset is published
@@ -188,7 +182,7 @@ export async function spend(ctx: HandlerContext, who: Caller, resource: string):
  *  each member's. */
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/increasing-access?view=li-lms-2026-09 "All applications start with Development tier."
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/increasing-access?view=li-lms-2026-09 "All APIs: 500 API calls for an app for 24 hrs 100 API calls per member of an App for 24 hrs"
-export const DEVELOPMENT_TIER = { application: 500, member: 100 };
+const DEVELOPMENT_TIER = { application: 500, member: 100 };
 
 /** One more call on a day's count. */
 async function countCall(ctx: HandlerContext, key: string): Promise<void> {
@@ -229,7 +223,7 @@ export async function issued(ctx: HandlerContext, label: string, length = 64): P
 
 /** An access token's lifetime, sixty days in seconds. */
 // source: https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow "Currently, all access tokens are issued with a 60-day lifespan."
-export const TOKEN_LIFETIME_S = 5_184_000;
+const TOKEN_LIFETIME_S = 5_184_000;
 
 /** A token the Developer Portal's generator issues a member for an application: the scopes, which the application's
  *  products must grant, and every earlier token of the same member and application whose scopes were others,
@@ -361,7 +355,7 @@ export function makeApp(ctx: HandlerContext, name: string, products: string[], o
 // ── uploads ──────────────────────────────────────────────────────────────────────────────────
 
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 "Typically URLs expire 30 days from the time an upload is initialized."
-export const UPLOAD_URL_LIFETIME_MS = 30 * 86_400_000;
+const UPLOAD_URL_LIFETIME_MS = 30 * 86_400_000;
 
 /** An upload URL's token, kept by its digest with what it uploads: the asset, the part and its byte range. */
 export async function uploadToken(ctx: HandlerContext, label: string, fields: Row): Promise<string> {
@@ -393,7 +387,7 @@ export async function keep(ctx: HandlerContext, bytes: Uint8Array): Promise<stri
 }
 
 /** An asset's id, as LinkedIn's look: its kind's prefix and twelve letters. */
-export const assetUrn = (kind: 'image' | 'video', asset: string): string => `urn:li:${kind}:${asset}`;
+const assetUrn = (kind: 'image' | 'video', asset: string): string => `urn:li:${kind}:${asset}`;
 
 /** The asset an image or video URN names, or the refusal of a URN of another type. */
 export function assetOf(field: string, value: unknown, kind: 'image' | 'video'): string | Response {
@@ -406,7 +400,7 @@ export function assetOf(field: string, value: unknown, kind: 'image' | 'video'):
 // ── what a file is ───────────────────────────────────────────────────────────────────────────
 
 /** An image's format and size, for the formats LinkedIn takes ("JPG, GIF, and PNG formats"), or undefined. */
-export function sniffImage(b: Uint8Array): { type: string; width: number; height: number } | undefined {
+function sniffImage(b: Uint8Array): { type: string; width: number; height: number } | undefined {
   if (b.length >= 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {
     const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
     return { type: 'image/png', width: v.getUint32(16), height: v.getUint32(20) };
@@ -429,7 +423,7 @@ export function shareBoxKind(bytes: Uint8Array): 'video' | 'image' | undefined {
 }
 
 /** A WebP's size, from its first chunk: VP8X's canvas, VP8L's header or VP8's frame. */
-export function sniffWebp(b: Uint8Array): { type: string; width: number; height: number } | undefined {
+function sniffWebp(b: Uint8Array): { type: string; width: number; height: number } | undefined {
   const tag = (at: number): string => String.fromCharCode(b[at]!, b[at + 1]!, b[at + 2]!, b[at + 3]!);
   if (b.length < 30 || tag(0) !== 'RIFF' || tag(8) !== 'WEBP') return undefined;
   const chunk = tag(12);
@@ -457,7 +451,7 @@ function jpegSize(b: Uint8Array): { type: string; width: number; height: number 
 
 /** An MP4's length and picture size, read from its boxes (ftyp, then moov's mvhd and the video track's tkhd), or
  *  undefined when the bytes are not an MP4. */
-export function sniffMp4(b: Uint8Array): { durationMs: number; width: number; height: number } | undefined {
+function sniffMp4(b: Uint8Array): { durationMs: number; width: number; height: number } | undefined {
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
   const type = (at: number): string => String.fromCharCode(b[at + 4]!, b[at + 5]!, b[at + 6]!, b[at + 7]!);
   if (b.length < 16 || type(0) !== 'ftyp') return undefined;
@@ -499,7 +493,7 @@ function tkhdSize(v: DataView, at: number, length: number): { width: number; hei
 }
 
 /** The smallest whole ratio of a picture's sides (1920×1080 is 16:9). */
-export function aspect(width: number, height: number): { aspectRatioWidth: number; aspectRatioHeight: number } | undefined {
+function aspect(width: number, height: number): { aspectRatioWidth: number; aspectRatioHeight: number } | undefined {
   if (width <= 0 || height <= 0) return undefined;
   const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
   const g = gcd(width, height);
@@ -509,14 +503,14 @@ export function aspect(width: number, height: number): { aspectRatioWidth: numbe
 // ── where media is served ────────────────────────────────────────────────────────────────────
 
 /** An image's download URL on LinkedIn's media host. */
-export const imageDownloadUrl = (asset: string, at: number): string => `https://media.licdn.com/dms/image/v2/${asset}/image-shrink_1280/0/${at}?e=${Math.floor(at / 1000) + 2_592_000}&v=beta`;
+const imageDownloadUrl = (asset: string, at: number): string => `https://media.licdn.com/dms/image/v2/${asset}/image-shrink_1280/0/${at}?e=${Math.floor(at / 1000) + 2_592_000}&v=beta`;
 /** A video's download URL on LinkedIn's playlist host. */
-export const videoDownloadUrl = (asset: string, at: number): string => `https://dms.licdn.com/playlist/vid/v2/${asset}/mp4-720p-30fp-crf28/0/${at}?e=${Math.floor(at / 1000) + 2_592_000}&v=beta`;
+const videoDownloadUrl = (asset: string, at: number): string => `https://dms.licdn.com/playlist/vid/v2/${asset}/mp4-720p-30fp-crf28/0/${at}?e=${Math.floor(at / 1000) + 2_592_000}&v=beta`;
 /** A video's cover image URL on LinkedIn's media host. */
-export const videoThumbnailUrl = (asset: string, at: number): string => `https://media.licdn.com/dms/image/v2/${asset}/videocover-high/0/${at}?e=${Math.floor(at / 1000) + 2_592_000}&v=beta`;
+const videoThumbnailUrl = (asset: string, at: number): string => `https://media.licdn.com/dms/image/v2/${asset}/videocover-high/0/${at}?e=${Math.floor(at / 1000) + 2_592_000}&v=beta`;
 /** How long a download URL is good for, in the twin: thirty days. Where the documentation stops: "all URLs have an
  *  expiration time" names none. */
-export const DOWNLOAD_URL_LIFETIME_MS = 30 * 86_400_000;
+const DOWNLOAD_URL_LIFETIME_MS = 30 * 86_400_000;
 
 /** A media URL as LinkedIn hands it to a reader (an API's downloadUrl and thumbnail, a page's image and video): good for
  *  DOWNLOAD_URL_LIFETIME_MS from the moment it is handed out, its expiry (`e`, seconds) signed (`t`) under the World's
@@ -560,12 +554,12 @@ export async function mediaView(ctx: HandlerContext, row: Row): Promise<Row> {
 
 /** How long LinkedIn takes over an image and a video, in the twin. Where the documentation stops: the pages give no
  *  time; an image's is a second and a video's three. */
-export const IMAGE_PROCESSING_MS = 1_000;
-export const VIDEO_PROCESSING_MS = 3_000;
+const IMAGE_PROCESSING_MS = 1_000;
+const VIDEO_PROCESSING_MS = 3_000;
 
 /** A video file's verdict: AVAILABLE with its length and picture, or PROCESSING_FAILED with why. */
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 "Length: Three seconds to 30 minutes."
-export function videoVerdict(bytes: Uint8Array): Row {
+function videoVerdict(bytes: Uint8Array): Row {
   const mp4 = sniffMp4(bytes);
   // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 "File format: MP4."
   if (!mp4) return { _outcome: 'PROCESSING_FAILED', _reason: 'Unsupported file format: the uploaded file is not an MP4 video' };
@@ -618,7 +612,7 @@ export async function settle(ctx: HandlerContext, resource: typeof IMAGE | typeo
 }
 
 /** Whether a post's content waits on a media URN. */
-export function waitsOn(post: Row, urn: string): boolean {
+function waitsOn(post: Row, urn: string): boolean {
   const content = (post.content ?? {}) as Row;
   return (content.media as Row | undefined)?.id === urn || (content.article as Row | undefined)?.thumbnail === urn;
 }
@@ -631,7 +625,7 @@ const FEEDS = ['MAIN_FEED', 'NONE'];
 /** Commentary as LinkedIn keeps it: an unescaped `#word` becomes its HashtagTemplate, `{hashtag|\#|word}`; escaped
  *  characters, mentions and templates already written are kept as they came. */
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-09 "The commentary field hashtag data is returned with a template."
-export function withHashtagTemplates(text: string): string {
+function withHashtagTemplates(text: string): string {
   let out = '';
   for (let i = 0; i < text.length; i += 1) {
     const c = text[i]!;
@@ -667,7 +661,7 @@ export const typedText = (sent: string): string => sent.replace(/\r\n?/g, '\n');
 
 /** A commentary over the length a post takes, refused as the Posts API's error table has it. */
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2026-09 "{field} length exceeds the allowed maximum. Reduce the length of the commentary or other text fields."
-export function commentaryTooLong(): Response {
+function commentaryTooLong(): Response {
   return refuse(400, 'commentary length exceeds the allowed maximum.', 'FIELD_LENGTH_TOO_LONG');
 }
 
@@ -782,9 +776,9 @@ export async function createPostAs(ctx: HandlerContext, who: Caller, b: Row): Pr
 // ── a video's upload ─────────────────────────────────────────────────────────────────────────
 
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 "The first entry is byte range: 0 - 4194303, the next one with 4194304 - 8388607 and so on."
-export const PART_BYTES = 4_194_304;
+const PART_BYTES = 4_194_304;
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 "Maximum allowed Videos size is 5GB."
-export const MAX_VIDEO_BYTES = 5 * 1024 ** 3;
+const MAX_VIDEO_BYTES = 5 * 1024 ** 3;
 
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-09 "Accessing this video resource is forbidden. Please check your permissions for this resource"
 export const videoForbidden = (): Response => refuse(403, 'Accessing this video resource is forbidden. Please check your permissions for this resource');

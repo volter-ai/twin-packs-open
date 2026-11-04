@@ -1,8 +1,8 @@
 // What Telegram reads from an uploaded file's own bytes: an image's width and height (a PhotoSize), and a video's width,
 // height and duration (a Video), each from the format's header as that format defines it. Pure computation over bytes.
 
-export type ImageSize = { width: number; height: number; mime: string };
-export type VideoInfo = { width: number; height: number; duration: number };
+type ImageSize = { width: number; height: number; mime: string };
+type VideoInfo = { width: number; height: number; duration: number };
 
 const u16be = (b: Uint8Array, i: number): number => (b[i]! << 8) | b[i + 1]!;
 const u32be = (b: Uint8Array, i: number): number => ((b[i]! << 24) >>> 0) + (b[i + 1]! << 16) + (b[i + 2]! << 8) + b[i + 3]!;

@@ -26,7 +26,7 @@ export const refuse = (ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, statu
 
 /** Who a request is: the access token it bears, live, with its app, its person and its scopes. */
 export type Caller = { token: Row; app: Row; person: Row; scopes: string[]; openId: string };
-export function callerOf(ctx: HandlerContext): Caller | undefined {
+function callerOf(ctx: HandlerContext): Caller | undefined {
   const value = /^Bearer\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
   const token = value ? bySha(ctx, ACCESS, value) : undefined;
   if (!token || token.kind === 'business' || token.revoked === true || Number(token.expires_at) <= seconds(ctx.occurredAt)) return undefined;
@@ -37,7 +37,7 @@ export function callerOf(ctx: HandlerContext): Caller | undefined {
 }
 
 // source: https://developers.tiktok.com/doc/content-posting-api-reference-query-creator-info "The access_token is invalid or has expired."
-export const invalidToken = (ctx: HandlerContext): Response => refuse(ctx, 401, 'access_token_invalid', 'The access token is invalid or not found in the request.');
+const invalidToken = (ctx: HandlerContext): Response => refuse(ctx, 401, 'access_token_invalid', 'The access token is invalid or not found in the request.');
 /** The caller, or the refusal: no live token (401 access_token_invalid), or none of the scopes named (401
  *  scope_not_authorized). */
 export function authorized(ctx: HandlerContext, ...scopes: string[]): Caller | Response {

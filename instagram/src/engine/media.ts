@@ -29,7 +29,7 @@ export function jpegFacts(bytes: Uint8Array): { width: number; height: number } 
 }
 
 /** Whether bytes begin as a PNG does. */
-export const isPng = (bytes: Uint8Array): boolean => bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+const isPng = (bytes: Uint8Array): boolean => bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
 
 /** The format an image's bytes are in, by their signature: `JPEG`, `PNG`, or `unknown`. */
 export const imageFormat = (bytes: Uint8Array): 'JPEG' | 'PNG' | 'unknown' => (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff ? 'JPEG' : isPng(bytes) ? 'PNG' : 'unknown');

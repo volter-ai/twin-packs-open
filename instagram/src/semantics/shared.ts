@@ -4,7 +4,6 @@ import { placeholderPng, type HandlerContext } from '@volter/world-core';
 import { imageFormat, jpegFacts, mp4Facts } from '../engine/media.ts';
 
 export type Row = Record<string, unknown>;
-export type { HandlerContext };
 
 // ── stored types ────────────────────────────────────────────────────────────────────────────────
 export const APP = '_app';
@@ -18,7 +17,7 @@ export const COMMENT = 'comment';
 
 /** The Graph API's own host and its latest version, as a paging link names them. */
 // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media "The lastest API version is: v26.0"
-export const GRAPH = 'https://graph.instagram.com/v26.0';
+const GRAPH = 'https://graph.instagram.com/v26.0';
 /** The CDN Instagram serves a media's file, a thumbnail and a profile picture from (../screens/cdn.ts). */
 // source: https://developers.facebook.com/documentation/instagram-platform/overview "Instagram Platform leverages Content Delivery Network (CDN) URLs which allow you to retrieve rich media content shared by Instagram users."
 export const CDN = 'https://scontent.cdninstagram.com';
@@ -30,7 +29,7 @@ export const seconds = (iso: string): number => Math.floor(Date.parse(iso) / 100
 // source: https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media "2019-09-26T22:36:43+0000"
 export const igTime = (iso: string): string => `${new Date(Date.parse(iso)).toISOString().slice(0, 19)}+0000`;
 /** A decimal of `width` digits derived from a public seed (an app-scoped or Instagram-scoped user ID). */
-export const decimalFrom = (ctx: Pick<HandlerContext, 'crypto'>, seed: string, width: number): string => {
+const decimalFrom = (ctx: Pick<HandlerContext, 'crypto'>, seed: string, width: number): string => {
   const floor = 10n ** BigInt(width - 1);
   return String(floor + BigInt(`0x${ctx.crypto.sha256(seed).slice(0, 24)}`) % (9n * floor));
 };
@@ -43,20 +42,20 @@ export const flagOf = (v: unknown): boolean | undefined => (v === true || v === 
 // ── the Graph API's errors ──────────────────────────────────────────────────────────────────────
 // source: https://developers.facebook.com/docs/graph-api/guides/error-handling "Internal support identifier."
 /** An error in the Graph API's body: `{error: {message, type, code, error_subcode?, fbtrace_id}}`. */
-export function graphError(ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, status: number, code: number, message: string, subcode?: number, extra: Row = {}): Response {
+export function graphError(ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, status: number, code: number, message: string, subcode?: number): Response {
   const fbtrace = ctx.crypto.digest('sha256', `${ctx.occurredAt}:${code}:${message}`, 'base64url').slice(0, 23);
-  return Response.json({ error: { message, type: 'OAuthException', code, ...(subcode !== undefined ? { error_subcode: subcode } : {}), ...extra, fbtrace_id: fbtrace } }, { status });
+  return Response.json({ error: { message, type: 'OAuthException', code, ...(subcode !== undefined ? { error_subcode: subcode } : {}), fbtrace_id: fbtrace } }, { status });
 }
 /** The token is missing, unknown, expired or no longer held. */
 // source: https://developers.facebook.com/docs/graph-api/guides/error-handling "access token has expired, been revoked, or is otherwise invalid"
 export const invalidToken = (ctx: HandlerContext): Response => graphError(ctx, 400, 190, 'Invalid OAuth access token: the login status or access token has expired, been revoked, or is otherwise invalid.');
 /** A permission the token does not carry. */
 // source: https://developers.facebook.com/docs/graph-api/guides/error-handling "Permission is either not granted or has been removed."
-export const permissionDenied = (ctx: HandlerContext, permission: string): Response => graphError(ctx, 403, 10, `(#10) Permission is either not granted or has been removed: ${permission}.`);
+const permissionDenied = (ctx: HandlerContext, permission: string): Response => graphError(ctx, 403, 10, `(#10) Permission is either not granted or has been removed: ${permission}.`);
 /** A parameter Instagram does not take, or one missing. Where the documentation stops: its pages name the code of the
  *  class (100, invalid parameter) and not each message; the message says which parameter. */
 // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/error-codes "The media type {media-type} is unknown."
-export const invalidParam = (ctx: HandlerContext, message: string, subcode?: number): Response => graphError(ctx, 400, 100, message, subcode);
+export const invalidParam = (ctx: HandlerContext, message: string): Response => graphError(ctx, 400, 100, message);
 /** A node the caller cannot reach at this ID by this method. Where the documentation stops: its pages give the class
  *  (100) and not the message; the twin answers the Graph API's wording for it. */
 export const unsupported = (ctx: HandlerContext, method: string, id: string): Response =>
@@ -77,9 +76,9 @@ export const COMMENTS = 'instagram_business_manage_comments';
 // source: https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media/insights "instagram_business_manage_insights"
 export const INSIGHTS = 'instagram_business_manage_insights';
 // source: https://developers.facebook.com/documentation/instagram-platform/overview "This access token is valid for one hour ."
-export const SHORT_TTL = 3600;
+const SHORT_TTL = 3600;
 // source: https://developers.facebook.com/documentation/instagram-platform/reference/access_token "for long-lived Instagram User access token that expires in 60 days."
-export const LONG_TTL = 5184000;
+const LONG_TTL = 5184000;
 // source: https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login "This code is valid for 1 hour and can only be used once."
 export const CODE_TTL = 3600;
 
@@ -116,22 +115,22 @@ export const tokenBySha = (ctx: Pick<HandlerContext, 'rowsRaw' | 'crypto'>, valu
 /** The token a request carries: the access_token parameter, or the Authorization header (Bearer, or OAuth as the
  *  upload host takes it). */
 // source: https://developers.facebook.com/documentation/instagram-platform/content-publishing "Authorization: Bearer <ACCESS_TOKEN>"
-export function presented(ctx: HandlerContext): string | undefined {
+function presented(ctx: HandlerContext): string | undefined {
   const given = text(paramsOf(ctx).access_token);
   if (given) return given;
   return /^(?:Bearer|OAuth)\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
 }
 
-/** Who a request is: its live token, the token's app and account, and the permissions granted. */
-export type Caller = { token: Row; app: Row; account: Row; permissions: string[]; scoped: string };
-export function callerOf(ctx: HandlerContext): Caller | undefined {
+/** Who a request is: the live token's app, account and granted permissions. */
+export type Caller = { app: Row; account: Row; permissions: string[]; scoped: string };
+function callerOf(ctx: HandlerContext): Caller | undefined {
   const value = presented(ctx);
   const token = value ? tokenBySha(ctx, value) : undefined;
   if (!token || Number(token.expires_at) <= seconds(ctx.occurredAt)) return undefined;
   const app = ctx.row(APP, String(token.app));
   const account = ctx.row(ACCOUNT, String(token.account));
   if (!app || !account) return undefined;
-  return { token, app, account, permissions: (token.permissions as string[] | undefined) ?? [], scoped: appScopedId(ctx, app, account) };
+  return { app, account, permissions: (token.permissions as string[] | undefined) ?? [], scoped: appScopedId(ctx, app, account) };
 }
 /** The caller, or the refusal: no live token (190), or a permission the endpoint needs that it lacks (10). */
 export function authorized(ctx: HandlerContext, ...permissions: string[]): Caller | Response {
@@ -146,11 +145,11 @@ export const isCaller = (c: Caller, id: unknown): boolean => id === 'me' || id =
 
 // ── selecting fields ────────────────────────────────────────────────────────────────────────────
 /** A field a request selects, with what it expands (`replies{id,text}`, field expansion). */
-export type Field = { name: string; sub?: Field[] };
+type Field = { name: string; sub?: Field[] };
 /** The `fields` parameter read: a comma-separated list whose entries may expand an edge in braces; undefined when it
  *  is not well formed. */
 // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-media/comments "Replies to comments are not included unless you use field expansion to request the replies field."
-export function parseFields(given: string): Field[] | undefined {
+function parseFields(given: string): Field[] | undefined {
   let at = 0;
   const list = (): Field[] | undefined => {
     const out: Field[] = [];
@@ -338,16 +337,16 @@ export function paged(ctx: HandlerContext, items: Array<{ id: string; view: Row 
 
 // ── what Instagram fetches ──────────────────────────────────────────────────────────────────────
 /** A media file Instagram fetches from the URL a container names, through the World (ctx.vendorFetch: the World's one
- *  network): its bytes and type, or why there are none. A URL the World holds nothing at is one Instagram cannot reach. */
+ *  network): its bytes, or why there are none. A URL the World holds nothing at is one Instagram cannot reach. */
 // source: https://developers.facebook.com/documentation/instagram-platform/content-publishing "We cURL media used in publishing attempts, so the media must be hosted on a publicly accessible server at the time of the attempt."
-export async function fetchMedia(ctx: HandlerContext, url: string): Promise<{ bytes: Uint8Array; type: string } | undefined> {
+export async function fetchMedia(ctx: HandlerContext, url: string): Promise<{ bytes: Uint8Array } | undefined> {
   let target: URL;
   try { target = new URL(url); } catch { return undefined; }
   if (target.protocol !== 'https:' && target.protocol !== 'http:') return undefined;
   try {
     const r = await ctx.vendorFetch(target, { method: 'GET' });
     if (!r.ok) return undefined;
-    return { bytes: new Uint8Array(await r.arrayBuffer()), type: (r.headers.get('content-type') ?? '').split(';')[0]!.trim() };
+    return { bytes: new Uint8Array(await r.arrayBuffer()) };
   } catch { return undefined; }
 }
 /** A fetched file kept in the World's blobs by its digest. */
@@ -363,7 +362,7 @@ export const profilePicture = (id: string): Uint8Array => placeholderPng({ width
 
 /** A container's moment of expiry: 24 hours after it was made. */
 // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media "Containers expire after 24 hours"
-export const CONTAINER_TTL = 86400;
+const CONTAINER_TTL = 86400;
 /** A container read or published at or past its expiry moves to EXPIRED, at the moment it fell due (the vendor's move,
  *  recorded with no caller), unless it was published or failed first. Answers the container as it now stands. */
 export async function settled(ctx: HandlerContext, row: Row): Promise<Row> {

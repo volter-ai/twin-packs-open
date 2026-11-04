@@ -1,8 +1,6 @@
 // Google's discovery document, as accounts.google.com answers it (spec/recordings/2026-09-29-openid-configuration.json).
-import type { HandlerContext } from '@volter/world-core';
-
 // source: https://developers.google.com/identity/openid-connect/openid-connect "access other Google APIs by including relevant scopes in the authentication request and using the userinfo endpoint with an access token"
-export async function openidConfiguration(_ctx: HandlerContext): Promise<Response> {
+export async function openidConfiguration(): Promise<Response> {
   return Response.json({
     issuer: 'https://accounts.google.com', authorization_endpoint: 'https://accounts.google.com/o/oauth2/v2/auth', device_authorization_endpoint: 'https://oauth2.googleapis.com/device/code',
     token_endpoint: 'https://oauth2.googleapis.com/token', userinfo_endpoint: 'https://openidconnect.googleapis.com/v1/userinfo', revocation_endpoint: 'https://oauth2.googleapis.com/revoke',

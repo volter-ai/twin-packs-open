@@ -10,7 +10,7 @@ export function customerBy(ctx: Reader, key: { id?: unknown; external?: unknown 
   return key.id !== undefined ? rowsOf(ctx, CUSTOMER).find((c) => c.id === key.id) : rowsOf(ctx, CUSTOMER).find((c) => c.external_id === key.external);
 }
 
-export const ORGANIZATION = 'organization';
+const ORGANIZATION = 'organization';
 export const CUSTOMER = 'customer';
 export const PRODUCT = 'product';
 export const CHECKOUT = 'checkout';
@@ -22,8 +22,8 @@ export const SESSION = 'customer_session';
 export const ENDPOINT = 'webhook_endpoint';
 
 /** Where Polar's hosted pages are: the checkout (`buy.polar.sh`) and the portal (`polar.sh`), rewritten to the twin. */
-export const CHECKOUT_ORIGIN = 'https://buy.polar.sh';
-export const PORTAL_ORIGIN = 'https://polar.sh';
+const CHECKOUT_ORIGIN = 'https://buy.polar.sh';
+const PORTAL_ORIGIN = 'https://polar.sh';
 
 // ── answers ────────────────────────────────────────────────────────────────────────────────────
 // source: spec:/components/schemas/ResourceNotFound "ResourceNotFound"
@@ -287,7 +287,7 @@ export function admits(filter: Row | undefined, e: Row): boolean {
 
 /** A meter's aggregation over the events it admits: a count, or the sum, max, min or average of a metadata property. */
 // source: spec:/components/schemas/PropertyAggregation "PropertyAggregation"
-export function aggregate(agg: Row | undefined, events: Row[]): number {
+function aggregate(agg: Row | undefined, events: Row[]): number {
   const func = String(agg?.func ?? 'count');
   if (func === 'count') return events.length;
   const prop = String(agg?.property ?? '').replace(/^metadata\./, '');
@@ -303,7 +303,7 @@ export function aggregate(agg: Row | undefined, events: Row[]): number {
 
 /** A customer's meter: consumed (the fold over its events), credited (its meter-credit grants), and the balance. */
 // source: spec:/components/schemas/CustomerStateMeter "The balance of the meter, i.e. the difference between credited and consumed units."
-export function customerMeter(ctx: Reader, customerId: string, meter: Row): { consumed: number; credited: number; balance: number } {
+function customerMeter(ctx: Reader, customerId: string, meter: Row): { consumed: number; credited: number; balance: number } {
   const events = rowsOf(ctx, EVENT).filter((e) => e.customer_id === customerId && admits(meter.filter as Row | undefined, e));
   const consumed = aggregate(meter.aggregation as Row | undefined, events);
   const credited = 0; // No demanded product grants meter credits; benefits are outside the served surface.

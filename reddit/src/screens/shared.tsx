@@ -39,7 +39,7 @@ export async function viewerOf(ctx: HandlerContext): Promise<Viewer> {
 export const baseOf = (ctx: HandlerContext): string | undefined => (ctx.call.request.headers.has('x-forwarded-prefix') ? new URL(ctx.publicBase).pathname.replace(/\/+$/, '') : undefined);
 
 /** A media URL as the page loads it: at a World's place, on the twin's base. */
-export const mediaUrl = (ctx: HandlerContext, base: string | undefined, url: unknown): string => {
+const mediaUrl = (ctx: HandlerContext, base: string | undefined, url: unknown): string => {
   const u = String(url ?? '');
   return u.replace(/^https:\/\/([a-z0-9.-]+\.(?:redd\.it|redditmedia\.com|amazonaws\.com))\//, (prefix, host: string) => {
     const hosted = twinVendorUrl(ctx.call.request, prefix);
@@ -51,7 +51,7 @@ export const mediaUrl = (ctx: HandlerContext, base: string | undefined, url: unk
 export const seeOther = (base: string | undefined, path: string, headers: Record<string, string> = {}): Response => new Response(null, { status: 302, headers: { location: `${base ?? ''}${path}`, ...headers } });
 
 /** To the sign-in, which returns the person to the page they asked for (Reddit's `dest`). */
-export function toLogin(ctx: HandlerContext): Response {
+function toLogin(ctx: HandlerContext): Response {
   const base = baseOf(ctx);
   // the request's own path is the page's, the World's place taken off before it reached the twin
   const url = new URL(ctx.call.request.url);
@@ -70,7 +70,7 @@ export function ago(now: number, then: number): string {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const dateOf = (seconds: number): string => { const d = new Date(seconds * 1000); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`; };
+const dateOf = (seconds: number): string => { const d = new Date(seconds * 1000); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`; };
 
 /** A count as reddit.com writes it: 1.2k past a thousand. */
 export const count = (n: number): string => (Math.abs(n) >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n));
@@ -163,7 +163,7 @@ export function Votes({ fullname, score, likes }: { fullname: string; score: num
  *  as Create Post offers one on every tab); a long body in a listing is left for its page.
  *  source: https://raw.githubusercontent.com/praw-dev/praw/v8.0.3/praw/models/reddit/subreddit/subreddit.py "may accompany any of them"
  *  source: https://raw.githubusercontent.com/praw-dev/praw/v8.0.3/tests/integration/cassettes/TestSubreddit.test_submit_image__selftext.json "text=Testing+%2A%2APRAW%2A%2A+image+submission" */
-export function PostMedia({ ctx, post, base, full }: { ctx: HandlerContext; post: Row; base: string | undefined; full: boolean }) {
+function PostMedia({ ctx, post, base, full }: { ctx: HandlerContext; post: Row; base: string | undefined; full: boolean }) {
   if (post.removed_by_category === 'deleted') return <p className="removed">Sorry, this post was deleted by the person who originally posted it.</p>;
   const body = post.selftext_html && (full || String(post.selftext).length < 600)
     ? <div className="md-body" dangerouslySetInnerHTML={{ __html: String(post.selftext_html).replace(/<!-- SC_O(?:FF|N) -->/g, '') }} />
@@ -255,7 +255,7 @@ export function CommunityRail({ ctx, sr }: { ctx: HandlerContext; sr: Row }) {
 
 /** The communities a person may post to, as Create Post's picker offers them: those they joined or moderate first, then
  *  every other public community (Reddit's picker searches them all), and their own profile last. */
-export function postableCommunities(ctx: HandlerContext, viewer: NonNullable<Viewer>): Row[] {
+function postableCommunities(ctx: HandlerContext, viewer: NonNullable<Viewer>): Row[] {
   const id = String(viewer.account.id);
   const rank = (sr: Row): number => {
     if (sr._profile_of === id) return 2;
@@ -379,7 +379,7 @@ dialog.confirm{border:0;border-radius:16px;padding:24px;max-width:420px}dialog.c
  *  cookie and the modhash (X-Modhash), and shows its answer. Share's link, where the clipboard is refused, is shown as
  *  Reddit's share panel shows it: a read-only field, selected on a click.
  *  source: https://raw.githubusercontent.com/reddit-archive/reddit/master/r2/r2/public/static/js/post-sharing.js "this.refs.$postSharingLinkInput.focus().select();" */
-export const CLIENT_JS = `
+const CLIENT_JS = `
 (function(){
   var app = document.querySelector('.app'); if (!app) return;
   var BASE = app.dataset.base || '', PLACED = app.dataset.placed === '1', MH = app.dataset.modhash || '', ME = app.dataset.me || '';
@@ -671,7 +671,7 @@ export async function submitPage(ctx: HandlerContext, community: string | undefi
 // Where the documentation stops: r2's stylesheets are not copied; the pages are drawn plainly in its markup and words.
 
 /** r2's vote arrows around a thing's score (printable.html `arrow`): each a button by its role and label. */
-export function OldArrows({ fullname, score, likes }: { fullname: string; score: number; likes: unknown }) {
+function OldArrows({ fullname, score, likes }: { fullname: string; score: number; likes: unknown }) {
   const dir = likes === true ? 1 : likes === false ? -1 : 0;
   return (
     <div className={`midcol ${dir === 1 ? 'likes' : dir === -1 ? 'dislikes' : 'unvoted'}`} data-thing={fullname} data-dir={String(dir)} data-score={String(score - dir)}>

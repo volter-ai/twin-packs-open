@@ -351,7 +351,7 @@ export function parseMarkdown(input: string): Formatted | { error: string } {
 }
 
 /** Entities in TDLib's order: by offset, the longer first. */
-export function sortEntities(entities: Entity[]): Entity[] {
+function sortEntities(entities: Entity[]): Entity[] {
   return [...entities].sort((a, b) => a.offset - b.offset || b.length - a.length);
 }
 
@@ -362,7 +362,7 @@ const isWord = (ch: string | undefined): boolean => ch !== undefined && WORD.tes
  *  inside a word), bot commands (/command, 1-64, optionally @bot), hashtags (#tag with a letter), cashtags ($ABC),
  *  links (http, https, or www.) and e-mail addresses. Where the twin stops: TDLib's own link matcher also takes bare
  *  domains by their top-level domain, and finds bank card numbers; the twin does not. */
-export function findEntities(text: string, skipBotCommands: boolean): Entity[] {
+function findEntities(text: string, skipBotCommands: boolean): Entity[] {
   const found: Entity[] = [];
   const scan = (re: RegExp, type: string, ok: (m: RegExpExecArray) => boolean = () => true): void => {
     for (const m of text.matchAll(re)) {

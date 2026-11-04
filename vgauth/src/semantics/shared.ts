@@ -1,5 +1,5 @@
 import type { HandlerContext } from '@volter/world-core';
-export type Row = Record<string, any>;
+type Row = Record<string, any>;
 export const ORIGIN = 'https://auth.videogame.ai';
 export const now = (ctx: HandlerContext) => Date.parse(ctx.occurredAt);
 export const fail = (status: number, error: string) => Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });
