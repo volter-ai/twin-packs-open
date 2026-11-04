@@ -107,4 +107,3 @@ The life runs from Thursday 1 January 2026 to Tuesday 17 November 2026.
 12. **Discord's channel visibility change** (Tuesday 17 November). Maya schedules a new post; Scheduler lists the server's
     channels for its picker, and since 16 November Discord leaves out the channels its bot cannot see: #teachers is not
     among them.
-
