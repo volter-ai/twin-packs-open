@@ -1,0 +1,338 @@
+import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { DEFAULT_EDITOR_PORT } from '../packages/engine/src/manifest/editor-port';
+import { startLocalGenerativeGateway } from '../packages/generative-gateway/src/local-runtime';
+import type { ManagedInferenceGrant } from '../packages/generative-gateway/src/types';
+import { ManagedAccountApp } from '../packages/managed-account-service/src/app';
+import { createManagedCreditMeter } from '../packages/managed-account-service/src/credit-meter';
+import { openNodeManagedAccountDatabase } from '../packages/managed-account-service/src/node-database';
+import { startManagedAccountServer } from '../packages/managed-account-service/src/node-server';
+
+const clerkTwinUrl = requiredLoopbackUrl('CLERK_TWIN_URL');
+const polarTwinUrl = requiredLoopbackUrl('POLAR_TWIN_URL');
+const falTwinUrl = requiredLoopbackUrl('FAL_TWIN_URL');
+const polarAccessToken = process.env['POLAR_ACCESS_TOKEN'] ?? 'polar_test_fake_vgai';
+const editorPort = Number(process.env['VGAI_EDITOR_PORT']) || DEFAULT_EDITOR_PORT;
+const editorOrigin = `http://127.0.0.1:${editorPort}`;
+const temporary = await mkdtemp(join(tmpdir(), 'vgai-managed-services-dev-'));
+
+await startWorldWatchdog();
+
+const polarHeaders = {
+  Authorization: `Bearer ${polarAccessToken}`,
+  'Content-Type': 'application/json',
+};
+
+async function createProduct(
+  name: string,
+  priceCents: number,
+  recurring: boolean,
+): Promise<string> {
+  const response = await fetch(`${polarTwinUrl}/v1/products/`, {
+    method: 'POST',
+    headers: polarHeaders,
+    body: JSON.stringify({
+      name,
+      ...(recurring ? { recurring_interval: 'month' } : {}),
+      prices: [{ amount_type: 'fixed', price_amount: priceCents, price_currency: 'usd' }],
+    }),
+  });
+  const body = (await response.json().catch(() => undefined)) as { id?: unknown } | undefined;
+  if (!response.ok || typeof body?.id !== 'string') {
+    throw new Error(`Polar Twin product seed failed for ${name} (${response.status}).`);
+  }
+  return body.id;
+}
+
+const [creatorProduct, maxProduct, ultraProduct, creditsProduct] = await Promise.all([
+  createProduct('VGAI Creator', 2_000, true),
+  createProduct('VGAI Max', 10_000, true),
+  createProduct('VGAI Ultra', 20_000, true),
+  createProduct('500 VGAI credits', 500, false),
+]);
+
+const internalServiceToken = randomBytes(32).toString('base64url');
+const app = new ManagedAccountApp(
+  {
+    clerkSecretKey: process.env['CLERK_SECRET_KEY'] ?? 'sk_test_fake_vgai',
+    clerkPublishableKey: process.env['CLERK_PUBLISHABLE_KEY'] ?? 'pk_test_ZXhhbXBsZS5jb20k',
+    polarAccessToken,
+    polarServerUrl: polarTwinUrl,
+    testOnlyPolarTwin: true,
+    polarWebhookSecret: 'polar_webhook_twin',
+    authorizedParties: ['http://localhost'],
+    publicBaseUrl: editorOrigin,
+    internalServiceToken,
+    catalog: {
+      plans: {
+        free: { name: 'Free', includedCredits: 100, monthlyPriceUsd: 0 },
+        creator: {
+          name: 'Creator',
+          productId: creatorProduct,
+          includedCredits: 2_000,
+          monthlyPriceUsd: 20,
+        },
+        max: {
+          name: 'Max',
+          productId: maxProduct,
+          includedCredits: 10_000,
+          monthlyPriceUsd: 100,
+        },
+        ultra: {
+          name: 'Ultra',
+          productId: ultraProduct,
+          includedCredits: 40_000,
+          monthlyPriceUsd: 200,
+        },
+      },
+      creditPacks: {
+        'credits-500': {
+          name: '500 credits',
+          productId: creditsProduct,
+          credits: 500,
+        },
+      },
+    },
+    meterCredits: createManagedCreditMeter({ creditsPerUsd: 1_000, operationRates: {} }),
+  },
+  openNodeManagedAccountDatabase(':memory:'),
+);
+const accountServer = await startManagedAccountServer(app);
+const localGrants = new Map<string, ManagedInferenceGrant>();
+const gatewayAuth = {
+  async fetch(request: Request): Promise<Response> {
+    const token = request.headers.get('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!token) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const grant = localGrants.get(token);
+    if (grant) {
+      return Response.json({
+        userId: grant.userId,
+        entitlements: { generation: true },
+        inferenceGrant: grant,
+      });
+    }
+    const projection = await accountForToken(accountServer.url, token);
+    if (!projection?.entitlements.generation) {
+      return Response.json({ error: 'Managed services unavailable' }, { status: 403 });
+    }
+    return Response.json({
+      userId: projection.user.id,
+      entitlements: { generation: true },
+    });
+  },
+};
+const gatewayServer = await startLocalGenerativeGateway({
+  auth: gatewayAuth,
+  billing: { fetch: (request) => app.fetch(request) },
+  billingServiceToken: internalServiceToken,
+  allowedOrigin: editorOrigin,
+  falKey: process.env['FAL_KEY'] ?? 'fal_twin_fake',
+  upstreamFetch: (input, init) => sealedFalFetch(falTwinUrl, input, init),
+});
+const authServer = await startLocalInferenceAuthority(accountServer.url, localGrants);
+const accountPath = join(temporary, 'account.json');
+
+process.stdout.write(
+  `\n  Clerk Twin:  ${clerkTwinUrl}\n  Polar Twin:  ${polarTwinUrl}\n  VGAI ledger: ${accountServer.url}\n  VGAI gateway:${gatewayServer.url}\n  VGAI auth:   ${authServer.url}\n\n`,
+);
+
+const editorEnvironment = { ...process.env };
+delete editorEnvironment['VGAI_TEST_ACCOUNT_MOCK'];
+const editor = spawn(resolve('node_modules/.bin/tsx'), ['packages/editor/server/dev.ts'], {
+  cwd: process.cwd(),
+  stdio: 'inherit',
+  env: {
+    ...editorEnvironment,
+    VGAI_TWIN_URL: clerkTwinUrl,
+    VGAI_ACCOUNT_URL: accountServer.url,
+    VGAI_ACCOUNT_PATH: accountPath,
+    VGAI_BILLING_SERVICE_TOKEN: internalServiceToken,
+    VGAI_GENERATION_GATEWAY: gatewayServer.url,
+    VGAI_AUTH_URL: authServer.url,
+  },
+});
+
+let exitCode = 1;
+try {
+  exitCode = await new Promise<number>((complete, reject) => {
+    editor.once('error', reject);
+    editor.once('exit', (code) => complete(code ?? 1));
+    for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+      process.once(signal, () => editor.kill(signal));
+    }
+  });
+} finally {
+  await authServer.close();
+  await gatewayServer.close();
+  await accountServer.close();
+  app.close();
+  await rm(temporary, { recursive: true, force: true });
+}
+process.exitCode = exitCode;
+
+interface LocalAccountProjection {
+  user: { id: string };
+  entitlements: { generation: boolean };
+}
+
+async function accountForToken(
+  accountUrl: string,
+  token: string,
+): Promise<LocalAccountProjection | undefined> {
+  const response = await fetch(`${accountUrl}/v1/account`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return undefined;
+  const value = (await response.json()) as Partial<LocalAccountProjection>;
+  return typeof value.user?.id === 'string' && typeof value.entitlements?.generation === 'boolean'
+    ? (value as LocalAccountProjection)
+    : undefined;
+}
+
+async function requestJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  try {
+    const value = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function sendJson(response: ServerResponse, status: number, body: unknown): void {
+  response.statusCode = status;
+  response.setHeader('Content-Type', 'application/json');
+  response.setHeader('Cache-Control', 'no-store');
+  response.end(JSON.stringify(body));
+}
+
+async function startLocalInferenceAuthority(
+  accountUrl: string,
+  grants: Map<string, ManagedInferenceGrant>,
+): Promise<{ url: string; close(): Promise<void> }> {
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method !== 'POST' || request.url !== '/inference/grant') {
+        sendJson(response, 404, { error: 'Not found' });
+        return;
+      }
+      const accountToken = request.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+      const account = accountToken ? await accountForToken(accountUrl, accountToken) : undefined;
+      if (!account?.entitlements.generation) {
+        sendJson(response, 403, { error: 'Managed services unavailable' });
+        return;
+      }
+      const body = await requestJson(request);
+      const workspaceId = typeof body['workspaceId'] === 'string' ? body['workspaceId'] : '';
+      const model = typeof body['model'] === 'string' ? body['model'] : '';
+      if (
+        !/^[A-Za-z0-9._:-]{1,200}$/.test(workspaceId) ||
+        !/^[A-Za-z0-9._:/-]{1,200}$/.test(model) ||
+        body['provider'] !== 'openrouter' ||
+        body['workload'] !== 'coding'
+      ) {
+        sendJson(response, 400, { error: 'Invalid inference grant request' });
+        return;
+      }
+      const token = `vgai_local_${randomBytes(32).toString('base64url')}`;
+      const grant: ManagedInferenceGrant = {
+        kind: 'inference-grant',
+        audience: 'vgai-generative-gateway',
+        userId: account.user.id,
+        workspaceId,
+        provider: 'openrouter',
+        workload: 'coding',
+        model,
+        maxRequests: 64,
+        maxCredits: 100,
+        jti: randomBytes(18).toString('base64url'),
+        expiresAt: Date.now() + 15 * 60_000,
+      };
+      grants.set(token, grant);
+      sendJson(response, 200, { grant: token });
+    } catch (error) {
+      sendJson(response, 500, { error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () =>
+      new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      ),
+  };
+}
+
+async function sealedFalFetch(
+  twinUrl: string,
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const original = new Request(input, init);
+  const target = new URL(original.url);
+  if (
+    target.hostname !== 'fal.run' &&
+    target.hostname !== 'queue.fal.run' &&
+    target.hostname !== 'rest.fal.ai' &&
+    target.hostname !== 'api.fal.ai' &&
+    !target.hostname.endsWith('.fal.run')
+  ) {
+    throw new Error(`The sealed managed-services world blocked external upstream ${target.host}.`);
+  }
+  const headers = new Headers(original.headers);
+  headers.set('x-fal-target-url', original.url);
+  const body =
+    original.method === 'GET' || original.method === 'HEAD'
+      ? undefined
+      : new Uint8Array(await original.arrayBuffer());
+  return fetch(new URL(`${target.pathname}${target.search}`, twinUrl), {
+    method: original.method,
+    headers,
+    ...(body && body.byteLength > 0 ? { body } : {}),
+  });
+}
+
+function requiredLoopbackUrl(name: 'CLERK_TWIN_URL' | 'POLAR_TWIN_URL' | 'FAL_TWIN_URL'): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required. Run through dev:managed-services.`);
+  const url = new URL(value);
+  if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
+    throw new Error(`${name} must be an HTTP loopback Twin URL.`);
+  }
+  return url.toString().replace(/\/$/, '');
+}
+
+async function startWorldWatchdog(): Promise<void> {
+  const instancePath = process.env['VOLTER_WORLD_INSTANCE'];
+  if (!instancePath || process.env['VOLTER_WORLD_NAME'] !== 'vgai-managed-services-dev') return;
+  const instance = JSON.parse(await readFile(instancePath, 'utf8')) as { createdAt?: unknown };
+  if (typeof instance.createdAt !== 'string') {
+    throw new Error('The managed-services development world has no creation identity.');
+  }
+  const watchdog = spawn(
+    process.execPath,
+    [
+      resolve('scripts/managed-services-dev-watchdog.mjs'),
+      String(process.pid),
+      instancePath,
+      instance.createdAt,
+    ],
+    { cwd: process.cwd(), detached: true, stdio: 'ignore', env: process.env },
+  );
+  watchdog.unref();
+}

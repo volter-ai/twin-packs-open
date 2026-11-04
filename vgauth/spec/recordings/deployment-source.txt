@@ -1,0 +1,55 @@
+name = "vgai-auth"
+main = "src/worker.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[services]]
+binding = "VGAI_BILLING"
+service = "vgai-managed-account"
+
+# Non-secret configuration. Secrets are set out-of-band and are NOT stored here:
+#   wrangler secret put CLERK_SECRET_KEY
+#   wrangler secret put P2P_COLYSEUS_ACCESS_TOKEN_SECRET   (shared with the relay)
+#   wrangler secret put COLLABORATION_HANDOFF_SECRET
+#   wrangler secret put INFERENCE_GRANT_SECRET
+#   wrangler secret put VGAI_BILLING_SERVICE_TOKEN
+[vars]
+CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuYXV0aC52aWRlb2dhbWUuYWkk"
+# Clerk's OAuth exchange currently yields a credential without an `azp` claim,
+# so an authorized-party allowlist would reject the editor's own live session.
+# Keep this empty until Clerk emits an `azp` for this OAuth application.
+CLERK_AUTHORIZED_PARTIES = ""
+# Clerk Backend API base URL. Set per-deployment to a twin's base URL to verify
+# against the placeholder IdP; leave empty/unset to use real Clerk (api.clerk.com).
+CLERK_API_URL = ""
+# Relay-token TTL. Default 2h — must be >= the relay's maxRelayRoomDurationMs
+# (packages/p2p-colyseus/src/cloudflare/limits.ts) so a token outlives its room.
+P2P_COLYSEUS_RELAY_TOKEN_TTL_MS = "7200000"
+AUTH_ALLOWED_ORIGINS = "https://auth.videogame.ai,https://accounts.auth.videogame.ai,https://workspace.videogame.ai"
+# One stable Clerk OAuth application serves editor account sign-in and every
+# random tunnel origin through fixed callbacks at this Worker.
+CLERK_OAUTH_CLIENT_ID = "akukThq5UTCOrmaO"
+CLERK_OAUTH_AUTHORIZATION_ENDPOINT = "https://auth.videogame.ai/__clerk/oauth/authorize"
+CLERK_OAUTH_TOKEN_ENDPOINT = "https://clerk.auth.videogame.ai/oauth/token"
+VGAI_AUTH_PUBLIC_URL = "https://auth.videogame.ai"
+CLERK_PROXY_URL = "https://auth.videogame.ai/__clerk"
+VGAI_ACCOUNT_CLIENT_ID = "vgai-editor"
+VGAI_ACCOUNT_WEB_CALLBACK_URL = "https://workspace.videogame.ai/auth/callback"
+INFERENCE_GRANT_TTL_MS = "7200000"
+INFERENCE_GRANT_MAX_REQUESTS = "64"
+INFERENCE_GRANT_MAX_CREDITS = "100"
+
+# ONE declaration each. A duplicated [[durable_objects.bindings]] +
+# [[migrations]] pair (a merge accident) makes wrangler refuse the whole
+# config, so every deploy of this Worker fails until someone hand-edits it.
+[[durable_objects.bindings]]
+name = "COLLABORATION_INVITATION_RATE_LIMIT"
+class_name = "CollaborationInvitationRateLimitDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CollaborationInvitationRateLimitDurableObject"]
+
+[[routes]]
+pattern = "auth.videogame.ai"
+custom_domain = true

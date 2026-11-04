@@ -1,0 +1,129 @@
+export interface DurableObjectStorageLike {
+  get<T>(key: string): Promise<T | undefined>;
+  put<T>(key: string, value: T): Promise<void>;
+  transaction<T>(closure: (transaction: DurableObjectStorageLike) => Promise<T>): Promise<T>;
+}
+
+export interface DurableObjectStateLike {
+  storage: DurableObjectStorageLike;
+}
+
+export interface DurableObjectNamespaceLike {
+  idFromName(name: string): unknown;
+  get(id: unknown): { fetch(request: Request): Promise<Response> };
+}
+
+interface InvitationUsage {
+  hour: string;
+  hourCount: number;
+  day: string;
+  dayCount: number;
+  recipients: Record<string, number>;
+}
+
+const MAX_PER_HOUR = 20;
+const MAX_PER_DAY = 50;
+const RECIPIENT_COOLDOWN_MS = 5 * 60_000;
+const USAGE_KEY = 'invitation-usage';
+
+export class CollaborationInvitationRateLimitDurableObject {
+  constructor(private readonly state: DurableObjectStateLike) {}
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (request.method !== 'POST' || url.pathname !== '/reserve') {
+      return Response.json({ error: 'Not found' }, { status: 404 });
+    }
+    const body = (await request.json()) as Record<string, unknown>;
+    const recipient = typeof body['recipient'] === 'string' ? body['recipient'] : '';
+    if (!/^[a-f0-9]{64}$/.test(recipient)) {
+      return Response.json({ error: 'Invalid invitation quota request.' }, { status: 400 });
+    }
+    return this.reserve(recipient);
+  }
+
+  private async reserve(recipient: string): Promise<Response> {
+    const now = Date.now();
+    const hour = new Date(now).toISOString().slice(0, 13);
+    const day = hour.slice(0, 10);
+    return this.state.storage.transaction(async (storage) => {
+      const previous = await storage.get<InvitationUsage>(USAGE_KEY);
+      const hourCount = previous?.hour === hour ? previous.hourCount : 0;
+      const dayCount = previous?.day === day ? previous.dayCount : 0;
+      const recentRecipients = Object.fromEntries(
+        Object.entries(previous?.recipients ?? {}).filter(
+          ([, sentAt]) => now - sentAt < RECIPIENT_COOLDOWN_MS,
+        ),
+      );
+      const retryAfterMs = invitationRetryAfter(
+        now,
+        recentRecipients[recipient],
+        hourCount,
+        dayCount,
+      );
+      if (retryAfterMs > 0) {
+        return Response.json(
+          { error: 'Invitation delivery rate limit exceeded.' },
+          {
+            status: 429,
+            headers: { 'Retry-After': String(Math.max(1, Math.ceil(retryAfterMs / 1_000))) },
+          },
+        );
+      }
+
+      await storage.put<InvitationUsage>(USAGE_KEY, {
+        hour,
+        hourCount: hourCount + 1,
+        day,
+        dayCount: dayCount + 1,
+        recipients: { ...recentRecipients, [recipient]: now },
+      });
+      return Response.json({ ok: true });
+    });
+  }
+}
+
+function invitationRetryAfter(
+  now: number,
+  recipientSentAt: number | undefined,
+  hourCount: number,
+  dayCount: number,
+): number {
+  if (recipientSentAt) return RECIPIENT_COOLDOWN_MS - (now - recipientSentAt);
+  if (hourCount >= MAX_PER_HOUR) return millisecondsUntilNextHour(now);
+  if (dayCount >= MAX_PER_DAY) return millisecondsUntilNextDay(now);
+  return 0;
+}
+
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export async function reserveInvitationDelivery(
+  namespace: DurableObjectNamespaceLike,
+  hostUserId: string,
+  emailAddress: string,
+): Promise<Response> {
+  const recipient = await sha256(emailAddress);
+  const id = namespace.idFromName(hostUserId);
+  return namespace.get(id).fetch(
+    new Request('https://invitation-rate-limit.internal/reserve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipient }),
+    }),
+  );
+}
+
+function millisecondsUntilNextHour(now: number): number {
+  const next = new Date(now);
+  next.setUTCMinutes(60, 0, 0);
+  return next.getTime() - now;
+}
+
+function millisecondsUntilNextDay(now: number): number {
+  const next = new Date(now);
+  next.setUTCHours(24, 0, 0, 0);
+  return next.getTime() - now;
+}

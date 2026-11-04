@@ -1,0 +1,1588 @@
+import { createClerkClient, verifyToken } from '@clerk/backend';
+import { mintRelayGrant, mintRelayToken, readRelayGrant } from '@vgai/p2p-colyseus';
+import {
+  openHandoffValue,
+  pkceChallenge,
+  randomHandoffValue,
+  sealHandoffValue,
+} from './collaboration-handoff';
+import { mintInferenceGrant, readInferenceGrant } from './inference-grant';
+import {
+  CollaborationInvitationRateLimitDurableObject,
+  type DurableObjectNamespaceLike,
+  reserveInvitationDelivery,
+} from './invitation-rate-limit';
+
+export { CollaborationInvitationRateLimitDurableObject };
+
+/**
+ * The managed-services identity / authorization server, Cloudflare-native.
+ *
+ * A signed-up developer authenticates to Clerk (the managed IdP) in the editor;
+ * this Worker verifies that Clerk session and does exactly two things:
+ *   - answers the `VGAI_AUTH` service-binding contract (`GET /verify`) so the
+ *     generative gateway can resolve the request's userId + entitlements
+ *     (consumed at `packages/generative-gateway/src/worker.ts` — see `/verify`);
+ *   - mints short-lived, room-scoped relay access tokens (`POST /relay/token`)
+ *     the P2P Colyseus relay verifies with the shared secret.
+ *
+ * Identity and authorization are stateless: no user records, accounts, or API
+ * keys. Identity is delegated wholly to Clerk; authorization is a signed token.
+ * The one durable estate is the invitation-delivery abuse quota. There is NO
+ * checkout / billing route here by construction — buying is impossible.
+ */
+
+export interface VgaiAuthEnv {
+  /** Authoritative universal account and credit ledger. */
+  VGAI_BILLING?: { fetch(request: Request): Promise<Response> };
+  /** Shared only with first-party service-bound Workers. */
+  VGAI_BILLING_SERVICE_TOKEN?: string;
+  /** Clerk secret key. `wrangler secret put CLERK_SECRET_KEY` — never in the toml. */
+  CLERK_SECRET_KEY?: string;
+  /** Clerk publishable key. Non-secret; lives in `[vars]`. */
+  CLERK_PUBLISHABLE_KEY?: string;
+  /** Comma-separated authorized parties (azp claim) for session-token checks. */
+  CLERK_AUTHORIZED_PARTIES?: string;
+  /**
+   * Clerk Backend API base URL. Points the SDK at a twin for the placeholder
+   * IdP; unset → real Clerk's default api.clerk.com.
+   */
+  CLERK_API_URL?: string;
+  /**
+   * PEM-encoded RS256 public key for NETWORKLESS twin-token verification. When set,
+   * `verifyToken` verifies the signature against this key directly and fetches no JWKS —
+   * required when the twin runs on the SAME Cloudflare zone as this Worker, because
+   * Worker→Worker fetch on one `workers.dev` zone is blocked (CF error 1042). This is the
+   * twin's stable BAKED public key; it is not a secret. Set out-of-band via wrangler.
+   */
+  CLERK_JWT_KEY?: string;
+  /** HMAC secret shared with the relay. `wrangler secret put` — never in the toml. */
+  P2P_COLYSEUS_ACCESS_TOKEN_SECRET?: string;
+  /** Relay-token TTL in ms. Default 2h (≥ the relay's maxRelayRoomDurationMs). */
+  P2P_COLYSEUS_RELAY_TOKEN_TTL_MS?: string;
+  /**
+   * Relay-GRANT TTL in ms. A grant is baked into a deployed game's public
+   * manifest and exchanged per-connect for a fresh relay token, so its lifetime
+   * bounds how long a deployed game keeps working without a redeploy. Default
+   * 90 days — long enough that a deploy is not a ticking clock, short enough
+   * that an abandoned game's public grant eventually goes inert.
+   */
+  P2P_COLYSEUS_RELAY_GRANT_TTL_MS?: string;
+  /** Comma-separated allowed CORS origins; `*` (default) allows any. */
+  AUTH_ALLOWED_ORIGINS?: string;
+  /** Stable OAuth application used for remote collaboration sign-in. */
+  CLERK_OAUTH_CLIENT_ID?: string;
+  CLERK_OAUTH_AUTHORIZATION_ENDPOINT?: string;
+  CLERK_OAUTH_TOKEN_ENDPOINT?: string;
+  /** Public origin of this Worker; its fixed callback is registered once. */
+  VGAI_AUTH_PUBLIC_URL?: string;
+  /** Same-site Clerk Frontend API proxy URL registered on the production domain. */
+  CLERK_PROXY_URL?: string;
+  /** Public client id presented by the editor to this Worker's OAuth broker. */
+  VGAI_ACCOUNT_CLIENT_ID?: string;
+  /** Exact HTTPS callback for the browser-only cloud workspace client. */
+  VGAI_ACCOUNT_WEB_CALLBACK_URL?: string;
+  /** AES-GCM key material for short-lived PKCE state and account handoff grants. */
+  COLLABORATION_HANDOFF_SECRET?: string;
+  /** Dedicated AES-GCM key material for short-lived coding inference grants. */
+  INFERENCE_GRANT_SECRET?: string;
+  /** Inference grant TTL in ms. Defaults to 2 hours and is capped at 4 hours. */
+  INFERENCE_GRANT_TTL_MS?: string;
+  /** Cumulative requests permitted per inference grant. Defaults to 64. */
+  INFERENCE_GRANT_MAX_REQUESTS?: string;
+  /** Cumulative estimated managed credits permitted per inference grant. Defaults to 100. */
+  INFERENCE_GRANT_MAX_CREDITS?: string;
+  /** Globally consistent invitation-delivery abuse control. */
+  COLLABORATION_INVITATION_RATE_LIMIT?: DurableObjectNamespaceLike;
+}
+
+const DEFAULT_RELAY_TOKEN_TTL_MS = 7_200_000;
+const DEFAULT_RELAY_GRANT_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const DEFAULT_INFERENCE_GRANT_TTL_MS = 2 * 60 * 60_000;
+const MAX_INFERENCE_GRANT_TTL_MS = 4 * 60 * 60_000;
+const DEFAULT_INFERENCE_GRANT_MAX_REQUESTS = 64;
+const DEFAULT_INFERENCE_GRANT_MAX_CREDITS = 100;
+const CLERK_PROXY_PATH = '/__clerk';
+const CLERK_FAPI_ORIGIN = 'https://frontend-api.clerk.dev';
+
+export default {
+  async fetch(request: Request, env: VgaiAuthEnv): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === CLERK_PROXY_PATH || url.pathname.startsWith(`${CLERK_PROXY_PATH}/`)) {
+      return clerkFrontendApiProxy(request, env);
+    }
+    if (url.pathname === '/internal/account-identity' && request.method === 'GET') {
+      return internalAccountIdentity(request, env);
+    }
+    if (!originAllowed(request, env)) {
+      return json({ error: 'Origin not allowed' }, 403, request, env);
+    }
+    if (request.method === 'OPTIONS') return preflight(request, env);
+    try {
+      if (url.pathname === '/.well-known/oauth-authorization-server' && request.method === 'GET') {
+        return accountOAuthMetadata(request, env);
+      }
+      if (url.pathname === '/account/authorize' && request.method === 'GET') {
+        return accountAuthorize(request, env);
+      }
+      if (url.pathname === '/account/callback' && request.method === 'GET') {
+        return accountCallback(request, env);
+      }
+      if (url.pathname === '/account/token' && request.method === 'POST') {
+        return accountToken(request, env);
+      }
+      if (url.pathname === '/v1/account' && request.method === 'GET') {
+        return accountProjection(request, env);
+      }
+      if (url.pathname === '/verify' && request.method === 'GET') {
+        return verify(request, env);
+      }
+      if (url.pathname === '/inference/grant' && request.method === 'POST') {
+        return inferenceGrant(request, env);
+      }
+      if (url.pathname === '/relay/token' && request.method === 'POST') {
+        return relayToken(request, env);
+      }
+      if (url.pathname === '/relay/grant' && request.method === 'POST') {
+        return relayGrant(request, env);
+      }
+      if (url.pathname === '/relay/session' && request.method === 'POST') {
+        return relaySession(request, env);
+      }
+      if (url.pathname === '/collaboration/verify' && request.method === 'GET') {
+        return collaborationVerify(request, env);
+      }
+      if (url.pathname === '/collaboration/handoff' && request.method === 'POST') {
+        return collaborationHandoff(request, env);
+      }
+      if (url.pathname === '/collaboration/invitations' && request.method === 'POST') {
+        return collaborationInvitation(request, env);
+      }
+      if (url.pathname === '/collaboration/callback' && request.method === 'GET') {
+        return collaborationCallback(request, env);
+      }
+      if (url.pathname === '/collaboration/redeem' && request.method === 'POST') {
+        return collaborationRedeem(request, env);
+      }
+      return json({ error: 'Not found' }, 404, request, env);
+    } catch (error) {
+      return json(
+        { error: error instanceof Error ? error.message : 'Authorization failed' },
+        502,
+        request,
+        env,
+      );
+    }
+  },
+};
+
+async function internalAccountIdentity(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const expected = env.VGAI_BILLING_SERVICE_TOKEN?.trim();
+  const provided = request.headers.get('X-VGAI-Service-Token') ?? '';
+  if (!expected || !(await secureStringEqual(expected, provided))) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const authenticated = await authenticateClerk(request, env);
+  if ('error' in authenticated) return authenticated.error;
+  const identity = await managedIdentityProjection(authenticated.userId, env);
+  if (!identity) {
+    return Response.json(
+      { error: 'Authenticated Clerk user has no email address.' },
+      { status: 403 },
+    );
+  }
+  return Response.json(identity, { headers: { 'Cache-Control': 'no-store' } });
+}
+
+async function managedIdentityProjection(
+  userId: string,
+  env: VgaiAuthEnv,
+): Promise<{
+  userId: string;
+  email: string;
+  name?: string;
+  managedServicesAllowed: boolean;
+} | null> {
+  if (!env.CLERK_SECRET_KEY) return null;
+  if (env.CLERK_API_URL) {
+    const response = await fetch(
+      `${env.CLERK_API_URL.replace(/\/$/, '')}/v1/users/${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` } },
+    );
+    if (!response.ok) throw new Error(`Clerk twin identity reader failed (${response.status}).`);
+    const user = (await response.json()) as Record<string, unknown>;
+    const emailAddresses = Array.isArray(user['email_addresses']) ? user['email_addresses'] : [];
+    const primary = emailAddresses.find(
+      (candidate) =>
+        candidate &&
+        typeof candidate === 'object' &&
+        (candidate as Record<string, unknown>)['id'] === user['primary_email_address_id'],
+    ) as Record<string, unknown> | undefined;
+    const fallback = emailAddresses[0] as Record<string, unknown> | undefined;
+    const email = primary?.['email_address'] ?? fallback?.['email_address'];
+    if (typeof email !== 'string') return null;
+    const name = [user['first_name'], user['last_name']]
+      .filter((part): part is string => typeof part === 'string' && part.length > 0)
+      .join(' ');
+    const metadata = user['private_metadata'] as Record<string, unknown> | undefined;
+    return {
+      userId,
+      email,
+      ...(name ? { name } : {}),
+      managedServicesAllowed: metadata?.['vgaiManagedServices'] === true,
+    };
+  }
+  if (!env.CLERK_PUBLISHABLE_KEY) return null;
+  const clerk = createClerkClient({
+    secretKey: env.CLERK_SECRET_KEY,
+    publishableKey: env.CLERK_PUBLISHABLE_KEY,
+  });
+  const user = await clerk.users.getUser(userId);
+  const primary = user.emailAddresses.find((email) => email.id === user.primaryEmailAddressId);
+  const email = primary?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
+  if (!email) return null;
+  const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+  return {
+    userId,
+    email,
+    ...(name ? { name } : {}),
+    managedServicesAllowed: user.privateMetadata['vgaiManagedServices'] === true,
+  };
+}
+
+async function secureStringEqual(expected: string, provided: string): Promise<boolean> {
+  const encode = (value: string) => new TextEncoder().encode(value);
+  const [left, right] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encode(expected)),
+    crypto.subtle.digest('SHA-256', encode(provided)),
+  ]);
+  const leftBytes = new Uint8Array(left);
+  const rightBytes = new Uint8Array(right);
+  let mismatch = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) {
+    mismatch |= leftBytes[index]! ^ rightBytes[index]!;
+  }
+  return mismatch === 0;
+}
+
+async function clerkFrontendApiProxy(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const secretKey = env.CLERK_SECRET_KEY?.trim();
+  const proxyUrl = env.CLERK_PROXY_URL?.trim().replace(/\/$/, '');
+  if (!secretKey || !proxyUrl) {
+    return json({ error: 'Clerk Frontend API proxy is not configured.' }, 503, request, env);
+  }
+  const incoming = new URL(request.url);
+  const upstream = new URL(
+    `${incoming.pathname.slice(CLERK_PROXY_PATH.length) || '/'}${incoming.search}`,
+    CLERK_FAPI_ORIGIN,
+  );
+  const proxyRequest = new Request(upstream, request);
+  proxyRequest.headers.set('Clerk-Proxy-Url', proxyUrl);
+  proxyRequest.headers.set('Clerk-Secret-Key', secretKey);
+  proxyRequest.headers.set('X-Forwarded-For', request.headers.get('CF-Connecting-IP') ?? '');
+  try {
+    return hardenResponse(await fetch(proxyRequest, { redirect: 'manual' }));
+  } catch {
+    return json({ error: 'Clerk Frontend API proxy is unavailable.' }, 502, request, env);
+  }
+}
+
+interface HandoffState {
+  kind: 'state';
+  callbackUrl: string;
+  sessionId: string;
+  invitationId: string;
+  hostUserId: string;
+  verifier: string;
+  expiresAt: number;
+}
+
+interface InvitationDeliveryAuthorization {
+  kind: 'invitation-delivery';
+  callbackUrl: string;
+  sessionId: string;
+  invitationId: string;
+  hostUserId: string;
+  expiresAt: number;
+}
+
+interface AccountOAuthState {
+  kind: 'account-state';
+  redirectUri: string;
+  clientState: string;
+  clientChallenge: string;
+  providerVerifier: string;
+  expiresAt: number;
+}
+
+interface AccountOAuthCode {
+  kind: 'account-code';
+  providerCode: string;
+  redirectUri: string;
+  clientChallenge: string;
+  providerVerifier: string;
+  expiresAt: number;
+}
+
+interface ParticipantProjection {
+  id: string;
+  email: string;
+  name?: string;
+  organizations: OrganizationProjection[];
+}
+
+interface OrganizationProjection {
+  id: string;
+  name: string;
+  slug?: string;
+  role: string;
+  domains: Array<{
+    name: string;
+    verified: boolean;
+    enrollmentMode:
+      | 'manual_invitation'
+      | 'automatic_invitation'
+      | 'automatic_suggestion'
+      | 'enterprise_sso';
+  }>;
+}
+
+interface HandoffGrant {
+  kind: 'grant';
+  sessionId: string;
+  invitationId: string;
+  hostUserId: string;
+  participant: ParticipantProjection;
+  jti: string;
+  expiresAt: number;
+}
+
+function collaborationConfiguration(env: VgaiAuthEnv):
+  | {
+      secret: string;
+      clientId: string;
+      authorizationEndpoint: string;
+      tokenEndpoint: string;
+      callbackUrl: string;
+    }
+  | { error: string } {
+  const secret = env.COLLABORATION_HANDOFF_SECRET?.trim();
+  const clientId = env.CLERK_OAUTH_CLIENT_ID?.trim();
+  const authorizationEndpoint = env.CLERK_OAUTH_AUTHORIZATION_ENDPOINT?.trim();
+  const tokenEndpoint = env.CLERK_OAUTH_TOKEN_ENDPOINT?.trim();
+  const publicUrl = env.VGAI_AUTH_PUBLIC_URL?.trim();
+  if (!secret || !clientId || !authorizationEndpoint || !tokenEndpoint || !publicUrl) {
+    return { error: 'Collaboration account handoff is not configured.' };
+  }
+  return {
+    secret,
+    clientId,
+    authorizationEndpoint,
+    tokenEndpoint,
+    callbackUrl: `${publicUrl.replace(/\/$/, '')}/collaboration/callback`,
+  };
+}
+
+function shareCallback(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2_048) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.pathname !== '/__vgai_share/callback') return null;
+    if (
+      !/(?:^|\.)ngrok(?:-free)?\.(?:app|dev)$/i.test(url.hostname) &&
+      !/(?:^|\.)trycloudflare\.com$/i.test(url.hostname)
+    ) {
+      return null;
+    }
+    if (url.username || url.password || url.search || url.hash) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function shareInvitationUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 4_096) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || (url.pathname !== '/' && url.pathname !== '/index.html')) {
+      return null;
+    }
+    if (
+      !/(?:^|\.)ngrok(?:-free)?\.(?:app|dev)$/i.test(url.hostname) &&
+      !/(?:^|\.)trycloudflare\.com$/i.test(url.hostname)
+    ) {
+      return null;
+    }
+    const token = new URLSearchParams(url.hash.slice(1)).get('token');
+    if (url.username || url.password || url.search || !token || token.length < 32) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function accountClientId(env: VgaiAuthEnv): string {
+  return env.VGAI_ACCOUNT_CLIENT_ID?.trim() || 'vgai-editor';
+}
+
+function allowedAccountRedirect(value: unknown, env: VgaiAuthEnv): string | null {
+  if (typeof value !== 'string' || value.length > 2_048) return null;
+  try {
+    const url = new URL(value);
+    if (url.username || url.password || url.search || url.hash) return null;
+    const loopback =
+      url.protocol === 'http:' &&
+      ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) &&
+      url.pathname === '/__editor/account/browser-authorization/callback';
+    const configuredWebCallback = env.VGAI_ACCOUNT_WEB_CALLBACK_URL?.trim();
+    const web =
+      url.protocol === 'https:' &&
+      configuredWebCallback !== undefined &&
+      url.toString() === new URL(configuredWebCallback).toString();
+    if (!loopback && !web) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function boundedOAuthValue(value: string | null, maximum = 512): string | null {
+  if (!value || value.length > maximum) return null;
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint < 32 || codePoint === 127) return null;
+  }
+  return value;
+}
+
+function parseAccountState(
+  value: Record<string, unknown> | null,
+  env: VgaiAuthEnv,
+): AccountOAuthState | null {
+  if (
+    value?.['kind'] !== 'account-state' ||
+    !allowedAccountRedirect(value['redirectUri'], env) ||
+    typeof value['clientState'] !== 'string' ||
+    value['clientState'].length > 512 ||
+    typeof value['clientChallenge'] !== 'string' ||
+    !/^[A-Za-z0-9_-]{43,128}$/.test(value['clientChallenge']) ||
+    typeof value['providerVerifier'] !== 'string' ||
+    value['providerVerifier'].length < 43 ||
+    typeof value['expiresAt'] !== 'number'
+  ) {
+    return null;
+  }
+  return value as unknown as AccountOAuthState;
+}
+
+function parseAccountCode(
+  value: Record<string, unknown> | null,
+  env: VgaiAuthEnv,
+): AccountOAuthCode | null {
+  if (
+    value?.['kind'] !== 'account-code' ||
+    typeof value['providerCode'] !== 'string' ||
+    value['providerCode'].length > 2_048 ||
+    !allowedAccountRedirect(value['redirectUri'], env) ||
+    typeof value['clientChallenge'] !== 'string' ||
+    !/^[A-Za-z0-9_-]{43,128}$/.test(value['clientChallenge']) ||
+    typeof value['providerVerifier'] !== 'string' ||
+    value['providerVerifier'].length < 43 ||
+    typeof value['expiresAt'] !== 'number'
+  ) {
+    return null;
+  }
+  return value as unknown as AccountOAuthCode;
+}
+
+function boundedId(value: unknown): string | null {
+  return typeof value === 'string' && /^[A-Za-z0-9._:-]{1,200}$/.test(value) ? value : null;
+}
+
+function accountCallbackUrl(configuration: { callbackUrl: string }): string {
+  return configuration.callbackUrl.replace('/collaboration/callback', '/account/callback');
+}
+
+function accountOAuthMetadata(request: Request, env: VgaiAuthEnv): Response {
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const origin = configuration.callbackUrl.replace(/\/collaboration\/callback$/, '');
+  return json(
+    {
+      issuer: origin,
+      authorization_endpoint: `${origin}/account/authorize`,
+      token_endpoint: `${origin}/account/token`,
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      token_endpoint_auth_methods_supported: ['none'],
+      code_challenge_methods_supported: ['S256'],
+      scopes_supported: ['openid', 'profile', 'email', 'user:org:read'],
+    },
+    200,
+    request,
+    env,
+  );
+}
+
+async function accountAuthorize(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const url = new URL(request.url);
+  const redirectUri = allowedAccountRedirect(url.searchParams.get('redirect_uri'), env);
+  const clientState = boundedOAuthValue(url.searchParams.get('state'));
+  const clientChallenge = url.searchParams.get('code_challenge');
+  if (
+    url.searchParams.get('response_type') !== 'code' ||
+    url.searchParams.get('client_id') !== accountClientId(env) ||
+    url.searchParams.get('code_challenge_method') !== 'S256' ||
+    !redirectUri ||
+    !clientState ||
+    !clientChallenge ||
+    !/^[A-Za-z0-9_-]{43,128}$/.test(clientChallenge)
+  ) {
+    return json({ error: 'Invalid editor account authorization request.' }, 400, request, env);
+  }
+  const providerVerifier = randomHandoffValue(48);
+  const state = await sealHandoffValue(configuration.secret, {
+    kind: 'account-state',
+    redirectUri,
+    clientState,
+    clientChallenge,
+    providerVerifier,
+    expiresAt: Date.now() + 10 * 60_000,
+  } satisfies AccountOAuthState);
+  const authorization = new URL(configuration.authorizationEndpoint);
+  authorization.searchParams.set('response_type', 'code');
+  authorization.searchParams.set('client_id', configuration.clientId);
+  authorization.searchParams.set('redirect_uri', accountCallbackUrl(configuration));
+  authorization.searchParams.set('state', state);
+  authorization.searchParams.set('code_challenge', await pkceChallenge(providerVerifier));
+  authorization.searchParams.set('code_challenge_method', 'S256');
+  authorization.searchParams.set('scope', 'openid profile email user:org:read');
+  return redirectResponse(authorization.toString());
+}
+
+async function accountCallback(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const url = new URL(request.url);
+  const state = parseAccountState(
+    await openHandoffValue(configuration.secret, url.searchParams.get('state') ?? ''),
+    env,
+  );
+  const providerCode = boundedOAuthValue(url.searchParams.get('code'), 2_048);
+  if (!state || !providerCode || state.expiresAt <= Date.now()) {
+    return json(
+      { error: 'This editor account authorization is invalid or expired.' },
+      400,
+      request,
+      env,
+    );
+  }
+  const code = await sealHandoffValue(configuration.secret, {
+    kind: 'account-code',
+    providerCode,
+    redirectUri: state.redirectUri,
+    clientChallenge: state.clientChallenge,
+    providerVerifier: state.providerVerifier,
+    expiresAt: Date.now() + 2 * 60_000,
+  } satisfies AccountOAuthCode);
+  const redirect = new URL(state.redirectUri);
+  redirect.searchParams.set('code', code);
+  redirect.searchParams.set('state', state.clientState);
+  return redirectResponse(redirect.toString());
+}
+
+async function accountToken(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const body = new URLSearchParams(await request.text());
+  if (body.get('client_id') !== accountClientId(env)) {
+    return json({ error: 'invalid_client' }, 401, request, env);
+  }
+  const providerBody = new URLSearchParams({ client_id: configuration.clientId });
+  if (body.get('grant_type') === 'authorization_code') {
+    const code = parseAccountCode(
+      await openHandoffValue(configuration.secret, body.get('code') ?? ''),
+      env,
+    );
+    const verifier = body.get('code_verifier') ?? '';
+    if (
+      !code ||
+      code.expiresAt <= Date.now() ||
+      body.get('redirect_uri') !== code.redirectUri ||
+      (await pkceChallenge(verifier)) !== code.clientChallenge
+    ) {
+      return json({ error: 'invalid_grant' }, 400, request, env);
+    }
+    providerBody.set('grant_type', 'authorization_code');
+    providerBody.set('code', code.providerCode);
+    providerBody.set('redirect_uri', accountCallbackUrl(configuration));
+    providerBody.set('code_verifier', code.providerVerifier);
+  } else if (body.get('grant_type') === 'refresh_token' && body.get('refresh_token')) {
+    providerBody.set('grant_type', 'refresh_token');
+    providerBody.set('refresh_token', body.get('refresh_token')!);
+  } else {
+    return json({ error: 'unsupported_grant_type' }, 400, request, env);
+  }
+  const upstream = await fetch(configuration.tokenEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: providerBody,
+  });
+  const headers = corsHeaders(request, env);
+  headers.set('Content-Type', upstream.headers.get('Content-Type') ?? 'application/json');
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers: hardenedHeaders(headers),
+  });
+}
+
+async function accountProjection(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const identity = await authenticateClerk(request, env);
+  if ('error' in identity) return identity.error;
+  const participant = await participantProjection(identity.userId, env);
+  if (!participant) {
+    return json(
+      { error: 'The authenticated VGAI account has no public profile.' },
+      403,
+      request,
+      env,
+    );
+  }
+  const { organizations, ...user } = participant;
+  if (env.VGAI_BILLING) {
+    const upstream = await env.VGAI_BILLING.fetch(
+      new Request('https://vgai-managed-account/v1/account', request),
+    );
+    if (!upstream.ok) {
+      return json(
+        { error: 'The managed VGAI account ledger is unavailable.' },
+        upstream.status === 401 ? 401 : 503,
+        request,
+        env,
+      );
+    }
+    const account = (await upstream.json()) as Record<string, unknown>;
+    const accountUser = account['user'] as Record<string, unknown> | undefined;
+    if (accountUser?.['id'] !== identity.userId) {
+      return json({ error: 'Managed account identity mismatch.' }, 502, request, env);
+    }
+    return json({ ...account, user, organizations }, 200, request, env);
+  }
+  return json(
+    {
+      authenticated: true,
+      backend: 'live',
+      user,
+      organizations,
+      plan: { id: 'free', name: 'Free', status: 'free' },
+      credits: { included: 0, purchased: 0, used: 0, reserved: 0, remaining: 0 },
+      spendPolicy: { overageEnabled: false, monthlyLimitCredits: 0, alertThresholds: [] },
+      entitlements: { generation: true },
+    },
+    200,
+    request,
+    env,
+  );
+}
+
+/**
+ * GET /collaboration/verify — is this bearer credential a live, authenticated
+ * VGAI account? Identity only, like `/relay/token`'s free-only doctrine:
+ * hosting a live-share session shares the host's OWN machine and needs to know
+ * WHO is acting, never whether they bought managed generation. Routing the
+ * editor's share-session check through the billing-gated `/verify` meant no
+ * freshly signed-up account could host a share at all — admission there is a
+ * hand-set `vgaiManagedServices` Clerk metadata flag.
+ */
+async function collaborationVerify(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const identity = await authenticateClerk(request, env);
+  if ('error' in identity) return identity.error;
+  return json({ userId: identity.userId }, 200, request, env);
+}
+
+async function collaborationHandoff(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const host = await authenticateClerk(request, env);
+  if ('error' in host) return host.error;
+  const body = await readJsonObject(request);
+  const callbackUrl = shareCallback(body['callbackUrl']);
+  const sessionId = boundedId(body['sessionId']);
+  const invitationId = boundedId(body['invitationId']);
+  if (!callbackUrl || !sessionId || !invitationId) {
+    return json({ error: 'Invalid collaboration handoff binding.' }, 400, request, env);
+  }
+  const verifier = randomHandoffValue(48);
+  const expiresAt = Date.now() + 10 * 60_000;
+  const state = await sealHandoffValue(configuration.secret, {
+    kind: 'state',
+    callbackUrl,
+    sessionId,
+    invitationId,
+    hostUserId: host.userId,
+    verifier,
+    expiresAt,
+  } satisfies HandoffState);
+  const authorizationUrl = new URL(configuration.authorizationEndpoint);
+  authorizationUrl.searchParams.set('response_type', 'code');
+  authorizationUrl.searchParams.set('client_id', configuration.clientId);
+  authorizationUrl.searchParams.set('redirect_uri', configuration.callbackUrl);
+  authorizationUrl.searchParams.set('state', state);
+  authorizationUrl.searchParams.set('code_challenge', await pkceChallenge(verifier));
+  authorizationUrl.searchParams.set('code_challenge_method', 'S256');
+  authorizationUrl.searchParams.set('scope', 'openid profile email user:org:read');
+  const deliveryAuthorization = await sealHandoffValue(configuration.secret, {
+    kind: 'invitation-delivery',
+    callbackUrl,
+    sessionId,
+    invitationId,
+    hostUserId: host.userId,
+    expiresAt,
+  } satisfies InvitationDeliveryAuthorization);
+  return json(
+    { authorizationUrl: authorizationUrl.toString(), deliveryAuthorization, expiresAt },
+    201,
+    request,
+    env,
+  );
+}
+
+async function collaborationInvitation(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const host = await authenticateClerk(request, env);
+  if ('error' in host) return host.error;
+  if (env.CLERK_API_URL) {
+    return json(
+      { error: 'The Clerk twin does not deliver public invitation email.' },
+      503,
+      request,
+      env,
+    );
+  }
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const secretKey = env.CLERK_SECRET_KEY?.trim();
+  const publishableKey = env.CLERK_PUBLISHABLE_KEY?.trim();
+  if (!secretKey || !publishableKey) {
+    return json({ error: 'Clerk invitation delivery is not configured.' }, 503, request, env);
+  }
+  const body = await readJsonObject(request);
+  const delivery = invitationDeliveryRequest(body);
+  if (!delivery) {
+    return json({ error: 'Invalid collaboration invitation delivery request.' }, 400, request, env);
+  }
+  const authorization = parseInvitationDeliveryAuthorization(
+    await openHandoffValue(configuration.secret, delivery.deliveryAuthorization),
+  );
+  if (
+    !authorization ||
+    authorization.expiresAt <= Date.now() ||
+    authorization.hostUserId !== host.userId ||
+    authorization.callbackUrl !== delivery.callbackUrl ||
+    authorization.sessionId !== delivery.sessionId ||
+    authorization.invitationId !== delivery.invitationId
+  ) {
+    return json(
+      { error: 'Invalid or expired invitation delivery authorization.' },
+      401,
+      request,
+      env,
+    );
+  }
+  const { emailAddress, redirectUrl } = delivery;
+  const clerk = createClerkClient({ secretKey, publishableKey });
+  const limiter = env.COLLABORATION_INVITATION_RATE_LIMIT;
+  if (!limiter) {
+    return json(
+      { error: 'Collaboration invitation rate limiting is not configured.' },
+      503,
+      request,
+      env,
+    );
+  }
+  const reservation = await reserveInvitationDelivery(limiter, host.userId, emailAddress);
+  if (!reservation.ok) {
+    const retryAfter = reservation.headers.get('Retry-After');
+    return json(
+      {
+        error:
+          reservation.status === 429
+            ? 'Invitation delivery rate limit exceeded.'
+            : 'Collaboration invitation rate limiting is unavailable.',
+      },
+      reservation.status === 429 ? 429 : 503,
+      request,
+      env,
+      retryAfter ? { 'Retry-After': retryAfter } : undefined,
+    );
+  }
+  const invitation = await clerk.invitations.createInvitation({
+    emailAddress,
+    redirectUrl,
+    notify: true,
+    ignoreExisting: true,
+    expiresInDays: 1,
+  });
+  return json(
+    { id: invitation.id, status: invitation.status, emailAddress: invitation.emailAddress },
+    201,
+    request,
+    env,
+  );
+}
+
+function invitationDeliveryRequest(body: Record<string, unknown>): {
+  emailAddress: string;
+  redirectUrl: string;
+  callbackUrl: string;
+  sessionId: string;
+  invitationId: string;
+  deliveryAuthorization: string;
+} | null {
+  const emailAddress =
+    typeof body['emailAddress'] === 'string' ? body['emailAddress'].trim().toLowerCase() : '';
+  const redirectUrl = shareInvitationUrl(body['redirectUrl']);
+  const callbackUrl = shareCallback(body['callbackUrl']);
+  const sessionId = boundedId(body['sessionId']);
+  const invitationId = boundedId(body['invitationId']);
+  const deliveryAuthorization =
+    typeof body['deliveryAuthorization'] === 'string' &&
+    body['deliveryAuthorization'].length <= 32_768
+      ? body['deliveryAuthorization']
+      : null;
+  const expiresAt = typeof body['expiresAt'] === 'number' ? body['expiresAt'] : 0;
+  const now = Date.now();
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress) ||
+    emailAddress.length > 320 ||
+    !redirectUrl ||
+    !callbackUrl ||
+    !sessionId ||
+    !invitationId ||
+    !deliveryAuthorization ||
+    new URL(redirectUrl).origin !== new URL(callbackUrl).origin ||
+    expiresAt <= now ||
+    expiresAt > now + 24 * 60 * 60_000
+  ) {
+    return null;
+  }
+  return {
+    emailAddress,
+    redirectUrl,
+    callbackUrl,
+    sessionId,
+    invitationId,
+    deliveryAuthorization,
+  };
+}
+
+function parseInvitationDeliveryAuthorization(
+  value: Record<string, unknown> | null,
+): InvitationDeliveryAuthorization | null {
+  if (
+    value?.['kind'] !== 'invitation-delivery' ||
+    !shareCallback(value['callbackUrl']) ||
+    !boundedId(value['sessionId']) ||
+    !boundedId(value['invitationId']) ||
+    !boundedId(value['hostUserId']) ||
+    typeof value['expiresAt'] !== 'number'
+  ) {
+    return null;
+  }
+  return value as unknown as InvitationDeliveryAuthorization;
+}
+
+function parseState(value: Record<string, unknown> | null): HandoffState | null {
+  if (
+    value?.['kind'] !== 'state' ||
+    !shareCallback(value['callbackUrl']) ||
+    !boundedId(value['sessionId']) ||
+    !boundedId(value['invitationId']) ||
+    !boundedId(value['hostUserId']) ||
+    typeof value['verifier'] !== 'string' ||
+    value['verifier'].length < 32 ||
+    typeof value['expiresAt'] !== 'number'
+  ) {
+    return null;
+  }
+  return value as unknown as HandoffState;
+}
+
+async function participantProjection(
+  userId: string,
+  env: VgaiAuthEnv,
+): Promise<ParticipantProjection | null> {
+  if (!env.CLERK_SECRET_KEY) return null;
+  if (env.CLERK_API_URL) return twinParticipantProjection(userId, env);
+  if (!env.CLERK_PUBLISHABLE_KEY) return null;
+  const clerk = createClerkClient({
+    secretKey: env.CLERK_SECRET_KEY,
+    publishableKey: env.CLERK_PUBLISHABLE_KEY,
+  });
+  const user = await clerk.users.getUser(userId);
+  const primary = user.emailAddresses.find((email) => email.id === user.primaryEmailAddressId);
+  const email = primary?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
+  if (!email) return null;
+  const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+  const memberships = await clerk.users.getOrganizationMembershipList({ userId, limit: 100 });
+  const organizations = await Promise.all(
+    memberships.data.map(async (membership) => {
+      const domains = await clerk.organizations.getOrganizationDomainList({
+        organizationId: membership.organization.id,
+        limit: 50,
+      });
+      return {
+        id: membership.organization.id,
+        name: membership.organization.name,
+        ...(membership.organization.slug ? { slug: membership.organization.slug } : {}),
+        role: membership.role,
+        domains: domains.data.map((domain) => ({
+          name: domain.name.toLowerCase(),
+          verified: domain.verification?.status === 'verified',
+          enrollmentMode: domain.enrollmentMode,
+        })),
+      } satisfies OrganizationProjection;
+    }),
+  );
+  return { id: userId, email, ...(name ? { name } : {}), organizations };
+}
+
+async function twinParticipantProjection(
+  userId: string,
+  env: VgaiAuthEnv,
+): Promise<ParticipantProjection | null> {
+  const apiUrl = env.CLERK_API_URL?.replace(/\/$/, '');
+  if (!apiUrl || !env.CLERK_SECRET_KEY) return null;
+  const headers = { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` };
+  const get = async (path: string): Promise<Record<string, unknown>> => {
+    const response = await fetch(`${apiUrl}${path}`, { headers });
+    if (!response.ok) {
+      throw new Error(`Clerk twin organization reader failed (${response.status}).`);
+    }
+    const value = await response.json();
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('Clerk twin returned an invalid account projection.');
+    }
+    return value as Record<string, unknown>;
+  };
+  const user = await get(`/v1/users/${encodeURIComponent(userId)}`);
+  const emailAddresses = Array.isArray(user['email_addresses']) ? user['email_addresses'] : [];
+  const primaryId = user['primary_email_address_id'];
+  const primary = emailAddresses.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === 'object' &&
+      (candidate as Record<string, unknown>)['id'] === primaryId,
+  ) as Record<string, unknown> | undefined;
+  const fallback = emailAddresses[0] as Record<string, unknown> | undefined;
+  const email = primary?.['email_address'] ?? fallback?.['email_address'];
+  if (typeof email !== 'string') return null;
+  const firstName = typeof user['first_name'] === 'string' ? user['first_name'] : '';
+  const lastName = typeof user['last_name'] === 'string' ? user['last_name'] : '';
+  const name = [firstName, lastName].filter(Boolean).join(' ');
+  const membershipPage = await get(
+    `/v1/users/${encodeURIComponent(userId)}/organization_memberships?limit=100`,
+  );
+  const membershipData = Array.isArray(membershipPage['data']) ? membershipPage['data'] : [];
+  const organizations = await Promise.all(
+    membershipData.slice(0, 100).map(async (value) => {
+      const membership = value as Record<string, unknown>;
+      const organization = membership['organization'] as Record<string, unknown>;
+      const organizationId = boundedId(organization?.['id']);
+      if (!organizationId || typeof organization?.['name'] !== 'string') {
+        throw new Error('Clerk twin returned an invalid organization membership.');
+      }
+      const domainPage = await get(
+        `/v1/organizations/${encodeURIComponent(organizationId)}/domains?limit=50`,
+      );
+      const domainData = Array.isArray(domainPage['data']) ? domainPage['data'] : [];
+      return {
+        id: organizationId,
+        name: organization['name'],
+        ...(typeof organization['slug'] === 'string' ? { slug: organization['slug'] } : {}),
+        role: typeof membership['role'] === 'string' ? membership['role'] : 'org:member',
+        domains: domainData.slice(0, 50).map((domainValue) => {
+          const domain = domainValue as Record<string, unknown>;
+          const verification = domain['verification'] as Record<string, unknown> | null;
+          const enrollment = domain['enrollment_mode'];
+          if (
+            typeof domain['name'] !== 'string' ||
+            ![
+              'manual_invitation',
+              'automatic_invitation',
+              'automatic_suggestion',
+              'enterprise_sso',
+            ].includes(String(enrollment))
+          ) {
+            throw new Error('Clerk twin returned an invalid organization domain.');
+          }
+          return {
+            name: domain['name'].toLowerCase(),
+            verified: verification?.['status'] === 'verified',
+            enrollmentMode:
+              enrollment as OrganizationProjection['domains'][number]['enrollmentMode'],
+          };
+        }),
+      } satisfies OrganizationProjection;
+    }),
+  );
+  return { id: userId, email, ...(name ? { name } : {}), organizations };
+}
+
+async function collaborationCallback(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const url = new URL(request.url);
+  const state = parseState(
+    await openHandoffValue(configuration.secret, url.searchParams.get('state') ?? ''),
+  );
+  const code = url.searchParams.get('code');
+  if (!state || !code || state.expiresAt <= Date.now()) {
+    return json(
+      { error: 'This collaboration authorization is invalid or expired.' },
+      400,
+      request,
+      env,
+    );
+  }
+  const tokenResponse = await fetch(configuration.tokenEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: configuration.clientId,
+      code,
+      redirect_uri: configuration.callbackUrl,
+      code_verifier: state.verifier,
+    }),
+  });
+  const tokenBody = (await tokenResponse.json().catch(() => undefined)) as
+    | { access_token?: unknown }
+    | undefined;
+  if (!tokenResponse.ok || typeof tokenBody?.access_token !== 'string') {
+    return json({ error: 'VGAI account authorization failed.' }, 401, request, env);
+  }
+  const identity = await authenticateClerk(
+    new Request(request.url, {
+      headers: { Authorization: `Bearer ${tokenBody.access_token}` },
+    }),
+    env,
+  );
+  if ('error' in identity) return identity.error;
+  const participant = await participantProjection(identity.userId, env);
+  if (!participant) {
+    return json(
+      { error: 'The authenticated VGAI account has no public profile.' },
+      403,
+      request,
+      env,
+    );
+  }
+  const grant = await sealHandoffValue(configuration.secret, {
+    kind: 'grant',
+    sessionId: state.sessionId,
+    invitationId: state.invitationId,
+    hostUserId: state.hostUserId,
+    participant,
+    jti: randomHandoffValue(24),
+    expiresAt: Date.now() + 2 * 60_000,
+  } satisfies HandoffGrant);
+  const location = new URL(state.callbackUrl);
+  location.hash = `grant=${encodeURIComponent(grant)}`;
+  return redirectResponse(location.toString());
+}
+
+function parseGrant(value: Record<string, unknown> | null): HandoffGrant | null {
+  const participant = value?.['participant'];
+  if (
+    value?.['kind'] !== 'grant' ||
+    !boundedId(value['sessionId']) ||
+    !boundedId(value['invitationId']) ||
+    !boundedId(value['hostUserId']) ||
+    !boundedId(value['jti']) ||
+    typeof value['expiresAt'] !== 'number' ||
+    !participant ||
+    typeof participant !== 'object' ||
+    Array.isArray(participant)
+  ) {
+    return null;
+  }
+  const user = participant as Record<string, unknown>;
+  if (
+    !boundedId(user['id']) ||
+    typeof user['email'] !== 'string' ||
+    user['email'].length > 320 ||
+    (user['name'] !== undefined &&
+      (typeof user['name'] !== 'string' || user['name'].length > 200)) ||
+    !validOrganizationProjection(user['organizations'])
+  ) {
+    return null;
+  }
+  return value as unknown as HandoffGrant;
+}
+
+function validOrganizationProjection(value: unknown): value is OrganizationProjection[] {
+  if (!Array.isArray(value) || value.length > 100) return false;
+  return value.every((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return false;
+    const organization = candidate as Record<string, unknown>;
+    if (
+      !boundedId(organization['id']) ||
+      typeof organization['name'] !== 'string' ||
+      organization['name'].length > 200 ||
+      (organization['slug'] !== undefined &&
+        (typeof organization['slug'] !== 'string' || organization['slug'].length > 200)) ||
+      typeof organization['role'] !== 'string' ||
+      organization['role'].length > 200 ||
+      !Array.isArray(organization['domains']) ||
+      organization['domains'].length > 50
+    ) {
+      return false;
+    }
+    return organization['domains'].every((domainValue) => {
+      if (!domainValue || typeof domainValue !== 'object' || Array.isArray(domainValue)) {
+        return false;
+      }
+      const domain = domainValue as Record<string, unknown>;
+      return (
+        typeof domain['name'] === 'string' &&
+        domain['name'].length <= 253 &&
+        typeof domain['verified'] === 'boolean' &&
+        [
+          'manual_invitation',
+          'automatic_invitation',
+          'automatic_suggestion',
+          'enterprise_sso',
+        ].includes(String(domain['enrollmentMode']))
+      );
+    });
+  });
+}
+
+async function collaborationRedeem(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const configuration = collaborationConfiguration(env);
+  if ('error' in configuration) return json({ error: configuration.error }, 500, request, env);
+  const body = await readJsonObject(request);
+  const sessionId = boundedId(body['sessionId']);
+  const invitationId = boundedId(body['invitationId']);
+  const grant = parseGrant(
+    await openHandoffValue(
+      configuration.secret,
+      typeof body['grant'] === 'string' ? body['grant'] : '',
+    ),
+  );
+  if (
+    !grant ||
+    !sessionId ||
+    !invitationId ||
+    grant.sessionId !== sessionId ||
+    grant.invitationId !== invitationId ||
+    grant.expiresAt <= Date.now()
+  ) {
+    return json({ error: 'Invalid or expired collaboration grant.' }, 401, request, env);
+  }
+  return json(
+    { participant: grant.participant, jti: grant.jti, hostUserId: grant.hostUserId },
+    200,
+    request,
+    env,
+  );
+}
+
+/**
+ * GET /verify — the `VGAI_AUTH` service-binding contract. Returns the shape the
+ * generative gateway parses (`{ userId: string, entitlements?: {...} }`).
+ * Authentication establishes the principal. Each managed operation still has
+ * to reserve credits at the authoritative ledger before provider submission.
+ */
+async function verify(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const token = bearerToken(request);
+  const inferenceSecret = env.INFERENCE_GRANT_SECRET?.trim();
+  const inferenceGrant =
+    token && inferenceSecret && inferenceSecret.length >= 32
+      ? await readInferenceGrant(inferenceSecret, token, Date.now())
+      : null;
+  if (inferenceGrant) {
+    return json(
+      {
+        userId: inferenceGrant.userId,
+        entitlements: { generation: true },
+        inferenceGrant,
+      },
+      200,
+      request,
+      env,
+    );
+  }
+  const identity = await authenticateClerk(request, env);
+  if ('error' in identity) return identity.error;
+  const admissionError = await requireManagedServiceAdmission(request, env, identity.userId);
+  if (admissionError) return admissionError;
+  return json(
+    { userId: identity.userId, entitlements: { generation: true, relay: true } },
+    200,
+    request,
+    env,
+  );
+}
+
+/** Exchange a reusable account credential for the only credential an
+ * untrusted coding process receives: a short-lived, workspace/model-scoped
+ * grant with server-selected cumulative ceilings. */
+async function inferenceGrant(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const identity = await authenticateClerk(request, env);
+  if ('error' in identity) return identity.error;
+  const admissionError = await requireManagedServiceAdmission(request, env, identity.userId);
+  if (admissionError) return admissionError;
+  const secret = env.INFERENCE_GRANT_SECRET?.trim();
+  if (!secret || secret.length < 32) {
+    return json({ error: 'Inference grant signing is not configured.' }, 503, request, env);
+  }
+  const body = await readJsonObject(request);
+  const workspaceId = boundedId(body['workspaceId']);
+  const model = typeof body['model'] === 'string' ? body['model'].trim() : '';
+  if (
+    !workspaceId ||
+    body['provider'] !== 'openrouter' ||
+    body['workload'] !== 'coding' ||
+    !/^[A-Za-z0-9._:/-]{1,200}$/.test(model)
+  ) {
+    return json({ error: 'Invalid inference grant scope.' }, 400, request, env);
+  }
+  const ttlMs = Math.min(
+    positiveInt(env.INFERENCE_GRANT_TTL_MS, DEFAULT_INFERENCE_GRANT_TTL_MS),
+    MAX_INFERENCE_GRANT_TTL_MS,
+  );
+  const expiresAt = Date.now() + ttlMs;
+  const grant = await mintInferenceGrant(secret, {
+    kind: 'inference-grant',
+    audience: 'vgai-generative-gateway',
+    userId: identity.userId,
+    workspaceId,
+    provider: 'openrouter',
+    workload: 'coding',
+    model,
+    maxRequests: positiveInt(
+      env.INFERENCE_GRANT_MAX_REQUESTS,
+      DEFAULT_INFERENCE_GRANT_MAX_REQUESTS,
+    ),
+    maxCredits: positiveInt(env.INFERENCE_GRANT_MAX_CREDITS, DEFAULT_INFERENCE_GRANT_MAX_CREDITS),
+    jti: randomHandoffValue(24),
+    expiresAt,
+  });
+  return json({ grant, expiresAt }, 200, request, env);
+}
+
+/** Payment state never confers provider access. The authoritative account
+ * service refreshes its admission bit from Clerk private metadata on this
+ * request, so a public signup or completed checkout is insufficient. */
+async function requireManagedServiceAdmission(
+  request: Request,
+  env: VgaiAuthEnv,
+  userId: string,
+): Promise<Response | null> {
+  if (!env.VGAI_BILLING) {
+    return json({ error: 'Managed-service admission is unavailable.' }, 503, request, env);
+  }
+  const accountResponse = await env.VGAI_BILLING.fetch(
+    new Request('https://vgai-managed-account/v1/account', request),
+  );
+  if (!accountResponse.ok) {
+    return json(
+      { error: 'Managed-service admission could not be verified.' },
+      accountResponse.status === 401 ? 401 : 503,
+      request,
+      env,
+    );
+  }
+  const account = (await accountResponse.json()) as Record<string, unknown>;
+  const accountUser = account['user'] as Record<string, unknown> | undefined;
+  const entitlements = account['entitlements'] as Record<string, unknown> | undefined;
+  if (accountUser?.['id'] !== userId || entitlements?.['generation'] !== true) {
+    return json(
+      { error: 'This account has not been admitted to VGAI managed services.' },
+      403,
+      request,
+      env,
+    );
+  }
+  return null;
+}
+
+/**
+ * POST /relay/token — verify Clerk, then mint a room-scoped, short-lived relay
+ * access token carrying the authenticated userId. Free-only: an authenticated
+ * user is entitled; there is no purchase gate.
+ */
+async function relayToken(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const identity = await authenticateClerk(request, env);
+  if ('error' in identity) return identity.error;
+
+  const secret = env.P2P_COLYSEUS_ACCESS_TOKEN_SECRET;
+  if (!secret) {
+    return json({ error: 'Relay access-token secret is not configured.' }, 500, request, env);
+  }
+
+  const body = await readJsonObject(request);
+  const roomName = typeof body['roomName'] === 'string' ? body['roomName'].trim() : '';
+  if (!roomName) {
+    return json({ error: 'A non-empty roomName is required.' }, 400, request, env);
+  }
+
+  const { token, expiresAt } = await mintRelayToken(secret, {
+    userId: identity.userId,
+    roomName,
+    ttlMs: positiveInt(env.P2P_COLYSEUS_RELAY_TOKEN_TTL_MS, DEFAULT_RELAY_TOKEN_TTL_MS),
+    nowMs: Date.now(),
+  });
+  return json({ token, expiresAt }, 200, request, env);
+}
+
+/**
+ * POST /relay/grant — verify Clerk (the deployer), then mint a long-lived,
+ * room-scoped relay-mint GRANT bearing the deployer's userId. `vgai deploy`
+ * bakes this into the served manifest. A grant is NOT spendable on the relay
+ * (different signing key + kind:'grant'); it is only exchangeable at
+ * /relay/session for a fresh relay token. This is what lets a deployed game's
+ * anonymous players keep minting relay tokens long after deploy without the
+ * 2h relay-token cliff.
+ */
+async function relayGrant(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const identity = await authenticateClerk(request, env);
+  if ('error' in identity) return identity.error;
+
+  const secret = env.P2P_COLYSEUS_ACCESS_TOKEN_SECRET;
+  if (!secret) {
+    return json({ error: 'Relay access-token secret is not configured.' }, 500, request, env);
+  }
+
+  const body = await readJsonObject(request);
+  const roomName = typeof body['roomName'] === 'string' ? body['roomName'].trim() : '';
+  if (!roomName) {
+    return json({ error: 'A non-empty roomName is required.' }, 400, request, env);
+  }
+
+  const { grant, expiresAt } = await mintRelayGrant(secret, {
+    userId: identity.userId,
+    roomName,
+    ttlMs: positiveInt(env.P2P_COLYSEUS_RELAY_GRANT_TTL_MS, DEFAULT_RELAY_GRANT_TTL_MS),
+    nowMs: Date.now(),
+  });
+  return json({ grant, expiresAt }, 200, request, env);
+}
+
+/**
+ * POST /relay/session — PUBLIC (no auth). A deployed game's anonymous player
+ * presents the baked `grant`; this verifies it and mints a fresh short-lived
+ * relay token for the grant's account + room. Minting at CONNECT (not deploy)
+ * is the fix for the lifetime cliff: the token is always fresh regardless of
+ * how old the deploy is, and a single relay room is already capped at the
+ * relay's maxRelayRoomDurationMs (2h), so one session token covers a whole
+ * session. Abuse is bounded to the grant's account/room relay byte budget —
+ * the same bound the old baked token carried, minus its 2h expiry.
+ */
+async function relaySession(request: Request, env: VgaiAuthEnv): Promise<Response> {
+  const secret = env.P2P_COLYSEUS_ACCESS_TOKEN_SECRET;
+  if (!secret) {
+    return json({ error: 'Relay access-token secret is not configured.' }, 500, request, env);
+  }
+
+  const body = await readJsonObject(request);
+  const grant = typeof body['grant'] === 'string' ? body['grant'] : '';
+  const claims = grant ? await readRelayGrant(secret, grant, Date.now()) : null;
+  if (!claims) {
+    return json({ error: 'Invalid or expired relay grant.' }, 401, request, env);
+  }
+
+  const { token, expiresAt } = await mintRelayToken(secret, {
+    userId: claims.userId,
+    roomName: claims.roomName,
+    ttlMs: positiveInt(env.P2P_COLYSEUS_RELAY_TOKEN_TTL_MS, DEFAULT_RELAY_TOKEN_TTL_MS),
+    nowMs: Date.now(),
+  });
+  return json({ token, expiresAt, roomName: claims.roomName }, 200, request, env);
+}
+
+type ClerkResult = { userId: string } | { error: Response };
+
+/**
+ * Resolve the request's authenticated Clerk userId. Two verification paths,
+ * one chosen by `CLERK_API_URL`:
+ *
+ *   - unset → REAL Clerk. `authenticateRequest` resolves the session as today.
+ *   - set   → the placeholder-IdP TWIN. `authenticateRequest` is the wrong tool
+ *     here: for a Bearer session token it derives the expected issuer from the
+ *     publishable key and rejects the twin's `iss`
+ *     (`https://twin.clerk.accounts.dev`). `verifyToken` verifies the Bearer JWT
+ *     directly against the JWKS the twin serves at `${CLERK_API_URL}/v1/jwks`
+ *     and does not bind the issuer to a Clerk instance, so a twin-issued token
+ *     verifies networklessly against real RS256 keys with the SDK unmodified.
+ *
+ * A missing Clerk config is a loud 500, never a silent pass; an unauthenticated
+ * request is a 401.
+ */
+async function authenticateClerk(request: Request, env: VgaiAuthEnv): Promise<ClerkResult> {
+  return env.CLERK_JWT_KEY || env.CLERK_API_URL
+    ? authenticateTwin(request, env)
+    : authenticateRealClerk(request, env);
+}
+
+/**
+ * REAL Clerk. Bearer read by `authenticateRequest` itself — same shape as
+ * `managed-account-service/src/clerk-polar.ts`.
+ */
+async function authenticateRealClerk(request: Request, env: VgaiAuthEnv): Promise<ClerkResult> {
+  if (!env.CLERK_SECRET_KEY || !env.CLERK_PUBLISHABLE_KEY) {
+    return { error: json({ error: 'Clerk is not configured.' }, 500, request, env) };
+  }
+  const clerk = createClerkClient({
+    secretKey: env.CLERK_SECRET_KEY,
+    publishableKey: env.CLERK_PUBLISHABLE_KEY,
+  });
+  const requestState = await clerk.authenticateRequest(request, {
+    acceptsToken: ['oauth_token', 'session_token'],
+    authorizedParties: authorizedParties(env),
+  });
+  if (!requestState.isAuthenticated) {
+    return { error: json({ error: 'Unauthorized' }, 401, request, env) };
+  }
+  const auth = requestState.toAuth();
+  if (!auth.userId) {
+    return { error: json({ error: 'Unauthorized' }, 401, request, env) };
+  }
+  return { userId: auth.userId };
+}
+
+/**
+ * TWIN (placeholder IdP). Verify the `Authorization: Bearer <jwt>` session token
+ * against the twin's JWKS with the unmodified `@clerk/backend` `verifyToken`.
+ * `secretKey` is only the Bearer used to fetch the JWKS (the twin accepts any);
+ * verification itself is the RS256 signature + standard claim checks.
+ */
+async function authenticateTwin(request: Request, env: VgaiAuthEnv): Promise<ClerkResult> {
+  // Two ways to verify a twin token: NETWORKLESS with a pinned public key (CLERK_JWT_KEY),
+  // or by fetching the twin's JWKS (CLERK_API_URL + secret). Prefer the networkless path —
+  // it is required whenever the twin shares this Worker's `workers.dev` zone, since
+  // Worker→Worker fetch there is blocked (CF error 1042).
+  const options = env.CLERK_JWT_KEY
+    ? { jwtKey: env.CLERK_JWT_KEY, authorizedParties: authorizedParties(env) }
+    : env.CLERK_API_URL && env.CLERK_SECRET_KEY
+      ? {
+          apiUrl: env.CLERK_API_URL,
+          secretKey: env.CLERK_SECRET_KEY,
+          authorizedParties: authorizedParties(env),
+        }
+      : null;
+  if (!options) {
+    return { error: json({ error: 'Clerk is not configured.' }, 500, request, env) };
+  }
+  const token = bearerToken(request);
+  if (!token) {
+    return { error: json({ error: 'Unauthorized' }, 401, request, env) };
+  }
+  try {
+    const claims = await verifyToken(token, options);
+    if (!claims.sub) {
+      return { error: json({ error: 'Unauthorized' }, 401, request, env) };
+    }
+    return { userId: claims.sub };
+  } catch {
+    return { error: json({ error: 'Unauthorized' }, 401, request, env) };
+  }
+}
+
+function bearerToken(request: Request): string | undefined {
+  const header = request.headers.get('Authorization') ?? '';
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  return match?.[1]?.trim() || undefined;
+}
+
+function authorizedParties(env: VgaiAuthEnv): string[] {
+  return (env.CLERK_AUTHORIZED_PARTIES ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
+async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
+  try {
+    const parsed = await request.json();
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function positiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const PUBLIC_CROSS_ORIGIN_PATHS = new Set([
+  '/.well-known/oauth-authorization-server',
+  '/relay/session',
+]);
+
+function originAllowed(request: Request, env: VgaiAuthEnv): boolean {
+  const origin = request.headers.get('Origin');
+  if (!origin) return true;
+  if (PUBLIC_CROSS_ORIGIN_PATHS.has(new URL(request.url).pathname)) return true;
+  const allowed = (env.AUTH_ALLOWED_ORIGINS ?? '*').split(',').map((value) => value.trim());
+  return allowed.includes('*') || allowed.includes(origin);
+}
+
+function corsHeaders(request: Request, env: VgaiAuthEnv): Headers {
+  const origin = request.headers.get('Origin');
+  const headers = new Headers({
+    'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    Vary: 'Origin',
+  });
+  if (origin && originAllowed(request, env)) headers.set('Access-Control-Allow-Origin', origin);
+  return headers;
+}
+
+function preflight(request: Request, env: VgaiAuthEnv): Response {
+  return new Response(null, { status: 204, headers: hardenedHeaders(corsHeaders(request, env)) });
+}
+
+function hardenedHeaders(headers: Headers): Headers {
+  headers.set('Cache-Control', 'no-store');
+  headers.set('Referrer-Policy', 'no-referrer');
+  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  return headers;
+}
+
+function hardenResponse(response: Response): Response {
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: hardenedHeaders(new Headers(response.headers)),
+  });
+}
+
+function redirectResponse(location: string): Response {
+  return new Response(null, {
+    status: 302,
+    headers: hardenedHeaders(new Headers({ Location: location })),
+  });
+}
+
+function json(
+  body: unknown,
+  status: number,
+  request: Request,
+  env: VgaiAuthEnv,
+  extraHeaders?: HeadersInit,
+): Response {
+  const response = Response.json(body, { status });
+  const headers = new Headers(response.headers);
+  for (const [key, value] of corsHeaders(request, env)) headers.set(key, value);
+  for (const [key, value] of new Headers(extraHeaders)) headers.set(key, value);
+  return new Response(response.body, { status, headers: hardenedHeaders(headers) });
+}

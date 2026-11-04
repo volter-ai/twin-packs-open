@@ -1,0 +1,137 @@
+{
+  "about": "youtube's decision table (the P3 procedure). The demand (journeys/demand.json) is Dub's partner channel statistics (channels.list by id with the project's API key) and videogame-ai's games-ecosystem sandbox (ADR 0002): a studio's channel, its trailer uploaded resumably or in one multipart request, read back and edited, a live broadcast bound to the stream an encoder publishes to over RTMP and moved through testing, live and complete, its live chat polled, posted to and moderated, and the community's comment threads, replies and moderation. Every served operation is a handler's: YouTube's answers carry only the parts a request names, its lists are its own envelope (kind, etag, page tokens, pageInfo) and its credential is a token the googleoauth twin issued through its own consent (authorize page, code, token, refresh), read across packs and checked against the scopes each operation's security names (the Discovery method's, spec/patches.json), or, on the public list methods (channels.list, videos.list, commentThreads.list), a Google Cloud project's API key that the googleoauth twin issued, read across packs; YouTube issues no credential of its own, so no operation is the derived core's. The OAuth authorize page and token endpoint are the googleoauth twin's (credentialIssuer). A request with neither a token nor a key is 403 forbidden; maxResults takes its documented range, and a page of no items names no next page. Every other operation of the spec answers the gap.",
+  "decisions": [
+    {
+      "operation": "youtube.channels.list",
+      "demand": "dubinc/dub apps/web/lib/youtube/client.ts:16-24 (part=statistics,snippet&id=<ids> with X-Goog-Api-Key); videogame-ai ADR 0002 (mine=true); the life: Dub's cron reads the studio's channel, the studio reads its own; first-use.json's workflow.mjs reads the signed-in person's channel (mine=true) and asserts its id is YOUTUBE_CHANNEL_ID",
+      "mechanism": "handler",
+      "why": "The channels a filter names (exactly one of id and mine): mine is the token's Google account's channel, id any channel, by a token, or by a Google Cloud project's API key that the googleoauth twin issued (read across packs by its SHA-256; channels.list is a public list method, so its security takes the key). The statistics are computed: views are the sum of the channel's videos' views, videoCount its public processed videos, subscriberCount the audience door's (rounded to three significant figures); snippet carries customUrl (the channel's handle) and its thumbnails. Answered in YouTube's list envelope with the parts asked."
+    },
+    {
+      "operation": "youtube.videos.insert.simple",
+      "demand": "videogame-ai ADR 0002 decision 2 (a trailer uploaded); the life: the studio's tooling starts a resumable session for its trailer and a creator uploads a clip in one multipart request; first-use.json's workflow.mjs starts the resumable session and asserts the Location's upload_id",
+      "mechanism": "handler",
+      "why": "uploadType=resumable: the video resource is checked (title 1 to 100 characters without < or >, description up to 5000 bytes, privacy, license, publishAt) and a session is kept with the metadata, the parts and X-Upload-Content-Length; 200 with the session URI in Location (https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=...). uploadType=multipart: the JSON part is the metadata, the next the file; the video is made and answered. uploadType=media and a request naming none are the manifest's variants (the gap)."
+    },
+    {
+      "operation": "youtube.videos.insert.upload",
+      "demand": "videogame-ai ADR 0002 decision 2 (the resumable session's PUT, a patch of the spec from the resumable upload guide); the life: the trailer sent in two chunks, its progress asked between them; first-use.json's workflow.mjs PUTs the whole file and asserts a 201 video with status.uploadStatus uploaded",
+      "mechanism": "handler",
+      "why": "The session URI's PUT: the bytes at the next offset are kept as a blob (Content-Range bytes A-B/T, A the bytes already received, else 308 with the Range so far); an empty PUT with bytes */T answers 308 and the Range (none when nothing arrived); the last byte joins the chunks into the video's blob and makes the video (201, uploaded), which YouTube then processes (processed; failed with emptyFile for an empty file) as its own move. A completed session answers its first answer again; an unknown or another account's session is 404."
+    },
+    {
+      "operation": "youtube.videos.list",
+      "demand": "videogame-ai ADR 0002 (the trailer read back); the life: the studio reads the trailer's status and counts after upload and after the audience; first-use.json reads the uploaded video back with the renewed token (processed), and its readback reads it with the project's API key, asserting its title, channel and processed status",
+      "mechanism": "handler",
+      "why": "The id filter (chart and myRating are variants): the videos it names that the caller may see (a private one only its owner), with the parts asked; fileDetails, processingDetails and suggestions are the owner's alone (403 forbidden); ids it does not find (unknown, or another channel's private video) are left out, and none found is an empty list (200), which clients read by items.length."
+    },
+    {
+      "operation": "youtube.videos.update",
+      "demand": "videogame-ai ADR 0002 (the trailer's metadata edited); the life: the studio retitles the trailer and makes it public, then is refused a snippet without a category",
+      "mechanism": "handler",
+      "why": "The parts named are replaced: a snippet needs title and categoryId (invalidTitle, invalidCategoryId), a status without privacyStatus reverts the video to the default privacy, public, as the update page says and keeps selfDeclaredMadeForKids and containsSyntheticMedia unless set. Only the video's owner (403 forbidden); an unknown video is 404 videoNotFound."
+    },
+    {
+      "operation": "youtube.liveStreams.insert",
+      "demand": "videogame-ai ADR 0002 decision 2 (live broadcasts); the life: the studio makes the stream its encoder sends",
+      "mechanism": "handler",
+      "why": "A stream with title (1 to 128 characters), cdn (ingestionType rtmp; resolution and frameRate together, variable with variable), its stream name drawn from a World secret and YouTube's RTMP ingestion address; status ready, health noData. DASH and HLS ingestion are variants. Each documented required field's absence is its own refusal (titleRequired, cdnRequired, ingestionTypeRequired, frameRateRequired, resolutionRequired)."
+    },
+    {
+      "operation": "youtube.liveStreams.list",
+      "demand": "videogame-ai ADR 0002 decision 2; the life: the studio checks whether the encoder's stream is active",
+      "mechanism": "handler",
+      "why": "The caller's streams (exactly one of mine and id), with the parts asked; status.streamStatus is active while an encoder publishes to its stream name (the ingest, semantics/live.ts) and inactive after."
+    },
+    {
+      "operation": "youtube.liveBroadcasts.insert",
+      "demand": "videogame-ai ADR 0002 decision 2; the life: the studio schedules its launch stream",
+      "mechanism": "handler",
+      "why": "A broadcast (title, scheduledStartTime in the World's future, privacyStatus required, each its documented refusal), lifeCycleStatus created, its live chat made with it (snippet.liveChatId), contentDetails with the page's defaults (monitor stream, embed, DVR and record from start on). The broadcast is a video: its id is minted as a video's and its video is made with it (liveBroadcastContent upcoming, liveStreamingDetails), live and then processed as the broadcast moves."
+    },
+    {
+      "operation": "youtube.liveBroadcasts.list",
+      "demand": "videogame-ai ADR 0002 decision 2; the life: the studio lists its upcoming and completed broadcasts",
+      "mechanism": "handler",
+      "why": "Exactly one of id, mine and broadcastStatus (active, all, completed, upcoming by life-cycle status); broadcastType defaults to event and the World makes no persistent broadcast."
+    },
+    {
+      "operation": "youtube.liveBroadcasts.bind",
+      "demand": "videogame-ai ADR 0002 decision 2; the life: the broadcast bound to the stream, then refused a bind once it is complete",
+      "mechanism": "handler",
+      "why": "streamId binds (created or ready to ready, contentDetails.boundStreamId), none unbinds (ready to created); a broadcast testing, live or complete refuses (liveBroadcastBindingNotAllowed); unknown broadcast or stream is 404."
+    },
+    {
+      "operation": "youtube.liveBroadcasts.transition",
+      "demand": "videogame-ai ADR 0002 decision 2; the life: the studio asks to go live before the encoder publishes (errorStreamInactive), is refused a redundant move, and ends the broadcast",
+      "mechanism": "handler",
+      "why": "testing (from ready, monitor stream on) answers testStarting and live (from testing, or ready without a monitor stream) liveStarting, which YouTube then finishes (testing, live: actualStartTime, recording); both need the bound stream active (errorStreamInactive). complete (from testing or live) sets actualEndTime, keeps the recording and ends the chat with a chatEndedEvent. A move to the status held or starting is redundantTransition, any other the machine does not hold invalidTransition."
+    },
+    {
+      "operation": "youtube.liveChatMessages.list",
+      "demand": "videogame-ai ADR 0002 decision 2 (live chat); the life: the studio's chat bot polls the chat with its nextPageToken",
+      "mechanism": "handler",
+      "why": "The chat's messages in order: the first request the most recent (up to maxResults, 200 to 2000, default 500), then from the page token; pollingIntervalMillis, and offlineAt once the broadcast is complete; polling past the end of an ended chat is liveChatEnded; an unknown chat liveChatNotFound."
+    },
+    {
+      "operation": "youtube.liveChatMessages.insert",
+      "demand": "videogame-ai ADR 0002 decision 2; the life: the studio greets the chat and a fan writes in it; a line after the broadcast is refused (liveChatEnded)",
+      "mechanism": "handler",
+      "why": "A textMessageEvent from the caller's channel (liveChatId, type and messageText required, each its refusal; pollEvent is a variant), with authorDetails (isChatOwner for the broadcast's channel); the broadcast's statistics.totalChatCount counts it."
+    },
+    {
+      "operation": "youtube.liveChatMessages.delete",
+      "demand": "videogame-ai ADR 0002 (trolls and moderators); the life: the studio deletes a troll's line",
+      "mechanism": "handler",
+      "why": "The chat's owner deletes any text message in it, an author its own (else 403 forbidden); an unknown message is 404 liveChatMessageNotFound; 204."
+    },
+    {
+      "operation": "youtube.commentThreads.list",
+      "demand": "videogame-ai ADR 0002 (the community side); the life: the studio reads the trailer's comments, and those held for review",
+      "mechanism": "handler",
+      "why": "Exactly one of videoId, allThreadsRelatedToChannelId and id; threads newest first (order=relevance and searchTerms are variants) with their top-level comment and published replies; moderationStatus other than published is the video's owner's (403 forbidden); textFormat html escapes the text; textOriginal is shown to its author and moderationStatus to the owner."
+    },
+    {
+      "operation": "youtube.commentThreads.insert",
+      "demand": "videogame-ai ADR 0002 decision 6 (people act through the API with their own token); the life: a fan comments on the trailer",
+      "mechanism": "handler",
+      "why": "A thread on a video (snippet.channelId, the video's channel, and snippet.videoId required: channelOrVideoIdMissing; the text: commentTextRequired), its top-level comment the thread's id; an author the channel banned is rejected as it arrives; the video's commentCount counts it."
+    },
+    {
+      "operation": "youtube.comments.insert",
+      "demand": "videogame-ai ADR 0002; the life: the studio replies to the fan",
+      "mechanism": "handler",
+      "why": "A reply (snippet.parentId, a top-level comment: parentIdMissing, parentCommentNotFound, operationNotSupported for a reply's reply; the text: commentTextRequired), its id the thread's and its own joined by a dot."
+    },
+    {
+      "operation": "youtube.comments.setModerationStatus",
+      "demand": "videogame-ai ADR 0002 (spammers, moderators); the life: the studio rejects a spammer's comment and bans its author, whose next comment is rejected, and is refused publishing the rejected one",
+      "mechanism": "handler",
+      "why": "Up to 50 comments on the caller's videos (else 403 forbidden; unknown commentNotFound) moved by the moderation machine (heldForReview, published, rejected; a rejected comment cannot be published: processingFailure); banAuthor only with rejected (banWithoutReject) and recorded so the author's later comments on the channel are rejected; 204."
+    },
+    {
+      "operation": "door:channels",
+      "demand": "videogame-ai ADR 0002 decision 6 (accounts made through each platform's own sign-up); the life: the studio and two fans each get a channel for their Google account",
+      "mechanism": "door",
+      "why": "A Google account's YouTube channel (no API call makes one: youtubeSignupRequired until it exists), by the googleoauth account door's sub; asking again answers the one it has. It is also the credential door: the World's person (googleoauth's credential door's account, sub 100000000000000000001) gets a channel at boot, filling YOUTUBE_CHANNEL_ID."
+    },
+    {
+      "operation": "door:videoAudience",
+      "demand": "videogame-ai ADR 0002 (the funnel's views; the TikTok person's stats door as the model, e2e/people/platforms.mjs:130); the life: the trailer's audience watches, likes and a viewer outside the World comments",
+      "mechanism": "door",
+      "why": "Views and likes added to a video's statistics, and a comment from an author outside the World (a channel of no Google account the World holds), as YouTube's audience is no API."
+    },
+    {
+      "operation": "door:chatAudience",
+      "demand": "videogame-ai ADR 0002 decision 2 (live chat); the life: a viewer outside the World writes in the launch stream's chat",
+      "mechanism": "door",
+      "why": "A chat line from an author outside the World in a chat that is still live."
+    },
+    {
+      "operation": "door:channelAudience",
+      "demand": "dubinc/dub route.ts (statistics.subscriberCount kept per partner); the life: the studio's channel gains subscribers before Dub's cron reads it",
+      "mechanism": "door",
+      "why": "A channel's subscriber count, answered rounded down to three significant figures, as subscriptions are no API of the demand's."
+    }
+  ]
+}

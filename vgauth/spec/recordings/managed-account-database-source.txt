@@ -1,0 +1,1246 @@
+import type { AccountUsageEntry } from '../../vgai-sdk/src/account';
+import type { ManagedIdentity } from './clerk-polar';
+
+export interface ManagedSqlStatement {
+  run(...bindings: unknown[]): { changes: number };
+  get(...bindings: unknown[]): unknown;
+  all(...bindings: unknown[]): unknown[];
+}
+
+/** The ledger owns SQL and transactions; deployment adapters supply only the
+ * native SQLite primitive. This keeps Node's `node:sqlite` and a Durable
+ * Object's `storage.sql` behind the same commercial state machine. */
+export interface ManagedSqlDatabase {
+  readonly kind: 'node' | 'durable-object';
+  exec(sql: string): void;
+  prepare(sql: string): ManagedSqlStatement;
+  transaction<T>(work: () => T): T;
+  close(): void;
+}
+
+export type ManagedPlanId = 'free' | 'creator' | 'max' | 'ultra';
+export type ManagedUsageKind = AccountUsageEntry['kind'];
+
+export interface StoredAccount {
+  userId: string;
+  email: string;
+  name?: string;
+  managedServicesAllowed: boolean;
+  polarCustomerId?: string;
+  polarSubscriptionId?: string;
+  planId: ManagedPlanId;
+  planStatus: 'free' | 'active' | 'cancelling' | 'past_due';
+  includedCredits: number;
+  includedUsedCredits: number;
+  purchasedCredits: number;
+  usedCredits: number;
+  reservedCredits: number;
+  overageUsedCredits: number;
+  overageReservedCredits: number;
+  purchasedExpiresAt?: string;
+  cycleStartsAt?: string;
+  cycleEndsAt?: string;
+  overageEnabled: boolean;
+  monthlyLimitCredits: number;
+  alertThresholds: number[];
+  autoReload?: {
+    enabled: boolean;
+    whenRemainingBelow: number;
+    reloadTo: number;
+    monthlyLimitCredits: number;
+  };
+}
+
+export interface CheckoutIntent {
+  sessionId: string;
+  accountId: string;
+  kind: 'subscription' | 'credits';
+  sku: string;
+  productId: string;
+  idempotencyKey: string;
+  credits: number;
+  expiresInDays?: number;
+}
+
+export interface StoredCheckoutIntent extends CheckoutIntent {
+  status: 'pending' | 'fulfilled';
+}
+
+export interface CheckoutFulfillment {
+  duplicate: boolean;
+  applied: 'none' | 'subscription' | 'credits';
+}
+
+export interface ManagedReservationInput {
+  accountId: string;
+  kind: ManagedUsageKind;
+  provider: string;
+  operation?: string;
+  estimatedCredits: number;
+  operationId?: string;
+  /** Optional deployment-wide UTC-day ceiling. This is a platform safety
+   * circuit breaker, independent of each account's spend policy. */
+  platformDailyCreditLimit?: number;
+}
+
+export interface StoredAccountAlert {
+  id: string;
+  kind: 'threshold' | 'auto_reload_succeeded' | 'auto_reload_failed';
+  message: string;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface AutoReloadAttempt {
+  id: string;
+  accountId: string;
+  packId: string;
+  credits: number;
+  state: 'pending' | 'succeeded' | 'failed';
+}
+
+type AccountRow = {
+  user_id: string;
+  email: string;
+  name: string | null;
+  managed_services_allowed: number;
+  polar_customer_id: string | null;
+  polar_subscription_id: string | null;
+  plan_id: ManagedPlanId;
+  plan_status: 'free' | 'active' | 'cancelling' | 'past_due';
+  included_credits: number;
+  included_used_credits: number;
+  used_credits: number;
+  included_reserved_credits: number;
+  purchased_reserved_credits: number;
+  overage_used_credits: number;
+  overage_reserved_credits: number;
+  overage_enabled: number;
+  monthly_limit_credits: number;
+  alert_thresholds_json: string;
+  auto_reload_json: string | null;
+  cycle_starts_at: string | null;
+  cycle_ends_at: string | null;
+};
+
+type CheckoutRow = {
+  session_id: string;
+  account_id: string;
+  kind: 'subscription' | 'credits';
+  sku: string;
+  product_id: string;
+  idempotency_key: string;
+  credits: number;
+  expires_in_days: number | null;
+  status: 'pending' | 'fulfilled';
+};
+
+type ReservationRow = {
+  id: string;
+  account_id: string;
+  kind: ManagedUsageKind;
+  provider: string;
+  operation: string | null;
+  estimated_credits: number;
+  reserved_included: number;
+  reserved_purchased: number;
+  reserved_overage: number;
+  state: 'reserved' | 'settled' | 'released';
+  settled_credits: number | null;
+};
+
+/** VGAI-owned durable commercial state. Every provider and infrastructure
+ * service reserves and settles against these same account rows. */
+export class ManagedAccountDatabase {
+  private readonly database: ManagedSqlDatabase;
+
+  constructor(database: ManagedSqlDatabase) {
+    this.database = database;
+    const migrateLegacy =
+      database.kind === 'node' && this.hasColumn('accounts', 'purchased_credits');
+    if (migrateLegacy) {
+      this.database.exec(`
+        ALTER TABLE accounts RENAME TO legacy_accounts;
+        ALTER TABLE checkout_intents RENAME TO legacy_checkout_intents;
+      `);
+    }
+    this.database.exec(`
+      CREATE TABLE IF NOT EXISTS accounts (
+        user_id TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        name TEXT,
+        managed_services_allowed INTEGER NOT NULL DEFAULT 0 CHECK (managed_services_allowed IN (0, 1)),
+        polar_customer_id TEXT UNIQUE,
+        polar_subscription_id TEXT UNIQUE,
+        plan_id TEXT NOT NULL DEFAULT 'free' CHECK (plan_id IN ('free', 'creator', 'max', 'ultra')),
+        plan_status TEXT NOT NULL DEFAULT 'free' CHECK (plan_status IN ('free', 'active', 'cancelling', 'past_due')),
+        included_credits INTEGER NOT NULL DEFAULT 0 CHECK (included_credits >= 0),
+        included_used_credits INTEGER NOT NULL DEFAULT 0 CHECK (included_used_credits >= 0),
+        used_credits INTEGER NOT NULL DEFAULT 0 CHECK (used_credits >= 0),
+        included_reserved_credits INTEGER NOT NULL DEFAULT 0 CHECK (included_reserved_credits >= 0),
+        purchased_reserved_credits INTEGER NOT NULL DEFAULT 0 CHECK (purchased_reserved_credits >= 0),
+        overage_used_credits INTEGER NOT NULL DEFAULT 0 CHECK (overage_used_credits >= 0),
+        overage_reserved_credits INTEGER NOT NULL DEFAULT 0 CHECK (overage_reserved_credits >= 0),
+        overage_enabled INTEGER NOT NULL DEFAULT 0 CHECK (overage_enabled IN (0, 1)),
+        monthly_limit_credits INTEGER NOT NULL DEFAULT 0 CHECK (monthly_limit_credits >= 0),
+        alert_thresholds_json TEXT NOT NULL DEFAULT '[50,80,100]',
+        auto_reload_json TEXT,
+        cycle_starts_at TEXT,
+        cycle_ends_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS checkout_intents (
+        session_id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(user_id),
+        kind TEXT NOT NULL CHECK (kind IN ('subscription', 'credits')),
+        sku TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        credits INTEGER NOT NULL DEFAULT 0 CHECK (credits >= 0),
+        expires_in_days INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'fulfilled')),
+        created_at TEXT NOT NULL,
+        fulfilled_at TEXT
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS billing_events (
+        event_id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        received_at TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS purchased_credit_grants (
+        id TEXT PRIMARY KEY,
+        checkout_session_id TEXT UNIQUE REFERENCES checkout_intents(session_id),
+        event_id TEXT UNIQUE REFERENCES billing_events(event_id),
+        account_id TEXT NOT NULL REFERENCES accounts(user_id),
+        sku TEXT NOT NULL,
+        granted_credits INTEGER NOT NULL CHECK (granted_credits > 0),
+        remaining_credits INTEGER NOT NULL CHECK (remaining_credits >= 0),
+        expires_at TEXT,
+        created_at TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS managed_reservations (
+        id TEXT PRIMARY KEY,
+        operation_id TEXT UNIQUE,
+        account_id TEXT NOT NULL REFERENCES accounts(user_id),
+        kind TEXT NOT NULL CHECK (kind IN ('inference','generation','workspace','storage','relay','deployment')),
+        provider TEXT NOT NULL,
+        operation TEXT,
+        estimated_credits INTEGER NOT NULL CHECK (estimated_credits >= 0),
+        reserved_included INTEGER NOT NULL CHECK (reserved_included >= 0),
+        reserved_purchased INTEGER NOT NULL CHECK (reserved_purchased >= 0),
+        reserved_overage INTEGER NOT NULL CHECK (reserved_overage >= 0),
+        state TEXT NOT NULL CHECK (state IN ('reserved','settled','released')),
+        settled_credits INTEGER,
+        external_id TEXT,
+        created_at TEXT NOT NULL,
+        resolved_at TEXT
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS managed_usage (
+        id TEXT PRIMARY KEY REFERENCES managed_reservations(id),
+        account_id TEXT NOT NULL REFERENCES accounts(user_id),
+        occurred_at TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        operation TEXT,
+        credits INTEGER NOT NULL CHECK (credits >= 0),
+        state TEXT NOT NULL CHECK (state IN ('settled','released')),
+        external_id TEXT
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS billing_cycles (
+        account_id TEXT NOT NULL REFERENCES accounts(user_id),
+        cycle_key TEXT NOT NULL,
+        plan_id TEXT NOT NULL,
+        included_credits INTEGER NOT NULL,
+        starts_at TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        PRIMARY KEY (account_id, cycle_key)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS account_alerts (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(user_id),
+        dedupe_key TEXT NOT NULL UNIQUE,
+        kind TEXT NOT NULL CHECK (kind IN ('threshold','auto_reload_succeeded','auto_reload_failed')),
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        read_at TEXT
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS auto_reload_attempts (
+        id TEXT PRIMARY KEY,
+        operation_id TEXT NOT NULL UNIQUE,
+        account_id TEXT NOT NULL REFERENCES accounts(user_id),
+        pack_id TEXT NOT NULL,
+        credits INTEGER NOT NULL CHECK (credits > 0),
+        state TEXT NOT NULL CHECK (state IN ('pending','succeeded','failed')),
+        provider_id TEXT,
+        error TEXT,
+        created_at TEXT NOT NULL,
+        resolved_at TEXT
+      ) STRICT;
+    `);
+    this.ensureColumn('accounts', 'polar_subscription_id', 'TEXT');
+    this.ensureColumn(
+      'accounts',
+      'managed_services_allowed',
+      'INTEGER NOT NULL DEFAULT 0 CHECK (managed_services_allowed IN (0, 1))',
+    );
+    this.ensureColumn(
+      'accounts',
+      'overage_used_credits',
+      'INTEGER NOT NULL DEFAULT 0 CHECK (overage_used_credits >= 0)',
+    );
+    this.ensureColumn(
+      'accounts',
+      'overage_reserved_credits',
+      'INTEGER NOT NULL DEFAULT 0 CHECK (overage_reserved_credits >= 0)',
+    );
+    this.ensureColumn(
+      'managed_reservations',
+      'reserved_overage',
+      'INTEGER NOT NULL DEFAULT 0 CHECK (reserved_overage >= 0)',
+    );
+    if (migrateLegacy) this.migrateLegacyLedger();
+  }
+
+  close(): void {
+    this.database.close();
+  }
+
+  private hasColumn(table: string, column: string): boolean {
+    const exists = this.database
+      .prepare("SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(table) as { present: number } | undefined;
+    if (!exists) return false;
+    return (
+      this.database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+    ).some((entry) => entry.name === column);
+  }
+
+  private ensureColumn(table: string, column: string, definition: string): void {
+    if (!this.hasColumn(table, column)) {
+      this.database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  }
+
+  /** One-time migration from the original free/Creator aggregate balance.
+   * Existing purchased grants remain independently spendable and non-expiring. */
+  private migrateLegacyLedger(): void {
+    this.database.transaction(() => {
+      this.database.exec(`
+        INSERT INTO accounts
+          (user_id, email, name, plan_id, plan_status,
+           included_credits, included_used_credits, used_credits, created_at, updated_at)
+        SELECT user_id, email, name, plan_id, plan_status,
+          included_credits, MIN(used_credits, included_credits), used_credits,
+          created_at, updated_at
+        FROM legacy_accounts;
+
+        INSERT INTO checkout_intents
+          (session_id, account_id, kind, sku, product_id, idempotency_key, credits,
+           status, created_at, fulfilled_at)
+        SELECT session_id, account_id, kind, sku, price_id, 'legacy:' || session_id, credits,
+          status, created_at, fulfilled_at
+        FROM legacy_checkout_intents;
+
+        INSERT INTO purchased_credit_grants
+          (id, checkout_session_id, event_id, account_id, sku, granted_credits,
+           remaining_credits, created_at)
+        SELECT 'legacy:' || checkout_session_id, checkout_session_id, event_id, account_id, sku,
+          credits, credits, created_at
+        FROM credit_grants;
+
+        INSERT INTO billing_events (event_id, event_type, received_at)
+        SELECT event_id, event_type, received_at FROM stripe_events;
+
+        DROP TABLE credit_grants;
+        DROP TABLE stripe_events;
+        DROP TABLE legacy_checkout_intents;
+        DROP TABLE legacy_accounts;
+      `);
+    });
+  }
+
+  upsertIdentity(
+    identity: ManagedIdentity,
+    includedCredits = 0,
+    now = new Date().toISOString(),
+  ): StoredAccount {
+    this.database
+      .prepare(
+        `INSERT INTO accounts
+          (user_id, email, name, managed_services_allowed, included_credits, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           email = excluded.email,
+           name = excluded.name,
+           managed_services_allowed = excluded.managed_services_allowed,
+           updated_at = excluded.updated_at`,
+      )
+      .run(
+        identity.userId,
+        identity.email,
+        identity.name ?? null,
+        identity.managedServicesAllowed ? 1 : 0,
+        includedCredits,
+        now,
+        now,
+      );
+    return this.getAccount(identity.userId);
+  }
+
+  getAccount(userId: string, now = new Date().toISOString()): StoredAccount {
+    const row = this.database.prepare('SELECT * FROM accounts WHERE user_id = ?').get(userId) as
+      | AccountRow
+      | undefined;
+    if (!row) throw new Error(`Account not found: ${userId}`);
+    const purchased = this.purchasedBalance(userId, now);
+    const purchasedExpiresAt = this.database
+      .prepare(
+        `SELECT MIN(expires_at) AS expires_at FROM purchased_credit_grants
+         WHERE account_id = ? AND remaining_credits > 0 AND (expires_at IS NULL OR expires_at > ?)`,
+      )
+      .get(userId, now) as { expires_at: string | null };
+    const autoReload = row.auto_reload_json
+      ? (JSON.parse(row.auto_reload_json) as NonNullable<StoredAccount['autoReload']>)
+      : undefined;
+    return {
+      userId: row.user_id,
+      email: row.email,
+      ...(row.name ? { name: row.name } : {}),
+      managedServicesAllowed: row.managed_services_allowed === 1,
+      ...(row.polar_customer_id ? { polarCustomerId: row.polar_customer_id } : {}),
+      ...(row.polar_subscription_id ? { polarSubscriptionId: row.polar_subscription_id } : {}),
+      planId: row.plan_id,
+      planStatus: row.plan_status,
+      includedCredits: row.included_credits,
+      includedUsedCredits: row.included_used_credits,
+      purchasedCredits: purchased,
+      usedCredits: row.used_credits,
+      reservedCredits:
+        row.included_reserved_credits +
+        row.purchased_reserved_credits +
+        row.overage_reserved_credits,
+      overageUsedCredits: row.overage_used_credits,
+      overageReservedCredits: row.overage_reserved_credits,
+      ...(purchasedExpiresAt.expires_at
+        ? { purchasedExpiresAt: purchasedExpiresAt.expires_at }
+        : {}),
+      ...(row.cycle_starts_at ? { cycleStartsAt: row.cycle_starts_at } : {}),
+      ...(row.cycle_ends_at ? { cycleEndsAt: row.cycle_ends_at } : {}),
+      overageEnabled: row.overage_enabled === 1,
+      monthlyLimitCredits: row.monthly_limit_credits,
+      alertThresholds: JSON.parse(row.alert_thresholds_json) as number[],
+      ...(autoReload ? { autoReload } : {}),
+    };
+  }
+
+  setPolarCustomer(userId: string, customerId: string, now = new Date().toISOString()): void {
+    this.database
+      .prepare('UPDATE accounts SET polar_customer_id = ?, updated_at = ? WHERE user_id = ?')
+      .run(customerId, now, userId);
+  }
+
+  attachPolarSubscription(
+    sessionId: string,
+    subscriptionId: string,
+    customerId?: string,
+    now = new Date().toISOString(),
+  ): void {
+    const intent = this.database
+      .prepare(
+        "SELECT account_id FROM checkout_intents WHERE session_id = ? AND kind = 'subscription'",
+      )
+      .get(sessionId) as { account_id: string } | undefined;
+    if (!intent) throw new Error(`No subscription checkout intent for ${sessionId}.`);
+    this.database
+      .prepare(
+        `UPDATE accounts SET polar_subscription_id = ?,
+          polar_customer_id = COALESCE(?, polar_customer_id), updated_at = ? WHERE user_id = ?`,
+      )
+      .run(subscriptionId, customerId ?? null, now, intent.account_id);
+  }
+
+  accountForPolarCustomer(customerId: string, now = new Date().toISOString()): StoredAccount {
+    const row = this.database
+      .prepare('SELECT user_id FROM accounts WHERE polar_customer_id = ?')
+      .get(customerId) as { user_id: string } | undefined;
+    if (!row) throw new Error(`Account not found for Polar customer ${customerId}.`);
+    return this.getAccount(row.user_id, now);
+  }
+
+  setSubscriptionStatus(
+    userId: string,
+    status: StoredAccount['planStatus'],
+    now = new Date().toISOString(),
+  ): StoredAccount {
+    this.database
+      .prepare('UPDATE accounts SET plan_status = ?, updated_at = ? WHERE user_id = ?')
+      .run(status, now, userId);
+    return this.getAccount(userId, now);
+  }
+
+  updatePlanWithinCycle(
+    userId: string,
+    planId: ManagedPlanId,
+    includedCredits: number,
+    status: StoredAccount['planStatus'],
+    cycleEndsAt: string,
+    now = new Date().toISOString(),
+  ): StoredAccount {
+    assertCredits(includedCredits, 'includedCredits');
+    this.database
+      .prepare(
+        `UPDATE accounts SET plan_id = ?, plan_status = ?, included_credits = ?,
+          cycle_ends_at = ?, updated_at = ? WHERE user_id = ?`,
+      )
+      .run(planId, status, includedCredits, cycleEndsAt, now, userId);
+    return this.getAccount(userId, now);
+  }
+
+  clearPolarSubscription(userId: string, now = new Date().toISOString()): void {
+    this.database
+      .prepare('UPDATE accounts SET polar_subscription_id = NULL, updated_at = ? WHERE user_id = ?')
+      .run(now, userId);
+  }
+
+  setSpendPolicy(
+    userId: string,
+    policy: Pick<StoredAccount, 'overageEnabled' | 'monthlyLimitCredits' | 'alertThresholds'> & {
+      autoReload?: StoredAccount['autoReload'];
+    },
+    now = new Date().toISOString(),
+  ): StoredAccount {
+    this.database
+      .prepare(
+        `UPDATE accounts SET overage_enabled = ?, monthly_limit_credits = ?,
+          alert_thresholds_json = ?, auto_reload_json = ?, updated_at = ? WHERE user_id = ?`,
+      )
+      .run(
+        policy.overageEnabled ? 1 : 0,
+        policy.monthlyLimitCredits,
+        JSON.stringify(policy.alertThresholds),
+        policy.autoReload ? JSON.stringify(policy.autoReload) : null,
+        now,
+        userId,
+      );
+    return this.getAccount(userId, now);
+  }
+
+  alerts(userId: string): StoredAccountAlert[] {
+    return (
+      this.database
+        .prepare(
+          `SELECT id, kind, message, created_at, read_at FROM account_alerts
+           WHERE account_id = ? ORDER BY created_at DESC LIMIT 100`,
+        )
+        .all(userId) as Array<{
+        id: string;
+        kind: StoredAccountAlert['kind'];
+        message: string;
+        created_at: string;
+        read_at: string | null;
+      }>
+    ).map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      message: row.message,
+      createdAt: row.created_at,
+      ...(row.read_at ? { readAt: row.read_at } : {}),
+    }));
+  }
+
+  markAlertsRead(userId: string, now = new Date().toISOString()): void {
+    this.database
+      .prepare('UPDATE account_alerts SET read_at = ? WHERE account_id = ? AND read_at IS NULL')
+      .run(now, userId);
+  }
+
+  recordThresholdAlerts(userId: string, now = new Date().toISOString()): StoredAccountAlert[] {
+    const account = this.getAccount(userId, now);
+    const total = account.usedCredits + remainingBalance(account);
+    if (total <= 0) return this.alerts(userId);
+    const usedPercent = (account.usedCredits / total) * 100;
+    const cycle = account.cycleStartsAt ?? 'lifetime';
+    for (const threshold of account.alertThresholds) {
+      if (usedPercent < threshold) continue;
+      this.insertAlert(
+        userId,
+        `threshold:${userId}:${cycle}:${threshold}`,
+        'threshold',
+        `${threshold}% credit usage alert: ${account.usedCredits} credits used, ${remainingBalance(account)} remaining.`,
+        now,
+      );
+    }
+    return this.alerts(userId);
+  }
+
+  prepareAutoReload(
+    accountId: string,
+    operationId: string,
+    packId: string,
+    credits: number,
+    now = new Date().toISOString(),
+  ): AutoReloadAttempt | undefined {
+    assertCredits(credits, 'autoReloadCredits');
+    if (credits === 0) throw new Error('autoReloadCredits must be positive.');
+    return this.database.transaction(() => {
+      const existing = this.database
+        .prepare('SELECT * FROM auto_reload_attempts WHERE operation_id = ?')
+        .get(operationId) as
+        | {
+            id: string;
+            account_id: string;
+            pack_id: string;
+            credits: number;
+            state: AutoReloadAttempt['state'];
+          }
+        | undefined;
+      if (existing) {
+        if (
+          existing.account_id !== accountId ||
+          existing.pack_id !== packId ||
+          existing.credits !== credits
+        ) {
+          throw new Error('AUTO_RELOAD_SCOPE_MISMATCH');
+        }
+        return {
+          id: existing.id,
+          accountId: existing.account_id,
+          packId: existing.pack_id,
+          credits: existing.credits,
+          state: existing.state,
+        };
+      }
+      const account = this.getAccount(accountId, now);
+      const policy = account.autoReload;
+      if (!policy?.enabled || remainingBalance(account) >= policy.whenRemainingBelow)
+        return undefined;
+      const cycleStart = account.cycleStartsAt ?? '1970-01-01T00:00:00.000Z';
+      const spent = this.database
+        .prepare(
+          `SELECT COALESCE(SUM(credits), 0) AS credits FROM auto_reload_attempts
+           WHERE account_id = ? AND created_at >= ? AND state IN ('pending','succeeded')`,
+        )
+        .get(accountId, cycleStart) as { credits: number };
+      if (
+        policy.monthlyLimitCredits === 0 ||
+        spent.credits + credits > policy.monthlyLimitCredits
+      ) {
+        this.insertAlert(
+          accountId,
+          `auto-reload-cap:${accountId}:${account.cycleStartsAt ?? 'lifetime'}`,
+          'auto_reload_failed',
+          'Automatic credit reload stopped at its monthly cap.',
+          now,
+        );
+        return undefined;
+      }
+      const id = crypto.randomUUID();
+      this.database
+        .prepare(
+          `INSERT INTO auto_reload_attempts
+            (id, operation_id, account_id, pack_id, credits, state, created_at)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+        )
+        .run(id, operationId, accountId, packId, credits, now);
+      return { id, accountId, packId, credits, state: 'pending' };
+    });
+  }
+
+  succeedAutoReload(
+    attemptId: string,
+    providerId: string,
+    expiresInDays?: number,
+    now = new Date().toISOString(),
+  ): void {
+    this.database.transaction(() => {
+      const attempt = this.autoReloadAttempt(attemptId);
+      if (attempt.state === 'succeeded') return;
+      if (attempt.state === 'failed') throw new Error('AUTO_RELOAD_ALREADY_FAILED');
+      const expiresAt = expiresInDays
+        ? new Date(Date.parse(now) + expiresInDays * 86_400_000).toISOString()
+        : null;
+      const eventId = `polar-order:${providerId}`;
+      this.database
+        .prepare(
+          `INSERT INTO billing_events (event_id, event_type, received_at)
+           VALUES (?, 'auto_reload.paid', ?) ON CONFLICT(event_id) DO NOTHING`,
+        )
+        .run(eventId, now);
+      this.database
+        .prepare(
+          `INSERT INTO purchased_credit_grants
+            (id, event_id, account_id, sku, granted_credits, remaining_credits, expires_at, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(event_id) DO NOTHING`,
+        )
+        .run(
+          crypto.randomUUID(),
+          eventId,
+          attempt.accountId,
+          attempt.packId,
+          attempt.credits,
+          attempt.credits,
+          expiresAt,
+          now,
+        );
+      this.database
+        .prepare(
+          `UPDATE auto_reload_attempts SET state = 'succeeded', provider_id = ?, resolved_at = ?
+           WHERE id = ?`,
+        )
+        .run(providerId, now, attemptId);
+      this.insertAlert(
+        attempt.accountId,
+        `auto-reload-succeeded:${attemptId}`,
+        'auto_reload_succeeded',
+        `Automatically added ${attempt.credits} VGAI credits.`,
+        now,
+      );
+    });
+  }
+
+  failAutoReload(attemptId: string, error: string, now = new Date().toISOString()): void {
+    this.database.transaction(() => {
+      const attempt = this.autoReloadAttempt(attemptId);
+      if (attempt.state !== 'pending') return;
+      this.database
+        .prepare(
+          `UPDATE auto_reload_attempts SET state = 'failed', error = ?, resolved_at = ? WHERE id = ?`,
+        )
+        .run(error.slice(0, 500), now, attemptId);
+      this.insertAlert(
+        attempt.accountId,
+        `auto-reload-failed:${attemptId}`,
+        'auto_reload_failed',
+        'Automatic credit reload failed. Open Billing and invoices to update the payment method.',
+        now,
+      );
+    });
+  }
+
+  recordCheckout(intent: CheckoutIntent, now = new Date().toISOString()): void {
+    this.database
+      .prepare(
+        `INSERT INTO checkout_intents
+          (session_id, account_id, kind, sku, product_id, idempotency_key, credits,
+           expires_in_days, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(session_id) DO UPDATE SET
+           account_id = excluded.account_id, kind = excluded.kind, sku = excluded.sku,
+           product_id = excluded.product_id, idempotency_key = excluded.idempotency_key,
+           credits = excluded.credits,
+           expires_in_days = excluded.expires_in_days`,
+      )
+      .run(
+        intent.sessionId,
+        intent.accountId,
+        intent.kind,
+        intent.sku,
+        intent.productId,
+        intent.idempotencyKey,
+        intent.credits,
+        intent.expiresInDays ?? null,
+        now,
+      );
+  }
+
+  checkoutByIdempotency(idempotencyKey: string): StoredCheckoutIntent | undefined {
+    const row = this.database
+      .prepare('SELECT * FROM checkout_intents WHERE idempotency_key = ?')
+      .get(idempotencyKey) as CheckoutRow | undefined;
+    return row ? checkoutIntent(row) : undefined;
+  }
+
+  checkout(sessionId: string): StoredCheckoutIntent {
+    const row = this.database
+      .prepare('SELECT * FROM checkout_intents WHERE session_id = ?')
+      .get(sessionId) as CheckoutRow | undefined;
+    if (!row) throw new Error(`No trusted checkout intent for session ${sessionId}.`);
+    return checkoutIntent(row);
+  }
+
+  fulfillCheckout(
+    eventId: string,
+    eventType: string,
+    sessionId: string,
+    checkoutStatus: string,
+    now = new Date().toISOString(),
+  ): CheckoutFulfillment {
+    return this.database.transaction(() => {
+      const inserted = this.database
+        .prepare(
+          'INSERT INTO billing_events (event_id, event_type, received_at) VALUES (?, ?, ?) ON CONFLICT(event_id) DO NOTHING',
+        )
+        .run(eventId, eventType, now);
+      if (Number(inserted.changes) === 0) return { duplicate: true, applied: 'none' };
+      if (eventType !== 'checkout.updated' && eventType !== 'checkout.confirmed') {
+        return { duplicate: false, applied: 'none' };
+      }
+      if (checkoutStatus !== 'confirmed') throw new Error('Polar Checkout is not confirmed.');
+      const intent = this.database
+        .prepare('SELECT * FROM checkout_intents WHERE session_id = ?')
+        .get(sessionId) as CheckoutRow | undefined;
+      if (!intent) throw new Error(`No trusted checkout intent for session ${sessionId}.`);
+      if (intent.status === 'fulfilled') return { duplicate: false, applied: 'none' };
+      if (intent.kind === 'credits') {
+        const expiresAt = intent.expires_in_days
+          ? new Date(Date.parse(now) + intent.expires_in_days * 86_400_000).toISOString()
+          : null;
+        this.database
+          .prepare(
+            `INSERT INTO purchased_credit_grants
+              (id, checkout_session_id, event_id, account_id, sku, granted_credits,
+               remaining_credits, expires_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            crypto.randomUUID(),
+            sessionId,
+            eventId,
+            intent.account_id,
+            intent.sku,
+            intent.credits,
+            intent.credits,
+            expiresAt,
+            now,
+          );
+      } else {
+        if (!isPlanId(intent.sku)) throw new Error(`Unknown subscription plan: ${intent.sku}`);
+        const endsAt = new Date(Date.parse(now) + 30 * 86_400_000).toISOString();
+        this.database
+          .prepare(
+            `UPDATE accounts SET plan_id = ?, plan_status = 'active', included_credits = ?,
+              included_used_credits = 0, overage_used_credits = 0, used_credits = 0,
+              cycle_starts_at = ?,
+              cycle_ends_at = ?, updated_at = ? WHERE user_id = ?`,
+          )
+          .run(intent.sku, intent.credits, now, endsAt, now, intent.account_id);
+      }
+      this.database
+        .prepare(
+          `UPDATE checkout_intents SET status = 'fulfilled', fulfilled_at = ? WHERE session_id = ?`,
+        )
+        .run(now, sessionId);
+      return { duplicate: false, applied: intent.kind };
+    });
+  }
+
+  reserve(
+    input: ManagedReservationInput,
+    now = new Date().toISOString(),
+  ): {
+    reservationId: string;
+    estimatedCredits: number;
+  } {
+    assertCredits(input.estimatedCredits, 'estimatedCredits');
+    if (
+      input.platformDailyCreditLimit !== undefined &&
+      (!Number.isSafeInteger(input.platformDailyCreditLimit) || input.platformDailyCreditLimit <= 0)
+    ) {
+      throw new Error('platformDailyCreditLimit must be a positive integer');
+    }
+    return this.database.transaction(() => {
+      if (input.operationId) {
+        const existing = this.database
+          .prepare('SELECT * FROM managed_reservations WHERE operation_id = ?')
+          .get(input.operationId) as ReservationRow | undefined;
+        if (existing) {
+          if (
+            existing.account_id !== input.accountId ||
+            existing.kind !== input.kind ||
+            existing.provider !== input.provider ||
+            (existing.operation ?? undefined) !== input.operation ||
+            existing.estimated_credits !== input.estimatedCredits
+          ) {
+            throw new Error('IDEMPOTENCY_SCOPE_MISMATCH');
+          }
+          if (existing.state !== 'reserved') throw new Error('OPERATION_ALREADY_RESOLVED');
+          return {
+            reservationId: existing.id,
+            estimatedCredits: existing.estimated_credits,
+          };
+        }
+      }
+      const account = this.getAccount(input.accountId, now);
+      if (!account.managedServicesAllowed) {
+        throw new Error('MANAGED_ACCESS_DENIED');
+      }
+      if (input.platformDailyCreditLimit !== undefined) {
+        const dayStart = `${now.slice(0, 10)}T00:00:00.000Z`;
+        const dayEnd = new Date(Date.parse(dayStart) + 86_400_000).toISOString();
+        const platformUsage = this.database
+          .prepare(
+            `SELECT COALESCE(SUM(
+               CASE WHEN state = 'settled'
+                 THEN MAX(estimated_credits, COALESCE(settled_credits, 0))
+                 ELSE estimated_credits
+               END
+             ), 0) AS credits
+             FROM managed_reservations
+             WHERE state IN ('reserved', 'settled') AND created_at >= ? AND created_at < ?`,
+          )
+          .get(dayStart, dayEnd) as { credits: number };
+        if (platformUsage.credits + input.estimatedCredits > input.platformDailyCreditLimit) {
+          throw new Error('PLATFORM_DAILY_CREDIT_LIMIT_REACHED');
+        }
+      }
+      const row = this.accountRow(input.accountId);
+      const includedAvailable = Math.max(
+        0,
+        account.includedCredits - account.includedUsedCredits - row.included_reserved_credits,
+      );
+      const purchasedAvailable = Math.max(
+        0,
+        account.purchasedCredits - row.purchased_reserved_credits,
+      );
+      const available = includedAvailable + purchasedAvailable;
+      const overage = Math.max(0, input.estimatedCredits - available);
+      if (
+        overage > 0 &&
+        (!account.overageEnabled ||
+          account.monthlyLimitCredits === 0 ||
+          account.overageUsedCredits + account.overageReservedCredits + overage >
+            account.monthlyLimitCredits)
+      ) {
+        throw new Error('CREDIT_LIMIT_REACHED');
+      }
+      const reservedIncluded = Math.min(input.estimatedCredits, includedAvailable);
+      const reservedPurchased = Math.min(
+        input.estimatedCredits - reservedIncluded,
+        purchasedAvailable,
+      );
+      const id = crypto.randomUUID();
+      this.database
+        .prepare(
+          `INSERT INTO managed_reservations
+            (id, operation_id, account_id, kind, provider, operation, estimated_credits,
+             reserved_included, reserved_purchased, reserved_overage, state, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?)`,
+        )
+        .run(
+          id,
+          input.operationId ?? null,
+          input.accountId,
+          input.kind,
+          input.provider,
+          input.operation ?? null,
+          input.estimatedCredits,
+          reservedIncluded,
+          reservedPurchased,
+          overage,
+          now,
+        );
+      this.database
+        .prepare(
+          `UPDATE accounts SET included_reserved_credits = included_reserved_credits + ?,
+            purchased_reserved_credits = purchased_reserved_credits + ?,
+            overage_reserved_credits = overage_reserved_credits + ?, updated_at = ?
+           WHERE user_id = ?`,
+        )
+        .run(reservedIncluded, reservedPurchased, overage, now, input.accountId);
+      return { reservationId: id, estimatedCredits: input.estimatedCredits };
+    });
+  }
+
+  settle(
+    reservationId: string,
+    settledCredits: number,
+    externalId?: string,
+    now = new Date().toISOString(),
+  ): { settledCredits: number } {
+    assertCredits(settledCredits, 'settledCredits');
+    return this.database.transaction(() => {
+      const reservation = this.reservation(reservationId);
+      if (reservation.state === 'released') throw new Error('RESERVATION_RELEASED');
+      if (reservation.state === 'settled') {
+        return { settledCredits: reservation.settled_credits ?? 0 };
+      }
+      this.releaseReservedBuckets(reservation, now);
+      const row = this.accountRow(reservation.account_id);
+      const includedAvailable = Math.max(
+        0,
+        row.included_credits - row.included_used_credits - row.included_reserved_credits,
+      );
+      const includedSpent = Math.min(settledCredits, includedAvailable);
+      const purchasedSpent = Math.min(
+        settledCredits - includedSpent,
+        this.purchasedBalance(reservation.account_id, now) - row.purchased_reserved_credits,
+      );
+      const overageSpent = Math.max(0, settledCredits - includedSpent - purchasedSpent);
+      this.consumePurchased(reservation.account_id, purchasedSpent, now);
+      this.database
+        .prepare(
+          `UPDATE accounts SET included_used_credits = included_used_credits + ?,
+            overage_used_credits = overage_used_credits + ?,
+            used_credits = used_credits + ?, updated_at = ? WHERE user_id = ?`,
+        )
+        .run(includedSpent, overageSpent, settledCredits, now, reservation.account_id);
+      this.database
+        .prepare(
+          `UPDATE managed_reservations SET state = 'settled', settled_credits = ?,
+            external_id = ?, resolved_at = ? WHERE id = ?`,
+        )
+        .run(settledCredits, externalId ?? null, now, reservationId);
+      this.database
+        .prepare(
+          `INSERT INTO managed_usage
+            (id, account_id, occurred_at, kind, provider, operation, credits, state, external_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'settled', ?)
+           ON CONFLICT(id) DO NOTHING`,
+        )
+        .run(
+          reservationId,
+          reservation.account_id,
+          now,
+          reservation.kind,
+          reservation.provider,
+          reservation.operation,
+          settledCredits,
+          externalId ?? null,
+        );
+      return { settledCredits };
+    });
+  }
+
+  release(
+    reservationId: string,
+    externalId?: string,
+    now = new Date().toISOString(),
+  ): { released: true } {
+    return this.database.transaction(() => {
+      const reservation = this.reservation(reservationId);
+      if (reservation.state === 'settled') throw new Error('RESERVATION_SETTLED');
+      if (reservation.state === 'released') return { released: true };
+      this.releaseReservedBuckets(reservation, now);
+      this.database
+        .prepare(
+          `UPDATE managed_reservations SET state = 'released', external_id = ?, resolved_at = ?
+           WHERE id = ?`,
+        )
+        .run(externalId ?? null, now, reservationId);
+      this.database
+        .prepare(
+          `INSERT INTO managed_usage
+            (id, account_id, occurred_at, kind, provider, operation, credits, state, external_id)
+           VALUES (?, ?, ?, ?, ?, ?, 0, 'released', ?)
+           ON CONFLICT(id) DO NOTHING`,
+        )
+        .run(
+          reservationId,
+          reservation.account_id,
+          now,
+          reservation.kind,
+          reservation.provider,
+          reservation.operation,
+          externalId ?? null,
+        );
+      return { released: true };
+    });
+  }
+
+  usage(accountId: string): AccountUsageEntry[] {
+    return (
+      this.database
+        .prepare(
+          `SELECT id, occurred_at, kind, provider, operation, credits, state, external_id
+           FROM managed_usage WHERE account_id = ? ORDER BY occurred_at DESC`,
+        )
+        .all(accountId) as Array<{
+        id: string;
+        occurred_at: string;
+        kind: ManagedUsageKind;
+        provider: string;
+        operation: string | null;
+        credits: number;
+        state: 'settled' | 'released';
+        external_id: string | null;
+      }>
+    ).map((row) => ({
+      id: row.id,
+      occurredAt: row.occurred_at,
+      kind: row.kind,
+      provider: row.provider,
+      ...(row.operation ? { operation: row.operation } : {}),
+      credits: row.credits,
+      state: row.state,
+      ...(row.external_id ? { externalId: row.external_id } : {}),
+    }));
+  }
+
+  reservationAccountId(reservationId: string): string {
+    return this.reservation(reservationId).account_id;
+  }
+
+  resetIncludedCredits(
+    accountId: string,
+    cycleKey: string,
+    planId: ManagedPlanId,
+    includedCredits: number,
+    startsAt: string,
+    endsAt: string,
+  ): { duplicate: boolean } {
+    assertCredits(includedCredits, 'includedCredits');
+    return this.database.transaction(() => {
+      const inserted = this.database
+        .prepare(
+          `INSERT INTO billing_cycles
+            (account_id, cycle_key, plan_id, included_credits, starts_at, ends_at)
+           VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(account_id, cycle_key) DO NOTHING`,
+        )
+        .run(accountId, cycleKey, planId, includedCredits, startsAt, endsAt);
+      if (Number(inserted.changes) === 0) return { duplicate: true };
+      this.database
+        .prepare(
+          `UPDATE accounts SET plan_id = ?, plan_status = ?, included_credits = ?,
+            included_used_credits = 0, overage_used_credits = 0, used_credits = 0,
+            cycle_starts_at = ?,
+            cycle_ends_at = ?, updated_at = ? WHERE user_id = ?`,
+        )
+        .run(
+          planId,
+          planId === 'free' ? 'free' : 'active',
+          includedCredits,
+          startsAt,
+          endsAt,
+          startsAt,
+          accountId,
+        );
+      return { duplicate: false };
+    });
+  }
+
+  private insertAlert(
+    accountId: string,
+    dedupeKey: string,
+    kind: StoredAccountAlert['kind'],
+    message: string,
+    now: string,
+  ): void {
+    this.database
+      .prepare(
+        `INSERT INTO account_alerts
+          (id, account_id, dedupe_key, kind, message, created_at)
+         VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(dedupe_key) DO NOTHING`,
+      )
+      .run(crypto.randomUUID(), accountId, dedupeKey, kind, message, now);
+  }
+
+  private autoReloadAttempt(id: string): AutoReloadAttempt {
+    const row = this.database.prepare('SELECT * FROM auto_reload_attempts WHERE id = ?').get(id) as
+      | {
+          id: string;
+          account_id: string;
+          pack_id: string;
+          credits: number;
+          state: AutoReloadAttempt['state'];
+        }
+      | undefined;
+    if (!row) throw new Error('UNKNOWN_AUTO_RELOAD_ATTEMPT');
+    return {
+      id: row.id,
+      accountId: row.account_id,
+      packId: row.pack_id,
+      credits: row.credits,
+      state: row.state,
+    };
+  }
+
+  private accountRow(userId: string): AccountRow {
+    const row = this.database.prepare('SELECT * FROM accounts WHERE user_id = ?').get(userId) as
+      | AccountRow
+      | undefined;
+    if (!row) throw new Error(`Account not found: ${userId}`);
+    return row;
+  }
+
+  private reservation(id: string): ReservationRow {
+    const row = this.database.prepare('SELECT * FROM managed_reservations WHERE id = ?').get(id) as
+      | ReservationRow
+      | undefined;
+    if (!row) throw new Error('UNKNOWN_RESERVATION');
+    return row;
+  }
+
+  private purchasedBalance(accountId: string, now: string): number {
+    const row = this.database
+      .prepare(
+        `SELECT COALESCE(SUM(remaining_credits), 0) AS credits FROM purchased_credit_grants
+         WHERE account_id = ? AND (expires_at IS NULL OR expires_at > ?)`,
+      )
+      .get(accountId, now) as { credits: number };
+    return row.credits;
+  }
+
+  private consumePurchased(accountId: string, credits: number, now: string): void {
+    let remaining = credits;
+    const grants = this.database
+      .prepare(
+        `SELECT id, remaining_credits FROM purchased_credit_grants
+         WHERE account_id = ? AND remaining_credits > 0 AND (expires_at IS NULL OR expires_at > ?)
+         ORDER BY CASE WHEN expires_at IS NULL THEN 1 ELSE 0 END, expires_at, created_at`,
+      )
+      .all(accountId, now) as Array<{ id: string; remaining_credits: number }>;
+    for (const grant of grants) {
+      if (remaining <= 0) break;
+      const consumed = Math.min(remaining, grant.remaining_credits);
+      this.database
+        .prepare(
+          'UPDATE purchased_credit_grants SET remaining_credits = remaining_credits - ? WHERE id = ?',
+        )
+        .run(consumed, grant.id);
+      remaining -= consumed;
+    }
+  }
+
+  private releaseReservedBuckets(reservation: ReservationRow, now: string): void {
+    this.database
+      .prepare(
+        `UPDATE accounts SET
+          included_reserved_credits = MAX(0, included_reserved_credits - ?),
+          purchased_reserved_credits = MAX(0, purchased_reserved_credits - ?),
+          overage_reserved_credits = MAX(0, overage_reserved_credits - ?),
+          updated_at = ? WHERE user_id = ?`,
+      )
+      .run(
+        reservation.reserved_included,
+        reservation.reserved_purchased,
+        reservation.reserved_overage,
+        now,
+        reservation.account_id,
+      );
+  }
+}
+
+function assertCredits(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+}
+
+function remainingBalance(account: StoredAccount): number {
+  return Math.max(
+    0,
+    account.includedCredits -
+      account.includedUsedCredits +
+      account.purchasedCredits -
+      account.reservedCredits,
+  );
+}
+
+function isPlanId(value: string): value is ManagedPlanId {
+  return ['free', 'creator', 'max', 'ultra'].includes(value);
+}
+
+function checkoutIntent(row: CheckoutRow): StoredCheckoutIntent {
+  return {
+    sessionId: row.session_id,
+    accountId: row.account_id,
+    kind: row.kind,
+    sku: row.sku,
+    productId: row.product_id,
+    idempotencyKey: row.idempotency_key,
+    credits: row.credits,
+    ...(row.expires_in_days ? { expiresInDays: row.expires_in_days } : {}),
+    status: row.status,
+  };
+}
