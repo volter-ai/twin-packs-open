@@ -1,0 +1,3918 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "LinkedIn Marketing API: Posts, Images, Videos, Organizations (written from the reference pages)",
+    "version": "202609",
+    "description": "Written from LinkedIn's Microsoft Learn reference pages at the Marketing September 2026 version (202609); LinkedIn publishes no OpenAPI document. See SOURCE.md."
+  },
+  "servers": [
+    {
+      "url": "https://api.linkedin.com/rest"
+    }
+  ],
+  "paths": {
+    "/posts": {
+      "post": {
+        "operationId": "createPost",
+        "summary": "Create a Post",
+        "description": "The Posts API facilitates the creation and retrieval of organic and sponsored posts. You should get a 201 response and the response header x-restli-id contains the Post ID such as urn:li:share:6844785523593134080 or urn:li:ugcPost:68447855235931240.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The Post is created with a 201 response and the response header x-restli-id contains the Post ID",
+            "headers": {
+              "x-restli-id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostCreate"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/posts?q=author": {
+      "get": {
+        "operationId": "findPostsByAuthor",
+        "summary": "Find Posts by Authors",
+        "description": "Retrieve all posts for a member or organization. By default, all Posts API finder results are sorted by post last modified time (lastModifiedAt field) in descending order (latest to oldest). Configure this using the optional sortBy param. The default is 10 and maximum allowed count is 100.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Must be author",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "author"
+              ]
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": true,
+            "description": "Author of the post (can be either posted from a member or their company page).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "viewContext",
+            "in": "query",
+            "required": false,
+            "description": "By default, viewContext is READER, which specifies the version of the post that has been published and is viewable to general audience.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "READER",
+                "AUTHOR"
+              ],
+              "default": "READER"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "description": "The index of the first item you want results for.",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "description": "The number of items you want included on each page of results. There could be fewer items remaining than the value you specify. The default is 10 and maximum allowed count is 100.",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "description": "The sort order for the results in descending order. LAST_MODIFIED (for last modified time) or CREATED (for created time).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LAST_MODIFIED",
+                "CREATED"
+              ],
+              "default": "LAST_MODIFIED"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The author's posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/posts?q=dscAdAccount": {
+      "get": {
+        "operationId": "findPostsByAccount",
+        "summary": "Find Posts by Account",
+        "description": "Retrieve all posts with the specific Sponsored Account and the content types.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Must be dscAdAccount",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "dscAdAccount"
+              ]
+            }
+          },
+          {
+            "name": "dscAdAccount",
+            "in": "query",
+            "required": true,
+            "description": "URN of the DSC Ad Account associated with a post",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dscAdTypes",
+            "in": "query",
+            "required": false,
+            "description": "DSC ad types to search for",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "viewContext",
+            "in": "query",
+            "required": false,
+            "description": "viewContext in which you're looking at the posts",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "READER",
+                "AUTHOR"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account's posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/posts/{postUrn}": {
+      "get": {
+        "operationId": "getPost",
+        "summary": "Get Posts by URN",
+        "description": "To retrieve posts, use URNs such as: ugcPostUrn (urn:li:ugcPost:{id}) or shareUrn (urn:li:share:{id}). By default, viewContext is READER, which specifies the version of the post that has been published and is viewable to a general audience. The AUTHOR viewContext can be used to retrieve the latest version of a post, which has not yet been published; it can be in a number of possible states such as: PUBLISHED, DRAFT or PROCESSING. URNs included in the URL params must be URL encoded.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "postUrn",
+            "in": "path",
+            "required": true,
+            "description": "The URL-encoded ugcPostUrn or shareUrn",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "viewContext",
+            "in": "query",
+            "required": false,
+            "description": "viewContext READER or AUTHOR",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "READER",
+                "AUTHOR"
+              ],
+              "default": "READER"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "updatePost",
+        "summary": "Update Posts",
+        "description": "When you perform an update, the header X-RestLi-Method must be included in the request and set to PARTIAL_UPDATE. A successful response returns a 204 code.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "postUrn",
+            "in": "path",
+            "required": true,
+            "description": "The URL-encoded ugcPostUrn or shareUrn",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "A successful response returns a 204 code."
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostPartialUpdate"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deletePost",
+        "summary": "Delete Posts",
+        "description": "Post deletions are idempotent. Deletion requests for a previously deleted UGC Post will return a 204 code - No Content. Batch delete of Posts is not supported.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "postUrn",
+            "in": "path",
+            "required": true,
+            "description": "The URL-encoded ugcPostUrn or shareUrn",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "A successful response returns a 204 code notification."
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/images?action=initializeUpload": {
+      "post": {
+        "operationId": "initializeImageUpload",
+        "summary": "Initialize Image Upload",
+        "description": "Use the initializeUpload action to register the upload. When you initialize, you declare the upcoming upload. Use the upload URL to upload the image. SYNCHRONOUS_UPLOAD is not supported in Images API. The Images API supports the following image pixel count and formats: Images with less than 36,152,320 pixels. JPG, GIF, and PNG formats. GIF format supports up to 250 frames. For images with company URN owners, the caller must have ADMIN or DSC permissions for the company page. For images with member URN owners, the caller must match the image owner.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": true,
+            "description": "Must be initializeUpload",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "initializeUpload"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response returns a 200 OK status code with the uploadUrl to upload the image.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitializeImageUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitializeImageUploadRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/images?q=associatedAccount": {
+      "get": {
+        "operationId": "findImagesByAssociatedAccount",
+        "summary": "Find by associated account",
+        "description": "Get the Images associated with the specified account, by descending order of last modified time.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Must be associatedAccount",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "associatedAccount"
+              ]
+            }
+          },
+          {
+            "name": "associatedAccount",
+            "in": "query",
+            "required": true,
+            "description": "The associated account",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaLibraryStatus",
+            "in": "query",
+            "required": false,
+            "description": "Optional filter on the media library status.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "description": "The index at which the returned elements should begin. Defaults to 0.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "description": "The number of elements to return, up to 1,000. Defaults to 10.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account's images",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "paging": {
+                      "$ref": "#/components/schemas/Paging"
+                    },
+                    "elements": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Image"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/images/{imageUrn}": {
+      "get": {
+        "operationId": "getImage",
+        "summary": "GET a single image",
+        "description": "The permissions required for rest/images access are: rw_ads, w_member_social, w_organization_social, and w_power_creators. However, w_member_social permission are write-only and tokens with only w_member_social permissions would be unable to perform a GET call for rest/images.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "imageUrn",
+            "in": "path",
+            "required": true,
+            "description": "The image URN",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Image"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "updateImage",
+        "summary": "Partial Update on an Image",
+        "description": "Only supports updates on the media library metadata and only for the specified account. As such, the associatedAccount parameter is mandatory. Silently ignores any other patch data.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "imageUrn",
+            "in": "path",
+            "required": true,
+            "description": "The image URN",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "associatedAccount",
+            "in": "query",
+            "required": true,
+            "description": "The associated account",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "A successful response returns a 204 status code."
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "patch": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/videos?action=initializeUpload": {
+      "post": {
+        "operationId": "initializeVideoUpload",
+        "summary": "Initialize Video Upload",
+        "description": "Use the initializeUpload action to register the upload. When you initialize, you declare the upcoming upload. Use the upload URL from the uploadInstructions to upload the video. Initialize upload action is same irrespective of the file size, based on the file size, the response may have one or multiple upload URLs. For videos with company URN owners, the caller needs to have ADMIN or DSC permissions for the company page. For videos with member URN owners, the caller needs to match the video owner.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": true,
+            "description": "Must be initializeUpload",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "initializeUpload"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response returns a 200 OK status code with the uploadUrl to upload the video.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitializeVideoUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitializeVideoUploadRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/videos?action=finalizeUpload": {
+      "post": {
+        "operationId": "finalizeVideoUpload",
+        "summary": "Finalize Video Upload",
+        "description": "Finalize the multipart upload with the ETags of its parts. A successful response returns the 200 OK status code.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": true,
+            "description": "Must be finalizeUpload",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "finalizeUpload"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response returns the 200 OK status code."
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizeVideoUploadRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/videos/{videoUrn}": {
+      "get": {
+        "operationId": "getVideo",
+        "summary": "Get a Video",
+        "description": "Get a video by its URN. Length: Three seconds to 30 minutes. File size: Between 75kb and 500MB. File format: MP4.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "videoUrn",
+            "in": "path",
+            "required": true,
+            "description": "The URL-encoded video URN",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The video",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Video"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/organizationAcls?q=roleAssignee": {
+      "get": {
+        "operationId": "findOrganizationAclsByRoleAssignee",
+        "summary": "Find a Member's Organization Access Control Information",
+        "description": "Search for access control information by member or organizational entity URNs. FINDER requests must include a header for Restli Protocol 2.0.0",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Must be roleAssignee",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "roleAssignee"
+              ]
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Limit results to specific roles, such as ADMINISTRATOR or DIRECT_SPONSORED_CONTENT_POSTER",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "Limit results to specific role states, such as APPROVED or REQUESTED.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "description": "The index of the first result",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "description": "The page size",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member's organization roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationAclCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/organizationAcls?q=organization": {
+      "get": {
+        "operationId": "findOrganizationAclsByOrganization",
+        "summary": "Find Organization Access Control",
+        "description": "Find Organization Administrators: the roles of an organization, optionally limited to one role and state.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Must be organization",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "organization"
+              ]
+            }
+          },
+          {
+            "name": "organization",
+            "in": "query",
+            "required": true,
+            "description": "The encoded organization URN",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Limit results to specific roles",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "Limit results to specific role states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "description": "The index of the first result",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "description": "The page size",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The organization's roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationAclCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/organizations/{organizationId}": {
+      "get": {
+        "operationId": "getOrganization",
+        "summary": "Retrieve an Administered Organization",
+        "description": "Use the organization ID to look up organization information on behalf of authenticated members with role type ADMINISTRATOR for that organization. API calls with insufficient permissions return 403 Forbidden.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/organizations?q=vanityName": {
+      "get": {
+        "operationId": "findOrganizationByVanityName",
+        "summary": "Find Organization by Vanity Name",
+        "description": "Look up organizations using vanityName to retrieve Non-Admin Fields.",
+        "parameters": [
+          {
+            "name": "Linkedin-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header Linkedin-Version: {Version in YYYYMM format}.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          },
+          {
+            "name": "X-Restli-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "description": "All APIs require the request header X-Restli-Protocol-Version: 2.0.0",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "2.0.0"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Must be vanityName",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vanityName"
+              ]
+            }
+          },
+          {
+            "name": "vanityName",
+            "in": "query",
+            "required": true,
+            "description": "The vanity name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The organizations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "NONEXISTENT_VERSION: the version header is deprecated or not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/userinfo": {
+      "servers": [
+        {
+          "url": "https://api.linkedin.com/v2"
+        }
+      ],
+      "get": {
+        "operationId": "userinfo",
+        "summary": "API Request to retreive member details",
+        "description": "In addition to the JWT received, you can also call userinfo endpoint to retrieve the member details.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/dms-uploads/{asset}/uploadedVideo": {
+      "servers": [
+        {
+          "url": "https://www.linkedin.com"
+        }
+      ],
+      "put": {
+        "operationId": "uploadVideoPart",
+        "summary": "Upload the Video",
+        "description": "PUT a part's bytes to the uploadUrl of its upload instruction. The headers in the response return an ETag as shown below. Ensure that you save eTag for future use. A successful response returns a 200 OK status code. The upload video call doesn't accept an OAuth token. Trying to upload to expired URLs would throw a 401 error.",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "path",
+            "required": true,
+            "description": "The asset id the upload URL names",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sau",
+            "in": "query",
+            "required": true,
+            "description": "The upload URL's signature",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response returns a 200 OK status code.",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/dms-uploads/{asset}/uploaded-image/{part}": {
+      "servers": [
+        {
+          "url": "https://www.linkedin.com"
+        }
+      ],
+      "put": {
+        "operationId": "uploadImage",
+        "summary": "Upload the Image",
+        "description": "Use the uploadUrl from the previous step to upload the image. Use a PUT method to upload the image. The upload call requires a valid OAuth token in the Authorization header. This is different than the upload video call which doesn't accept an OAuth token.",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "path",
+            "required": true,
+            "description": "The asset id the upload URL names",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "ut",
+            "in": "query",
+            "required": true,
+            "description": "The upload URL's token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "HTTP/2 201"
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "oauth2": []
+          }
+        ]
+      }
+    },
+    "/dms-uploads/{asset}/ads-video-userUploadedThumbnail/{part}": {
+      "servers": [
+        {
+          "url": "https://www.linkedin.com"
+        }
+      ],
+      "put": {
+        "operationId": "uploadVideoThumbnail",
+        "summary": "Upload Thumbnail",
+        "description": "Upload the thumbnail image to the thumbnailUploadUrl. A successful response returns a 201 Created status code.",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "path",
+            "required": true,
+            "description": "The video asset id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "ut",
+            "in": "query",
+            "required": true,
+            "description": "The upload URL's token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "A successful response returns a 201 Created status code."
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/dms-mpf-uploads/{asset}/userUploadedCustomCaptions/{captionId}/{part}": {
+      "servers": [
+        {
+          "url": "https://www.linkedin.com"
+        }
+      ],
+      "post": {
+        "operationId": "uploadVideoCaptions",
+        "summary": "Upload Captions",
+        "description": "Upload the caption file to the captionsUploadUrl as multipart/form-data with its metadata and file parts. A successful response returns a 201 Created status code.",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "path",
+            "required": true,
+            "description": "The video asset id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "captionId",
+            "in": "path",
+            "required": true,
+            "description": "The caption upload id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "ut",
+            "in": "query",
+            "required": true,
+            "description": "The upload URL's token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "A successful response returns a 201 Created status code."
+          },
+          "400": {
+            "description": "Bad request: INVALID_URN_TYPE, INVALID_URN_ID, MISSING_FIELD, INVALID_VALUE_FOR_FIELD, FIELD_LENGTH_TOO_LONG, INVALID_VALUE_BLANK_FIELD, VERSION_MISSING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EMPTY_ACCESS_TOKEN: Empty or missing OAuth2 access token. Include a valid token in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCESS_DENIED: Insufficient permissions to perform the requested action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: The API rate limit has been exceeded. Reduce request frequency and retry after a delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metadata": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "metadata",
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "description": "Error responses have the following details: message - A description of the error. serviceErrorCode - A subcode that further classifies the error. status - The type of error (status code).",
+        "properties": {
+          "status": {
+            "type": "integer"
+          },
+          "serviceErrorCode": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message"
+        ]
+      },
+      "Paging": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rel": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "href": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "start",
+          "count",
+          "links"
+        ]
+      },
+      "Distribution": {
+        "type": "object",
+        "description": "Distribution of the post both in LinkedIn and externally",
+        "properties": {
+          "feedDistribution": {
+            "type": "string",
+            "enum": [
+              "MAIN_FEED",
+              "NONE"
+            ],
+            "description": "Specifies the feeds distributed to within LinkedIn. NONE-Do not distribute within LinkedIn via feed. MAIN_FEED-Distribute to the flagship feed, and container entity feed if applicable."
+          },
+          "targetEntities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Intended audience for this post. The target entities targeted for distribution. The distribution is an OR of the targets in the array."
+          },
+          "thirdPartyDistributionChannels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "External distribution channels that this post is distributed to (e.g., Twitter, Tencent, Weibo). Empty array indicates the post is not externally distributed."
+          }
+        },
+        "required": [
+          "feedDistribution"
+        ]
+      },
+      "MediaContent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The URN of the media such as image or video."
+          },
+          "title": {
+            "type": "string",
+            "description": "The media title (Required field for Documents API)."
+          },
+          "altText": {
+            "type": "string",
+            "description": "The alternate text for the media. None if empty. Optional."
+          },
+          "taggedEntities": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ArticleContent": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "thumbnail": {
+            "type": "string"
+          },
+          "thumbnailAltText": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "Content": {
+        "type": "object",
+        "description": "The posted content (if any, e.g., video). Optional content indicates a post with only commentary.",
+        "properties": {
+          "media": {
+            "$ref": "#/components/schemas/MediaContent"
+          },
+          "article": {
+            "$ref": "#/components/schemas/ArticleContent"
+          },
+          "poll": {
+            "type": "object",
+            "description": "Details of Poll content (can only be non-sponsored)."
+          },
+          "multiImage": {
+            "type": "object",
+            "description": "Details of MultiImage content (can only be non-sponsored)."
+          },
+          "carousel": {
+            "type": "object",
+            "description": "Details of Carousel content (Can only be sponsored)."
+          },
+          "celebration": {
+            "type": "object",
+            "description": "Details of Celebration content (can only be non-sponsored and currently, celebration post can't be created through external api)."
+          },
+          "reference": {
+            "type": "object",
+            "description": "Details of Reference content like event and appreciation."
+          }
+        }
+      },
+      "LifecycleStateInfo": {
+        "type": "object",
+        "description": "Additional information about the lifecycle state for PUBLISH_REQUESTED or PUBLISH_FAILED.",
+        "properties": {
+          "contentStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "FAILED"
+            ],
+            "description": "Status for post content. If absent, then state doesn't wait for content processing. PENDING, PROCESSING, and FAILED are available values. If processing completes UGC transitions to PUBLISHED and the contentStatus is null."
+          },
+          "isEditedByAuthor": {
+            "type": "boolean",
+            "description": "Indicates whether a post was edited by the author after publishing."
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "FAILED"
+            ]
+          }
+        }
+      },
+      "ReshareContext": {
+        "type": "object",
+        "description": "The context in which the post was re-shared - only be set for re-shares.",
+        "properties": {
+          "parent": {
+            "type": "string"
+          },
+          "root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "parent"
+        ]
+      },
+      "AdContext": {
+        "type": "object",
+        "properties": {
+          "dscAdAccount": {
+            "type": "string"
+          },
+          "dscAdType": {
+            "type": "string",
+            "enum": [
+              "VIDEO",
+              "STANDARD",
+              "CAROUSEL",
+              "JOB_POSTING",
+              "NATIVE_DOCUMENT",
+              "EVENT"
+            ]
+          },
+          "dscName": {
+            "type": "string"
+          },
+          "dscStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "isDsc": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Post": {
+        "type": "object",
+        "description": "Post Schema",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique ID for the object. Can contain more URN types (in development) ugcPostUrn or shareUrn read-only"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author of the post (can be either posted as member or their company page)."
+          },
+          "adContext": {
+            "$ref": "#/components/schemas/AdContext"
+          },
+          "commentary": {
+            "type": "string",
+            "description": "The user generated commentary for the post. little text"
+          },
+          "container": {
+            "type": "string"
+          },
+          "content": {
+            "$ref": "#/components/schemas/Content"
+          },
+          "contentLandingPage": {
+            "type": "string"
+          },
+          "contentCallToActionLabel": {
+            "type": "string",
+            "enum": [
+              "APPLY",
+              "DOWNLOAD",
+              "VIEW_QUOTE",
+              "LEARN_MORE",
+              "SIGN_UP",
+              "SUBSCRIBE",
+              "REGISTER",
+              "JOIN",
+              "ATTEND",
+              "REQUEST_DEMO",
+              "SEE_MORE",
+              "BUY_NOW",
+              "SHOP_NOW"
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Time at which the resource was created in milliseconds since epoch."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/Distribution"
+          },
+          "isReshareDisabledByAuthor": {
+            "type": "boolean",
+            "default": false,
+            "description": "Indicates whether resharing of the post has been disabled by the author."
+          },
+          "lastModifiedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Time at which the resource was last modified in milliseconds since epoch."
+          },
+          "lastModifiedBy": {
+            "type": "string"
+          },
+          "lifecycleState": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "PUBLISH_REQUESTED",
+              "PUBLISH_FAILED"
+            ],
+            "description": "The state of the content. PUBLISHED is the only accepted field during creation. The following values can be returned in responses: DRAFT - Represents content that's accessible only to the author and is not yet published. PUBLISHED - Represents content that's accessible to all entities. This is the only accepted field during creation. PUBLISH_REQUESTED - Represents content that has been submitted for publishing but is not yet ready for rendering. The content will be published asynchronously once the processing has successfully completed. PUBLISH_FAILED - Represents content that has been submitted for publishing but was not processed. An edit is required in order to re-attempt publishing."
+          },
+          "lifecycleStateInfo": {
+            "$ref": "#/components/schemas/LifecycleStateInfo"
+          },
+          "publishedAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The time at which the content was published represented in epoch time."
+          },
+          "publishedBy": {
+            "type": "string"
+          },
+          "reshareContext": {
+            "$ref": "#/components/schemas/ReshareContext"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "CONNECTIONS",
+              "PUBLIC",
+              "LOGGED_IN",
+              "CONTAINER"
+            ],
+            "description": "Visibility restrictions on content. Type of MemberNetworkVisibility with the following values: CONNECTIONS - Represents 1st degree network of owner. PUBLIC - Anyone can view this. LOGGED_IN - Viewable by logged in members only. CONTAINER - Visibility is delegated to the owner of the container entity."
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "commentary",
+          "visibility",
+          "distribution",
+          "lifecycleState"
+        ]
+      },
+      "PostCreate": {
+        "type": "object",
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "commentary": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "CONNECTIONS",
+              "PUBLIC",
+              "LOGGED_IN",
+              "CONTAINER"
+            ]
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/Distribution"
+          },
+          "content": {
+            "$ref": "#/components/schemas/Content"
+          },
+          "lifecycleState": {
+            "type": "string",
+            "enum": [
+              "PUBLISHED"
+            ]
+          },
+          "isReshareDisabledByAuthor": {
+            "type": "boolean"
+          },
+          "reshareContext": {
+            "type": "object",
+            "properties": {
+              "parent": {
+                "type": "string"
+              }
+            }
+          },
+          "container": {
+            "type": "string"
+          },
+          "contentLandingPage": {
+            "type": "string"
+          },
+          "contentCallToActionLabel": {
+            "type": "string"
+          },
+          "adContext": {
+            "$ref": "#/components/schemas/AdContext"
+          }
+        },
+        "required": [
+          "author",
+          "commentary",
+          "visibility",
+          "distribution",
+          "lifecycleState"
+        ]
+      },
+      "PostCollection": {
+        "type": "object",
+        "properties": {
+          "paging": {
+            "$ref": "#/components/schemas/Paging"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Post"
+            }
+          }
+        },
+        "required": [
+          "paging",
+          "elements"
+        ]
+      },
+      "PostPartialUpdate": {
+        "type": "object",
+        "properties": {
+          "patch": {
+            "type": "object"
+          }
+        }
+      },
+      "MediaLibraryMetadata": {
+        "type": "object",
+        "description": "Metadata for assets stored in the media library.",
+        "properties": {
+          "associatedAccount": {
+            "type": "string"
+          },
+          "assetName": {
+            "type": "string"
+          },
+          "mediaLibraryStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          }
+        },
+        "required": [
+          "associatedAccount",
+          "assetName"
+        ]
+      },
+      "Image": {
+        "type": "object",
+        "description": "Image API makes it easier for you to manage image assets and create image ads.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique URN for an Image."
+          },
+          "owner": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "WAITING_UPLOAD",
+              "PROCESSING",
+              "AVAILABLE",
+              "PROCESSING_FAILED"
+            ],
+            "description": "PROCESSING Asset is processing to generate missing artifacts. PROCESSING_FAILED - Processing failed due to client error such as file size too large, unsupported file format, internal error (e.g., performance issue, database error, network failure), or other issue. AVAILABLE - All of the recipe's required artifacts are ready. The asset is available to be served. WAITING_UPLOAD Waiting for client to upload source file or uploading process to be completed."
+          },
+          "downloadUrl": {
+            "type": "string"
+          },
+          "downloadUrlExpiresAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "aspectRatioHeight": {
+            "type": "number"
+          },
+          "aspectRatioWidth": {
+            "type": "number"
+          },
+          "altText": {
+            "type": "string"
+          },
+          "mediaLibraryMetadata": {
+            "$ref": "#/components/schemas/MediaLibraryMetadata"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "status"
+        ]
+      },
+      "InitializeImageUploadRequest": {
+        "type": "object",
+        "properties": {
+          "initializeUploadRequest": {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "string",
+                "description": "URN of the entity that owns this asset. Can be a person(urn:li:person:123), or organization(urn:li:organization:123) URN"
+              },
+              "mediaLibraryMetadata": {
+                "$ref": "#/components/schemas/MediaLibraryMetadata"
+              }
+            },
+            "required": [
+              "owner"
+            ]
+          }
+        },
+        "required": [
+          "initializeUploadRequest"
+        ]
+      },
+      "InitializeImageUploadResponse": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "object",
+            "properties": {
+              "uploadUrlExpiresAt": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "uploadUrl": {
+                "type": "string"
+              },
+              "image": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "uploadUrlExpiresAt",
+              "uploadUrl",
+              "image"
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "VideoPartUploadInstruction": {
+        "type": "object",
+        "properties": {
+          "firstByte": {
+            "type": "integer",
+            "format": "int64",
+            "description": "First byte (inclusive) in the byte range to upload in this part."
+          },
+          "lastByte": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The last byte (inclusive) in the range to upload in this part."
+          },
+          "uploadUrl": {
+            "type": "string",
+            "description": "HTTP upload URL that you'll use to make HTTP PUT request."
+          }
+        },
+        "required": [
+          "firstByte",
+          "lastByte",
+          "uploadUrl"
+        ]
+      },
+      "Video": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique video URN. This field is read only."
+          },
+          "owner": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "WAITING_UPLOAD",
+              "PROCESSING",
+              "AVAILABLE",
+              "PROCESSING_FAILED"
+            ],
+            "description": "PROCESSING Asset is processing to generate missing artifacts. PROCESSING_FAILED Processing failed due to client error such as file size too large, unsupported file format, internal error (e.g., performance issue, database error, network failure), or other issue. AVAILABLE All of the recipe's required artifacts are ready. The asset is available to be served. WAITING_UPLOAD Waiting for client to upload source file or uploading process to be completed."
+          },
+          "processingFailureReason": {
+            "type": "string",
+            "description": "Reason for video processing failure. This field will only be present if video.status is PROCESSING_FAILED."
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The length of the video in milliseconds."
+          },
+          "aspectRatioHeight": {
+            "type": "number"
+          },
+          "aspectRatioWidth": {
+            "type": "number"
+          },
+          "thumbnail": {
+            "type": "string"
+          },
+          "captions": {
+            "type": "string"
+          },
+          "downloadUrl": {
+            "type": "string"
+          },
+          "downloadUrlExpiresAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "mediaLibraryMetadata": {
+            "$ref": "#/components/schemas/MediaLibraryMetadata"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "status"
+        ]
+      },
+      "InitializeVideoUploadRequest": {
+        "type": "object",
+        "properties": {
+          "initializeUploadRequest": {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "string",
+                "description": "URN of the entity that owns this asset. Can be a person(urn:li:person:123), or organization(urn:li:organization:123) URN"
+              },
+              "fileSizeBytes": {
+                "type": "integer",
+                "format": "int64",
+                "description": "File size in bytes. This determines how many parts the video upload will be broken into. Maximum allowed Videos size is 5GB."
+              },
+              "uploadCaptions": {
+                "type": "boolean",
+                "default": false
+              },
+              "uploadThumbnail": {
+                "type": "boolean",
+                "default": false
+              },
+              "mediaLibraryMetadata": {
+                "$ref": "#/components/schemas/MediaLibraryMetadata"
+              },
+              "templateName": {
+                "type": "string"
+              },
+              "linkbackContext": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "owner",
+              "fileSizeBytes"
+            ]
+          }
+        },
+        "required": [
+          "initializeUploadRequest"
+        ]
+      },
+      "InitializeVideoUploadResponse": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "object",
+            "properties": {
+              "uploadUrlsExpireAt": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Typically URLs expire 30 days from the time an upload is initialized."
+              },
+              "video": {
+                "type": "string"
+              },
+              "uploadInstructions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/VideoPartUploadInstruction"
+                },
+                "description": "Parts are sorted by non-overlapping byte-range. The first entry is byte range: 0 - 4194303, the next one with 4194304 - 8388607 and so on."
+              },
+              "uploadToken": {
+                "type": "string"
+              },
+              "captionsUploadUrl": {
+                "type": "string"
+              },
+              "thumbnailUploadUrl": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "uploadUrlsExpireAt",
+              "video",
+              "uploadInstructions",
+              "uploadToken"
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "FinalizeVideoUploadRequest": {
+        "type": "object",
+        "properties": {
+          "finalizeUploadRequest": {
+            "type": "object",
+            "properties": {
+              "video": {
+                "type": "string"
+              },
+              "uploadToken": {
+                "type": "string",
+                "description": "Identifier for an upload session."
+              },
+              "uploadedPartIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "IDs for each uploaded video part in the multipart upload. The order needs to be the same as the order of parts in the upload instructions. Callers are should get the IDs as ETags from the response headers when they upload the videos."
+              }
+            },
+            "required": [
+              "video",
+              "uploadToken",
+              "uploadedPartIds"
+            ]
+          }
+        },
+        "required": [
+          "finalizeUploadRequest"
+        ]
+      },
+      "LocaleString": {
+        "type": "object",
+        "properties": {
+          "localized": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "preferredLocale": {
+            "type": "object",
+            "properties": {
+              "country": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "description": "Organization URNs are in the format urn:li:organization:{organization id} and represent a LinkedIn Company Page.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "$URN": {
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/LocaleString"
+          },
+          "localizedName": {
+            "type": "string"
+          },
+          "vanityName": {
+            "type": "string"
+          },
+          "localizedWebsite": {
+            "type": "string"
+          },
+          "website": {
+            "$ref": "#/components/schemas/LocaleString"
+          },
+          "description": {
+            "$ref": "#/components/schemas/LocaleString"
+          },
+          "localizedDescription": {
+            "type": "string"
+          },
+          "logoV2": {
+            "type": "object"
+          },
+          "coverPhotoV2": {
+            "type": "object"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "primaryOrganizationType": {
+            "type": "string",
+            "enum": [
+              "SCHOOL",
+              "BRAND",
+              "NONE"
+            ]
+          },
+          "organizationType": {
+            "type": "string",
+            "enum": [
+              "PUBLIC_COMPANY",
+              "EDUCATIONAL",
+              "SELF_EMPLOYED",
+              "GOVERNMENT_AGENCY",
+              "NON_PROFIT",
+              "SELF_OWNED",
+              "PRIVATELY_HELD",
+              "PARTNERSHIP"
+            ]
+          },
+          "staffCountRange": {
+            "type": "string",
+            "enum": [
+              "SIZE_1",
+              "SIZE_2_TO_10",
+              "SIZE_11_TO_50",
+              "SIZE_51_TO_200",
+              "SIZE_201_TO_500",
+              "SIZE_501_TO_1000",
+              "SIZE_1001_TO_5000",
+              "SIZE_5001_TO_10000",
+              "SIZE_10001_OR_MORE"
+            ]
+          },
+          "industries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "versionTag": {
+            "type": "string"
+          },
+          "defaultLocale": {
+            "type": "object",
+            "properties": {
+              "country": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              }
+            }
+          },
+          "alternativeNames": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "specialties": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "localizedSpecialties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "localizedName",
+          "vanityName",
+          "primaryOrganizationType",
+          "locations"
+        ]
+      },
+      "OrganizationAcl": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMINISTRATOR",
+              "DIRECT_SPONSORED_CONTENT_POSTER",
+              "RECRUITING_POSTER",
+              "LEAD_CAPTURE_ADMINISTRATOR",
+              "LEAD_GEN_FORMS_MANAGER",
+              "ANALYST",
+              "CURATOR",
+              "CONTENT_ADMINISTRATOR"
+            ],
+            "description": "A role defines the privileges that a member has within the organization."
+          },
+          "organization": {
+            "type": "string"
+          },
+          "organizationTarget": {
+            "type": "string"
+          },
+          "roleAssignee": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "REQUESTED",
+              "REVOKED"
+            ]
+          }
+        },
+        "required": [
+          "role",
+          "roleAssignee",
+          "state"
+        ]
+      },
+      "OrganizationAclCollection": {
+        "type": "object",
+        "properties": {
+          "paging": {
+            "$ref": "#/components/schemas/Paging"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationAcl"
+            }
+          }
+        },
+        "required": [
+          "paging",
+          "elements"
+        ]
+      },
+      "OrganizationCollection": {
+        "type": "object",
+        "properties": {
+          "paging": {
+            "$ref": "#/components/schemas/Paging"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Organization"
+            }
+          }
+        },
+        "required": [
+          "paging",
+          "elements"
+        ]
+      },
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "sub": {
+            "type": "string",
+            "description": "Subject Identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Full name"
+          },
+          "given_name": {
+            "type": "string",
+            "description": "Member's first name"
+          },
+          "family_name": {
+            "type": "string",
+            "description": "Member's last name"
+          },
+          "picture": {
+            "type": "string",
+            "description": "Member's profile picture URL"
+          },
+          "locale": {
+            "type": "string",
+            "description": "Member's locale"
+          },
+          "email": {
+            "type": "string",
+            "description": "Member's primary e-mail address. Optional"
+          },
+          "email_verified": {
+            "type": "boolean",
+            "description": "Indicator that Member's primary email has been verified. Optional"
+          }
+        },
+        "required": [
+          "sub",
+          "name",
+          "given_name",
+          "family_name",
+          "locale"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "oauth2": {
+        "type": "oauth2",
+        "description": "Authorization: Bearer (your access token)",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://www.linkedin.com/oauth/v2/authorization",
+            "tokenUrl": "https://www.linkedin.com/oauth/v2/accessToken",
+            "scopes": {
+              "w_organization_social": "Post, comment, and like posts on behalf of an organization.",
+              "r_organization_social": "Retrieve organizations' posts, comments, and likes.",
+              "w_member_social": "Post, comment, and like posts on behalf of an authenticated member.",
+              "r_member_social": "Retrieve posts, comments, and likes on behalf of an authenticated member.",
+              "rw_organization_admin": "Manage organizations pages and retrieve reporting data.",
+              "r_organization_admin": "Retrieve your organization's pages and their reporting data.",
+              "openid": "Use your name and photo",
+              "profile": "Use your name and photo",
+              "email": "Use the primary email address associated with your LinkedIn account",
+              "rw_ads": "Create ads and creatives for a sponsored account",
+              "r_ads": "Read an authenticated member's Ad Account."
+            }
+          }
+        }
+      }
+    }
+  }
+}

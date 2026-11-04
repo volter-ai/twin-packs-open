@@ -10,7 +10,7 @@ export function customerBy(ctx: Reader, key: { id?: unknown; external?: unknown 
   return key.id !== undefined ? rowsOf(ctx, CUSTOMER).find((c) => c.id === key.id) : rowsOf(ctx, CUSTOMER).find((c) => c.external_id === key.external);
 }
 
-export const ORGANIZATION = 'organization';
+const ORGANIZATION = 'organization';
 export const CUSTOMER = 'customer';
 export const PRODUCT = 'product';
 export const CHECKOUT = 'checkout';
@@ -22,8 +22,8 @@ export const SESSION = 'customer_session';
 export const ENDPOINT = 'webhook_endpoint';
 
 /** Where Polar's hosted pages are: the checkout (`buy.polar.sh`) and the portal (`polar.sh`), rewritten to the twin. */
-export const CHECKOUT_ORIGIN = 'https://buy.polar.sh';
-export const PORTAL_ORIGIN = 'https://polar.sh';
+const CHECKOUT_ORIGIN = 'https://buy.polar.sh';
+const PORTAL_ORIGIN = 'https://polar.sh';
 
 // ── answers ────────────────────────────────────────────────────────────────────────────────────
 // source: spec:/components/schemas/ResourceNotFound "ResourceNotFound"
@@ -54,11 +54,65 @@ export async function secret(ctx: Pick<HandlerContext, 'secret'>, prefix: string
   return `${prefix}${`${a}${b}`.replace(/[^A-Za-z0-9]/g, '').slice(0, 43)}`;
 }
 
-/** The World's one organization: the one its token names. */
-export const ORG_ID = '1dbfc517-0bbf-4301-9ba8-555ca42b9737';
-export const orgId = (ctx: Pick<HandlerContext, 'call'>): string => environment(ctx) === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID;
+/** Production and sandbox each have their own native organization. */
+const ORG_ID = '1dbfc517-0bbf-4301-9ba8-555ca42b9737';
+export async function nativeOrganization(ctx: HandlerContext): Promise<Row> {
+  const world = await ctx.organization();
+  const nativeEnvironment = environment(ctx);
+  const make = async (): Promise<string> => {
+    const held = ctx.rowsRaw(ORGANIZATION).find((row) => row._world_organization === world.id && row._environment === nativeEnvironment);
+    if (held) return String(held.id);
+    const label = world.id === 'default' ? 'twin' : world.id;
+    for (const suffixed of [false, true]) {
+      const slug = ctx.vendorName(label.length < 3 ? `world-${label}` : label,
+        { max: 64, lower: true, allowed: /[a-z0-9-]/, first: /[a-z0-9]/ }, { suffixed, identity: world.id });
+      const made = await ctx.createUnique(ORGANIZATION, (id) => ({ name: world.label.length < 3 ? `World ${world.label}` : world.label,
+        slug, created_at: ctx.occurredAt, _owner_email: world.members[0]!.toLowerCase(), _world_organization: world.id,
+        _environment: nativeEnvironment, _namespace: world.id === 'default' ? 'default' : id }), 'organization.create',
+      world.id === 'default' ? { id: nativeEnvironment === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID } : undefined);
+      const row = ctx.row(ORGANIZATION, String(made.row.id))!;
+      if (made.created || (row._world_organization === world.id && row._environment === nativeEnvironment)) return String(row.id);
+    }
+    throw fail(409, 'Conflict', `An organization slug already exists for ${world.id}.`);
+  };
+  const organization = nativeEnvironment === 'production' ? await ctx.tenant(ORGANIZATION, make) : ctx.row(ORGANIZATION, await make())!;
+  if (world.id === 'default') {
+    for (const token of ctx.rowsRaw('_access_token').filter((row) => row._organization_namespace === 'default'
+      && row._organization_id === undefined && (row._environment ?? 'production') === nativeEnvironment)) {
+      await ctx.change('_access_token', String(token.id), (row) => row._organization_id === undefined
+        && (row._environment ?? 'production') === nativeEnvironment ? { _organization_id: organization.id } : undefined,
+      'access_token.organization', { input: 'omit' });
+    }
+  }
+  return organization;
+}
+
+/** A live organization access token in the request's native environment. */
+export function accessToken(ctx: Pick<HandlerContext, 'rowsRaw' | 'crypto' | 'call' | 'occurredAt'>, bearer: string): Row | undefined {
+  return ctx.rowsRaw('_access_token').find((row) => (row._environment ?? 'production') === environment(ctx)
+    && row._sha256 === ctx.crypto.sha256(bearer) && row.deleted !== true
+    && (row.expires_at === null || Date.parse(String(row.expires_at)) > Date.parse(ctx.occurredAt)));
+}
+
+/** Settings actions use an explicit operator account or the organization its token names. */
+export async function settingsOrganization(ctx: HandlerContext): Promise<Row | undefined> {
+  if (bodyOf(ctx).account !== undefined) return nativeOrganization(ctx);
+  const bearer = /^Bearer\s+(\S+)/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
+  if (!bearer) return nativeOrganization(ctx);
+  let key = accessToken(ctx, bearer);
+  if (key?._organization_namespace === 'default' && key._organization_id === undefined) {
+    await nativeOrganization(ctx);
+    key = accessToken(ctx, bearer);
+  }
+  const organization = key && ctx.row(ORGANIZATION, String(key._organization_id));
+  return organization && organization.deleted !== true && organization._environment === environment(ctx) ? organization : undefined;
+}
+
+export const orgId = (ctx: Reader): string => String(ctx.rowsRaw('_access_token', { withDeleted: true })
+  .find((row) => row._environment === environment(ctx) && typeof row._organization_id === 'string')?._organization_id
+  ?? (environment(ctx) === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID));
 export const organizationView = (ctx: Reader): Row => {
-  const o = rowOf(ctx, ORGANIZATION, 'org') ?? {};
+  const o = ctx.row(ORGANIZATION, orgId(ctx)) ?? {};
   return {
     created_at: o.created_at ?? '2026-01-01T00:00:00Z', modified_at: null, id: orgId(ctx), name: o.name ?? 'Twin organization', slug: o.slug ?? 'twin',
     avatar_url: null, proration_behavior: 'prorate', allow_customer_updates: true, email: null, website: null, socials: [], status: 'active',
@@ -151,7 +205,7 @@ export function subscriptionFields(ctx: Reader, s: Row): Row {
 }
 
 // source: spec:/components/schemas/Order "Order"
-export function orderFields(ctx: Reader, o: Row): Row {
+function orderFields(ctx: Reader, o: Row): Row {
   const customer = rowOf(ctx, CUSTOMER, String(o.customer_id));
   const product = o.product_id ? rowOf(ctx, PRODUCT, String(o.product_id)) : undefined;
   const sub = o.subscription_id ? rowOf(ctx, SUBSCRIPTION, String(o.subscription_id)) : undefined;
@@ -229,7 +283,7 @@ export function admits(filter: Row | undefined, e: Row): boolean {
 
 /** A meter's aggregation over the events it admits: a count, or the sum, max, min or average of a metadata property. */
 // source: spec:/components/schemas/PropertyAggregation "PropertyAggregation"
-export function aggregate(agg: Row | undefined, events: Row[]): number {
+function aggregate(agg: Row | undefined, events: Row[]): number {
   const func = String(agg?.func ?? 'count');
   if (func === 'count') return events.length;
   const prop = String(agg?.property ?? '').replace(/^metadata\./, '');
@@ -245,7 +299,7 @@ export function aggregate(agg: Row | undefined, events: Row[]): number {
 
 /** A customer's meter: consumed (the fold over its events), credited (its meter-credit grants), and the balance. */
 // source: spec:/components/schemas/CustomerStateMeter "The balance of the meter, i.e. the difference between credited and consumed units."
-export function customerMeter(ctx: Reader, customerId: string, meter: Row): { consumed: number; credited: number; balance: number } {
+function customerMeter(ctx: Reader, customerId: string, meter: Row): { consumed: number; credited: number; balance: number } {
   const events = rowsOf(ctx, EVENT).filter((e) => e.customer_id === customerId && admits(meter.filter as Row | undefined, e));
   const consumed = aggregate(meter.aggregation as Row | undefined, events);
   const credited = 0; // No demanded product grants meter credits; benefits are outside the served surface.
