@@ -4,7 +4,7 @@
 // Domains, Organizations Settings and SSO connections pages (the instance's settings); and what a person outside the
 // vendor holds: the recipient's inbox (what Clerk emailed) and the receiver's requests (what Svix delivered).
 import type { HandlerContext } from '@volter/world-core';
-import { applicationFor, makeSecretKey, readSecretKey, webhookKey, ensureInstanceKey, instanceRow, publishableKey, instanceKey, INSTANCE_SUBJECT, ms, sha256, instanceId } from './shared.ts';
+import { applicationFor, makeSecretKey, readSecretKey, ensureInstanceKey, instanceRow, publishableKey, instanceKey, INSTANCE_SUBJECT, ms, sha256 } from './shared.ts';
 
 type Row = Record<string, unknown>;
 const bodyOf = (ctx: HandlerContext): Row => (ctx.body && typeof ctx.body === 'object' && !Array.isArray(ctx.body) ? (ctx.body as Row) : {});
@@ -33,19 +33,29 @@ export async function secretKeys(ctx: HandlerContext): Promise<Response> {
   return Response.json({ name, secret: await readSecretKey(ctx, ctx.row('_secret_key', id)!) }, { status: 201 });
 }
 
-/** POST /_twin/webhook-endpoints {url, events, signing_secret?}: an endpoint and the signing secret its page shows
- *  (`whsec_…`). A World whose application's configuration already holds a secret (`volter-world init` writes one for a
- *  webhook-secret variable) names it, as the page's rotate-secret does, so the application verifies what is delivered. */
+/** The Webhooks page creates an endpoint, updates its destination/events or rotates its signing secret by id,
+ *  and deletes it by id. The secret belongs to that endpoint, as Svix's Endpoint API does.
+ *  source: https://docs.svix.com/api-reference/endpoints */
 export async function webhookEndpoints(ctx: HandlerContext): Promise<Response> {
   const b = bodyOf(ctx);
-  if (typeof b.url !== 'string' || !/^https?:\/\//.test(b.url)) return Response.json({ error: 'url is required' }, { status: 400 });
+  const held = typeof b.id === 'string' ? ctx.row('webhook_endpoint', b.id) : undefined;
+  if (b.id !== undefined && (!held || held.deleted === true)) return Response.json({ error: 'no such webhook endpoint' }, { status: 404 });
+  if (b.delete === true) {
+    if (!held) return Response.json({ error: 'id is required' }, { status: 400 });
+    await ctx.write('webhook_endpoint', String(held.id), { deleted: true }, 'webhook_endpoint.delete');
+    return new Response(null, { status: 204 });
+  }
+  const url = b.url ?? held?.url;
+  if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return Response.json({ error: 'url is required' }, { status: 400 });
   if (b.signing_secret !== undefined && (typeof b.signing_secret !== 'string' || !/^whsec_[A-Za-z0-9+/]+={0,2}$/.test(b.signing_secret))) return Response.json({ error: 'signing_secret must be whsec_ followed by base64' }, { status: 400 });
-  const draw = await ctx.issue('_credential_serial');
-  // the page's secret: one the World's application was issued (the credential door's), else one drawn from ctx.secret
-  const signing = typeof b.signing_secret === 'string' ? b.signing_secret : b.app === true ? await appWebhookSecret(ctx) : `whsec_${Buffer.from(sha256(await ctx.secret(`webhook_secret:${draw}:${b.url}`)).slice(0, 48), 'hex').toString('base64')}`;
-  const events = Array.isArray(b.events) ? (b.events as unknown[]).map(String) : [];
-  const endpoint = await ctx.create('webhook_endpoint', { url: b.url, signing_secret: signing, ...(events.length ? { filter_types: events } : {}), created_at: ms(ctx) }, 'webhook_endpoint.create');
-  return Response.json({ id: endpoint.id, url: b.url, events, signing_secret: signing }, { status: 201 });
+  const draw = held ? undefined : await ctx.issue('_credential_serial');
+  const signing = typeof b.signing_secret === 'string' ? b.signing_secret : held?.signing_secret ?? `whsec_${Buffer.from(sha256(await ctx.secret(`webhook_secret:${draw}:${url}`)).slice(0, 48), 'hex').toString('base64')}`;
+  const events = Array.isArray(b.events) ? (b.events as unknown[]).map(String) : (held?.filter_types as string[] | undefined) ?? [];
+  const fields = { url, signing_secret: signing, filter_types: events, disabled: typeof b.disabled === 'boolean' ? b.disabled : held?.disabled === true };
+  const endpoint = held
+    ? await ctx.write('webhook_endpoint', String(held.id), fields, 'webhook_endpoint.update')
+    : await ctx.create('webhook_endpoint', { ...fields, created_at: ms(ctx) }, 'webhook_endpoint.create');
+  return Response.json({ id: endpoint.id, url, events, signing_secret: signing, disabled: fields.disabled }, { status: held ? 200 : 201 });
 }
 
 /** POST /_twin/native-applications {platform: 'ios', app_id_prefix, bundle_id} | {platform: 'android', package_name,
@@ -96,15 +106,12 @@ export async function instance(ctx: HandlerContext): Promise<Response> {
   return Response.json({ password: auth.password ?? 'on', legal_consent: auth.legal_consent ?? false, organization_membership: auth.organization_membership ?? 'required', native_api: auth.native_api === true });
 }
 
-/** The webhook signing secret the World's application is issued (`whsec_` and base64), drawn from ctx.secret. */
-const appWebhookSecret = async (ctx: HandlerContext): Promise<string> => String((await webhookKey(ctx)).signing_secret);
-
 /** POST /_twin/app-credentials: what the World's application holds, as the runtime issues it at every boot (the
  *  descriptor's credentialDoor), the same each time: the instance's secret key (the API Keys page's, kept by its
  *  SHA-256), its publishable key (the environment prefix and the base64 of its Frontend API host and `$`,
  *  https://clerk.com/docs/guides/development/clerk-environment-variables), the PEM public key a backend verifies session
  *  tokens with networklessly (`CLERK_JWT_KEY`, the API Keys page's "JWT public key"), and the signing secret of a
- *  instance webhook signing key (bound by the Webhooks door with `app: true`). */
+ *  live deployment webhook endpoint configured through the Webhooks door or the World's seed.ts. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const application = await applicationFor(ctx);
   const instance = await ctx.deploymentObject(`instance:${String(application.id)}`, '_instance', async (deployment) => {
@@ -114,14 +121,18 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
     const made = await ctx.createUnique('_instance', { object: 'instance', _application: application.id, environment_type: 'development', _auth: { frontend_api: frontend, application_name: application.name } }, '_instance.create');
     return String(made.row.id);
   });
+  const endpoint = ctx.rowsRaw('webhook_endpoint').find((row) => row.deleted !== true && row.disabled !== true && typeof row.signing_secret === 'string');
+  if (!endpoint && ctx.call.request.headers.get('x-volter-world-credential-output') === 'webhook_secret') {
+    return Response.json({ error: `clerk.webhook_secret: deployment ${ctx.deployment()} has no webhook endpoint; create one (its destination URL) through Clerk's API or console, or declare it in the World's seed` }, { status: 400 });
+  }
   const secret = await ctx.accountKey('secret-key', '_secret_key', {
     make: () => makeSecretKey(ctx, ctx.deployment() || 'world'),
     read: (row) => row._instance === instance.id ? readSecretKey(ctx, row) : Promise.resolve(undefined),
   });
-  const webhook = await ctx.accountKey('webhook-signing-key', '_webhook_signing_key', {
-    make: async () => String((await webhookKey(ctx)).id),
-    read: async (row) => row._instance === instanceId(ctx) && typeof row.signing_secret === 'string' ? row.signing_secret : undefined,
-  });
+  const webhook = endpoint ? await ctx.accountKey('webhook-endpoint', 'webhook_endpoint', {
+    make: async () => String(endpoint.id),
+    read: async (row) => row.deleted !== true && row.disabled !== true && typeof row.signing_secret === 'string' ? row.signing_secret : undefined,
+  }) : undefined;
   await ensureInstanceKey(ctx);
-  return Response.json({ secret_key: secret.secret, publishable_key: publishableKey(ctx), jwt_key: instanceKey(ctx).publicPem.trim(), webhook_secret: webhook.secret }, { status: 201 });
+  return Response.json({ secret_key: secret.secret, publishable_key: publishableKey(ctx), jwt_key: instanceKey(ctx).publicPem.trim(), ...(webhook ? { webhook_secret: webhook.secret } : {}) }, { status: 201 });
 }

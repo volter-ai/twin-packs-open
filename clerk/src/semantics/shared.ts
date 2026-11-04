@@ -38,17 +38,6 @@ export async function readSecretKey(ctx: HandlerContext, row: Row): Promise<stri
   return sha256(secret) === row.sha256 ? secret : undefined;
 }
 
-/** The instance's native webhook signing key is bound to app endpoints when their URL is configured. */
-export async function webhookKey(ctx: HandlerContext): Promise<Row> {
-  const instance = instanceId(ctx);
-  const held = ctx.rowsRaw('_webhook_signing_key').find((row) => row._instance === instance);
-  if (held) return held;
-  const id = await ctx.issue('_webhook_signing_key');
-  const secret = `whsec_${Buffer.from(sha256(await ctx.secret(`webhook_secret:${id}`)).slice(0, 48), 'hex').toString('base64')}`;
-  const made = await ctx.createUnique('_webhook_signing_key', { _instance: instance, signing_secret: secret, created_at: ms(ctx) }, 'webhook_signing_key.create', { id });
-  return ctx.row('_webhook_signing_key', String(made.row.id))!;
-}
-
 // The cited ResourceNotFound class supplies the envelope, not authenticated unknown-route behavior.
 // Twin choice where documentation stops: use this class for authenticated unknown routes (journeys/decisions.json).
 // source: https://clerk.com/docs/guides/development/errors/backend-api "ResourceNotFound"
