@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "source": "https://developers.google.com/identity/protocols/oauth2/service-account",
+  "about": "A Node application uses google-auth-library 10.9.1 Application Default Credentials from the World's GOOGLE_APPLICATION_CREDENTIALS file to exchange its service-account assertion for an access token. The unchanged OAuth2Client reads that token's granted scope and audience. A private local token file lets the resumed application inspect the same retained token without exchanging another assertion.",
+  "files": {
+    "package.json": "{\n  \"name\": \"googleoauth-service-account-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"google-auth-library\": \"10.9.1\"\n  }\n}\n",
+    ".env.example": "GOOGLE_APPLICATION_CREDENTIALS=\n",
+    ".gitignore": ".google-access.json\n",
+    "issue.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync, writeFileSync } from 'node:fs';\nimport { GoogleAuth } from 'google-auth-library';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nassert.ok(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'ADC names the issued service-account key file');\nconst credentials = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));\nassert.equal(credentials.type, 'service_account');\nconst scope = 'https://www.googleapis.com/auth/cloud-platform';\nconst auth = new GoogleAuth({ scopes: [scope] });\nconst client = await auth.getClient();\nconst { token } = await client.getAccessToken();\nassert.ok(typeof token === 'string' && token.length > 0, 'the signed service-account assertion returns an access token');\nwriteFileSync('.google-access.json', JSON.stringify({\n  token, scope, clientId: credentials.client_id, clientEmail: credentials.client_email, keyId: credentials.private_key_id,\n}) + '\\n', { mode: 0o600 });\nawait import('./readback.mjs');\n",
+    "readback.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync } from 'node:fs';\nimport { OAuth2Client } from 'google-auth-library';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nconst saved = JSON.parse(readFileSync('.google-access.json', 'utf8'));\nconst credentials = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));\nassert.equal(credentials.client_id, saved.clientId);\nassert.equal(credentials.client_email, saved.clientEmail);\nassert.equal(credentials.private_key_id, saved.keyId, 'resume retains the deployment service-account key');\nconst info = await new OAuth2Client().getTokenInfo(saved.token);\nassert.equal(info.aud, saved.clientId, 'the token belongs to the issued service account');\nassert.deepEqual(info.scopes, [saved.scope]);\nassert.ok(Number.isFinite(info.expiry_date) && info.expiry_date > Date.now(), 'the retained token is live');\nconsole.log(JSON.stringify({ audience: info.aud, scopes: info.scopes, retainedToken: true }));\n"
+  },
+  "run": [
+    "node",
+    "issue.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "readback.mjs"
+    ]
+  }
+}

@@ -4,9 +4,20 @@
 // keeps the Access Key ID (`_access_key`); the secret is drawn from a secret the World holds for it (ctx.secret), so it
 // is kept nowhere and no one computes it from the id. Every request is verified by its SigV4 signature (the kernel's
 // verifySigV4): signed by an issued key, or refused as the lane's API refuses it.
-import { sha256, verifySigV4, type HandlerContext, type SigV4Verdict } from '@volter/world-core';
+import { isWorldAccountName, sha256, verifySigV4, type HandlerContext, type SigV4Verdict } from '@volter/world-core';
 
 export const ACCESS_KEY = '_access_key';
+
+/** A SigV4 credential selects its AWS account before a lane reads or writes. */
+export function tenantFor(ctx: HandlerContext): string {
+  if (new URL(ctx.call.request.url).pathname.startsWith('/_twin/')) {
+    const body = ctx.body && typeof ctx.body === 'object' && !Array.isArray(ctx.body) ? ctx.body as Record<string, unknown> : {};
+    const selected = body.account ?? 'default';
+    return isWorldAccountName(selected) ? selected : '__unselected__';
+  }
+  const key = ctx.rowsRaw(ACCESS_KEY, { withDeleted: true }).find(k => k.id === accessKeyId(ctx.call.request));
+  return key ? String(key._world_account ?? 'default') : '__unselected__';
+}
 
 /** The default AWS account's twelve-digit identity. */
 const ACCOUNT_ID = '000000000000';
