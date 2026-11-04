@@ -13,6 +13,16 @@ import { equalSecrets, type EventsDecl, type EventWrite, type HandlerContext, jw
 
 type Row = Record<string, unknown>;
 
+/** Dashboard workspaces and applications are shared; each application's instance has its own API store. */
+export async function applicationFor(ctx: HandlerContext): Promise<Record<string, unknown>> {
+  const organization = await ctx.organization();
+  const workspace = await ctx.tenant('_workspace', (owner) => ctx.record('_workspace', { name: owner.label, owner: owner.members[0]!, members: owner.members }));
+  return ctx.deploymentObject(`application:${String(workspace.id)}`, '_application', async (deployment) => {
+    const application = await ctx.create('_application', { name: deployment || organization.label, workspace_id: workspace.id, owner: organization.members[0]! }, 'application.create');
+    return String(application.id);
+  });
+}
+
 export async function makeSecretKey(ctx: HandlerContext, name: string | null): Promise<string> {
   const id = await ctx.issue('_secret_key');
   const mode = instanceEnvironment(ctx) === 'production' ? 'live' : 'test';
