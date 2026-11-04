@@ -1,0 +1,1562 @@
+{
+ "vendor": "telegram",
+ "author": "Contributor 173",
+ "host": "api.telegram.org",
+ "about": "The Bot API page's examples and stated rules for the methods the telegram pack serves, made by Rui, a developer trying the page against his first bot (@rui_notes_bot): the Making requests example (GET, and a method name in another case), the HTML, MarkdownV2 and Markdown style blocks and their rules, a mention by id, an unsupported parse_mode, the text, update, webhook, chat action, deletion, album and photo rules (a file that is no image among them), each replayed as the answer or the refusal it causes. Setup steps make each example's precondition true (an account, the bot, his messages, a group with Marta, a channel) or read its effect back (the queue after a negative offset, after drop_pending_updates, after allowed_updates).",
+ "notReplayed": {
+  "sendPhoto#doc sendPhoto: an HTTP URL": "Telegram downloads the URL; a World is sealed, so the twin reaches no URL outside it and answers as Telegram does for a URL it cannot get (Bad Request: failed to get HTTP URL content); no World of this surface replays the success the page describes",
+  "sendPhoto#doc sendPhoto: 10 MB": "a journey file carries its upload as base64: a file over the limit (10, 20 or 50 MB) would make the examples journey tens of megabytes; the rule is the twin's check of the upload's size, read in available-methods.ts and getFile",
+  "sendVideo#doc sendVideo: 50 MB": "a journey file carries its upload as base64: a file over the limit (10, 20 or 50 MB) would make the examples journey tens of megabytes; the rule is the twin's check of the upload's size, read in available-methods.ts and getFile",
+  "sendDocument#doc sendDocument: 50 MB": "a journey file carries its upload as base64: a file over the limit (10, 20 or 50 MB) would make the examples journey tens of megabytes; the rule is the twin's check of the upload's size, read in available-methods.ts and getFile",
+  "getFile#doc getFile: 20 MB": "a journey file carries its upload as base64: a file over the limit (10, 20 or 50 MB) would make the examples journey tens of megabytes; the rule is the twin's check of the upload's size, read in available-methods.ts and getFile"
+ },
+ "steps": [
+  {
+   "name": "Setup: Monday 5 January, 09:00",
+   "wait": "105h"
+  },
+  {
+   "name": "Setup: Rui has a Telegram account",
+   "method": "POST",
+   "path": "/_twin/people",
+   "body": {
+    "first_name": "Rui",
+    "last_name": "Matos",
+    "username": "rui_matos"
+   },
+   "status": 200,
+   "capture": {
+    "rui": "id"
+   }
+  },
+  {
+   "name": "Setup: Marta, his colleague, has one too",
+   "method": "POST",
+   "path": "/_twin/people",
+   "body": {
+    "first_name": "Marta",
+    "username": "marta_s"
+   },
+   "status": 200,
+   "capture": {
+    "marta": "id"
+   }
+  },
+  {
+   "name": "Setup: Rui makes a bot with BotFather",
+   "method": "POST",
+   "path": "/_twin/bots",
+   "body": {
+    "owner": "{rui}",
+    "name": "Rui Notes",
+    "username": "rui_notes_bot"
+   },
+   "status": 200,
+   "capture": {
+    "token": "token",
+    "bot": "id"
+   }
+  },
+  {
+   "name": "getMe#doc Making requests: getMe",
+   "example": "getMe#doc Making requests: getMe",
+   "method": "GET",
+   "path": "/bot{token}/getMe",
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.id",
+     "equals": "{bot}"
+    },
+    {
+     "path": "result.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.first_name",
+     "equals": "Rui Notes"
+    }
+   ]
+  },
+  {
+   "name": "getMe#doc Making requests: methods are case-insensitive",
+   "example": "getMe#doc Making requests: methods are case-insensitive",
+   "method": "POST",
+   "path": "/bot{token}/GETME",
+   "body": {},
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.id",
+     "equals": "{bot}"
+    },
+    {
+     "path": "result.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.first_name",
+     "equals": "Rui Notes"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Rui starts the bot and writes to it twice",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{rui}",
+    "chat": "@rui_notes_bot",
+    "text": "/start"
+   },
+   "status": 200
+  },
+  {
+   "name": "Setup: ...a first note",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{rui}",
+    "chat": "@rui_notes_bot",
+    "text": "note: buy coffee filters"
+   },
+   "status": 200
+  },
+  {
+   "name": "Setup: ...and a second",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{rui}",
+    "chat": "@rui_notes_bot",
+    "text": "note: call the printer shop"
+   },
+   "status": 200,
+   "capture": {
+    "second_note": "message_id"
+   }
+  },
+  {
+   "name": "getUpdates#doc getUpdates: limit",
+   "example": "getUpdates#doc getUpdates: limit",
+   "method": "POST",
+   "path": "/bot{token}/getUpdates",
+   "body": {
+    "limit": 1
+   },
+   "status": 200,
+   "capture": {
+    "rui_chat": "result.0.message.chat.id"
+   },
+   "expect": [
+    {
+     "path": "result.0.message.text",
+     "equals": "/start"
+    },
+    {
+     "path": "result.0.message.from.id",
+     "equals": "{rui}"
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    },
+    {
+     "path": "result.0.message.from.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.0.message.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.0.message.from.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.0.message.from.last_name",
+     "equals": "Matos"
+    },
+    {
+     "path": "result.0.message.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.0.message.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "getUpdates#doc getUpdates: a negative offset",
+   "example": "getUpdates#doc getUpdates: a negative offset",
+   "method": "POST",
+   "path": "/bot{token}/getUpdates",
+   "body": {
+    "offset": -1
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.0.message.text",
+     "equals": "note: call the printer shop"
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    },
+    {
+     "path": "result.0.message.from.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.0.message.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.0.message.from.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.0.message.from.last_name",
+     "equals": "Matos"
+    },
+    {
+     "path": "result.0.message.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.0.message.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "Setup: read again, only the last update is left",
+   "method": "POST",
+   "path": "/bot{token}/getUpdates",
+   "body": {},
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.0.message.text",
+     "equals": "note: call the printer shop"
+    },
+    {
+     "path": "result.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "deleteWebhook#doc deleteWebhook: drop pending updates",
+   "example": "deleteWebhook#doc deleteWebhook: drop pending updates",
+   "method": "POST",
+   "path": "/bot{token}/deleteWebhook",
+   "body": {
+    "drop_pending_updates": true
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Setup: read again, nothing is pending",
+   "method": "POST",
+   "path": "/bot{token}/getUpdates",
+   "body": {},
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.0",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc HTML style",
+   "example": "sendMessage#doc HTML style",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "<b>bold</b>, <strong>bold</strong>\n<i>italic</i>, <em>italic</em>\n<u>underline</u>, <ins>underline</ins>\n<s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>\n<span class=\"tg-spoiler\">spoiler</span>, <tg-spoiler>spoiler</tg-spoiler>\n<b>bold <i>italic bold <s>italic bold strikethrough <span class=\"tg-spoiler\">italic bold strikethrough spoiler</span></s> <u>underline italic bold</u></i> bold</b>\n<a href=\"http://www.example.com/\">inline URL</a>\n<a href=\"tg://user?id=123456789\">inline mention of a user</a>\n<tg-emoji emoji-id=\"5368324170671202286\">👍</tg-emoji>\n<tg-time unix=\"1647531900\" format=\"wDT\">22:45 tomorrow</tg-time>\n<tg-time unix=\"1647531900\" format=\"t\">22:45 tomorrow</tg-time>\n<tg-time unix=\"1647531900\" format=\"r\">22:45 tomorrow</tg-time>\n<tg-time unix=\"1647531900\">22:45 tomorrow</tg-time>\n<code>inline fixed-width code</code>\n<pre>pre-formatted fixed-width code block</pre>\n<pre><code class=\"language-python\">pre-formatted fixed-width code block written in the Python programming language</code></pre>\n<blockquote>Block quotation started\nBlock quotation continued\nThe last line of the block quotation</blockquote>\n<blockquote expandable>Expandable block quotation started\nExpandable block quotation continued\nExpandable block quotation continued\nHidden by default part of the block quotation started\nExpandable block quotation continued\nThe last line of the block quotation</blockquote>",
+    "parse_mode": "HTML"
+   },
+   "status": 200,
+   "capture": {
+    "html_message": "result.message_id"
+   },
+   "expect": [
+    {
+     "path": "result.text",
+     "contains": "bold, bold\nitalic, italic"
+    },
+    {
+     "path": "result.entities.0.type",
+     "equals": "bold"
+    },
+    {
+     "path": "result.text",
+     "notContains": "<"
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"text_link\",\"offset\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"date_time\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"language\":\"python\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"expandable_blockquote\""
+    },
+    {
+     "path": "result.entities",
+     "notContains": "custom_emoji"
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc HTML style: only the tags mentioned",
+   "example": "sendMessage#doc HTML style: only the tags mentioned",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "<p>Standup notes</p>",
+    "parse_mode": "HTML"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: can't parse entities: Unsupported start tag \"p\" at byte offset 0"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc HTML style: symbols outside a tag must be entities",
+   "example": "sendMessage#doc HTML style: symbols outside a tag must be entities",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "Ship if 2 < 3",
+    "parse_mode": "HTML"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "contains": "can't parse entities"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc HTML style: entities",
+   "example": "sendMessage#doc HTML style: entities",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "Tide &amp; Co &#128640; &#x2764; &lt;3 &hearts;",
+    "parse_mode": "HTML"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "equals": "Tide & Co 🚀 ❤ <3 &hearts;"
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc MarkdownV2 style",
+   "example": "sendMessage#doc MarkdownV2 style",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "*bold \\*text*\n_italic \\*text_\n__underline__\n~strikethrough~\n||spoiler||\n*bold _italic bold ~italic bold strikethrough ||italic bold strikethrough spoiler||~ __underline italic bold___ bold*\n[inline URL](http://www.example.com/)\n[inline mention of a user](tg://user?id=123456789)\n![👍](tg://emoji?id=5368324170671202286)\n![22:45 tomorrow](tg://time?unix=1647531900&format=wDT)\n![22:45 tomorrow](tg://time?unix=1647531900&format=t)\n![22:45 tomorrow](tg://time?unix=1647531900&format=r)\n![22:45 tomorrow](tg://time?unix=1647531900)\n`inline fixed-width code`\n```\npre-formatted fixed-width code block\n```\n```python\npre-formatted fixed-width code block written in the Python programming language\n```\n>Block quotation started\n>Block quotation continued\n>Block quotation continued\n>Block quotation continued\n>The last line of the block quotation\n**>The expandable block quotation started right after the previous block quotation\n>It is separated from the previous block quotation by an empty bold entity\n>Expandable block quotation continued\n>Hidden by default part of the expandable block quotation started\n>Expandable block quotation continued\n>The last line of the expandable block quotation with the expandability mark||",
+    "parse_mode": "MarkdownV2"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "contains": "bold *text\nitalic *text\nunderline\nstrikethrough\nspoiler\nbold italic bold italic bold strikethrough italic bold strikethrough spoiler underline italic bold bold\ninline URL\ninline mention of a user\n"
+    },
+    {
+     "path": "result.text",
+     "notContains": "\\"
+    },
+    {
+     "path": "result.text",
+     "notContains": "||"
+    },
+    {
+     "path": "result.entities.0.type",
+     "equals": "bold"
+    },
+    {
+     "path": "result.entities.0.length",
+     "equals": 10
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"underline\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"spoiler\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"text_link\",\"offset\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"date_time_format\":\"wDT\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"language\":\"python\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"blockquote\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"expandable_blockquote\""
+    },
+    {
+     "path": "result.entities",
+     "notContains": "custom_emoji"
+    },
+    {
+     "path": "result.entities",
+     "notContains": "text_mention"
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc MarkdownV2 style: reserved characters",
+   "example": "sendMessage#doc MarkdownV2 style: reserved characters",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "Standup moved to 10.30",
+    "parse_mode": "MarkdownV2"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: can't parse entities: Character '.' is reserved and must be escaped with the preceding '\\'"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc MarkdownV2 style: italic and underline",
+   "example": "sendMessage#doc MarkdownV2 style: italic and underline",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "___italic underline_**__",
+    "parse_mode": "MarkdownV2"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "equals": "italic underline"
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"italic\",\"offset\":0,\"length\":16"
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"underline\",\"offset\":0,\"length\":16"
+    },
+    {
+     "path": "result.entities",
+     "notContains": "bold"
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc MarkdownV2 style: the expandability mark",
+   "example": "sendMessage#doc MarkdownV2 style: the expandability mark",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": ">Notes from Monday\n>Buy coffee filters\n>Call the printer shop||\nThat is all for now",
+    "parse_mode": "MarkdownV2"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "equals": "Notes from Monday\nBuy coffee filters\nCall the printer shop\nThat is all for now"
+    },
+    {
+     "path": "result.entities.0.type",
+     "equals": "expandable_blockquote"
+    },
+    {
+     "path": "result.entities.0.offset",
+     "equals": 0
+    },
+    {
+     "path": "result.entities.1",
+     "exists": false
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc Markdown style",
+   "example": "sendMessage#doc Markdown style",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "*bold text*\n_italic text_\n[inline URL](http://www.example.com/)\n[inline mention of a user](tg://user?id=123456789)\n`inline fixed-width code`\n```\npre-formatted fixed-width code block\n```\n```python\npre-formatted fixed-width code block written in the Python programming language\n```",
+    "parse_mode": "Markdown"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "contains": "bold text\nitalic text\ninline URL\ninline mention of a user\ninline fixed-width code\npre-formatted fixed-width code block"
+    },
+    {
+     "path": "result.entities.0.type",
+     "equals": "bold"
+    },
+    {
+     "path": "result.entities.0.length",
+     "equals": 9
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"italic\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"text_link\",\"offset\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"code\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"language\":\"python\""
+    },
+    {
+     "path": "result.entities",
+     "notContains": "text_mention"
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc Markdown style: escaping",
+   "example": "sendMessage#doc Markdown style: escaping",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "_snake_\\__case_ and *2*\\**2=4*",
+    "parse_mode": "Markdown"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "equals": "snake_case and 2*2=4"
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"italic\""
+    },
+    {
+     "path": "result.entities",
+     "contains": "\"type\":\"bold\""
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc sendMessage: text over 4096 characters",
+   "example": "sendMessage#doc sendMessage: text over 4096 characters",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the standup. Notes from the st"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: message is too long"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc sendMessage: no text",
+   "example": "sendMessage#doc sendMessage: no text",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": ""
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: message text is empty"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc ReplyParameters: sent without the message replied to",
+   "example": "sendMessage#doc ReplyParameters: sent without the message replied to",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "text": "Re: the printer shop",
+    "reply_parameters": {
+     "message_id": 999,
+     "allow_sending_without_reply": true
+    }
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "equals": "Re: the printer shop"
+    },
+    {
+     "path": "result.reply_to_message",
+     "exists": false
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendChatAction#doc sendChatAction: an action",
+   "example": "sendChatAction#doc sendChatAction: an action",
+   "method": "POST",
+   "path": "/bot{token}/sendChatAction",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "action": "thinking"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: wrong parameter action in request"
+    }
+   ]
+  },
+  {
+   "name": "deleteMessage#doc deleteMessage: an incoming message in a private chat",
+   "example": "deleteMessage#doc deleteMessage: an incoming message in a private chat",
+   "method": "POST",
+   "path": "/bot{token}/deleteMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "message_id": "{second_note}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Setup: Rui makes a group with Marta and the bot as its administrator",
+   "method": "POST",
+   "path": "/_twin/chats",
+   "body": {
+    "creator": "{rui}",
+    "type": "group",
+    "title": "Rui and Marta",
+    "members": [
+     {
+      "user": "{marta}"
+     },
+     {
+      "user": "{bot}",
+      "status": "administrator",
+      "rights": {
+       "can_delete_messages": true
+      }
+     }
+    ]
+   },
+   "status": 200,
+   "capture": {
+    "group": "id"
+   }
+  },
+  {
+   "name": "Setup: Marta posts in the group",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{marta}",
+    "chat": "{group}",
+    "text": "testing, please ignore"
+   },
+   "status": 200,
+   "capture": {
+    "marta_post": "message_id"
+   }
+  },
+  {
+   "name": "getUpdates#doc getUpdates: allowed_updates and the updates made before",
+   "example": "getUpdates#doc getUpdates: allowed_updates and the updates made before",
+   "method": "POST",
+   "path": "/bot{token}/getUpdates",
+   "body": {
+    "allowed_updates": [
+     "channel_post"
+    ]
+   },
+   "status": 200,
+   "capture": {
+    "next_update": "next:result.2.update_id"
+   },
+   "expect": [
+    {
+     "path": "result.0.my_chat_member.new_chat_member.status",
+     "equals": "administrator"
+    },
+    {
+     "path": "result.1.message.group_chat_created",
+     "equals": true
+    },
+    {
+     "path": "result.2.message.text",
+     "equals": "testing, please ignore"
+    },
+    {
+     "path": "result.3",
+     "exists": false
+    },
+    {
+     "path": "result.0.my_chat_member.chat.title",
+     "equals": "Rui and Marta"
+    },
+    {
+     "path": "result.0.my_chat_member.from.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.0.my_chat_member.old_chat_member.user.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.0.my_chat_member.old_chat_member.user.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.0.my_chat_member.new_chat_member.user.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.0.my_chat_member.new_chat_member.user.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.1.message.from.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.1.message.chat.title",
+     "equals": "Rui and Marta"
+    },
+    {
+     "path": "result.2.message.from.username",
+     "equals": "marta_s"
+    },
+    {
+     "path": "result.2.message.chat.title",
+     "equals": "Rui and Marta"
+    },
+    {
+     "path": "result.0.my_chat_member.from.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.0.my_chat_member.from.last_name",
+     "equals": "Matos"
+    },
+    {
+     "path": "result.0.my_chat_member.new_chat_member.can_delete_messages",
+     "equals": true
+    },
+    {
+     "path": "result.1.message.from.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.1.message.from.last_name",
+     "equals": "Matos"
+    },
+    {
+     "path": "result.2.message.from.first_name",
+     "equals": "Marta"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Marta posts again, after the setting",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{marta}",
+    "chat": "{group}",
+    "text": "second test"
+   },
+   "status": 200
+  },
+  {
+   "name": "Setup: read again: the group message made after the setting is not sent",
+   "method": "POST",
+   "path": "/bot{token}/getUpdates",
+   "body": {
+    "offset": "{next_update}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.0",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "deleteMessage#doc deleteMessage: an administrator of a group",
+   "example": "deleteMessage#doc deleteMessage: an administrator of a group",
+   "method": "POST",
+   "path": "/bot{token}/deleteMessage",
+   "body": {
+    "chat_id": "{group}",
+    "message_id": "{marta_post}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Setup: the bot posts in the group",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{group}",
+    "text": "Notes are on."
+   },
+   "status": 200,
+   "capture": {
+    "own_post": "result.message_id"
+   }
+  },
+  {
+   "name": "deleteMessage#doc deleteMessage: outgoing in a group",
+   "example": "deleteMessage#doc deleteMessage: outgoing in a group",
+   "method": "POST",
+   "path": "/bot{token}/deleteMessage",
+   "body": {
+    "chat_id": "{group}",
+    "message_id": "{own_post}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc Formatting options: a mention by id",
+   "example": "sendMessage#doc Formatting options: a mention by id",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{group}",
+    "text": "<a href=\"tg://user?id={marta}\">Marta</a>, the notes from Monday are up.",
+    "parse_mode": "HTML"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.text",
+     "equals": "Marta, the notes from Monday are up."
+    },
+    {
+     "path": "result.entities.0.type",
+     "equals": "text_mention"
+    },
+    {
+     "path": "result.entities.0.offset",
+     "equals": 0
+    },
+    {
+     "path": "result.entities.0.length",
+     "equals": 5
+    },
+    {
+     "path": "result.entities.0.user.id",
+     "equals": "{marta}"
+    },
+    {
+     "path": "result.entities.0.user.first_name",
+     "equals": "Marta"
+    },
+    {
+     "path": "result.entities.0.user.username",
+     "equals": "marta_s"
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.title",
+     "equals": "Rui and Marta"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Rui makes a public channel, @rui_notes_news",
+   "method": "POST",
+   "path": "/_twin/chats",
+   "body": {
+    "creator": "{rui}",
+    "type": "channel",
+    "title": "Rui Notes",
+    "username": "rui_notes_news"
+   },
+   "status": 200,
+   "capture": {
+    "channel": "id"
+   }
+  },
+  {
+   "name": "Setup: ...the bot an administrator",
+   "method": "POST",
+   "path": "/_twin/chats/{channel}/members",
+   "body": {
+    "by": "{rui}",
+    "user": "{bot}",
+    "status": "administrator",
+    "rights": {
+     "can_post_messages": true,
+     "can_delete_messages": true
+    }
+   },
+   "status": 200
+  },
+  {
+   "name": "deleteMessage#doc deleteMessage: a channel's creation",
+   "example": "deleteMessage#doc deleteMessage: a channel's creation",
+   "method": "POST",
+   "path": "/bot{token}/deleteMessage",
+   "body": {
+    "chat_id": "{channel}",
+    "message_id": 1
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: message can't be deleted"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc sendMessage: a channel's username",
+   "example": "sendMessage#doc sendMessage: a channel's username",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "@rui_notes_news",
+    "text": "The notes channel is open."
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "result.chat.id",
+     "equals": "{channel}"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_notes_news"
+    },
+    {
+     "path": "result.text",
+     "equals": "The notes channel is open."
+    },
+    {
+     "path": "result.sender_chat.title",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.chat.title",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.sender_chat.username",
+     "equals": "rui_notes_news"
+    }
+   ]
+  },
+  {
+   "name": "Setup: the bot posts a screenshot of the notes in the channel",
+   "method": "POST",
+   "path": "/bot{token}/sendPhoto",
+   "form": {
+    "parts": [
+     {
+      "name": "chat_id",
+      "value": "{channel}"
+     },
+     {
+      "name": "photo",
+      "filename": "notes.png",
+      "type": "image/png",
+      "base64": "iVBORw0KGgoAAAANSUhEUgAAAUAAAADICAIAAAAWZq/8AAAEq0lEQVR42u3az0uUWxzA4TM/sImoMWgWQWCStBSilFoJ6kJc6EpQCkKMIf0bpEVLo40oSD8coU20kCIXQstq1VJdKLiIlKSUECzogK93MRDDzNxul+69WPd5VnJ455yv8n70HTUVYwzAryntSwACBgQMCBgEDAgYEDAgYBAwIGBAwCBgQMCAgAEBg4ABAQMCBgQMAgYEDAgYBAwIGBAwIGAQMCBgQMCAgEHAgIABAYOAAQEDAgYEDAIGBAwIGAQMCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCBgQMAgYEDAgYBAwIGBAwICAQcCAgAEBAwIGAQMCBgQMAgYEDAgYEDAIGBAwIGAQMCBgQMCAgEHAgIABAQMCBgEDAgYEDAL+t0xMTBzOT75QKPy6w0MIIRVj/A86+fjx4+EM+C8HO7TDwz/wE7hQKNy6daurq+vixYvPnj0LIWxtbfX19XV2dvb19W1tbd2+fXtvb6+3t/fTp0/Xr1/v6enp7Ox88+ZNCGF6erqtra29vf3Fixfl3SpXtre3BwYGuru7e3t7P3z4UD7rxo0bU1NTtVvVrtSdrfbE8gUXLlz4/vBuFA6p+HOOHj16586dGOPq6uqZM2dijIODg6VSKcZYKpWGhoZijPl8PsY4PDz86tWrGOP6+npra2uMsVAo7OzsLC0tXb16tbxb5cq1a9cePXoUY7x//36xWIwx5nK5hYWFulvVrtSdrerEXC5XvmBlZeX7w8Ph9LOP0MePH3/37l1jY2MI4dSpU9vb201NTWtra0eOHPn69ev58+ffvn1bfgptbm4+d+5c+VWbm5vLy8vFYnF3d/fmzZvd3d3l9ZGRkW8rZ8+eXVtba2ho2N/f39vby+fzJ0+e3NnZSafTtVu1tLRUrWQymdrZKvf/W8P7Rs/hlP3J1zc0NJQDCCGkUqnvXLm/v7+wsJDL5ZIkef36dSaTefjw4cuXLycnJx8/fvzgwYMQQuVKkiQHBwchhEwmk8/nQwjZbDadTtfdqnal7mxVJ/748PB7vgcuF1Wpo6Njfn4+hDA/P9/R0RFCSJIkSZIrV66U32cuLi5OTEzs7u52dXVdvnx5bm5ucXExhFC1cunSpefPn4cQZmdnx8fHK4+o2qruSu1stSf++PBuFH7P30JXPmGWP37//n2xWPz8+fOxY8fu3bt3+vTp/v7+VCo1NTU1Ojr65cuXbDY7MzPT3Nx89+7dJ0+eJEkyPDw8NjYWQqhc6enpKRaLBwcHJ06cKJVKjY2N387a2Nio2qp2pe5sVSf++PBPnz51r/A//TMS4D+xAAGDgAEBAwIGAQMCBgQMCBgEDAgYEDAgYBAwIGBAwCBgQMCAgAEBg4ABAQMCBgQMAgYEDAgYBAwIGBAwIGAQMCBgQMAgYEDAgIABAYOAAQEDAgYEDAIGBAwIGAQMCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCBgQMAgYEDAgYBAwIGBAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYEDAIGBAwIGAQMCBgQMCAgEHAgIABAQMCBgEDAgYEDAIGBAwIGPgzfwA2+B8DWbZ3XwAAAABJRU5ErkJggg=="
+     }
+    ]
+   },
+   "status": 200,
+   "capture": {
+    "notes_photo": "result.photo.1.file_id",
+    "notes_unique": "result.photo.1.file_unique_id"
+   },
+   "expect": [
+    {
+     "path": "result.photo.0.width",
+     "equals": 100
+    },
+    {
+     "path": "result.photo.1.width",
+     "equals": 320
+    },
+    {
+     "path": "result.photo.2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "sendPhoto#doc sendPhoto: a file_id",
+   "example": "sendPhoto#doc sendPhoto: a file_id",
+   "method": "POST",
+   "path": "/bot{token}/sendPhoto",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "photo": "{notes_photo}"
+   },
+   "status": 200,
+   "undecided": {
+    "result.photo.1.file_id": "a resent file may answer another valid file_id; the twin answers the one sent, which only coincides (Sending files: \"a file can have different valid file_ids even for the same bot\")"
+   },
+   "expect": [
+    {
+     "path": "result.photo.1.file_unique_id",
+     "equals": "{notes_unique}"
+    },
+    {
+     "path": "result.photo.2",
+     "exists": false
+    },
+    {
+     "path": "result.from.first_name",
+     "equals": "Rui Notes"
+    },
+    {
+     "path": "result.from.username",
+     "equals": "rui_notes_bot"
+    },
+    {
+     "path": "result.chat.username",
+     "equals": "rui_matos"
+    },
+    {
+     "path": "result.chat.first_name",
+     "equals": "Rui"
+    },
+    {
+     "path": "result.chat.last_name",
+     "equals": "Matos"
+    }
+   ]
+  },
+  {
+   "name": "sendDocument#doc Sending files: a file keeps its type",
+   "example": "sendDocument#doc Sending files: a file keeps its type",
+   "method": "POST",
+   "path": "/bot{token}/sendDocument",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "document": "{notes_photo}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: can't use file of type Photo as Document"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Marta makes a bot of her own with BotFather",
+   "method": "POST",
+   "path": "/_twin/bots",
+   "body": {
+    "owner": "{marta}",
+    "name": "Marta Helper",
+    "username": "marta_helper_bot"
+   },
+   "status": 200,
+   "capture": {
+    "marta_token": "token"
+   }
+  },
+  {
+   "name": "Setup: ...starts it",
+   "method": "POST",
+   "path": "/_twin/messages",
+   "body": {
+    "from": "{marta}",
+    "chat": "@marta_helper_bot",
+    "text": "/start"
+   },
+   "status": 200,
+   "capture": {
+    "marta_chat": "chat.id"
+   }
+  },
+  {
+   "name": "sendPhoto#doc Sending files: a file_id is one bot's",
+   "example": "sendPhoto#doc Sending files: a file_id is one bot's",
+   "method": "POST",
+   "path": "/bot{marta_token}/sendPhoto",
+   "body": {
+    "chat_id": "{marta_chat}",
+    "photo": "{notes_photo}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: wrong file identifier/HTTP URL specified"
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc ChatMemberLeft: a bot not in a channel",
+   "example": "sendMessage#doc ChatMemberLeft: a bot not in a channel",
+   "method": "POST",
+   "path": "/bot{marta_token}/sendMessage",
+   "body": {
+    "chat_id": "@rui_notes_news",
+    "text": "Hello from Marta Helper"
+   },
+   "status": 403,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Forbidden: bot is not a member of the channel chat"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Rui makes a private channel for drafts",
+   "method": "POST",
+   "path": "/_twin/chats",
+   "body": {
+    "creator": "{rui}",
+    "type": "channel",
+    "title": "Rui Drafts"
+   },
+   "status": 200,
+   "capture": {
+    "drafts": "id"
+   }
+  },
+  {
+   "name": "Setup: ...the bot an administrator without the right to post",
+   "method": "POST",
+   "path": "/_twin/chats/{drafts}/members",
+   "body": {
+    "by": "{rui}",
+    "user": "{bot}",
+    "status": "administrator",
+    "rights": {
+     "can_post_messages": false
+    }
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "can_post_messages",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "sendMessage#doc ChatMemberAdministrator: posting in a channel",
+   "example": "sendMessage#doc ChatMemberAdministrator: posting in a channel",
+   "method": "POST",
+   "path": "/bot{token}/sendMessage",
+   "body": {
+    "chat_id": "{drafts}",
+    "text": "Draft: the March update"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: need administrator rights in the channel chat"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Rui removes the bot from the drafts channel",
+   "method": "POST",
+   "path": "/_twin/chats/{drafts}/members",
+   "body": {
+    "by": "{rui}",
+    "user": "{bot}",
+    "status": "kicked"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "status",
+     "equals": "kicked"
+    }
+   ]
+  },
+  {
+   "name": "getChat#doc ChatMemberBanned: a banned bot",
+   "example": "getChat#doc ChatMemberBanned: a banned bot",
+   "method": "POST",
+   "path": "/bot{token}/getChat",
+   "body": {
+    "chat_id": "{drafts}"
+   },
+   "status": 403,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Forbidden: bot was kicked from the channel chat"
+    }
+   ]
+  },
+  {
+   "name": "sendMediaGroup#doc sendMediaGroup: documents with their own type only",
+   "example": "sendMediaGroup#doc sendMediaGroup: documents with their own type only",
+   "method": "POST",
+   "path": "/bot{token}/sendMediaGroup",
+   "form": {
+    "parts": [
+     {
+      "name": "chat_id",
+      "value": "{channel}"
+     },
+     {
+      "name": "media",
+      "value": "[{\"type\": \"photo\", \"media\": \"attach://shot\"}, {\"type\": \"document\", \"media\": \"attach://notes\"}]"
+     },
+     {
+      "name": "shot",
+      "filename": "notes.png",
+      "type": "image/png",
+      "base64": "iVBORw0KGgoAAAANSUhEUgAAAUAAAADICAIAAAAWZq/8AAAEq0lEQVR42u3az0uUWxzA4TM/sImoMWgWQWCStBSilFoJ6kJc6EpQCkKMIf0bpEVLo40oSD8coU20kCIXQstq1VJdKLiIlKSUECzogK93MRDDzNxul+69WPd5VnJ455yv8n70HTUVYwzAryntSwACBgQMCBgEDAgYEDAgYBAwIGBAwCBgQMCAgAEBg4ABAQMCBgQMAgYEDAgYBAwIGBAwIGAQMCBgQMCAgEHAgIABAYOAAQEDAgYEDAIGBAwIGAQMCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCBgQMAgYEDAgYBAwIGBAwICAQcCAgAEBAwIGAQMCBgQMAgYEDAgYEDAIGBAwIGAQMCBgQMCAgEHAgIABAQMCBgEDAgYEDAL+t0xMTBzOT75QKPy6w0MIIRVj/A86+fjx4+EM+C8HO7TDwz/wE7hQKNy6daurq+vixYvPnj0LIWxtbfX19XV2dvb19W1tbd2+fXtvb6+3t/fTp0/Xr1/v6enp7Ox88+ZNCGF6erqtra29vf3Fixfl3SpXtre3BwYGuru7e3t7P3z4UD7rxo0bU1NTtVvVrtSdrfbE8gUXLlz4/vBuFA6p+HOOHj16586dGOPq6uqZM2dijIODg6VSKcZYKpWGhoZijPl8PsY4PDz86tWrGOP6+npra2uMsVAo7OzsLC0tXb16tbxb5cq1a9cePXoUY7x//36xWIwx5nK5hYWFulvVrtSdrerEXC5XvmBlZeX7w8Ph9LOP0MePH3/37l1jY2MI4dSpU9vb201NTWtra0eOHPn69ev58+ffvn1bfgptbm4+d+5c+VWbm5vLy8vFYnF3d/fmzZvd3d3l9ZGRkW8rZ8+eXVtba2ho2N/f39vby+fzJ0+e3NnZSafTtVu1tLRUrWQymdrZKvf/W8P7Rs/hlP3J1zc0NJQDCCGkUqnvXLm/v7+wsJDL5ZIkef36dSaTefjw4cuXLycnJx8/fvzgwYMQQuVKkiQHBwchhEwmk8/nQwjZbDadTtfdqnal7mxVJ/748PB7vgcuF1Wpo6Njfn4+hDA/P9/R0RFCSJIkSZIrV66U32cuLi5OTEzs7u52dXVdvnx5bm5ucXExhFC1cunSpefPn4cQZmdnx8fHK4+o2qruSu1stSf++PBuFH7P30JXPmGWP37//n2xWPz8+fOxY8fu3bt3+vTp/v7+VCo1NTU1Ojr65cuXbDY7MzPT3Nx89+7dJ0+eJEkyPDw8NjYWQqhc6enpKRaLBwcHJ06cKJVKjY2N387a2Nio2qp2pe5sVSf++PBPnz51r/A//TMS4D+xAAGDgAEBAwIGAQMCBgQMCBgEDAgYEDAgYBAwIGBAwCBgQMCAgAEBg4ABAQMCBgQMAgYEDAgYBAwIGBAwIGAQMCBgQMAgYEDAgIABAYOAAQEDAgYEDAIGBAwIGAQMCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCBgQMAgYEDAgYBAwIGBAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYEDAIGBAwIGAQMCBgQMCAgEHAgIABAQMCBgEDAgYEDAIGBAwIGPgzfwA2+B8DWbZ3XwAAAABJRU5ErkJggg=="
+     },
+     {
+      "name": "notes",
+      "filename": "notes.pdf",
+      "type": "application/pdf",
+      "base64": "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNjEyIDc5Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDUgMCBSPj4+Pj4+ZW5kb2JqCjQgMCBvYmo8PC9MZW5ndGggOTU+PnN0cmVhbQpCVCAvRjEgMTggVGYgNzIgNzIwIFRkIChUaWRlOiBzaGlwcGluZyB3ZWVrbHkgcmVsZWFzZXMgd2l0aCBhIHR3by1wZXJzb24gdGVhbSkgVGogRVQKZW5kc3RyZWFtIGVuZG9iago1IDAgb2JqPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhPj5lbmRvYmoKdHJhaWxlcjw8L1Jvb3QgMSAwIFI+PgolJUVPRgo="
+     }
+    ]
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: document can't be mixed with other media types"
+    }
+   ]
+  },
+  {
+   "name": "sendPhoto#doc sendPhoto: width and height ratio",
+   "example": "sendPhoto#doc sendPhoto: width and height ratio",
+   "method": "POST",
+   "path": "/bot{token}/sendPhoto",
+   "form": {
+    "parts": [
+     {
+      "name": "chat_id",
+      "value": "{channel}"
+     },
+     {
+      "name": "photo",
+      "filename": "banner.png",
+      "type": "image/png",
+      "base64": "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"
+     }
+    ]
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: PHOTO_INVALID_DIMENSIONS"
+    }
+   ]
+  },
+  {
+   "name": "sendPhoto#doc sendPhoto: a file Telegram cannot process as an image",
+   "example": "sendPhoto#doc sendPhoto: a file Telegram cannot process as an image",
+   "method": "POST",
+   "path": "/bot{token}/sendPhoto",
+   "form": {
+    "parts": [
+     {
+      "name": "chat_id",
+      "value": "{channel}"
+     },
+     {
+      "name": "photo",
+      "filename": "notes.pdf",
+      "type": "application/pdf",
+      "base64": "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNjEyIDc5Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDUgMCBSPj4+Pj4+ZW5kb2JqCjQgMCBvYmo8PC9MZW5ndGggOTU+PnN0cmVhbQpCVCAvRjEgMTggVGYgNzIgNzIwIFRkIChUaWRlOiBzaGlwcGluZyB3ZWVrbHkgcmVsZWFzZXMgd2l0aCBhIHR3by1wZXJzb24gdGVhbSkgVGogRVQKZW5kc3RyZWFtIGVuZG9iago1IDAgb2JqPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhPj5lbmRvYmoKdHJhaWxlcjw8L1Jvb3QgMSAwIFI+PgolJUVPRgo="
+     }
+    ]
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: IMAGE_PROCESS_FAILED"
+    }
+   ]
+  },
+  {
+   "name": "Setup: Wednesday 7 January, 10:00, 49 hours after the HTML message",
+   "wait": "49h"
+  },
+  {
+   "name": "deleteMessage#doc deleteMessage: 48 hours",
+   "example": "deleteMessage#doc deleteMessage: 48 hours",
+   "method": "POST",
+   "path": "/bot{token}/deleteMessage",
+   "body": {
+    "chat_id": "{rui_chat}",
+    "message_id": "{html_message}"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "description",
+     "equals": "Bad Request: message can't be deleted"
+    }
+   ]
+  }
+ ]
+}

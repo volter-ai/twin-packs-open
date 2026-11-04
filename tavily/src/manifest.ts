@@ -26,6 +26,7 @@ export const manifest: DerivedManifest = {
   gap: { status: 404, message: 'Not Found' },
   deleted: {},
   resources: {
+    _account: { idPrefix: '', ids: '{uuid}' },
     _request: { idPrefix: 'request_', refresh: { none: 'Issued request identifiers are private World bookkeeping.' } },
     _api_key: { idPrefix: 'key_', ids: '{prefix}{n}', refresh: { none: 'Dashboard credentials are secret World bootstrap state, never refreshed.' } },
     _web_page: { idPrefix: 'page_', refresh: { none: 'Synthetic web corpus supplied by the World, not a Tavily stored resource.' } },
@@ -58,6 +59,6 @@ export const manifest: DerivedManifest = {
     // source: https://raw.githubusercontent.com/LibreChat-AI/LibreChat/f10b1d91f1eee3a2c82d5247bf620351486b7c1b/api/app/clients/tools/structured/TavilySearchResults.js "const { fetch } = require('undici');"
     clientCasesNone: 'LibreChat uses raw Undici/axios; its demanded search and extraction clients do not use the official @tavily/core SDK. No official SDK behavior beyond a plain request is demanded.',
     endpointEnvNone: 'the clients call https://api.tavily.com; the World claims the host',
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { TAVILY_API_KEY: 'api_key' } },
+    credentialDoor: { account: { field: 'account', tenancy: 'Dashboard account', source: 'https://docs.tavily.com/documentation/rate-limits.md' }, deployment: { field: 'deployment', object: 'Development/Production API key', source: 'https://docs.tavily.com/documentation/rate-limits.md' },  path: '/_twin/app-credentials', body: {}, fill: { TAVILY_API_KEY: 'api_key' } },
   },
 };

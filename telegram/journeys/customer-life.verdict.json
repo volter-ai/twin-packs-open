@@ -1,0 +1,60 @@
+{
+  "judge": {
+    "agent": "Claude journey judge (Opus)",
+    "name": "Independent journey judge"
+  },
+  "authors": [
+    "yueranyuan",
+    "Aaron (A-001)",
+    "Claude Opus 5.5",
+    "Codex"
+  ],
+  "sha256": "d4f45ec531a3cafd7ec746629b2fb110cf5bb5adb0664f52a5d279eaf7f59ad3",
+  "judgedAt": "2026-10-15",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "reply-to-message-id-era",
+      "steps": [
+        61
+      ],
+      "barItem": "the wrong era: building on an API the vendor had deprecated by the World's date; a call through a door the vendor does not document",
+      "reason": "Step 61 (Monday 12 January 2026) replies to the album with the form field reply_to_message_id={album}. Telegram replaced that parameter in Bot API 7.0, December 29, 2023 (https://core.telegram.org/bots/api-changelog: 'Replaced parameters reply_to_message_id and allow_sending_without_reply in the methods ... with the field reply_parameters'), and the page the spec is written from (https://core.telegram.org/bots/api#sendmessage, Bot API 10.3) no longer documents it; spec/SOURCE.md admits the page 'no longer lists it' and patches it in. A step through a parameter the vendor withdrew two years before the World's date is rejected even where the twin answers it.",
+      "correction": "Step 61 sends reply_parameters={\"message_id\":{album}} (JSON-serialized ReplyParameters, as https://core.telegram.org/bots/api#sendmessage documents) in place of reply_to_message_id, keeping its expectation result.reply_to_message.message_id equals {album}."
+    },
+    {
+      "id": "photo-sizes-order",
+      "steps": [
+        59,
+        69
+      ],
+      "barItem": "vendor behaviour the vendor's documentation contradicts",
+      "reason": "Step 59 expects result.0.photo.0.width 480 and result.2.photo.0.height 300 for 480x300 PNG uploads, and step 69 expects result.photo.0.width 640 and height 480 for a 640x480 JPEG: the first PhotoSize being the uploaded image itself. Telegram 'attaches a vector of thumbnails with reduced resolution to all uploaded media', the smallest type s 'bounded by 100x100 pixels' and m by 320x320 (https://core.telegram.org/api/files, image thumbnail types; Message.photo is 'available sizes of the photo', https://core.telegram.org/bots/api#message), and the Bot API answers them in ascending order (TDLib at 42e6a52, td/telegram/PhotoSize.cpp get_photo_sizes_object, stable_sort by size then width*height, the TDLib source the spec cites). photo.0 is the 100-pixel thumbnail; the original's dimensions are on the last size.",
+      "correction": "Steps 59 and 69 expect the uploaded dimensions on the last PhotoSize (step 59: result.0.photo.2.width 480 and result.2.photo.2.height 300; step 69: result.photo.2.width 640 and height 480), with photo.0 the s thumbnail, bounded by 100x100."
+    }
+  ],
+  "applied": {
+    "from": "8251bda4592d9f3dae1bb5067727bee657d212ebd5aca36c32e8a7f4d1beb222",
+    "wasPlausible": false,
+    "steps": [
+      "59",
+      "61",
+      "69"
+    ],
+    "rulings": [
+      {
+        "steps": [
+          61
+        ],
+        "why": "Step 61 sends reply_parameters={\"message_id\":{album}} (JSON-serialized ReplyParameters, as https://core.telegram.org/bots/api#sendmessage documents) in place of reply_to_message_id, keeping its expectation result.reply_to_message.message_id equals {album}."
+      },
+      {
+        "steps": [
+          59,
+          69
+        ],
+        "why": "Steps 59 and 69 expect the uploaded dimensions on the last PhotoSize (step 59: result.0.photo.2.width 480 and result.2.photo.2.height 300; step 69: result.photo.2.width 640 and height 480), with photo.0 the s thumbnail, bounded by 100x100."
+      }
+    ]
+  }
+}

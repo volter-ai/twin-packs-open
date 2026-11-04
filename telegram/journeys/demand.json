@@ -1,0 +1,61 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/supercode (Volter Harness)",
+      "commit": "62620578c014",
+      "client": "the Chat SDK's Telegram adapter (@chat-adapter/telegram 4.39.0 under chat 4.39.0, fetch POST https://api.telegram.org/bot<token>/<method> with a JSON body, multipart form data for a file; rows marked @chat-adapter/telegram@4.39.0: are its published dist), botToken TELEGRAM_BOT_TOKEN from the Hermes profile's .env, mode polling; configuration read at sdk/orchestrator/adapters/chat-sdk.mjs:10,80,209",
+      "backend": [
+        {
+          "call": "the sidecar starts the Chat SDK: the adapter reads the bot's own user (its id and username, which a mention names)",
+          "operation": "getMe",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:331",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:1088"
+        },
+        {
+          "call": "...and, polling, removes any webhook first (pending updates kept)",
+          "operation": "deleteWebhook",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:80",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:1293"
+        },
+        {
+          "call": "...then asks for updates in a loop, each request held up to 30 seconds, confirming the last with offset",
+          "operation": "getUpdates",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:80",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:3327"
+        },
+        {
+          "call": "a person writes to the bot in private: the adapter shows it typing",
+          "operation": "sendChatAction",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:323",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:1945"
+        },
+        {
+          "call": "the agent's answer posted in the chat it came from, in parts of 4096 characters at most",
+          "operation": "sendMessage",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:449",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:3246"
+        },
+        {
+          "call": "a scheduled job's report to the profile's home chat (TELEGRAM_HOME_CHANNEL)",
+          "operation": "sendMessage",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:453",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:1790"
+        },
+        {
+          "call": "a card the chat is subscribed to is done: the board's notice with the card's artifact, the notice the file's caption in MarkdownV2",
+          "operation": "sendDocument",
+          "evidence": "sdk/orchestrator/board/dispatch.mjs:1663",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:2645"
+        },
+        {
+          "call": "...a card done with several artifacts: the files as one album of documents, the notice the first's caption in MarkdownV2",
+          "operation": "sendMediaGroup",
+          "evidence": "sdk/orchestrator/board/dispatch.mjs:1663",
+          "client": "@chat-adapter/telegram@4.39.0:dist/index.js:2802"
+        }
+      ]
+    }
+  ],
+  "optional": []
+}

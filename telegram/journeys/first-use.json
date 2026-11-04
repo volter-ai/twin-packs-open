@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://chat-sdk.dev/docs/adapters/telegram",
+  "about": "Volter Harness's Telegram channel as it ships (supercode 62620578c014, sdk/orchestrator/adapters/chat-sdk.mjs): the unchanged Chat SDK (chat 4.39.0, @chat-adapter/telegram 4.39.0, @chat-adapter/state-memory 4.39.0) polls with the bot token the World's credential door issues as TELEGRAM_BOT_TOKEN (getMe, deleteWebhook, getUpdates), hears Ada's private message (the World's people and messages doors stand in for the Telegram app) and answers in her chat (thread.post: sendMessage). The readback reads her private chat back (getChat) without polling or sending.",
+  "files": {
+    "package.json": "{\n  \"name\": \"telegram-harness-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"chat\": \"4.39.0\",\n    \"@chat-adapter/telegram\": \"4.39.0\",\n    \"@chat-adapter/state-memory\": \"4.39.0\"\n  }\n}\n",
+    ".env.example": "TELEGRAM_BOT_TOKEN=\nTELEGRAM_BOT_USERNAME=\n",
+    "agent.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync, writeFileSync } from 'node:fs';\nimport { Chat } from 'chat';\nimport { createTelegramAdapter } from '@chat-adapter/telegram';\nimport { createMemoryState } from '@chat-adapter/state-memory';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n// Volter Harness's Telegram channel: the Chat SDK's adapter from TELEGRAM_BOT_TOKEN, polling (sdk/orchestrator/adapters/chat-sdk.mjs)\nconst telegram = createTelegramAdapter({ botToken: process.env.TELEGRAM_BOT_TOKEN, mode: 'polling', logger: console });\nconst receiptFile = 'telegram-chat.json';\nif (process.argv[2] === 'readback') {\n  const saved = JSON.parse(readFileSync(receiptFile, 'utf8'));\n  const thread = await telegram.fetchThread(saved.thread);\n  assert.equal(thread.id, saved.thread);\n  assert.equal(thread.isDM, true);\n  assert.equal(thread.metadata.chat.first_name, 'Ada');\n  console.log(JSON.stringify({ retained: true, thread: thread.id, chat: thread.metadata.chat }));\n} else {\n  // Ada opens the bot in the Telegram app and writes to it: the World's doors stand in for the app\n  const api = (process.env.TELEGRAM_API_BASE_URL ?? 'https://api.telegram.org').replace(/\\/+$/, '');\n  const door = async (path, body) => {\n    const response = await fetch(api + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });\n    if (!response.ok) throw new Error(path + ' was refused: ' + response.status + ' ' + await response.text());\n    return response.json();\n  };\n  const ada = await door('/_twin/people', { first_name: 'Ada', username: 'ada_lovelace' });\n  await door('/_twin/messages', { from: ada.id, chat: '@' + process.env.TELEGRAM_BOT_USERNAME, text: 'Hi! Can you keep notes of our standups?' });\n  const answered = new Promise((resolve, reject) => {\n    const chat = new Chat({ adapters: { telegram }, state: createMemoryState(), concurrency: 'concurrent', logger: 'silent' });\n    chat.onDirectMessage(async (thread, message) => {\n      try {\n        const sent = await thread.post('Noted, Ada: I will keep the standup notes here.');\n        resolve({ chat, thread, message, sent });\n      } catch (error) { reject(error); }\n    });\n    chat.initialize().catch(reject);\n  });\n  const { chat, thread, message, sent } = await answered;\n  await telegram.stopPolling();\n  await chat.shutdown();\n  assert.equal(thread.isDM, true);\n  assert.equal(message.text, 'Hi! Can you keep notes of our standups?');\n  assert.equal(message.author.userId, String(ada.id));\n  assert.equal(message.author.isMe, false);\n  assert.equal(thread.id, 'telegram:' + ada.id);\n  assert.match(String(sent.id), new RegExp('^' + ada.id + ':\\\\d+$'), 'the answer names the message Telegram gave it in her chat');\n  assert.equal(sent.text, 'Noted, Ada: I will keep the standup notes here.');\n  writeFileSync(receiptFile, JSON.stringify({ thread: thread.id, message: sent.id }) + '\\n');\n  console.log(JSON.stringify({ answered: true, thread: thread.id, heard: message.text, sent: sent.id }));\n}\n"
+  },
+  "run": [
+    "node",
+    "agent.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "agent.mjs",
+      "readback"
+    ]
+  }
+}

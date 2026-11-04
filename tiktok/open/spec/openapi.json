@@ -1,0 +1,1417 @@
+{
+ "openapi": "3.0.3",
+ "info": {
+  "title": "TikTok for Developers: Login Kit, Content Posting API and Display API",
+  "version": "2026-08-24",
+  "description": "Written from the API reference pages of developers.tiktok.com (spec/SOURCE.md): TikTok publishes no OpenAPI document of these APIs."
+ },
+ "servers": [
+  {
+   "url": "https://open.tiktokapis.com"
+  }
+ ],
+ "paths": {
+  "/v2/oauth/token/": {
+   "post": {
+    "operationId": "oauthToken",
+    "summary": "Fetch or refresh a user access token",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/oauth-user-access-token-management"
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "client_key": {
+          "type": "string"
+         },
+         "client_secret": {
+          "type": "string"
+         },
+         "code": {
+          "type": "string"
+         },
+         "grant_type": {
+          "type": "string",
+          "enum": [
+           "authorization_code",
+           "refresh_token"
+          ]
+         },
+         "redirect_uri": {
+          "type": "string"
+         },
+         "code_verifier": {
+          "type": "string",
+          "description": "Required for mobile and desktop app only"
+         },
+         "refresh_token": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "The tokens, or {error, error_description, log_id}",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "open_id": {
+           "type": "string"
+          },
+          "scope": {
+           "type": "string",
+           "description": "A comma-separated list of the scopes the user has agreed to authorize"
+          },
+          "access_token": {
+           "type": "string"
+          },
+          "expires_in": {
+           "type": "integer",
+           "format": "int64"
+          },
+          "refresh_token": {
+           "type": "string"
+          },
+          "refresh_expires_in": {
+           "type": "integer",
+           "format": "int64"
+          },
+          "token_type": {
+           "type": "string"
+          },
+          "error": {
+           "type": "string"
+          },
+          "error_description": {
+           "type": "string"
+          },
+          "log_id": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/oauth/revoke/": {
+   "post": {
+    "operationId": "oauthRevoke",
+    "summary": "Revoke access",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/oauth-user-access-token-management"
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "client_key": {
+          "type": "string"
+         },
+         "client_secret": {
+          "type": "string"
+         },
+         "token": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK"
+     }
+    }
+   }
+  },
+  "/v2/user/info/": {
+   "get": {
+    "operationId": "userInfo",
+    "summary": "Get user info",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/tiktok-api-v2-get-user-info"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "fields",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "A comma-separated list of the fields to answer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "user": {
+             "type": "object",
+             "properties": {
+              "open_id": {
+               "type": "string"
+              },
+              "union_id": {
+               "type": "string"
+              },
+              "avatar_url": {
+               "type": "string"
+              },
+              "avatar_url_100": {
+               "type": "string"
+              },
+              "avatar_large_url": {
+               "type": "string"
+              },
+              "display_name": {
+               "type": "string"
+              },
+              "bio_description": {
+               "type": "string"
+              },
+              "profile_deep_link": {
+               "type": "string"
+              },
+              "is_verified": {
+               "type": "boolean"
+              },
+              "username": {
+               "type": "string"
+              },
+              "follower_count": {
+               "type": "integer",
+               "format": "int64"
+              },
+              "following_count": {
+               "type": "integer",
+               "format": "int64"
+              },
+              "likes_count": {
+               "type": "integer",
+               "format": "int64"
+              },
+              "video_count": {
+               "type": "integer",
+               "format": "int64"
+              }
+             }
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/post/publish/creator_info/query/": {
+   "post": {
+    "operationId": "creatorInfoQuery",
+    "summary": "Query creator info",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/content-posting-api-reference-query-creator-info"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "creator_avatar_url": {
+             "type": "string"
+            },
+            "creator_username": {
+             "type": "string"
+            },
+            "creator_nickname": {
+             "type": "string"
+            },
+            "privacy_level_options": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            },
+            "comment_disabled": {
+             "type": "boolean"
+            },
+            "duet_disabled": {
+             "type": "boolean"
+            },
+            "stitch_disabled": {
+             "type": "boolean"
+            },
+            "max_video_post_duration_sec": {
+             "type": "integer",
+             "format": "int32"
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/post/publish/video/init/": {
+   "post": {
+    "operationId": "videoInit",
+    "summary": "Direct Post: initialize the posting request",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "post_info": {
+          "type": "object",
+          "properties": {
+           "privacy_level": {
+            "type": "string",
+            "enum": [
+             "PUBLIC_TO_EVERYONE",
+             "MUTUAL_FOLLOW_FRIENDS",
+             "FOLLOWER_OF_CREATOR",
+             "SELF_ONLY"
+            ]
+           },
+           "title": {
+            "type": "string",
+            "description": "The video caption; at most 2200 UTF-16 runes"
+           },
+           "description": {
+            "type": "string"
+           },
+           "disable_duet": {
+            "type": "boolean"
+           },
+           "disable_stitch": {
+            "type": "boolean"
+           },
+           "disable_comment": {
+            "type": "boolean"
+           },
+           "video_cover_timestamp_ms": {
+            "type": "integer",
+            "format": "int32"
+           },
+           "brand_content_toggle": {
+            "type": "boolean"
+           },
+           "brand_organic_toggle": {
+            "type": "boolean"
+           },
+           "is_aigc": {
+            "type": "boolean"
+           },
+           "auto_add_music": {
+            "type": "boolean"
+           }
+          }
+         },
+         "source_info": {
+          "type": "object",
+          "properties": {
+           "source": {
+            "type": "string",
+            "enum": [
+             "PULL_FROM_URL",
+             "FILE_UPLOAD"
+            ]
+           },
+           "video_url": {
+            "type": "string"
+           },
+           "video_size": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "chunk_size": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "total_chunk_count": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "photo_images": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "maxItems": 35
+           },
+           "photo_cover_index": {
+            "type": "integer",
+            "format": "int32"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "publish_id": {
+             "type": "string",
+             "description": "An identifier to track the posting action; at most 64 characters"
+            },
+            "upload_url": {
+             "type": "string",
+             "description": "Where the video file is uploaded (FILE_UPLOAD); valid for one hour"
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/post/publish/inbox/video/init/": {
+   "post": {
+    "operationId": "inboxVideoInit",
+    "summary": "Upload: initialize the video upload",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/content-posting-api-reference-upload-video"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "source_info": {
+          "type": "object",
+          "properties": {
+           "source": {
+            "type": "string",
+            "enum": [
+             "PULL_FROM_URL",
+             "FILE_UPLOAD"
+            ]
+           },
+           "video_url": {
+            "type": "string"
+           },
+           "video_size": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "chunk_size": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "total_chunk_count": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "photo_images": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "maxItems": 35
+           },
+           "photo_cover_index": {
+            "type": "integer",
+            "format": "int32"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "publish_id": {
+             "type": "string",
+             "description": "An identifier to track the posting action; at most 64 characters"
+            },
+            "upload_url": {
+             "type": "string",
+             "description": "Where the video file is uploaded (FILE_UPLOAD); valid for one hour"
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/post/publish/content/init/": {
+   "post": {
+    "operationId": "contentInit",
+    "summary": "Photo: initialize the posting request",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/content-posting-api-reference-photo-post"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "media_type": {
+          "type": "string",
+          "enum": [
+           "PHOTO"
+          ]
+         },
+         "post_mode": {
+          "type": "string",
+          "enum": [
+           "DIRECT_POST",
+           "MEDIA_UPLOAD"
+          ]
+         },
+         "post_info": {
+          "type": "object",
+          "properties": {
+           "privacy_level": {
+            "type": "string",
+            "enum": [
+             "PUBLIC_TO_EVERYONE",
+             "MUTUAL_FOLLOW_FRIENDS",
+             "FOLLOWER_OF_CREATOR",
+             "SELF_ONLY"
+            ]
+           },
+           "title": {
+            "type": "string",
+            "description": "The video caption; at most 2200 UTF-16 runes"
+           },
+           "description": {
+            "type": "string"
+           },
+           "disable_duet": {
+            "type": "boolean"
+           },
+           "disable_stitch": {
+            "type": "boolean"
+           },
+           "disable_comment": {
+            "type": "boolean"
+           },
+           "video_cover_timestamp_ms": {
+            "type": "integer",
+            "format": "int32"
+           },
+           "brand_content_toggle": {
+            "type": "boolean"
+           },
+           "brand_organic_toggle": {
+            "type": "boolean"
+           },
+           "is_aigc": {
+            "type": "boolean"
+           },
+           "auto_add_music": {
+            "type": "boolean"
+           }
+          }
+         },
+         "source_info": {
+          "type": "object",
+          "properties": {
+           "source": {
+            "type": "string",
+            "enum": [
+             "PULL_FROM_URL",
+             "FILE_UPLOAD"
+            ]
+           },
+           "video_url": {
+            "type": "string"
+           },
+           "video_size": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "chunk_size": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "total_chunk_count": {
+            "type": "integer",
+            "format": "int64"
+           },
+           "photo_images": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "maxItems": 35
+           },
+           "photo_cover_index": {
+            "type": "integer",
+            "format": "int32"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "publish_id": {
+             "type": "string"
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/post/publish/status/fetch/": {
+   "post": {
+    "operationId": "publishStatusFetch",
+    "summary": "Get post status",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/content-posting-api-reference-get-video-status"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "publish_id": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "PROCESSING_UPLOAD",
+              "PROCESSING_DOWNLOAD",
+              "SEND_TO_USER_INBOX",
+              "PUBLISH_COMPLETE",
+              "FAILED"
+             ]
+            },
+            "fail_reason": {
+             "type": "string"
+            },
+            "publicaly_available_post_id": {
+             "type": "array",
+             "items": {
+              "type": "integer",
+              "format": "int64"
+             }
+            },
+            "uploaded_bytes": {
+             "type": "integer",
+             "format": "int64"
+            },
+            "downloaded_bytes": {
+             "type": "integer",
+             "format": "int64"
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/post/publish/cancel/": {
+   "post": {
+    "operationId": "publishCancel",
+    "summary": "Cancel an ongoing pull from URL task",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "publish_id": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/video/list/": {
+   "post": {
+    "operationId": "videoList",
+    "summary": "List videos",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/tiktok-api-v2-video-list"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "fields",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "A comma-separated list of the fields to answer"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "cursor": {
+          "type": "integer",
+          "format": "int64"
+         },
+         "max_count": {
+          "type": "integer",
+          "format": "int32"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "videos": {
+             "type": "array",
+             "items": {
+              "type": "object",
+              "properties": {
+               "id": {
+                "type": "string"
+               },
+               "create_time": {
+                "type": "integer",
+                "format": "int64"
+               },
+               "cover_image_url": {
+                "type": "string"
+               },
+               "share_url": {
+                "type": "string"
+               },
+               "video_description": {
+                "type": "string"
+               },
+               "duration": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "height": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "width": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "title": {
+                "type": "string"
+               },
+               "embed_html": {
+                "type": "string"
+               },
+               "embed_link": {
+                "type": "string"
+               },
+               "like_count": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "comment_count": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "share_count": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "view_count": {
+                "type": "integer",
+                "format": "int64"
+               },
+               "is_aigc": {
+                "type": "boolean"
+               }
+              }
+             }
+            },
+            "cursor": {
+             "type": "integer",
+             "format": "int64"
+            },
+            "has_more": {
+             "type": "boolean"
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v2/video/query/": {
+   "post": {
+    "operationId": "videoQuery",
+    "summary": "Query videos",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/tiktok-api-v2-video-query"
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "fields",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "A comma-separated list of the fields to answer"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "filters": {
+          "type": "object",
+          "properties": {
+           "video_ids": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "maxItems": 20
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "videos": {
+             "type": "array",
+             "items": {
+              "type": "object",
+              "properties": {
+               "id": {
+                "type": "string"
+               },
+               "create_time": {
+                "type": "integer",
+                "format": "int64"
+               },
+               "cover_image_url": {
+                "type": "string"
+               },
+               "share_url": {
+                "type": "string"
+               },
+               "video_description": {
+                "type": "string"
+               },
+               "duration": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "height": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "width": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "title": {
+                "type": "string"
+               },
+               "embed_html": {
+                "type": "string"
+               },
+               "embed_link": {
+                "type": "string"
+               },
+               "like_count": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "comment_count": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "share_count": {
+                "type": "integer",
+                "format": "int32"
+               },
+               "view_count": {
+                "type": "integer",
+                "format": "int64"
+               },
+               "is_aigc": {
+                "type": "boolean"
+               }
+              }
+             }
+            }
+           }
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "access_token_invalid or scope_not_authorized",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object"
+          },
+          "error": {
+           "$ref": "#/components/schemas/Error"
+          }
+         },
+         "required": [
+          "error"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/video/": {
+   "servers": [
+    {
+     "url": "https://open-upload.tiktokapis.com"
+    }
+   ],
+   "put": {
+    "operationId": "uploadVideo",
+    "summary": "Send the video to TikTok servers (a chunk)",
+    "externalDocs": {
+     "url": "https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide"
+    },
+    "parameters": [
+     {
+      "name": "upload_id",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "upload_token",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "Content-Range",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "bytes {FIRST_BYTE}-{LAST_BYTE}/{TOTAL_BYTE_LENGTH}"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "video/mp4": {
+       "schema": {
+        "type": "string",
+        "format": "binary"
+       }
+      },
+      "video/quicktime": {
+       "schema": {
+        "type": "string",
+        "format": "binary"
+       }
+      },
+      "video/webm": {
+       "schema": {
+        "type": "string",
+        "format": "binary"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "All parts are uploaded"
+     },
+     "206": {
+      "description": "The current chunk has been successfully processed"
+     },
+     "400": {
+      "description": "BadRequest"
+     },
+     "403": {
+      "description": "The upload_url has expired"
+     },
+     "404": {
+      "description": "No valid upload task given the upload_url"
+     },
+     "416": {
+      "description": "Content-Range does not reflect the actual upload progress"
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "securitySchemes": {
+   "bearer": {
+    "type": "http",
+    "scheme": "bearer",
+    "description": "The token that bears the authorization of the TikTok user, which is obtained through /oauth/access_token/."
+   }
+  },
+  "schemas": {
+   "Error": {
+    "type": "object",
+    "properties": {
+     "code": {
+      "type": "string",
+      "description": "ok, or the reason the request did not succeed"
+     },
+     "message": {
+      "type": "string",
+      "description": "A human readable description of the error"
+     },
+     "log_id": {
+      "type": "string",
+      "description": "A unique identifier for the execution of this request"
+     }
+    }
+   }
+  }
+ }
+}
