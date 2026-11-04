@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://unpkg.com/@librechat/agents@4.0.1/src/tools/search/firecrawl.ts",
+  "about": "A Node application uses axios 1.20.0, pinned by the cited LibreChat lock, and its World-issued Firecrawl team key. It first places a synthetic public page through the declared pages door, then uses LibreChat's v2 scrape request shape to consume markdown, raw HTML and page metadata. The twin browses no live web; resumed readback only scrapes the held page again.",
+  "files": {
+    "package.json": "{\n  \"name\": \"firecrawl-page-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"axios\": \"1.20.0\"\n  }\n}\n",
+    ".env.example": "FIRECRAWL_API_KEY=\n",
+    "client.mjs": "import assert from 'node:assert/strict';\nimport axios from 'axios';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nassert.ok(process.env.FIRECRAWL_API_KEY, 'the application receives its team API key');\nconst url = 'https://example.com/observatory';\nconst title = 'Observatory notes';\nconst html = '<!doctype html><html><head><title>Observatory notes</title></head><body><h1>Observatory notes</h1><p>Public telescope sessions begin at dusk.</p></body></html>';\nconst config = {\n  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}` },\n  timeout: 7500,\n};\nif (process.argv[2] !== 'readback') {\n  const seeded = await axios.post('https://api.firecrawl.dev/_twin/pages', { url, title, html }, config);\n  assert.equal(seeded.status, 201);\n  assert.equal(seeded.data.url, url);\n  assert.ok(seeded.data.id);\n}\nconst { status, data: response } = await axios.post('https://api.firecrawl.dev/v2/scrape', {\n  url, formats: ['markdown', 'rawHtml'], timeout: 7500,\n}, config);\nassert.equal(status, 200);\nassert.equal(response.success, true);\nassert.equal(response.data.rawHtml, html);\nassert.equal(response.data.markdown, '# Observatory notes\\n\\nPublic telescope sessions begin at dusk.');\nassert.equal(response.data.metadata.title, title);\nassert.equal(response.data.metadata.sourceURL, url);\nassert.equal(response.data.metadata.statusCode, 200);\nassert.equal(response.data.metadata.creditsUsed, 1);\nassert.ok(response.data.metadata.scrapeId);\nconsole.log(JSON.stringify({ url, markdown: response.data.markdown, retainedPage: process.argv[2] === 'readback' }));\n"
+  },
+  "run": [
+    "node",
+    "client.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "client.mjs",
+      "readback"
+    ]
+  }
+}
