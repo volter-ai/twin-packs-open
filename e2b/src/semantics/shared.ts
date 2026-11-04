@@ -12,8 +12,8 @@ export function processUnavailable(id: string): Response {
   return Response.json({ code: 'unavailable', message: `The sandbox ${id} could not be reached` }, { status: 502 });
 }
 
-export type Row = Record<string, unknown>;
-export const TEAM = '_team';
+type Row = Record<string, unknown>;
+const TEAM = '_team';
 export const TEMPLATE = 'template';
 export const SANDBOX = 'sandbox';
 /** The envd version the twin's sandboxes run. Where the documentation stops: the version E2B's current templates carry. */
@@ -83,7 +83,7 @@ export function teamOf(ctx: HandlerContext): Row | undefined {
 }
 
 /** A stored row's vendor fields: its own fields without the kernel's bookkeeping. */
-export const vendorFields = (ctx: HandlerContext, row: Row): Row => Object.fromEntries(Object.entries(ctx.own(row)).filter(([k]) => !k.startsWith('_')));
+const vendorFields = (ctx: HandlerContext, row: Row): Row => Object.fromEntries(Object.entries(ctx.own(row)).filter(([k]) => !k.startsWith('_')));
 
 /** Whether a stored row belongs to the project, including the root's observed rows for its default project. */
 export const ofTeam = (row: Row, team: Row): boolean => row._team === team.id || (row._team === undefined && team._default === true);

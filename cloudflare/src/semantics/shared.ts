@@ -70,7 +70,6 @@ export async function makeApiToken(ctx: HandlerContext, input: {
     _user: ctx.rowsRaw('cf_user').find(user => user.email === input.owner)?.id ?? null, _custody: serial,
     _sha256: ctx.crypto.sha256(value), deleted: false,
   }), 'api_token.create');
-  await ctx.record('_credential_issue', { token_id: made.id }, serial);
   return { token: ctx.row(API_TOKEN, String(made.id))!, value };
 }
 export async function rollApiToken(ctx: HandlerContext, token: Row): Promise<string> {

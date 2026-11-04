@@ -1,4 +1,3 @@
-export * from '../../../src/semantics/shared.ts';
 import type { HandlerContext } from '@volter/world-core';
 import { FILE, assetKey, htmlError } from '../../../src/semantics/shared.ts';
 

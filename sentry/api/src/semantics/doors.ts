@@ -72,9 +72,5 @@ export async function authTokens(ctx: HandlerContext): Promise<Response> {
   if (!org) return bad('organization must name an organization the World holds');
   if (typeof b.name !== 'string' || !b.name) return bad('a name is required');
   const scopes = Array.isArray(b.scopes) ? b.scopes.map(String) : ['org:read', 'project:read', 'event:read'];
-  return b.kind === 'personal' ? Response.json({ token: await makePersonalToken(ctx, org, String(b.name), scopes) }, { status: 201 }) : issueOrganizationToken(ctx, org, String(b.name));
-}
-
-async function issueOrganizationToken(ctx: HandlerContext, org: Record<string, unknown>, name: string): Promise<Response> {
-  return Response.json({ token: await makeOrgToken(ctx, org, name) }, { status: 201 });
+  return b.kind === 'personal' ? Response.json({ token: await makePersonalToken(ctx, org, String(b.name), scopes) }, { status: 201 }) : Response.json({ token: await makeOrgToken(ctx, org, String(b.name)) }, { status: 201 });
 }

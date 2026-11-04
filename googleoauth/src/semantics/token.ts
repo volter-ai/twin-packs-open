@@ -3,7 +3,8 @@
 import type { HandlerContext } from '@volter/world-core';
 import { accountBySub, clientOf, CODE, issue, live, nowSeconds, oauthError, REFRESH, type Row, SERVICE_ACCOUNT, SERVICE_ACCOUNT_KEY, ACCESS_TOKEN, credential, serial } from './shared.ts';
 
-async function exchange(ctx: HandlerContext): Promise<Response> {
+// source: https://developers.google.com/identity/protocols/oauth2/web-server "After the web server receives the authorization code, it can exchange the authorization code for an access token."
+export async function token(ctx: HandlerContext): Promise<Response> {
   const p = ctx.params as Row;
   const grant = String(p.grant_type ?? '');
   // source: https://developers.google.com/identity/protocols/oauth2/service-account "urn:ietf:params:oauth:grant-type:jwt-bearer assertion The JWT, including signature."
@@ -20,7 +21,7 @@ async function exchange(ctx: HandlerContext): Promise<Response> {
     if (typeof sa.public_key === 'string' && !managed.some((row) => row.private_key_id === sa.private_key_id)) keys.push(sa);
     if (!keys.some((key) => (!keyId || key.private_key_id === keyId) && typeof key.public_key === 'string' && ctx.crypto.verifyWith(key.public_key, `${h}.${pl}`, Buffer.from(String(sig ?? ''), 'base64url')))) return oauthError(400, 'invalid_grant', 'Invalid JWT Signature.');
     if (Number(claims.exp ?? 0) < nowSeconds(ctx)) return oauthError(400, 'invalid_grant', 'Invalid JWT: Token must be a short-lived token (60 minutes) and in a reasonable timeframe.');
-    const access = await credential(ctx, 'ya29.c.', `sa:${String(claims.iss)}:${ctx.occurredAt}:${await serial(ctx, 'access-token')}`, 180);
+    const access = await credential(ctx, 'ya29.c.', `sa:${String(claims.iss)}:${ctx.occurredAt}:${await serial(ctx)}`, 180);
     await ctx.write(ACCESS_TOKEN, access, { clientId: sa.client_id ?? String(claims.iss), sub: String(claims.sub ?? claims.iss), scope: String(claims.scope ?? ''), expiresAt: nowSeconds(ctx) + 3599, revoked: false, serviceAccountEmail: String(claims.iss) }, 'access_token.create');
     return Response.json({ access_token: access, expires_in: 3599, token_type: 'Bearer' }, { headers: { 'cache-control': 'no-store' } });
   }
@@ -54,5 +55,3 @@ async function exchange(ctx: HandlerContext): Promise<Response> {
   return oauthError(400, 'unsupported_grant_type', `Invalid grant_type: ${grant}`);
 }
 
-// source: https://developers.google.com/identity/protocols/oauth2/web-server "After the web server receives the authorization code, it can exchange the authorization code for an access token."
-export async function token(ctx: HandlerContext): Promise<Response> { return exchange(ctx); }
