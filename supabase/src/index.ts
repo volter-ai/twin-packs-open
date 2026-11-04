@@ -1,5 +1,6 @@
 // @volter/twin-supabase — the supabase twin (Protocol 3). A fixed file (create-pack): the descriptor is the manifest's, and the
-// kernel derives the vendor-backed half from the generated surface (architecture, "The real-system adapters").
+// kernel derives the vendor-backed half from the generated surface, unless the manifest declares none (vendorBacked.none;
+// architecture, "The real-system adapters").
 import { packOf, registerPack, type DerivedSurface } from '@volter/world-core';
 import { manifest } from './manifest.ts';
 import { manifest as authManifest } from '../auth/src/manifest.ts';
