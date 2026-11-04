@@ -12,6 +12,7 @@ export const manifest: DerivedManifest = {
   tenant: { field: '_sandbox', storage: 'namespaced' },
   body: { form: { coerce: true } },
   ids: { template: '{prefix}_twin_{n}', acceptProvided: true },
+  variants: { PostInvoices: ['from_invoice'] },
   unmodeled: [
     'DeleteAccountsAccountBankAccountsId',
     'DeleteAccountsAccountExternalAccountsId',
