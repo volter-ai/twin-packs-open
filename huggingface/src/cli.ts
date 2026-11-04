@@ -8,7 +8,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 const port = Number(optionValue(rest, '--port', '0')) || undefined;
 const root = optionValue(rest, '--root') || undefined;
 const readOnly = hasFlag(rest, '--read-only');
-// the World's managed Postgres, which the runtime binds a pack declaring managedDatabase to
+// the selected twin's private Postgres, which the runtime binds a pack declaring managedDatabase to
 const database = optionValue(rest, '--database') || undefined;
 // the World's scenario file, for a model vendor's turns
 const scenarioPath = optionValue(rest, '--scenario') || undefined;

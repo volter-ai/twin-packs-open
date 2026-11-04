@@ -32,6 +32,11 @@ export function appFor(ctx: HandlerContext, c: Caller): Row | Response {
   return app;
 }
 
+export async function makeApp(ctx: HandlerContext, name: string, org: string, network: unknown): Promise<Row | Response> {
+  const made = await ctx.createUnique(APP, (id) => ({ id, name, status: 'pending', network, organization: { name: org, slug: org }, machine_count: 0, volume_count: 0, _org: org }), 'Apps_create');
+  return made.created ? ctx.row(APP, String(made.row.id))! : fail(422, `app name "${name}" is already taken`);
+}
+
 /** An app as `GET /apps/{app}` answers it, with its counts. */
 export function appView(ctx: HandlerContext, a: Row): Row {
   return ctx.get(APP, String(a.id))!;

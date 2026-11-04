@@ -42,12 +42,12 @@ export const manifest: DerivedManifest = {
   }, {
     id: 'redis', kind: 'workspace', host: 'console.upstash.com', path: '/redis',
     demand: "a database's REST URL and token (UPSTASH_REDIS_REST_URL and _TOKEN, the applications' only Redis credentials) are made and shown here; its signed-in owner opens Data Browser to inspect the application's stored keys, values, types and TTL",
-    status: 'done', controls: ['Create Database', 'Name', 'Primary Region', 'Create', 'Read-Only Token', 'Delete', 'Details', 'Data Browser', 'Search', 'All Types', 'Refresh', 'Copy', 'Next page', 'First page'],
+    status: 'done', controls: ['Account', 'Switch account', 'Create Database', 'Name', 'Primary Region', 'Create', 'Read-Only Token', 'Delete', 'Details', 'Data Browser', 'Search', 'All Types', 'Refresh', 'Copy', 'Next page', 'First page'],
     source: 'https://upstash.com/docs/redis/overall/getstarted',
   }, {
     id: 'qstash', kind: 'workspace', host: 'console.upstash.com', path: '/qstash',
     demand: "QStash's token and signing keys (QSTASH_TOKEN and the two signing keys the applications verify with) are shown, the token reset and the keys rolled, only here",
-    status: 'done', controls: ['Region', 'Reset token', 'Roll keys'], source: 'https://upstash.com/docs/qstash/howto/reset-token',
+    status: 'done', controls: ['Account', 'Switch account', 'Region', 'Reset token', 'Roll keys'], source: 'https://upstash.com/docs/qstash/howto/reset-token',
   }],
   resources: {
     _identity: { idPrefix: '' },
