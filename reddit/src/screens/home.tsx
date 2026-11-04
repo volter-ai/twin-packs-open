@@ -4,7 +4,7 @@
 // posts (Reddit's front page shows a signed-out reader its popular posts). The World's console opens Reddit here.
 // Where the documentation stops: Reddit documents no ranking for its front page; the twin orders it as a community's Hot.
 import type { HandlerContext } from '@volter/world-core';
-import { linksOf, linkView, membership, sortLinks, SUBREDDIT } from '../semantics/shared.ts';
+import { homeFeed } from '../semantics/shared.ts';
 import { baseOf, notFoundPage, page, PostCard, viewerOf } from './shared.tsx';
 
 export async function screen(ctx: HandlerContext): Promise<Response> {
@@ -12,14 +12,10 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   // the root alone: every other path no screen draws is a page Reddit does not have
   if (new URL(ctx.call.request.url).pathname.replace(/\/+$/, '') !== '') return notFoundPage(ctx, viewer, 'Page not found', 'The page you’re looking for doesn’t exist.');
   const base = baseOf(ctx);
-  const me = viewer ? String(viewer.account.id) : undefined;
-  const open = ctx.rowsRaw(SUBREDDIT).filter((sr) => sr._profile_of === undefined && sr.subreddit_type !== 'private');
-  const joined = me ? open.filter((sr) => { const m = membership(ctx, String(sr.id), me); return m.subscriber || m.moderator; }) : [];
-  const feed = joined.length ? joined : open;
-  const posts = sortLinks(ctx, feed.flatMap((sr) => linksOf(ctx, String(sr.id))), 'hot').map((l) => linkView(ctx, l, me));
+  const { posts, personalized } = homeFeed(ctx, viewer ? String(viewer.account.id) : undefined);
   const main = (
     <>
-      <div className="sr-head all-head"><h1>{joined.length ? 'Home' : 'Popular'}</h1></div>
+      <div className="sr-head all-head"><h1>{personalized ? 'Home' : 'Popular'}</h1></div>
       {posts.length === 0 ? <section className="empty"><h2>No posts yet</h2></section>
         : posts.map((p) => <PostCard key={String(p.id)} ctx={ctx} post={p} base={base} mode="listing" viewer={viewer} />)}
     </>

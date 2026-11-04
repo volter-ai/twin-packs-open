@@ -17,7 +17,7 @@ export const RATE_WINDOW = '_rate_window';
 export const VOTE = '_vote';
 export const MEMBERSHIP = '_membership';
 /** The session cookie reddit.com names its person by. */
-const SESSION_COOKIE = 'reddit_session';
+export const SESSION_COOKIE = 'reddit_session';
 /** The caller this pack's front resolved (./around.ts), named to a handler in a header only that front sets. */
 export const CALLER_HEADER = 'x-twin-reddit-caller';
 
@@ -122,15 +122,6 @@ export function personByLogin(ctx: HandlerContext, login: string): { email: stri
   if (!account) return undefined;
   const email = String(account._email);
   return personOf(ctx, email) ? { email, account } : undefined;
-}
-
-/** The `reddit_session` cookie a request carries, or ''. */
-export const sessionCookie = (ctx: HandlerContext): string => new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`).exec(ctx.call.request.headers.get('cookie') ?? '')?.[1] ?? '';
-
-/** The email of the person a session cookie signed in (world-ui's session kit records the session as `_web_session`). */
-export function personSignedIn(ctx: HandlerContext, cookie: string): string | undefined {
-  const session = ctx.rowsRaw('_web_session').find((s) => s.token === cookie);
-  return session && personOf(ctx, String(session.email)) ? String(session.email) : undefined;
 }
 
 /** The modhash a session's pages carry and its own API calls send back (dev/api: "A modhash is a token that the reddit
@@ -279,6 +270,17 @@ export function sortLinks(ctx: HandlerContext, links: Row[], sort: 'hot' | 'new'
   const created = (l: Row): number => Number(l.created_utc ?? 0) + made.get(l)! / 1e6;
   const key = sort === 'new' ? created : sort === 'top' ? (l: Row) => score(l) * 1e12 + created(l) : (l: Row) => hotRank(score(l), created(l)) * 1e6 + made.get(l)! / 1e6;
   return [...links].sort((a, b) => key(b) - key(a));
+}
+
+/** The front page's Hot posts: joined or moderated communities, else every public community. */
+export function homeFeed(ctx: HandlerContext, viewer: string | undefined): { posts: Row[]; personalized: boolean } {
+  const open = ctx.rowsRaw(SUBREDDIT).filter((sr) => sr._profile_of === undefined && sr.subreddit_type !== 'private');
+  const joined = viewer ? open.filter((sr) => { const m = membership(ctx, String(sr.id), viewer); return m.subscriber || m.moderator; }) : [];
+  const feed = joined.length ? joined : open;
+  return {
+    posts: sortLinks(ctx, feed.flatMap((sr) => linksOf(ctx, String(sr.id))), 'hot').map((l) => linkView(ctx, l, viewer)),
+    personalized: joined.length > 0,
+  };
 }
 
 /** A post as Reddit answers its `data`, to the account reading it: its stored facts, its votes and comments counted
