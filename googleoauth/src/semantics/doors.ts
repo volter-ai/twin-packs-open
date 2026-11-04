@@ -7,7 +7,7 @@
 //                             api_key?: { name? } }  the World's credentials: the service account, its OAuth client, its
 //                                                  person and its project's API key (the credential door)
 import type { HandlerContext } from '@volter/world-core';
-import { googleSubFor } from '../google-account-id.ts';
+import { googleSubFor } from '../engine/google-account-id.ts';
 import { ACCOUNT, API_KEY, CLIENT, credential, serial, SERVICE_ACCOUNT, SERVICE_ACCOUNT_KEY, type Row } from './shared.ts';
 
 const bad = (error: string): Response => Response.json({ error }, { status: 400 });
