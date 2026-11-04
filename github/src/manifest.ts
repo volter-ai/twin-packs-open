@@ -193,7 +193,7 @@ export const manifest: DerivedManifest = {
   // the World's doors (./semantics/doors.ts): what stands in for acts outside GitHub's API
   doors: [
     { id: 'users', method: 'POST', path: '/_twin/users', note: "a person signs up on github.com/signup: a username, an email address and a password" },
-    { id: 'password', method: 'POST', path: '/_twin/users/{login}/password', note: "a person's github.com password, as they chose it" },
+    { id: 'password', method: 'POST', path: '/_twin/users/{login}/password', note: "a person's github.com password, chosen or issued by the World" },
     { id: 'twoFactor', method: 'POST', path: '/_twin/users/{login}/two-factor', note: 'two-factor authentication turned on with an authenticator app: its setup key' },
     { id: 'totp', method: 'GET', path: '/_twin/users/{login}/totp', note: "the code a person's authenticator app shows now" },
     { id: 'tokens', method: 'POST', path: '/_twin/users/{login}/tokens', note: 'a personal access token, with the scopes chosen on the settings page' },
