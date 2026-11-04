@@ -79,8 +79,16 @@ export async function nativeOrganization(ctx: HandlerContext): Promise<Row> {
     }
     throw fail(409, 'Conflict', `An organization slug already exists for ${world.id}.`);
   };
-  if (nativeEnvironment === 'production') return ctx.tenant(ORGANIZATION, make);
-  return ctx.row(ORGANIZATION, await make())!;
+  const organization = nativeEnvironment === 'production' ? await ctx.tenant(ORGANIZATION, make) : ctx.row(ORGANIZATION, await make())!;
+  if (world.id === 'default') {
+    for (const token of ctx.rowsRaw('_access_token').filter((row) => row._organization_namespace === 'default'
+      && row._organization_id === undefined && (row._environment ?? 'production') === nativeEnvironment)) {
+      await ctx.change('_access_token', String(token.id), (row) => row._organization_id === undefined
+        && (row._environment ?? 'production') === nativeEnvironment ? { _organization_id: organization.id } : undefined,
+      'access_token.organization', { input: 'omit' });
+    }
+  }
+  return organization;
 }
 
 /** A live organization access token in the request's native environment. */
@@ -95,7 +103,11 @@ export async function settingsOrganization(ctx: HandlerContext): Promise<Row | u
   if (bodyOf(ctx).account !== undefined) return nativeOrganization(ctx);
   const bearer = /^Bearer\s+(\S+)/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
   if (!bearer) return nativeOrganization(ctx);
-  const key = accessToken(ctx, bearer);
+  let key = accessToken(ctx, bearer);
+  if (key?._organization_namespace === 'default' && key._organization_id === undefined) {
+    await nativeOrganization(ctx);
+    key = accessToken(ctx, bearer);
+  }
   const organization = key && ctx.row(ORGANIZATION, String(key._organization_id));
   return organization && organization.deleted !== true && organization._environment === environment(ctx) ? organization : undefined;
 }
