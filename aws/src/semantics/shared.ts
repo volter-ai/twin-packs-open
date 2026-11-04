@@ -43,7 +43,7 @@ export function signerArn(ctx: Pick<HandlerContext, 'rowsRaw'>, request: Request
 }
 
 /** An access key's Secret Access Key: forty characters drawn from the World's secret for its id. */
-export async function secretAccessKey(ctx: Pick<HandlerContext, 'secret' | 'crypto'>, keyId: string): Promise<string> {
+async function secretAccessKey(ctx: Pick<HandlerContext, 'secret' | 'crypto'>, keyId: string): Promise<string> {
   return ctx.crypto.base62From(await ctx.secret(`aws-secret-access-key:${keyId}`), 40);
 }
 

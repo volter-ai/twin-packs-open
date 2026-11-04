@@ -41,7 +41,7 @@ export function organizationOf(ctx: HandlerContext): Row | Response {
 // it measured against Gateway's reported costs (spec/SOURCE.md, "Model prices"), and the one Volter Editor's Pi runs
 // in Substrate, at Anthropic's list prices (Gateway's cost is the vendor's: "Vendor cost plus a 5% Merge fee"). Prices
 // in USD per million tokens; `gated` is the provider whose access a newer organization is granted before its calls.
-export type Model = {
+type Model = {
   id: string; vendor: string; name: string; input: number; output: number; cacheRead: number;
   context: number; maxOutput: number; inputs: string[]; gated?: string;
 };
@@ -62,10 +62,10 @@ export const MODELS: Model[] = [
 // ── provider access ────────────────────────────────────────────────────────────────────────────
 // source: https://docs.merge.dev/merge-gateway/model-access/vendor-access "need access enabled before calling its models."
 // source: https://docs.merge.dev/merge-gateway/model-access/vendor-access "September 4, 2026 at 5:00pm ET (21:00 UTC)"
-export const GATED: Record<string, { cutoff: string; name: string }> = { anthropic: { cutoff: '2026-09-04T21:00:00.000Z', name: 'Anthropic' } };
+const GATED: Record<string, { cutoff: string; name: string }> = { anthropic: { cutoff: '2026-09-04T21:00:00.000Z', name: 'Anthropic' } };
 
 /** Whether the organization still needs access to the model's provider: made on or after its cutoff, and not granted. */
-export function accessRequired(org: Row, m: Model): boolean {
+function accessRequired(org: Row, m: Model): boolean {
   const gate = m.gated ? GATED[m.gated] : undefined;
   if (!gate) return false;
   const granted = Array.isArray(org.access) && (org.access as unknown[]).includes(m.gated);
@@ -74,7 +74,7 @@ export function accessRequired(org: Row, m: Model): boolean {
 
 /** Gateway's refusal of a call to a gated model the organization has no access to: before the body is read. */
 // source: https://docs.merge.dev/merge-gateway/model-access/vendor-access "models are not enabled for this organization."
-export const accessRefusal = (org: Row, m: Model): Response | undefined =>
+const accessRefusal = (org: Row, m: Model): Response | undefined =>
   accessRequired(org, m) ? mergeError(403, 'blocked_by_policy', `${GATED[m.gated!]!.name} models are not enabled for this organization. Contact support@merge.dev, or use the in-app chat, to request access.`, { code: 'vendor_access_required' }) : undefined;
 
 /** A catalogue model as GET /v1/models lists it: identity at the top, its one route under `vendors`. */
@@ -97,7 +97,7 @@ export function publicModel(org: Row, m: Model): Row {
 }
 
 /** The model a request names (`provider/model`, or a bare name one provider has), or Gateway's refusal. */
-export function modelOf(name: unknown): Model | Response {
+function modelOf(name: unknown): Model | Response {
   // source: https://docs.merge.dev/merge-gateway/errors "and no routing policy resolved"
   if (typeof name !== 'string' || !name) return mergeError(400, 'invalid_request_error', 'A model is required: send model, or set a default routing policy.', { code: 'model_required', param: 'model', read: true });
   const found = MODELS.filter((m) => m.id === name || m.id.split('/')[1] === name);
@@ -109,21 +109,21 @@ export function modelOf(name: unknown): Model | Response {
 // ── cost ───────────────────────────────────────────────────────────────────────────────────────
 
 // source: https://docs.merge.dev/merge-gateway/cost/pricing "Vendor cost plus a 5% Merge fee"
-export const PRO_FEE = 0.05;
+const PRO_FEE = 0.05;
 const usd = (n: number): number => Math.round(n * 1e12) / 1e12;
 
-/** A call's cost at the model's prices (cached input at the cache-read price), and Merge's fee on it. */
-export function priced(m: Model, input: number, output: number, cached = 0): { cost: number; fee: number } {
-  const cost = usd(((input - cached) * m.input + cached * m.cacheRead + output * m.output) / 1e6);
+/** A call's cost at the model's input and output prices, and Merge's fee on it. */
+export function priced(m: Model, input: number, output: number): { cost: number; fee: number } {
+  const cost = usd((input * m.input + output * m.output) / 1e6);
   return { cost, fee: usd(cost * PRO_FEE) };
 }
 
 /** The organization's credit left: what it bought less what its calls cost. */
-export const creditLeft = (org: Row): number => Number(org.credit_usd) - Number(org.spent_usd ?? 0);
+const creditLeft = (org: Row): number => Number(org.credit_usd) - Number(org.spent_usd ?? 0);
 
 /** Gateway's refusal before any vendor call when the organization's credit is used up. */
 // source: https://docs.merge.dev/merge-gateway/cost/pricing "Each block happens before any vendor call, so it costs nothing."
-export const creditRefusal = (org: Row): Response | undefined =>
+const creditRefusal = (org: Row): Response | undefined =>
   creditLeft(org) > 0 ? undefined : mergeError(402, 'budget_exceeded', 'Organization credit is used up. Add credits or upgrade.', { code: 'budget_exceeded' });
 
 /** The call's cost and fee drawn from the organization's credit. */
@@ -152,7 +152,7 @@ export const routingOf = (m: Model, requested: string, charge: { cost: number; f
 export const LABEL = 'Merge Gateway twin';
 export const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 export const arr = (v: unknown): Row[] => (Array.isArray(v) ? v as Row[] : []);
-export const SSE = { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache' };
+const SSE = { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache' };
 
 /** What every surface does first: the key, the credit, the model and its provider's access. */
 export function admitted(ctx: HandlerContext): { org: Row; model: Model; body: Row } | Response {

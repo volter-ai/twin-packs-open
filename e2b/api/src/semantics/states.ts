@@ -1,7 +1,7 @@
 // A sandbox runs, auto-pauses at its configured timeout, and resumes on connect or enabled traffic.
 // Killing removes its subject; filesystem-only snapshots and explicit pause are outside the demand.
 import type { StateField } from '@volter/world-core';
-export const sandboxState: StateField = {
+const sandboxState: StateField = {
   initial: 'running',
   transitions: [
     { actor: 'vendor', from: ['running'], to: 'paused', source: 'spec:/components/schemas/NewSandbox "Automatically pauses the sandbox after the timeout"' },

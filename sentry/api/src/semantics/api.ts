@@ -1,5 +1,5 @@
 import { gunzip, type HandlerContext } from '@volter/world-core';
-import { bearerToken, detail, EVENT, forbidden, grants, keyOf, makeProject, notFound, orgFor, PROJECT, projectFor, projectOf, projectView, type Row, wire } from './shared.ts';
+import { bearerToken, detail, EVENT, forbidden, grants, keyOf, makeProject, notFound, orgFor, PROJECT, projectFor, projectOf, type Row, wire } from './shared.ts';
 
 // Releases, as sentry-cli makes, finalizes and associates commits with them (`releases new`, `releases finalize`,
 // `releases set-commits`), for one project at its path or for the organization; and the organization's repositories the
@@ -201,7 +201,7 @@ export async function createOrganizationProject(ctx: HandlerContext): Promise<Re
   const project = await makeProject(ctx, org, slug, typeof b.platform === 'string' ? b.platform : null);
   if (project instanceof Response) return project;
   await ctx.write(PROJECT, String(project.id), { name: b.name }, 'project.update');
-  return Response.json(projectView(ctx, ctx.row(PROJECT, String(project.id))!, org), { status: 201 });
+  return Response.json(wire(ctx, ctx.row(PROJECT, String(project.id))!), { status: 201 });
 }
 
 // source: spec:listProjectKeys "Return a list of client keys bound to a project."
