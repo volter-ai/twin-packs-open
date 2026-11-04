@@ -32,7 +32,7 @@ export const versionsOf = (row: Row): Version[] => ((row._versions as Version[] 
  *  Secrets Manager deletes the secret permanently" (docs.aws.amazon.com/secretsmanager/latest/apireference/API_DeleteSecret.html).
  *  The window's end is the DeletionDate DeleteSecret answered, read on the World clock. */
 // source: spec:/shapes/com.amazonaws.secretsmanager#DeleteSecret "At the end of the recovery window, Secrets Manager deletes the secret permanently."
-export const purged = (ctx: HandlerContext, r: Row): boolean => r._deletionDate != null && now(ctx) >= Number(r._deletionDate);
+const purged = (ctx: HandlerContext, r: Row): boolean => r._deletionDate != null && now(ctx) >= Number(r._deletionDate);
 
 /** The secrets that stand: not deleted, and not past their recovery window. */
 export const kept = (ctx: HandlerContext): Row[] => ctx.rowsRaw(S).filter((r) => !purged(ctx, r));
@@ -162,7 +162,7 @@ export async function catchUpReplicas(ctx: HandlerContext): Promise<void> {
 // hours do, "resets each day"; that it counts from the previous rotation as a days rate does is the twin's decision.
 
 type Cron = { hours: number[]; months: Set<number>; day: (y: number, m: number, d: number) => boolean };
-export type Schedule =
+type Schedule =
   | { kind: 'days' | 'hours'; every: number; duration?: number }
   | { kind: 'cron'; cron: Cron; duration?: number };
 
@@ -293,7 +293,7 @@ const grid = (every: number): number[] => Array.from({ length: Math.ceil(DAY / e
 
 /** The first window of a schedule opening at or after `t`, ignoring the previous rotation. A schedule RotateSecret
  *  accepted matches a day within HORIZON_DAYS of any day (windowRefused), so the walk ends. */
-export function opening(s: Schedule, t: number): number {
+function opening(s: Schedule, t: number): number {
   const hours = s.kind === 'cron' ? s.cron.hours : s.kind === 'hours' ? grid(s.every) : [0];
   for (let day = floorDay(t); ; day += DAY) {
     const hour = s.kind === 'cron' && !cronDay(s.cron, day) ? undefined : hours.find((h) => day + h * HOUR >= t);
@@ -322,10 +322,10 @@ export function due(s: Schedule, previous: number, now: number): number {
 }
 
 /** The window after the one opening at `open`, no rotation having finished in between. */
-export const following = (s: Schedule, open: number): number => opening(s, open + (s.kind === 'cron' ? HOUR : s.every));
+const following = (s: Schedule, open: number): number => opening(s, open + (s.kind === 'cron' ? HOUR : s.every));
 
 /** The opening of the window a NextRotationDate closes. */
-export function openingOf(s: Schedule, close: number): number {
+function openingOf(s: Schedule, close: number): number {
   const day = floorDay(close);
   for (let t = day; t < day + DAY; t += HOUR) if (opening(s, t) === t && closing(s, t) === close) return t;
   return day;

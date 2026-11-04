@@ -59,7 +59,7 @@ export const googleError = (code: number, status: string, message: string, detai
 
 // ── models ─────────────────────────────────────────────────────────────────────────────────────
 // source: https://ai.google.dev/gemini-api/docs/deprecations "Once a model is"
-export const MODEL_DATES: Record<string, { from: string; until?: string }> = {
+const MODEL_DATES: Record<string, { from: string; until?: string }> = {
   "gemini-2.0-flash": {
     "from": "2025-02-05",
     "until": "2026-06-01"
