@@ -37,14 +37,23 @@ export async function revokeToken(ctx: HandlerContext): Promise<Response> {
  *  credentialDoor). */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const organization = await nativeOrganization(ctx);
+  const read = async (row: Row): Promise<string | undefined> => {
+    if (row._organization_id !== organization.id || row._environment !== environment(ctx) || row.deleted === true
+      || (row.expires_at !== null && Date.parse(String(row.expires_at)) <= Date.parse(ctx.occurredAt))) return undefined;
+    const seed = organization._world_organization === 'default' && row.id === `oat_app_${environment(ctx)}`
+      ? `access-token:app:${environment(ctx)}` : `access-token:${row.id}`;
+    const value = await secret(ctx, 'polar_oat_', seed);
+    return row._sha256 === sha256(value) ? value : undefined;
+  };
   const key = await ctx.accountKey(`organization-token:${organization.id}`, '_access_token', {
-    make: async () => (await makeToken(ctx, organization, ctx.deployment() || 'world', null)).id,
-    read: async (row) => {
-      if (row._organization_id !== organization.id || row._environment !== environment(ctx) || row.deleted === true
-        || (row.expires_at !== null && Date.parse(String(row.expires_at)) <= Date.parse(ctx.occurredAt))) return undefined;
-      const value = await secret(ctx, 'polar_oat_', `access-token:${row.id}`);
-      return row._sha256 === sha256(value) ? value : undefined;
+    make: async () => {
+      if (organization._world_organization === 'default' && ctx.deployment() === '') {
+        const held = ctx.row('_access_token', `oat_app_${environment(ctx)}`);
+        if (held && await read(held) !== undefined) return String(held.id);
+      }
+      return (await makeToken(ctx, organization, ctx.deployment() || 'world', null)).id;
     },
+    read,
   });
   return Response.json({ access_token: key.secret }, { status: 201 });
 }
