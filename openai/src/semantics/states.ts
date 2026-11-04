@@ -109,5 +109,8 @@ export const states = {
   RunObject: { state: { status: runStatus } },
   RunStepObject: { notState: ['status', 'type'] },
   Project: { state: { status: { initial: 'active', transitions: [] } }, notState: ['residency'] },
+  // A service account's role is its project permission, not a lifecycle this twin changes.
+  // source: spec:/components/schemas/ProjectServiceAccount/properties/role "`owner`, `member`, or `none`"
+  ProjectServiceAccount: { notState: ['role'] },
   ProjectApiKey: { notState: ['owner_project_access'] },
 } satisfies Record<string, Pick<ResourceDecl, 'state' | 'notState'>>;
