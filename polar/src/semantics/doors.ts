@@ -2,13 +2,12 @@
 // `doors`: the organization's access tokens, as its settings page makes them (the API makes none), and the webhooks
 // the World sent the application's server, as that server received them.
 import { sha256, type HandlerContext } from '@volter/world-core';
-import { bodyOf, environment, nativeOrganization, secret } from './shared.ts';
+import { bodyOf, environment, fail, nativeOrganization, secret, settingsOrganization, type Row } from './shared.ts';
 
 /** An Organization Access Token as the settings page makes it (`polar_oat_…`, shown once): its name, scopes and
  *  expiration (none: it does not expire), kept by its SHA-256. */
 // source: spec:/components/securitySchemes/oat "You can generate an **Organization Access Token** from your organization's settings."
-async function makeToken(ctx: HandlerContext, comment: string, expiresInDays: number | null): Promise<{ token: string; id: string }> {
-  const organization = await nativeOrganization(ctx);
+async function makeToken(ctx: HandlerContext, organization: Row, comment: string, expiresInDays: number | null): Promise<{ token: string; id: string }> {
   const id = await ctx.issue('_access_token');
   const token = await secret(ctx, 'polar_oat_', `access-token:${id}`);
   await ctx.record('_access_token', { comment, _organization_id: organization.id, _environment: environment(ctx), _sha256: sha256(token), created_at: ctx.occurredAt, expires_at: expiresInDays === null ? null : new Date(Date.parse(ctx.occurredAt) + expiresInDays * 86_400_000).toISOString(), deleted: false }, id);
@@ -17,15 +16,19 @@ async function makeToken(ctx: HandlerContext, comment: string, expiresInDays: nu
 
 /** POST /_twin/access-tokens {comment, expires_in_days?}: an Organization Access Token made on the settings page. */
 export async function accessTokens(ctx: HandlerContext): Promise<Response> {
+  const organization = await settingsOrganization(ctx);
+  if (!organization) return fail(401, 'Unauthorized', 'Unauthorized');
   const b = bodyOf(ctx);
   const days = typeof b.expires_in_days === 'number' ? b.expires_in_days : null;
-  return Response.json(await makeToken(ctx, typeof b.comment === 'string' ? b.comment : 'token', days), { status: 201 });
+  return Response.json(await makeToken(ctx, organization, typeof b.comment === 'string' ? b.comment : 'token', days), { status: 201 });
 }
 
 /** DELETE /_twin/access-tokens/{n}: a token revoked on the settings page. */
 export async function revokeToken(ctx: HandlerContext): Promise<Response> {
+  const organization = await settingsOrganization(ctx);
+  if (!organization) return fail(401, 'Unauthorized', 'Unauthorized');
   const id = String(ctx.call.params.n);
-  if (!ctx.rowsRaw('_access_token').some((t) => t.id === id && t.deleted !== true)) return Response.json({ error: 'no such token' }, { status: 404 });
+  if (!ctx.rowsRaw('_access_token').some((t) => t.id === id && t.deleted !== true && t._organization_id === organization.id && t._environment === environment(ctx))) return Response.json({ error: 'no such token' }, { status: 404 });
   await ctx.record('_access_token', { deleted: true }, id);
   return new Response(null, { status: 204 });
 }
@@ -35,7 +38,7 @@ export async function revokeToken(ctx: HandlerContext): Promise<Response> {
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const organization = await nativeOrganization(ctx);
   const key = await ctx.accountKey(`organization-token:${organization.id}`, '_access_token', {
-    make: async () => (await makeToken(ctx, ctx.deployment() || 'world', null)).id,
+    make: async () => (await makeToken(ctx, organization, ctx.deployment() || 'world', null)).id,
     read: async (row) => {
       if (row._organization_id !== organization.id || row._environment !== environment(ctx) || row.deleted === true
         || (row.expires_at !== null && Date.parse(String(row.expires_at)) <= Date.parse(ctx.occurredAt))) return undefined;
@@ -49,6 +52,7 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
 /** GET /_twin/deliveries[?to=<url>][&type=<event>]: every webhook Polar sent (the kernel's record of each delivery, in
  *  the order sent): what the application's server was told, and when. */
 export async function deliveries(ctx: HandlerContext): Promise<Response> {
+  if (!await settingsOrganization(ctx)) return fail(401, 'Unauthorized', 'Unauthorized');
   const q = new URL(ctx.call.request.url).searchParams;
   const rows = ctx.rowsRaw('_webhook_delivery')
     .filter((d) => (q.get('to') === null || d.url === q.get('to')) && (q.get('type') === null || d.event_type === q.get('type')))

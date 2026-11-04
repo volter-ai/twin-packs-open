@@ -82,6 +82,24 @@ export async function nativeOrganization(ctx: HandlerContext): Promise<Row> {
   if (nativeEnvironment === 'production') return ctx.tenant(ORGANIZATION, make);
   return ctx.row(ORGANIZATION, await make())!;
 }
+
+/** A live organization access token in the request's native environment. */
+export function accessToken(ctx: Pick<HandlerContext, 'rowsRaw' | 'crypto' | 'call' | 'occurredAt'>, bearer: string): Row | undefined {
+  return ctx.rowsRaw('_access_token').find((row) => (row._environment ?? 'production') === environment(ctx)
+    && row._sha256 === ctx.crypto.sha256(bearer) && row.deleted !== true
+    && (row.expires_at === null || Date.parse(String(row.expires_at)) > Date.parse(ctx.occurredAt)));
+}
+
+/** Settings actions use an explicit operator account or the organization its token names. */
+export async function settingsOrganization(ctx: HandlerContext): Promise<Row | undefined> {
+  if (bodyOf(ctx).account !== undefined) return nativeOrganization(ctx);
+  const bearer = /^Bearer\s+(\S+)/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
+  if (!bearer) return nativeOrganization(ctx);
+  const key = accessToken(ctx, bearer);
+  const organization = key && ctx.row(ORGANIZATION, String(key._organization_id));
+  return organization && organization.deleted !== true && organization._environment === environment(ctx) ? organization : undefined;
+}
+
 export const orgId = (ctx: Reader): string => String(ctx.rowsRaw('_access_token', { withDeleted: true })
   .find((row) => row._environment === environment(ctx) && typeof row._organization_id === 'string')?._organization_id
   ?? (environment(ctx) === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID));
