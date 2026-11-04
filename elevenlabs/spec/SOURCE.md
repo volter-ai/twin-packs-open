@@ -1,9 +1,9 @@
 # ElevenLabs' API
 
 - **Why this document:** ElevenLabs' own OpenAPI document, as its API serves it at `https://api.elevenlabs.io/openapi.json`
-  (the source of its Fern SDKs), fetched 2026-09-30 and vendored gzipped and unchanged. Server `https://api.elevenlabs.io`.
-- **Corrections:** none.
-- **Vendored bytes (sha256):** `openapi.json.gz` `14163f190ceeb1ba37fa9e523d8cf2b81735158c7306b9637c1f2d4d610614de`.
+  (the source of its Fern SDKs), fetched 2026-09-30 and vendored gzipped with the example-value substitution listed below. Server `https://api.elevenlabs.io`.
+- **Corrections:** only the captured-example string substitutions below; operations and schemas are unchanged.
+- **Original captured compressed bytes (sha256):** `openapi.json.gz` `14163f190ceeb1ba37fa9e523d8cf2b81735158c7306b9637c1f2d4d610614de`.
 
 - **Read:** 2026-10-01. The life's multipart sample is synthetic spoken audio generated with macOS Samantha (`say`) and encoded as MP3 with ffmpeg; it says Maya's studio welcome, rather than naming a file with no bytes.
 
@@ -30,3 +30,15 @@
 - https://elevenlabs.io/docs/eleven-agents/api-reference/workspace/secrets/list
 - https://elevenlabs.io/docs/eleven-agents/api-reference/workspace/secrets/list
 - https://elevenlabs.io/docs/eleven-agents/api-reference/agents/get
+
+## Credential-like example values
+
+The pinned keys sweep flags the three captured reference strings listed below. Each is replaced with an explicit inert string of the same JSON type. Every other byte of `doc-examples.json` and the uncompressed OpenAPI document, including operations, schemas, field names and upstream locators, stays unchanged. The original captured bytes remain outside the package beside the release custody record for comparison.
+
+These samples are reference data. Workspace-secret responses use IDs minted by `src/semantics/convai.ts`; the single-use-token operation remains unmodeled, as declared in `src/manifest.ts`. No runtime response takes these values from the spec.
+
+| File | JSON path (RFC 6901) | Inert replacement | Reason |
+| --- | --- | --- | --- |
+| `doc-examples.json` | `/12/output/secrets/0/secret_id` | `<example-secret-id>` | Captured workspace-secret identifier flagged as a generic API key; runtime responses mint their own IDs. |
+| `doc-examples.json` | `/13/output/secrets/0/secret_id` | `<example-secret-id>` | Captured workspace-secret identifier flagged as a generic API key; runtime responses mint their own IDs. |
+| `openapi.json.gz` (uncompressed) | `/components/schemas/SingleUseTokenResponseModel/example/token` | `<example-single-use-token>` | Captured single-use-token sample; this reference value is not a runtime credential. |
