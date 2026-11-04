@@ -1,0 +1,56 @@
+{
+  "measured": "LibreChat and Twenty read at scanned commits f10b1d91f1eee3a2c82d5247bf620351486b7c1b and 1d561b8c73c984058a5121ec229f4805a2424a91. LibreChat ships GOOGLE_KEY=user_provided (.env.example:532), google in defaultEndpoints (packages/data-provider/src/config.ts:3346), and the Gemini image tool. Twenty ships Google in the built-in catalog merged at provider-config.service.ts:28; supplying GOOGLE_API_KEY is not opt-in. Its in-app model selection demands generation and streaming. Pinned clients read from npm tarballs: @librechat/agents 4.0.1, @google/generative-ai 0.24.1, @google/genai 2.13.0, @ai-sdk/google 4.0.64. Vertex service-account routing is a separate configured provider. The owner excludes Runhuman 1; Inbox Zero and Ponder are absent from the scanned demand. No demanded runtime caller uses embeddings, uploads/files, caches, model listing, token counting, tuning, dynamic methods or live sockets.",
+  "applications": [
+    {
+      "name": "LibreChat-AI/LibreChat",
+      "commit": "f10b1d91f1eee3a2c82d5247bf620351486b7c1b",
+      "client": "@librechat/agents@4.0.1:src/llm/google/index.ts:339 -> @google/generative-ai@0.24.1; image tool @google/genai@2.13.0",
+      "backend": [
+        {
+          "call": "Google endpoint conversations: system instruction, contents/history, thinking and function results, streamed as SSE",
+          "operation": "generativelanguage.models.streamGenerateContent",
+          "evidence": "api/server/controllers/agents/client.js:5035",
+          "client": "@librechat/agents@4.0.1:src/llm/google/index.ts:339"
+        },
+        {
+          "call": "Generate or edit an image with inline context and responseModalities TEXT/IMAGE",
+          "operation": "generativelanguage.models.generateContent",
+          "evidence": "api/app/clients/tools/structured/GeminiImageGen.js:386",
+          "client": "@google/genai@2.13.0:dist/node/index.mjs"
+        }
+      ]
+    },
+    {
+      "name": "twentyhq/twenty",
+      "commit": "1d561b8c73c984058a5121ec229f4805a2424a91",
+      "client": "@ai-sdk/google@4.0.64",
+      "backend": [
+        {
+          "call": "Generate text from systemPrompt and userPrompt with reasoning provider options",
+          "operation": "generativelanguage.models.generateContent",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-generate-text/controllers/ai-generate-text.controller.ts:95"
+        },
+        {
+          "call": "Workflow agent preloaded find_one_company tool and function-result continuation",
+          "operation": "generativelanguage.models.generateContent",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-agent-execution/services/agent-async-executor.service.ts:410"
+        },
+        {
+          "call": "Workflow execution results structured against the agent response schema",
+          "operation": "generativelanguage.models.generateContent",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-agent-execution/services/agent-async-executor.service.ts:529"
+        },
+        {
+          "call": "Workspace chat with tools, instructions/history and model reasoning options",
+          "operation": "generativelanguage.models.streamGenerateContent",
+          "evidence": "packages/twenty-server/src/engine/metadata-modules/ai/ai-chat/services/chat-execution.service.ts:602"
+        }
+      ],
+      "gate": "The built-in catalog contains OpenAI, Google, Anthropic, xAI and Mistral; default tiers try them in that order according to available credentials, with no disabled models. This is automatic credential resolution, not an operator provider switch (packages/twenty-server/src/engine/metadata-modules/ai/ai-models/services/default-ai-catalog.service.ts:19-37; services/provider-config.service.ts:28-41; utils/load-default-model-preferences.util.ts:14-19,58)."
+    }
+  ],
+  "optional": [],
+  "notDemanded": {
+    "VertexAI": "Vertex AI targets aiplatform.googleapis.com, outside this generativelanguage API surface. Automatic service-account authentication fallback is not an opt-in choice (packages/api/src/endpoints/google/initialize.ts:43-72)."
+  }
+}

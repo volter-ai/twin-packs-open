@@ -4,6 +4,7 @@ import { createPackFetch, type DerivedFetch, type DerivedSurface, type PackFetch
 import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
 import { around } from './semantics/around.ts';
+import { tenant } from './semantics/tenant.ts';
 import { gap } from './semantics/gap.ts';
 import { fapiSemantics } from './semantics/index.ts';
 import { screen as screen_clerk_js } from './screens/clerk-js.ts';
@@ -16,6 +17,7 @@ export function createFapiLaneFetch(options: PackFetchOptions = {}): DerivedFetc
     surface: surface as DerivedSurface,
     handlers: fapiSemantics,
     around,
+    tenant,
     gap,
     screens: { "clerk-js": screen_clerk_js, "oauth-consent": screen_oauth_consent, "oauth-sign-in": screen_oauth_sign_in },
   }, options);

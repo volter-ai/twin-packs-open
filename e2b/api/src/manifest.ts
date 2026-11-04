@@ -1,0 +1,131 @@
+// Light-pool template command admission answers the declared gap before sandbox creation.
+// The api lane's manifest: E2B's REST API (../spec, E2B's own document) as RH2 calls it: a sandbox started from a
+// template and killed; the sandboxes and templates a vendor-backed root reads back are listed. A sandbox's image is run
+// by the World's machine pool (the kernel's machines.ts). A team's key and its templates (built by the e2b CLI) are the
+// World's doors. It shares the vendor's store with envd.
+import type { DerivedManifest } from '@volter/world-core';
+import { states } from './semantics/states.ts';
+
+export const manifest: DerivedManifest = {
+  vendor: 'e2b',
+  unmodeled: [
+    "get_admin_sandboxes_running_counts",
+    "post_admin_teams_teamid_api_keys",
+    "delete_admin_teams_teamid_api_keys_apikeyid",
+    "post_admin_teams_teamid_builds_cancel",
+    "post_admin_teams_teamid_sandboxes_kill",
+    "get_api_keys",
+    "post_api_keys",
+    "patch_api_keys_apikeyid",
+    "delete_api_keys_apikeyid",
+    "get_clusters_clusterid_rigs",
+    "put_clusters_clusterid_rigs_rigid_capacity",
+    "get_clusters_clusterid_rigs_rigid_errors",
+    "get_clusters_clusterid_rigs_rigid_instances",
+    "delete_clusters_clusterid_rigs_instances_instanceid",
+    "get_events_sandboxes",
+    "get_events_sandboxes_sandboxid",
+    "get_events_webhooks",
+    "post_events_webhooks",
+    "get_events_webhooks_webhookid",
+    "patch_events_webhooks_webhookid",
+    "delete_events_webhooks_webhookid",
+    "get_events_webhooks_webhookid_deliveries",
+    "get_events_webhooks_webhookid_stats",
+    "get_health",
+    "get_nodes",
+    "get_nodes_nodeid",
+    "post_nodes_nodeid",
+    "get_sandboxes",
+    "get_sandboxes_sandboxid",
+    "post_sandboxes_sandboxid_fork",
+    "get_sandboxes_sandboxid_logs",
+    "get_sandboxes_sandboxid_metrics",
+    "put_sandboxes_sandboxid_network",
+    "post_sandboxes_sandboxid_pause",
+    "post_sandboxes_sandboxid_refreshes",
+    "post_sandboxes_sandboxid_resume",
+    "post_sandboxes_sandboxid_snapshots",
+    "get_sandboxes_metrics",
+    "get_secrets",
+    "post_secrets",
+    "get_secrets_secretid",
+    "post_secrets_secretid",
+    "delete_secrets_secretid",
+    "get_snapshots",
+    "get_teams",
+    "get_teams_teamid_metrics",
+    "get_teams_teamid_metrics_max",
+    "get_templates",
+    "get_templates_templateid",
+    "patch_templates_templateid",
+    "delete_templates_templateid",
+    "get_templates_templateid_builds_buildid_logs",
+    "get_templates_templateid_builds_buildid_status",
+    "get_templates_templateid_files_hash",
+    "get_templates_templateid_tags",
+    "get_templates_aliases_alias",
+    "post_templates_tags",
+    "delete_templates_tags",
+    "post_v2_sandboxes",
+    "post_v2_sandboxes_sandboxid_connect",
+    "get_v2_sandboxes_sandboxid_logs",
+    "patch_v2_templates_templateid",
+    "post_v2_templates_templateid_builds_buildid",
+    "post_v3_templates",
+    "get_volumes",
+    "post_volumes",
+    "get_volumes_volumeid",
+    "delete_volumes_volumeid"
+  ],
+  service: 'e2b',
+  // source: spec:/components/securitySchemes/ApiKeyAuth "X-API-Key"
+  auth: { header: 'x-api-key', scheme: '', paths: '^/(sandboxes|v2/)', gateWhenAbsent: true, invalidKeys: [], keyFormat: '^e2b_[0-9a-f]{40}$', missing: { status: 401, message: 'Invalid API key' }, invalid: { status: 401, message: 'Invalid API key' }, held: { storedAs: '_team', hashField: 'key_sha256' } },
+  body: { json: 'always' },
+  ids: { template: '{letters:20}' },
+  time: 'iso',
+  // source: spec:/components/schemas/Error "Error code"
+  error: { code: '{status}', message: '{message}' },
+  readOnly: { status: 403, message: 'This twin was started read-only; writes are refused.' },
+  notFound: { status: 404, message: 'not found' },
+  gap: { status: 404, message: 'not found' },
+  // a list is a bare array, paged by limit and nextToken
+  // source: spec:/components/parameters/paginationLimit "Maximum number of items to return per page"
+  list: { style: 'envelope', envelope: '{data}', limit: { param: 'limit', default: 100, max: 100 } },
+  deleted: {},
+  machines: true,
+  resources: {
+    _workspace: { idPrefix: '', ids: '{uuid}' },
+    _api_key: { idPrefix: '', ids: '{uuid}', unique: [{ fields: ['_team'], refusal: { status: 409, message: 'Project already has an API key' } }] },
+    // a sandbox as the list answers it (ListedSandbox) with its domain; a vendor-backed root reads the team's running
+    // sandboxes back by the v2 list (paged by its X-Next-Token header, which the refresh does not follow: past one page
+    // of 100 the type is not known whole)
+    // source: spec:get_v2_sandboxes "List all sandboxes"
+    sandbox: { idPrefix: '', idAs: 'sandboxID', ...states.sandbox, refresh: { list: 'get_v2_sandboxes', items: '$body' } },
+    // source: spec:get_v2_templates "List all templates"
+    template: { idPrefix: '', idAs: 'templateID', ids: '{letters:20}', ...states.template, refresh: { list: 'get_v2_templates', items: '$body' } },
+    _team: { idPrefix: '', ids: '{uuid}' },
+    _build: { idPrefix: '', ids: '{uuid}' },
+  },
+  doors: [
+    { id: 'teams', method: 'POST', path: '/_twin/teams', note: '{ account?, deployment?, name? }: the selected organization/deployment project and its API key (e2b_ and 40 hex digits); name is the project label' },
+    { id: 'templates', method: 'POST', path: '/_twin/templates', note: '{ account?, deployment?, team?, alias, image, command?, envdVersion?, cpuCount?, memoryMB?, diskSizeMB? }: a prebuilt template in the live X-API-Key project, or the selected organization/deployment project when no key is supplied; team is its label' },
+  ],
+  discovery: {
+    twinOf: "E2B's REST API as RH2 calls it: sandboxes started from templates, listed and killed, on the World's machine pool; templates listed; light-pool SDK command execution beyond node with a folder-owned JS entry is unserved and answers the declared gap",
+    stores: 'teams and their API keys (by their SHA-256), templates, sandboxes',
+    identity: '`X-API-Key: e2b_…`',
+  },
+  descriptor: {
+    protocol: '3',
+    transport: 'rest',
+    archetype: 'crud',
+    bin: 'world-e2b-api',
+    resources: ['sandbox', 'template'],
+    specSource: "E2B's REST document (spec/SOURCE.md)",
+    description: "E2B's api lane — sandboxes; light-pool SDK command execution beyond node with a folder-owned JS entry is unserved and answers the declared gap",
+    adoption: { sdks: [], envStems: [] },
+    hosts: [{ host: 'api.e2b.app' }],
+    endpointEnvNone: 'the vendor lane',
+  },
+};
