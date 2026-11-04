@@ -73,7 +73,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const dateOf = (seconds: number): string => { const d = new Date(seconds * 1000); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`; };
 
 /** A count as reddit.com writes it: 1.2k past a thousand. */
-export const count = (n: number): string => (Math.abs(n) >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n));
+const count = (n: number): string => (Math.abs(n) >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n));
 
 // ── the shell ───────────────────────────────────────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ export const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.is
 export const arr = (v: unknown): Row[] => (Array.isArray(v) ? v as Row[] : []);
 export const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string => ctx.crypto.digest('sha256', v, 'hex');
 /** A short id drawn from a generation's issued value: each call's are others. */
-export const idOf = (ctx: Pick<HandlerContext, 'crypto'>, generation: string, what: string, length = 24): string => sha256(ctx, `${generation}:${what}`).slice(0, length);
+export const idOf = (ctx: Pick<HandlerContext, 'crypto'>, generation: string, what: string): string => sha256(ctx, `${generation}:${what}`).slice(0, 24);
 /** The World's clock in seconds. */
 export const unixNow = (ctx: Pick<HandlerContext, 'occurredAt'>): number => Math.floor(Date.parse(ctx.occurredAt) / 1000);
 
@@ -84,7 +84,7 @@ export function providerOf(model: string): string {
 }
 
 /** A model of the twin's catalogue: what its page on openrouter.ai states. Prices in USD per million tokens. */
-export type Model = { id: string; name: string; released: string; input: number; output: number; context: number; maxOutput: number; inputs: string[]; tokenizer: string };
+type Model = { id: string; name: string; released: string; input: number; output: number; context: number; maxOutput: number; inputs: string[]; tokenizer: string };
 
 // The catalogue: the models our applications name (journeys/demand.json) that openrouter.ai serves today, each as its
 // page states it. Llama 3 70B Instruct, LibreChat's example default, is left out: its page lists no provider or price.

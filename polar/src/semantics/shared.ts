@@ -205,7 +205,7 @@ export function subscriptionFields(ctx: Reader, s: Row): Row {
 }
 
 // source: spec:/components/schemas/Order "Order"
-export function orderFields(ctx: Reader, o: Row): Row {
+function orderFields(ctx: Reader, o: Row): Row {
   const customer = rowOf(ctx, CUSTOMER, String(o.customer_id));
   const product = o.product_id ? rowOf(ctx, PRODUCT, String(o.product_id)) : undefined;
   const sub = o.subscription_id ? rowOf(ctx, SUBSCRIPTION, String(o.subscription_id)) : undefined;
