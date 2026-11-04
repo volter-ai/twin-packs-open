@@ -6,7 +6,7 @@
 //
 // Credential decisions read, check and then record: this does not claim them under one lock. The public record seam
 // preserves the checked operation without journaling the incoming code, verifier, refresh token or secret.
-import { digest, equalSecrets, type HandlerContext, oauth1BaseString, oauth1Header, oauth1Signature, sha256 } from '@volter/world-core';
+import { digest, equalSecrets, type HandlerContext, oauth1BaseString, oauth1Header, oauth1Signature, readImageHeader, readMp4Header, sha256 } from '@volter/world-core';
 
 /** An X answer: its status, body (a page or a form-encoded leg as text; anything else JSON) and headers. */
 // X API v2 error envelopes — the vendor's THREE distinct error families, kept distinct because an
@@ -1786,60 +1786,11 @@ export async function clearSegments(ctx: HandlerContext, record: XMediaRecord): 
 export type ImageInfo = { mediaType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'; width: number; height: number };
 
 export function sniffImage(bytes: Uint8Array): ImageInfo | undefined {
-  const b = bytes;
-  if (b.length >= 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return pngInfo(b);
-  if (b.length >= 10 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return gifInfo(b);
-  return b.length >= 4 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? jpegInfo(b) : otherImage(b);
-}
-
-/** A JPEG's size, from its first start-of-frame marker (SOF0..SOF15 but DHT, JPG and DAC). */
-function jpegInfo(b: Uint8Array): ImageInfo | undefined {
-  const u16be = (i: number) => (b[i]! << 8) | b[i + 1]!;
-  const isFrame = (marker: number): boolean => marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
-  // walk the marker segments: a fill byte is skipped, a marker without a length (SOI, TEM, RSTn) is two bytes, any other
-  // is two plus its length
-  const next = (i: number): number => (b[i] !== 0xff ? i + 1 : [0xd8, 0x01].includes(b[i + 1]!) || (b[i + 1]! >= 0xd0 && b[i + 1]! <= 0xd7) ? i + 2 : i + 2 + u16be(i + 2));
-  let i = 2;
-  while (i + 9 < b.length && !(b[i] === 0xff && isFrame(b[i + 1]!))) i = next(i);
-  return i + 9 < b.length ? { mediaType: 'image/jpeg', height: u16be(i + 5), width: u16be(i + 7) } : framelessJpeg();
-}
-
-/** A JPEG whose markers end before any frame header: no image X would take. */
-function framelessJpeg(): undefined {
-  return undefined;
-}
-
-/** Bytes that are none of PNG, GIF and JPEG: a WebP's size, or no image X takes. */
-function otherImage(b: Uint8Array): ImageInfo | undefined {
-  return b.length >= 30 && String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP' ? webpInfo(b) : undefined;
-}
-
-/** A PNG's size, from its IHDR chunk. */
-function pngInfo(b: Uint8Array): ImageInfo {
-  const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  return { mediaType: 'image/png', width: view.getUint32(16), height: view.getUint32(20) };
-}
-
-/** A GIF's logical screen size, from its header. */
-function gifInfo(b: Uint8Array): ImageInfo {
-  return { mediaType: 'image/gif', width: b[6]! | (b[7]! << 8), height: b[8]! | (b[9]! << 8) };
-}
-
-/** A WebP's canvas size, from its first chunk (lossy, lossless or extended). */
-function webpInfo(b: Uint8Array): ImageInfo | undefined {
-  const chunk = String.fromCharCode(...b.slice(12, 16));
-  return chunk === 'VP8 ' ? { mediaType: 'image/webp', width: (b[26]! | (b[27]! << 8)) & 0x3fff, height: (b[28]! | (b[29]! << 8)) & 0x3fff } : otherWebp(b, chunk);
-}
-
-/** A lossless (VP8L) or extended (VP8X) WebP's canvas size. */
-function otherWebp(b: Uint8Array, chunk: string): ImageInfo | undefined {
-  const bits = b[21]! | (b[22]! << 8) | (b[23]! << 16) | (b[24]! << 24);
-  return chunk === 'VP8L' ? { mediaType: 'image/webp', width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 } : extendedWebp(b, chunk);
-}
-
-/** An extended (VP8X) WebP's canvas size, or nothing for a chunk that is none of WebP's. */
-function extendedWebp(b: Uint8Array, chunk: string): ImageInfo | undefined {
-  return chunk === 'VP8X' ? { mediaType: 'image/webp', width: (b[24]! | (b[25]! << 8) | (b[26]! << 16)) + 1, height: (b[27]! | (b[28]! << 8) | (b[29]! << 16)) + 1 } : undefined;
+  const image = readImageHeader(bytes);
+  if (!image || (image.type === 'image/gif' && bytes[3] !== 0x38)) return undefined;
+  // X keeps its three-byte JPEG signature and the byte after the frame dimensions; fill markers are not accepted.
+  if (image.type === 'image/jpeg' && (bytes[2] !== 0xff || !image.jpeg || image.jpeg.frameEnd >= bytes.length || image.jpeg.fillBytes)) return undefined;
+  return { mediaType: image.type, width: image.width, height: image.height };
 }
 
 export type VideoInfo = { mediaType: 'video/mp4'; width: number; height: number; durationMs: number };
@@ -1851,65 +1802,15 @@ export type VideoInfo = { mediaType: 'video/mp4'; width: number; height: number;
  * the one with a non-zero size. Nothing is decoded — the codec is the browser's business.
  */
 export function sniffVideo(bytes: Uint8Array): VideoInfo | undefined {
-  const b = bytes;
-  const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  const type = (at: number) => String.fromCharCode(b[at + 4]!, b[at + 5]!, b[at + 6]!, b[at + 7]!);
-  /** The child boxes of [start, end): [type, payloadStart, boxEnd]. */
-  const boxes = (start: number, end: number): Array<[string, number, number]> => {
-    const out: Array<[string, number, number]> = [];
-    let at = start;
-    while (at + 8 <= end) {
-      const sized = boxSize(view, at, end);
-      if (!sized) break;
-      const [size, header] = sized;
-      if (size < header || at + size > end) break;
-      out.push([type(at), at + header, at + size]);
-      at += size;
-    }
-    return out;
-  };
-  const top = boxes(0, b.length);
-  if (top[0]?.[0] !== 'ftyp') return undefined;
-  const moov = top.find(([t]) => t === 'moov');
-  if (!moov || !top.some(([t, start, end]) => t === 'mdat' && end > start)) return undefined;
-  let durationMs: number | undefined;
-  let width = 0;
-  let height = 0;
-  for (const [t, start, end] of boxes(moov[1], moov[2])) {
-    if (t === 'mvhd' && end - start >= 32) {
-      const version = b[start]!;
-      const timescale = version === 1 ? view.getUint32(start + 20) : view.getUint32(start + 12);
-      const duration = version === 1 ? Number(view.getBigUint64(start + 24)) : view.getUint32(start + 16);
-      if (timescale > 0) durationMs = Math.round((duration * 1000) / timescale);
-    }
-    if (t === 'trak') {
-      const tkhd = boxes(start, end).find(([k]) => k === 'tkhd');
-      if (!tkhd) continue;
-      const version = b[tkhd[1]]!;
-      const at = tkhd[1] + (version === 1 ? 88 : 76);
-      if (at + 8 > tkhd[2]) continue;
-      const w = view.getUint32(at) >>> 16;
-      const h = view.getUint32(at + 4) >>> 16;
-      if (w > 0 && h > 0 && width === 0) { width = w; height = h; }
-    }
-  }
-  if (durationMs === undefined || width === 0) return undefined;
-  return { mediaType: 'video/mp4', width, height, durationMs };
-}
-
-/** A box's size and header length at `at`: its 32-bit size, else (size 1) the 64-bit size after its type, else (size 0)
- *  the rest of its container; undefined when a 64-bit size runs past the container's end. */
-function boxSize(view: DataView, at: number, end: number): [number, number] | undefined {
-  const size = view.getUint32(at);
-  return size === 1 ? largeBoxSize(view, at, end) : [size === 0 ? end - at : size, 8];
-}
-
-/** A box whose size is the 64-bit field after its type (ISO BMFF's `largesize`): a box over 4 GiB, or an `mdat` a muxer
- *  wrote in that form (ffmpeg reserves an 8-byte `free` before its `mdat` and widens the header into it when the file
- *  passes 4 GiB). */
-function largeBoxSize(view: DataView, at: number, end: number): [number, number] | undefined {
-  if (at + 16 > end) return undefined;
-  return [Number(view.getBigUint64(at + 8)), 16];
+  const file = readMp4Header(bytes);
+  const movie = file.movies[0];
+  if (!file.fileType || !file.hasMediaData || !movie) return undefined;
+  // X uses its first movie, last positive-scale header of at least 32 bytes, and first positive integer-size track.
+  // The shared reader bounds each header to its box and omits truncated or unknown-version movie/track facts.
+  const header = movie.headers.filter((h) => h.payloadSize >= 32 && h.timescale > 0).at(-1);
+  const track = movie.tracks.map(({ width, height }) => ({ width: Math.floor(width), height: Math.floor(height) })).find(({ width, height }) => width > 0 && height > 0);
+  if (!header || !track) return undefined;
+  return { mediaType: 'video/mp4', ...track, durationMs: Math.round((header.duration * 1000) / header.timescale) };
 }
 
 /**
