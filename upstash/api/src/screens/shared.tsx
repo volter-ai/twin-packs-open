@@ -28,16 +28,17 @@ export function consolePath(ctx: HandlerContext, path: string): string {
   return `${mounted}${target.search}`;
 }
 
-/** A signed-in member selects a native customer; an email is membership, never account identity. */
+/** A person keeps their native email-owned account and can select each organization they belong to. */
 export async function consoleCustomer(ctx: HandlerContext, person: Row): Promise<Row | undefined> {
   const email = String(person.email).toLowerCase();
-  const customers = ctx.rowsRaw('_customer').filter((customer) => Array.isArray(customer.members) && customer.members.includes(email));
+  let personal = ctx.row('_customer', email);
+  if (!personal) {
+    await ctx.record('_customer', { email, label: 'Personal', members: [email] }, email);
+    personal = ctx.row('_customer', email)!;
+  }
   const selected = new URL(ctx.call.request.url).searchParams.get('customer');
-  if (selected) return customers.find((customer) => customer.id === selected);
-  if (customers[0]) return customers[0];
-  const id = `personal:${email}`;
-  await ctx.record('_customer', { email, label: 'Personal', members: [email] }, id);
-  return ctx.row('_customer', id);
+  if (!selected) return personal;
+  return ctx.rowsRaw('_customer').find((customer) => customer.id === selected && Array.isArray(customer.members) && customer.members.includes(email));
 }
 
 // Authored from the database screenshot published in Upstash's Redis getting-started guide,
