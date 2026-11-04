@@ -131,7 +131,7 @@ export async function CreateUser(ctx: HandlerContext): Promise<Response> {
     object: 'user', external_id: (b.external_id as string | undefined) ?? null, primary_email_address_id: emailRows[0]?.id ?? null,
     primary_phone_number_id: phoneRows[0]?.id ?? null, primary_web3_wallet_id: walletRows[0]?.id ?? null, username: (b.username as string | undefined) || null,
     first_name: (b.first_name as string | undefined) ?? null, last_name: (b.last_name as string | undefined) ?? null, locale: (b.locale as string | undefined) ?? null,
-    image_url: defaultImageUrl(id, initialsOf(b.first_name, b.last_name)), profile_image_url: defaultImageUrl(id, initialsOf(b.first_name, b.last_name)), has_image: false,
+    image_url: defaultImageUrl(ctx, id, initialsOf(b.first_name, b.last_name)), profile_image_url: defaultImageUrl(ctx, id, initialsOf(b.first_name, b.last_name)), has_image: false,
     public_metadata: (b.public_metadata as Row | undefined) ?? {}, private_metadata: (b.private_metadata as Row | undefined) ?? {}, unsafe_metadata: (b.unsafe_metadata as Row | undefined) ?? {},
     email_addresses: emailRows, phone_numbers: phoneRows, web3_wallets: walletRows, passkeys: [], external_accounts: [], saml_accounts: [], enterprise_accounts: [],
     password_enabled: password !== undefined || digest !== undefined, two_factor_enabled: false, totp_enabled: false, backup_code_enabled: false,

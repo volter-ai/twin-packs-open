@@ -13,6 +13,31 @@ import { equalSecrets, type EventsDecl, type EventWrite, type HandlerContext, jw
 
 type Row = Record<string, unknown>;
 
+/** Dashboard workspaces and applications are shared; each application's instance has its own API store. */
+export async function applicationFor(ctx: HandlerContext): Promise<Record<string, unknown>> {
+  const organization = await ctx.organization();
+  const workspace = await ctx.tenant('_workspace', (owner) => ctx.record('_workspace', { name: owner.label, owner: owner.members[0]!, members: owner.members }));
+  return ctx.deploymentObject(`application:${String(workspace.id)}`, '_application', async (deployment) => {
+    const application = await ctx.create('_application', { name: deployment || organization.label, workspace_id: workspace.id, owner: organization.members[0]! }, 'application.create');
+    return String(application.id);
+  });
+}
+
+export async function makeSecretKey(ctx: HandlerContext, name: string | null): Promise<string> {
+  const id = await ctx.issue('_secret_key');
+  const mode = instanceEnvironment(ctx) === 'production' ? 'live' : 'test';
+  const label = `secret_key:${id}:${name ?? ''}`;
+  const secret = `sk_${mode}_${sha256(await ctx.secret(label)).slice(0, 40)}`;
+  await ctx.record('_secret_key', { name, _instance: instanceId(ctx), _secret_label: label, _mode: mode, sha256: sha256(secret), created_at: ms(ctx) }, id);
+  return id;
+}
+
+export async function readSecretKey(ctx: HandlerContext, row: Row): Promise<string | undefined> {
+  if (row._instance !== instanceId(ctx) || typeof row._secret_label !== 'string' || (row._mode !== 'live' && row._mode !== 'test')) return undefined;
+  const secret = `sk_${row._mode}_${sha256(await ctx.secret(row._secret_label)).slice(0, 40)}`;
+  return sha256(secret) === row.sha256 ? secret : undefined;
+}
+
 // The cited ResourceNotFound class supplies the envelope, not authenticated unknown-route behavior.
 // Twin choice where documentation stops: use this class for authenticated unknown routes (journeys/decisions.json).
 // source: https://clerk.com/docs/guides/development/errors/backend-api "ResourceNotFound"
@@ -171,12 +196,12 @@ export const sha256 = kernelSha256;
 
 // ── the instance ──────────────────────────────────────────────────────────────────────────────
 
-/** The Dashboard door's private instance configuration (`_instance`), shared with the Frontend API's
- *  environment (../../fapi) and the dashboard pages' doors (../server.ts): the World's one instance, by its id in Clerk's
- *  form, `ins_` and 27 word characters (the same id every event names as its `instance_id`, CLERK_INSTANCE_ID).
+/** The selected application's instance configuration, shared by the Backend and Frontend APIs. Instance ids use
+ *  Clerk's `ins_` and 27 word characters, including the default instance's subject.
  *  source: spec:createAdminPortalLinkToken "^ins_\w{27}$" */
 export const INSTANCE_SUBJECT = 'ins_2VOLTERINSTANCE000000000001';
-export const instanceRow = (ctx: WriteHookContext): Row | undefined => ctx.rowsRaw('_instance')[0] ?? ctx.rowsRaw('instance')[0];
+export const instanceRow = (ctx: Pick<WriteHookContext, 'rowsRaw'>): Row | undefined => ctx.rowsRaw('_instance')[0] ?? ctx.rowsRaw('instance')[0];
+export const instanceId = (ctx: Pick<WriteHookContext, 'rowsRaw'>): string => String(instanceRow(ctx)?.id ?? INSTANCE_SUBJECT);
 
 /** A new instance's organization settings: off ("Organizations are disabled by default"), 5 members an organization
  *  ("each Organization allows a maximum of 5 members by default"), the Admin role as the creator's, slugs off
@@ -615,19 +640,19 @@ export function emailAddress(userId: string, email: string, at: number, verifica
  *  displaying an avatar for the user" (https://clerk.com/docs/reference/backend/types/backend-user.md, `hasImage`), at
  *  Clerk's image host, its path the avatar's description (the subject and its initials) as base64url JSON. */
 // source: https://clerk.com/docs/reference/backend/types/backend-user.md "Returns `false` if Clerk is displaying an avatar for the user."
-export function defaultImageUrl(subject: string, initials: string): string {
-  return `https://img.clerk.com/${Buffer.from(JSON.stringify({ type: 'default', iid: INSTANCE_SUBJECT, rid: subject, initials })).toString('base64url')}`;
+export function defaultImageUrl(ctx: WriteHookContext, subject: string, initials: string): string {
+  return `https://img.clerk.com/${Buffer.from(JSON.stringify({ type: 'default', iid: instanceId(ctx), rid: subject, initials })).toString('base64url')}`;
 }
 /** A name's initials, as an avatar shows them. */
 export const initialsOf = (...names: unknown[]): string => names.filter((n): n is string => typeof n === 'string' && n.trim() !== '').map((n) => n.trim()[0]!.toUpperCase()).join('');
 
 /** A new user's fields in Clerk's `User` shape (spec:/components/schemas/User). */
-export function newUserFields(id: string, at: number, u: { emails: Row[]; firstName?: unknown; lastName?: unknown; username?: unknown; externalId?: unknown; passwordDigest?: string; publicMetadata?: unknown; privateMetadata?: unknown; unsafeMetadata?: unknown; legalAcceptedAt?: number | null; createOrganizationEnabled?: boolean; deleteSelfEnabled?: boolean }): Row {
+export function newUserFields(ctx: WriteHookContext, id: string, at: number, u: { emails: Row[]; firstName?: unknown; lastName?: unknown; username?: unknown; externalId?: unknown; passwordDigest?: string; publicMetadata?: unknown; privateMetadata?: unknown; unsafeMetadata?: unknown; legalAcceptedAt?: number | null; createOrganizationEnabled?: boolean; deleteSelfEnabled?: boolean }): Row {
   return {
     object: 'user', external_id: (u.externalId as string | undefined) ?? null, primary_email_address_id: (u.emails[0]?.id as string | undefined) ?? null,
     primary_phone_number_id: null, primary_web3_wallet_id: null, username: (u.username as string | undefined) ?? null,
     first_name: (u.firstName as string | undefined) ?? null, last_name: (u.lastName as string | undefined) ?? null,
-    image_url: defaultImageUrl(id, initialsOf(u.firstName, u.lastName)), profile_image_url: defaultImageUrl(id, initialsOf(u.firstName, u.lastName)), has_image: false,
+    image_url: defaultImageUrl(ctx, id, initialsOf(u.firstName, u.lastName)), profile_image_url: defaultImageUrl(ctx, id, initialsOf(u.firstName, u.lastName)), has_image: false,
     public_metadata: (u.publicMetadata as Row | undefined) ?? {}, private_metadata: (u.privateMetadata as Row | undefined) ?? {}, unsafe_metadata: (u.unsafeMetadata as Row | undefined) ?? {},
     email_addresses: u.emails, phone_numbers: [], web3_wallets: [], passkeys: [], external_accounts: [], saml_accounts: [], enterprise_accounts: [],
     password_enabled: u.passwordDigest !== undefined, two_factor_enabled: false, totp_enabled: false, backup_code_enabled: false,
@@ -650,23 +675,24 @@ export type { Jwk, Jwks } from '@volter/world-core';
  *  kernel, so every token verifies against this World's JWKS and no one forges one from the pack. Both APIs' fronts make
  *  it before anything is answered (`ensureInstanceKey`), so the signing below, which a cookie's every read reaches,
  *  need not wait for it. */
-export const INSTANCE_KEY = 'clerk-instance';
-export const ensureInstanceKey = async (ctx: Pick<HandlerContext, 'signingKey'>): Promise<void> => { await ctx.signingKey(INSTANCE_KEY); };
-export const instanceKey = (ctx: Pick<HandlerContext, 'heldSigningKey'>) => {
-  const key = ctx.heldSigningKey(INSTANCE_KEY);
+const INSTANCE_KEY = 'clerk-instance';
+const instanceKeyLabel = (ctx: Pick<WriteHookContext, 'rowsRaw'>): string => instanceId(ctx) === INSTANCE_SUBJECT ? INSTANCE_KEY : `${INSTANCE_KEY}:${instanceId(ctx)}`;
+export const ensureInstanceKey = async (ctx: Pick<HandlerContext, 'signingKey' | 'rowsRaw'>): Promise<void> => { await ctx.signingKey(instanceKeyLabel(ctx)); };
+export const instanceKey = (ctx: Pick<HandlerContext, 'heldSigningKey' | 'rowsRaw'>) => {
+  const key = ctx.heldSigningKey(instanceKeyLabel(ctx));
   if (!key) throw new Error('clerk: the instance key is made by the fronts before anything is answered');
   return { alg: 'RS256' as const, ...key };
 };
 
 /** A JWT signed RS256 with the instance's key: `iat` and `nbf` are `now` (seconds, the World's), `exp` `now` plus the
  *  lifetime, unless the claims name their own. */
-export const signJwt = (ctx: Pick<HandlerContext, 'heldSigningKey'>, claims: Row, opts: { now: number; expiresInSeconds?: number; typ?: string }): string => jwtSign(claims, instanceKey(ctx), opts);
+export const signJwt = (ctx: Pick<HandlerContext, 'heldSigningKey' | 'rowsRaw'>, claims: Row, opts: { now: number; expiresInSeconds?: number; typ?: string }): string => jwtSign(claims, instanceKey(ctx), opts);
 /** The decoded parts of a JWT (no verification). */
 export const decodeJwt = jwtDecode;
 /** A token's RS256 signature checked against a JWKS, and its `exp`/`nbf` at `now` (seconds). */
 export const verifyJwtWithJwks = (token: string, set: Jwks, opts: { now: number }) => jwtVerify(token, set, opts);
 /** The JWKS the Backend API serves (`GET /jwks`): the instance's public key, which verifies every token it signs. */
-export const buildJwks = (ctx: Pick<HandlerContext, 'heldSigningKey'>): Jwks => jwks(instanceKey(ctx).publicPem);
+export const buildJwks = (ctx: Pick<HandlerContext, 'heldSigningKey' | 'rowsRaw'>): Jwks => jwks(instanceKey(ctx).publicPem);
 
 // ── sessions ──────────────────────────────────────────────────────────────────────────────────
 
@@ -836,9 +862,6 @@ export function templateToken(ctx: WriteHookContext, session: Row, template: Row
 // ── webhooks: the events Clerk reports, declared for the kernel, which signs (Svix) and delivers them ──
 
 
-/** The instance's id, as every event names it (`instance_id`): the World's one instance (INSTANCE_SUBJECT). */
-export const CLERK_INSTANCE_ID = INSTANCE_SUBJECT;
-
 
 /** The webhooks Clerk sends for its writes, as the kernel delivers them (the manifest's `events`): each write's event
  *  type as @clerk/backend's `WebhookEventType` names it (dist/api/resources/Webhooks.d.ts; a write Clerk reports with
@@ -852,7 +875,7 @@ export const CLERK_EVENTS: EventsDecl = {
   types: { 'user.delete': 'user.deleted' },
   envelope: {
     data: '$data', event_attributes: { http_request: { client_ip: '$request.client_ip', user_agent: '$request.user_agent' } },
-    instance_id: CLERK_INSTANCE_ID, object: 'event', timestamp: '$time.ms', type: '$type',
+    instance_id: '$instance_id', object: 'event', timestamp: '$time.ms', type: '$type',
   },
   endpoints: { storedAs: 'webhook_endpoint', url: 'url', secret: 'signing_secret', filter: 'filter_types', disabled: 'disabled' },
   record: '_webhook_message',

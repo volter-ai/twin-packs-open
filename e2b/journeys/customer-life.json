@@ -1,0 +1,657 @@
+{
+  "vendor": "e2b",
+  "author": "Contributor 73",
+  "host": "api.e2b.app",
+  "about": "Runhuman operates RH2 task machines and enables the E2B code interpreter in its Twenty CRM. Fake machine replies are verification fixtures; production requires the enrolled template images and a Docker pool.",
+  "steps": [
+    {
+      "name": "Operator enrolls the verification machine pool; HTTP replies are explicit compute fixtures",
+      "method": "POST",
+      "path": "/_twin/machine-pool",
+      "status": 201,
+      "body": {
+        "kind": "fake",
+        "httpReplies": [
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/files?path=/home/user/values.txt",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "[{\"name\":\"values.txt\",\"path\":\"/home/user/values.txt\",\"type\":\"file\"}]",
+            "requestText": "--twenty-upload\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/home/user/values.txt\"\r\nContent-Type: application/octet-stream\r\n\r\n2\n3\n\r\n--twenty-upload--\r\n"
+          },
+          {
+            "port": 49983,
+            "method": "GET",
+            "path": "/files?path=/home/user/output/total.csv",
+            "status": 200,
+            "headers": {
+              "content-type": "application/octet-stream"
+            },
+            "body": "total\n5\n"
+          },
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/filesystem.Filesystem/ListDir",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"entries\":[{\"name\":\"total.csv\",\"path\":\"/home/user/output/total.csv\",\"type\":\"FILE_TYPE_FILE\"}]}",
+            "requestText": "{\"path\":\"/home/user/output\",\"depth\":1}"
+          },
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/filesystem.Filesystem/Stat",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"entry\":{\"name\":\"output\",\"path\":\"/home/user/output\",\"type\":\"FILE_TYPE_DIRECTORY\"}}",
+            "requestText": "{\"path\":\"/home/user/output\"}"
+          },
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/filesystem.Filesystem/Remove",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{}",
+            "requestText": "{\"path\":\"/home/user/output\"}"
+          },
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/filesystem.Filesystem/MakeDir",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"entry\":{\"name\":\"output\",\"path\":\"/home/user/output\",\"type\":\"FILE_TYPE_DIRECTORY\"}}",
+            "requestText": "{\"path\":\"/home/user/output\"}"
+          },
+          {
+            "port": 49999,
+            "method": "POST",
+            "path": "/execute",
+            "status": 200,
+            "headers": {
+              "content-type": "application/x-ndjson"
+            },
+            "body": "{\"type\": \"stdout\", \"text\": \"5\\n\"}\n{\"type\": \"end_of_execution\"}\n",
+            "requestText": "{\"code\":\"values = [int(v) for v in open('/home/user/values.txt').read().split()]\\nimport os\\nos.makedirs('/home/user/output', exist_ok=True)\\nopen('/home/user/output/total.csv', 'w').write('total\\\\n' + str(sum(values)) + '\\\\n')\\nprint(sum(values))\"}"
+          },
+          {
+            "port": 49999,
+            "method": "POST",
+            "path": "/execute",
+            "status": 200,
+            "headers": {
+              "content-type": "application/x-ndjson"
+            },
+            "body": "{\"type\": \"stdout\", \"text\": \"6\\n\"}\n{\"type\": \"end_of_execution\"}\n",
+            "requestText": "{\"code\":\"print(sum(values) + 1)\"}"
+          },
+          {
+            "port": 49983,
+            "method": "GET",
+            "path": "/files?path=/home/user/values.txt",
+            "status": 200,
+            "headers": {
+              "content-type": "application/octet-stream"
+            },
+            "body": "2\n3\n"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Runhuman operator obtains the team credential for RH2 and its Twenty backend",
+      "method": "POST",
+      "path": "/_twin/teams",
+      "status": 201,
+      "body": {
+        "name": "Runhuman"
+      },
+      "capture": {
+        "key": "api_key"
+      }
+    },
+    {
+      "name": "Release operator enrolls the already-built RH2 task-agent image",
+      "method": "POST",
+      "path": "/_twin/templates",
+      "status": 201,
+      "body": {
+        "alias": "runhuman-task-agent",
+        "image": "runhuman/task-agent:local",
+        "command": [
+          "sleep",
+          "infinity"
+        ],
+        "cpuCount": 2,
+        "memoryMB": 2048,
+        "diskSizeMB": 10240
+      },
+      "capture": {
+        "tpl": "templateID"
+      },
+      "headers": {
+        "x-api-key": "{key}"
+      }
+    },
+    {
+      "name": "RH2 deployment omitted E2B_API_KEY; its first task cannot start",
+      "method": "POST",
+      "path": "/sandboxes",
+      "status": 401,
+      "body": {
+        "templateID": "runhuman-task-agent"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 401
+        }
+      ]
+    },
+    {
+      "name": "Operator supplies the issued key and RH2 starts the task",
+      "method": "POST",
+      "path": "/sandboxes",
+      "status": 201,
+      "body": {
+        "templateID": "runhuman-task-agent",
+        "envVars": {
+          "RH2_BASE_URL": "https://pilot.runhuman.com",
+          "TASK_ID": "task_1"
+        },
+        "timeout": 3600
+      },
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "templateID",
+          "equals": "{tpl}"
+        },
+        {
+          "path": "alias",
+          "equals": "runhuman-task-agent"
+        },
+        {
+          "path": "domain",
+          "equals": "e2b.app"
+        }
+      ],
+      "capture": {
+        "sb": "sandboxID",
+        "domain": "domain"
+      }
+    },
+    {
+      "name": "RH2 launches its companion host using its published task-machine request",
+      "method": "POST",
+      "path": "https://49983-{sb}.{domain}/process.Process/Start",
+      "status": 200,
+      "headers": {
+        "content-type": "application/connect+json",
+        "connect-protocol-version": "1",
+        "e2b-sandbox-id": "{sb}",
+        "e2b-sandbox-port": "49983"
+      },
+      "expect": [
+        {
+          "path": "",
+          "matches": "\"start\":\\{\"pid\":\\d+"
+        },
+        {
+          "path": "",
+          "contains": "\"end\":{\"exitCode\":0"
+        }
+      ],
+      "bodyBase64": "AAAAAQR7InByb2Nlc3MiOnsiYXJncyI6WyItbCIsIi1jIiwiY2QgL2FwcCAmJiBjdXJsIC1mc1NMIFwiJFJIMl9CQVNFX1VSTC92MS9jb21wYW5pb24vaG9zdC5tanNcIiAtbyBob3N0Lm1qcyAmJiBjdXJsIC1mc1NMIFwiJFJIMl9CQVNFX1VSTC92MS9jb21wYW5pb24vcm9vbS10b29scy5tanNcIiAtbyByb29tLXRvb2xzLm1qcyAmJiBub2h1cCBub2RlIGhvc3QubWpzID4gL3RtcC9ob3N0LmxvZyAyPiYxICYiXSwiY21kIjoiL2Jpbi9iYXNoIiwiZW52cyI6e319fQ=="
+    },
+    {
+      "name": "The task runs for ten minutes before RH2 ends it",
+      "wait": "10m"
+    },
+    {
+      "name": "RH2 ends the completed task and releases its machine",
+      "method": "DELETE",
+      "path": "/sandboxes/{sb}",
+      "status": 204,
+      "headers": {
+        "x-api-key": "{key}"
+      }
+    },
+    {
+      "name": "Next morning the operator audits remaining compute",
+      "wait": "33h"
+    },
+    {
+      "name": "Operator finds no sandbox left by the completed task",
+      "method": "GET",
+      "path": "/v2/sandboxes",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "Operator checks the ready template before enabling Twenty code execution",
+      "method": "GET",
+      "path": "/v2/templates",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "0.templateID",
+          "equals": "{tpl}"
+        },
+        {
+          "path": "0.updatedAt",
+          "exists": true
+        },
+        {
+          "path": "0.buildStatus",
+          "equals": "ready"
+        }
+      ]
+    },
+    {
+      "name": "Operator enrolls the separately built code-interpreter template image",
+      "method": "POST",
+      "path": "/_twin/templates",
+      "status": 201,
+      "body": {
+        "alias": "code-interpreter-v1",
+        "image": "runhuman/code-interpreter:local",
+        "envdVersion": "0.6.2",
+        "memoryMB": 2048
+      },
+      "capture": {
+        "codeTpl": "templateID"
+      },
+      "headers": {
+        "x-api-key": "{key}"
+      }
+    },
+    {
+      "name": "Twenty searches for the analyst session before allocating compute",
+      "method": "GET",
+      "path": "/v2/sandboxes?state=running,paused&metadata=twentySessionId%3Danalysis-1",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "Twenty creates a warm, secure interpreter session for the analyst",
+      "method": "POST",
+      "path": "/sandboxes",
+      "status": 201,
+      "body": {
+        "templateID": "code-interpreter-v1",
+        "timeout": 120,
+        "autoPause": true,
+        "autoResume": {
+          "enabled": true
+        },
+        "secure": true,
+        "metadata": {
+          "twentySessionId": "analysis-1",
+          "twentySessionActor": "analyst-1"
+        }
+      },
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "templateID",
+          "equals": "{codeTpl}"
+        }
+      ],
+      "capture": {
+        "session": "sandboxID",
+        "sessionDomain": "domain",
+        "access": "envdAccessToken"
+      }
+    },
+    {
+      "name": "Twenty uploads the analyst input bytes to its sandbox",
+      "method": "POST",
+      "path": "https://49983-{session}.{sessionDomain}/files?path=/home/user/values.txt",
+      "status": 200,
+      "body": "--twenty-upload\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/home/user/values.txt\"\r\nContent-Type: application/octet-stream\r\n\r\n2\n3\n\r\n--twenty-upload--\r\n",
+      "headers": {
+        "x-access-token": "{access}",
+        "content-type": "multipart/form-data; boundary=twenty-upload"
+      },
+      "expect": [
+        {
+          "path": "0.path",
+          "equals": "/home/user/values.txt"
+        },
+        {
+          "path": "0.name",
+          "equals": "values.txt"
+        },
+        {
+          "path": "0.type",
+          "equals": "file"
+        }
+      ]
+    },
+    {
+      "name": "Twenty executes the requested total and writes the downloadable report",
+      "method": "POST",
+      "path": "https://49999-{session}.{sessionDomain}/execute",
+      "status": 200,
+      "body": {
+        "code": "values = [int(v) for v in open('/home/user/values.txt').read().split()]\nimport os\nos.makedirs('/home/user/output', exist_ok=True)\nopen('/home/user/output/total.csv', 'w').write('total\\n' + str(sum(values)) + '\\n')\nprint(sum(values))"
+      },
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"text\": \"5\\n\""
+        },
+        {
+          "path": "",
+          "contains": "end_of_execution"
+        }
+      ]
+    },
+    {
+      "name": "Twenty discovers generated output files to attach to the answer",
+      "method": "POST",
+      "path": "https://49983-{session}.{sessionDomain}/filesystem.Filesystem/ListDir",
+      "status": 200,
+      "body": {
+        "path": "/home/user/output",
+        "depth": 1
+      },
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "entries.0.name",
+          "equals": "total.csv"
+        }
+      ]
+    },
+    {
+      "name": "Twenty reads the generated report bytes for the analyst",
+      "method": "GET",
+      "path": "https://49983-{session}.{sessionDomain}/files?path=/home/user/output/total.csv",
+      "status": 200,
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": "total\n5\n"
+        }
+      ]
+    },
+    {
+      "name": "The analyst leaves the conversation idle for three minutes",
+      "wait": "3m"
+    },
+    {
+      "name": "Twenty locates the paused sandbox tagged for this conversation",
+      "method": "GET",
+      "path": "/v2/sandboxes?state=paused&metadata=twentySessionId%3Danalysis-1",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "0.sandboxID",
+          "equals": "{session}"
+        },
+        {
+          "path": "0.state",
+          "equals": "paused"
+        }
+      ]
+    },
+    {
+      "name": "Twenty reconnects to the saved session using the SDK five-minute default",
+      "method": "POST",
+      "path": "/sandboxes/{session}/connect",
+      "status": 201,
+      "body": {
+        "timeout": 300
+      },
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "sandboxID",
+          "equals": "{session}"
+        }
+      ]
+    },
+    {
+      "name": "Twenty resets its exact idle deadline before reusing the session",
+      "method": "POST",
+      "path": "/sandboxes/{session}/timeout",
+      "status": 204,
+      "body": {
+        "timeout": 120
+      },
+      "headers": {
+        "x-api-key": "{key}"
+      }
+    },
+    {
+      "name": "Twenty checks for stale output from the previous response",
+      "method": "POST",
+      "path": "https://49983-{session}.{sessionDomain}/filesystem.Filesystem/Stat",
+      "status": 200,
+      "body": {
+        "path": "/home/user/output"
+      },
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "entry.path",
+          "equals": "/home/user/output"
+        }
+      ]
+    },
+    {
+      "name": "Twenty removes stale report output before the next calculation",
+      "method": "POST",
+      "path": "https://49983-{session}.{sessionDomain}/filesystem.Filesystem/Remove",
+      "status": 200,
+      "body": {
+        "path": "/home/user/output"
+      },
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {}
+        }
+      ]
+    },
+    {
+      "name": "Twenty recreates a clean output directory",
+      "method": "POST",
+      "path": "https://49983-{session}.{sessionDomain}/filesystem.Filesystem/MakeDir",
+      "status": 200,
+      "body": {
+        "path": "/home/user/output"
+      },
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "entry.path",
+          "equals": "/home/user/output"
+        }
+      ]
+    },
+    {
+      "name": "Analyst asks the next calculation to reuse the saved Python values",
+      "method": "POST",
+      "path": "https://49999-{session}.{sessionDomain}/execute",
+      "status": 200,
+      "body": {
+        "code": "print(sum(values) + 1)"
+      },
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"text\": \"6\\n\""
+        }
+      ]
+    },
+    {
+      "name": "The browser waits another three minutes while the analyst checks the report",
+      "wait": "3m"
+    },
+    {
+      "name": "A scheduled inventory observes the idle session paused again",
+      "method": "GET",
+      "path": "/v2/sandboxes?state=paused",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "0.sandboxID",
+          "equals": "{session}"
+        },
+        {
+          "path": "0.state",
+          "equals": "paused"
+        }
+      ]
+    },
+    {
+      "name": "Analyst retrieves the original input through the enabled traffic resume path",
+      "method": "GET",
+      "path": "https://49983-{session}.{sessionDomain}/files?path=/home/user/values.txt",
+      "status": 200,
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": "2\n3\n"
+        }
+      ]
+    },
+    {
+      "name": "Analyst deletes the conversation and Twenty releases its session sandbox",
+      "method": "DELETE",
+      "path": "/sandboxes/{session}",
+      "status": 204,
+      "headers": {
+        "x-api-key": "{key}"
+      }
+    },
+    {
+      "name": "A later cleanup sweep checks for abandoned sessions",
+      "wait": "1d"
+    },
+    {
+      "name": "The cleanup sweep finds no session sandboxes",
+      "method": "GET",
+      "path": "/v2/sandboxes?state=running,paused",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "A later RH2 task is allocated with its one-hour budget while its launcher is pending",
+      "method": "POST",
+      "path": "/sandboxes",
+      "status": 201,
+      "body": {
+        "templateID": "runhuman-task-agent",
+        "timeout": 3600,
+        "envVars": {
+          "RH2_BASE_URL": "https://pilot.runhuman.com",
+          "TASK_ID": "task_2"
+        }
+      },
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "capture": {
+        "short": "sandboxID",
+        "shortDomain": "domain"
+      }
+    },
+    {
+      "name": "The launcher stalls beyond its one-hour budget; RH2 abandons the run",
+      "wait": "65m"
+    },
+    {
+      "name": "RH2 cleanup treats the already expired machine as gone",
+      "method": "DELETE",
+      "path": "/sandboxes/{short}",
+      "status": 404,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 404
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { createPackFetch, type DerivedFetch, type DerivedSurface, type PackFetch
 import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
 import { around } from './semantics/around.ts';
+import { tenant } from './semantics/tenant.ts';
 import * as doors from './semantics/doors.ts';
 import { clerkSemantics } from './semantics/index.ts';
 import { screen as screen_dashboard } from './screens/dashboard.tsx';
@@ -17,6 +18,7 @@ export function createClerkFetch(options: PackFetchOptions = {}): DerivedFetch {
     handlers: clerkSemantics,
     doors,
     around,
+    tenant,
     screens: { "dashboard": screen_dashboard, "images": screen_images },
     lanes: { "fapi": { fetch: createFapiLaneFetch(options), manifest: fapi_manifest } },
   }, options);
