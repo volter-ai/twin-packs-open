@@ -66,16 +66,12 @@ export async function nativeOrganization(ctx: HandlerContext): Promise<Row> {
     for (const suffixed of [false, true]) {
       const slug = ctx.vendorName(label.length < 3 ? `world-${label}` : label,
         { max: 64, lower: true, allowed: /[a-z0-9-]/, first: /[a-z0-9]/ }, { suffixed, identity: world.id });
-      const id = await ctx.atomically((rows) => {
-        const same = rows(ORGANIZATION).find((row) => row._world_organization === world.id && row._environment === nativeEnvironment);
-        if (same) return { value: String(same.id) };
-        if (rows(ORGANIZATION).some((row) => row.slug === slug && row._environment === nativeEnvironment)) return { value: undefined };
-        const id = world.id === 'default' ? nativeEnvironment === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID : ctx.mint(ORGANIZATION);
-        return { value: id, write: { resource: ORGANIZATION, id, fields: { name: world.label.length < 3 ? `World ${world.label}` : world.label,
-          slug, created_at: ctx.occurredAt, _owner_email: world.members[0]!.toLowerCase(), _world_organization: world.id,
-          _environment: nativeEnvironment, _namespace: world.id === 'default' ? 'default' : id }, operation: 'organization.create' } };
-      });
-      if (id) return id;
+      const made = await ctx.createUnique(ORGANIZATION, (id) => ({ name: world.label.length < 3 ? `World ${world.label}` : world.label,
+        slug, created_at: ctx.occurredAt, _owner_email: world.members[0]!.toLowerCase(), _world_organization: world.id,
+        _environment: nativeEnvironment, _namespace: world.id === 'default' ? 'default' : id }), 'organization.create',
+      world.id === 'default' ? { id: nativeEnvironment === 'sandbox' ? '2dbfc517-0bbf-4301-9ba8-555ca42b9737' : ORG_ID } : undefined);
+      const row = ctx.row(ORGANIZATION, String(made.row.id))!;
+      if (made.created || (row._world_organization === world.id && row._environment === nativeEnvironment)) return String(row.id);
     }
     throw fail(409, 'Conflict', `An organization slug already exists for ${world.id}.`);
   };

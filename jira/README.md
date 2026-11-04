@@ -20,8 +20,8 @@ Invite a person with POST /_twin/sites/acme/people and `{ "name", "email", "pass
 These doors are declared on the auth lane manifest; the root discovery endpoint does not aggregate lane doors.
 
 World doors stand for site/account signup, people invited to the site, app registration, and
-API-token creation in the account console. The credential door fills JIRA_API_TOKEN for the
-cookbook's account; explicit integrations register their callbacks and obtain OAuth credentials
+API-token creation in the account console. The credential door fills JIRA_API_TOKEN, JIRA_EMAIL and JIRA_URL for the
+deployment's person and site; explicit integrations register their callbacks and obtain OAuth credentials
 through /_twin/app-credentials. Stored API resources declare refresh, including detail reads for
 paged project summaries. Vendor fields are stored in their response shape and read through the
 kernel view.

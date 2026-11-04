@@ -61,7 +61,7 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
 // source: https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/ "You generate an API token for your Atlassian account"
 export async function apiToken(ctx: HandlerContext): Promise<Response> {
   const b = obj(ctx.body);
-  if (b.account !== undefined || b.deployment !== undefined) return deploymentToken(ctx);
+  if (b.account !== undefined || b.deployment !== undefined || (b.site === undefined && b.email === undefined && b.password === undefined)) return deploymentToken(ctx);
   let site = siteNamed(ctx, b.site);
   if (!site) site = await defaultAccount(ctx, b);
   const held = ctx.rowsRaw(PERSON).find((p) => p.email === b.email && p.deleted !== true);
@@ -72,21 +72,17 @@ export async function apiToken(ctx: HandlerContext): Promise<Response> {
   const id = await ctx.issue(API_TOKEN);
   const value = await tokenValue(ctx, 'jira-api:' + id);
   await ctx.record(API_TOKEN, { person: held.id, site: site.id, email: b.email, sha256: sha256(ctx, value), ...(runtime ? { _worldCredential: true } : {}) }, id);
-  return Response.json({ apiToken: value, authorization: 'Basic ' + Buffer.from(String(b.email) + ':' + value).toString('base64'), site: site.id }, { status: 201 });
+  return Response.json({ apiToken: value, authorization: 'Basic ' + Buffer.from(String(b.email) + ':' + value).toString('base64'), site: site.id, email: held.email, url: site.url }, { status: 201 });
 }
 
-/** The runtime's credential door: the descriptor's default acme account, asked for at each boot of a World. */
 const runtimeDefault = (b: Record<string, unknown>): boolean => b.site === 'acme' && b.email === 'agent@acme.example' && b.password === 'world-password';
 
-/** A resumed World's boot asks the credential door again: the token it issued before is answered again, so a resume
- *  changes no state and the application's JIRA_API_TOKEN keeps working. */
 async function keptToken(ctx: HandlerContext, kept: Record<string, unknown>, email: string): Promise<Response> {
   const value = await tokenValue(ctx, 'jira-api:' + String(kept.id));
-  return Response.json({ apiToken: value, authorization: 'Basic ' + Buffer.from(email + ':' + value).toString('base64'), site: kept.site }, { status: 201 });
+  return Response.json({ apiToken: value, authorization: 'Basic ' + Buffer.from(email + ':' + value).toString('base64'), site: kept.site, email, url: ctx.row(SITE, String(kept.site))!.url }, { status: 201 });
 }
 
 async function defaultAccount(ctx: HandlerContext, b: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
-  // The runtime's default credential setup is separate from the customer's explicitly created Tidewater account.
   if (!runtimeDefault(b)) return undefined;
   const sid = ctx.mint(SITE);
   await ctx.record(SITE, { name: 'acme', url: 'https://acme.atlassian.net' }, sid);
@@ -137,6 +133,6 @@ async function deploymentToken(ctx: HandlerContext): Promise<Response> {
         return sha256(ctx, value) === row.sha256 ? value : undefined;
       },
     });
-    return Response.json({ apiToken: key.secret, authorization: 'Basic ' + Buffer.from(`${person.email}:${key.secret}`).toString('base64'), site: siteId }, { status: 201 });
+    return Response.json({ apiToken: key.secret, authorization: 'Basic ' + Buffer.from(`${person.email}:${key.secret}`).toString('base64'), site: siteId, email: person.email, url: site.url }, { status: 201 });
   } catch (error) { if (error instanceof Response) return error; throw error; }
 }

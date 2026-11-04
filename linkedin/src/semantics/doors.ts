@@ -3,7 +3,7 @@
 // page (Create a LinkedIn Page), the Developer Portal's Create app with its products, its OAuth Token Generator Tool,
 // and the rate limits its app's Analytics tab shows; and the credential the World's application is issued.
 import type { HandlerContext } from '@volter/world-core';
-import { APP, USAGE, bodyOf, ensureApp, ensureMember, ensureOrganization, issueToken, memberOfEmail, PRODUCT_SCOPES, productsAllowed, refuse, makeApp, MEMBER, nowMs, TOKEN, tokenKey, tokenValue, view, type Row } from './shared.ts';
+import { ACL, APP, USAGE, bodyOf, ensureApp, ensureMember, ensureOrganization, issueToken, memberOfEmail, PRODUCT_SCOPES, productsAllowed, refuse, makeApp, MEMBER, nowMs, TOKEN, tokenKey, tokenValue, view, type Row } from './shared.ts';
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 const bad = (message: string, status = 400): Response => refuse(status, message);
@@ -88,7 +88,9 @@ export async function appLimits(ctx: HandlerContext): Promise<Response> {
 
 /** A deployment's developer application, granted access by the organization's first member. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  const member = await ctx.tenant(MEMBER, async (organization) => {
+  const b = bodyOf(ctx);
+  const explicit = b.account === undefined && b.deployment === undefined && (b.email !== undefined || b.client_id !== undefined);
+  const member = explicit ? memberOfEmail(ctx, String(b.email ?? '')) : await ctx.tenant(MEMBER, async (organization) => {
     const email = organization.members[0]!.toLowerCase();
     const held = memberOfEmail(ctx, email);
     if (held) return String(held.id);
@@ -96,8 +98,11 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
       given_name: organization.label, family_name: '', locale: 'en-US', email, email_verified: true, _email: email }), 'member.create');
     return String(made.row.id);
   });
-  const app = await ctx.deploymentObject(`developer-app:${member.id}`, APP, async (deployment) => String((await makeApp(ctx, deployment || 'World App', ['Community Management API'], String(member.sub))).id));
-  const token = await ctx.accountKey('member-grant', TOKEN, {
+  if (!member) return bad('no such member', 404);
+  const app = explicit ? ctx.row(APP, String(b.client_id ?? ''))
+    : await ctx.deploymentObject(`developer-app:${member.id}`, APP, async (deployment) => String((await makeApp(ctx, deployment || 'World App', ['Community Management API'], String(member.sub))).id));
+  if (!app) return bad('no such application', 404);
+  const token = await ctx.accountKey(explicit ? `member-grant:${app.client_id}:${member.sub}` : 'member-grant', TOKEN, {
     make: async () => {
       const grant = await issueToken(ctx, app, member, app.scopes as string[]);
       return tokenKey(ctx, grant.access_token);
@@ -109,6 +114,8 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
     },
   });
   const row = ctx.row(TOKEN, token.id)!;
+  const organization = ctx.rowsRaw(ACL).find((acl) => acl.deleted !== true && acl.roleAssignee === `urn:li:person:${member.sub}` && acl.state === 'APPROVED')?.organization;
   return Response.json({ access_token: token.secret, expires_in: Math.floor((Number(row.expires_at) - nowMs(ctx)) / 1000),
-    scope: (row.scopes as string[]).join(' '), client_id: app.client_id, person: `urn:li:person:${member.sub}` });
+    scope: (row.scopes as string[]).join(' '), client_id: app.client_id, person: `urn:li:person:${member.sub}`,
+    ...(organization ? { organization } : {}) });
 }

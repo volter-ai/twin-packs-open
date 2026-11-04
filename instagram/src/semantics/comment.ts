@@ -4,7 +4,7 @@ import { COMMENT, COMMENTS, authorized, commentView, igTime, invalidParam, obj, 
 
 /** A live comment on the caller's media, by the path's ID, or the refusal. */
 function ownComment(ctx: HandlerContext, c: Caller, method: string): Row | Response {
-  const id = String(ctx.params['ig-comment-id'] ?? '');
+  const id = String(ctx.call.params['ig-comment-id'] ?? '');
   const row = ctx.row(COMMENT, id);
   // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-comment/replies "You cannot get replies to a comment that has been deleted."
   return row && row.deleted !== true && row._account === c.account.id ? row : unsupported(ctx, method, id);

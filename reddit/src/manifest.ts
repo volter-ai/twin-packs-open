@@ -144,9 +144,9 @@ export const manifest: DerivedManifest = {
   ],
   resources: {
     // an Account (t2), kept by its username as its subject; Reddit's own `id` (base 36) is a field of it
-    account: { idPrefix: '', storedAs: 'account', refresh: { get: 'GET_api_v1_me' } },
+    account: { idPrefix: '', storedAs: 'account', unique: [{ fields: ['_name'], refusal: { status: 409, message: 'that username is already taken' } }], refresh: { get: 'GET_api_v1_me' } },
     // a community (t5), kept by its display name
-    subreddit: { idPrefix: '', storedAs: 'subreddit', refresh: { none: "Reddit reads a community back by its name (GET /r/{subreddit}/about) and lists the account's own by GET /subreddits/mine/{where}; the refresh fills a path only from a parent it observed, and a community has none in this pack, so the World's communities are not read back from a live account" } },
+    subreddit: { idPrefix: '', storedAs: 'subreddit', unique: [{ fields: ['_profile_of'], refusal: { status: 409, message: 'that account already has a profile community' } }], refresh: { none: "Reddit reads a community back by its name (GET /r/{subreddit}/about) and lists the account's own by GET /subreddits/mine/{where}; the refresh fills a path only from a parent it observed, and a community has none in this pack, so the World's communities are not read back from a live account" } },
     // a Link (t3): a post, stored as Reddit answers its data
     link: { idPrefix: '', storedAs: 'link', ...states.link, refresh: { none: "Reddit lists posts as things ({kind, data}) inside a Listing; the refresh reads a list's items as the objects themselves, so a post is not read back from a live account until the kernel reads a listing's things" } },
     // a Comment (t1)

@@ -19,7 +19,7 @@ function nodeOf(ctx: HandlerContext, c: Caller, id: string): { kind: 'user' } | 
 export async function getNode(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx);
   if (c instanceof Response) return c;
-  const id = String(ctx.params.id ?? '');
+  const id = String(ctx.call.params.id ?? '');
   const node = nodeOf(ctx, c, id);
   if (!node) return unsupported(ctx, 'GET', id);
   // source: https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media "This API returns only data for media owned by Instagram professional accounts."
@@ -65,7 +65,7 @@ export async function getNode(ctx: HandlerContext): Promise<Response> {
 export async function updateNode(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx);
   if (c instanceof Response) return c;
-  const id = String(ctx.params.id ?? '');
+  const id = String(ctx.call.params.id ?? '');
   const node = nodeOf(ctx, c, id);
   if (node?.kind === 'foreign-media') return mediaNotFound(ctx, id);
   if (node?.kind !== 'media' && node?.kind !== 'comment') return unsupported(ctx, 'POST', id);
@@ -92,7 +92,7 @@ export async function updateNode(ctx: HandlerContext): Promise<Response> {
 export async function deleteNode(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx);
   if (c instanceof Response) return c;
-  const id = String(ctx.params.id ?? '');
+  const id = String(ctx.call.params.id ?? '');
   const node = nodeOf(ctx, c, id);
   // source: https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media "This api only supports Instagram API with Facebook login only."
   // deleting a media is the Instagram API with Facebook Login's, another flow on another host: the gap
