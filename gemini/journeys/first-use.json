@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://ai.google.dev/gemini-api/docs/quickstart",
+  "about": "A Node application uses the demanded @google/genai 2.13.0 client and its issued GOOGLE_API_KEY at Google's normal host. Single and streamed generateContent calls assert the twin's explicitly labelled deterministic response, finish reason and token usage. No model runs and the workflow makes no claim about answer quality.",
+  "files": {
+    "package.json": "{\n  \"name\": \"gemini-generation-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@google/genai\": \"2.13.0\"\n  }\n}\n",
+    ".env.example": "GOOGLE_API_KEY=\n",
+    "generate.mjs": "import assert from 'node:assert/strict';\nimport { GoogleGenAI } from '@google/genai';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nassert.ok(process.env.GOOGLE_API_KEY, 'the application receives its own API key');\nconst ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });\nconst model = 'gemini-2.5-flash';\nconst contents = 'Explain the purpose of this customer workflow.';\nconst expected = '[twin-stub:' + model + '] This is a deterministic stub from the Gemini API twin (no model runs). Your last message: ' + contents;\nconst response = await ai.models.generateContent({ model, contents });\nassert.equal(response.text, expected);\nassert.equal(response.candidates[0].finishReason, 'STOP');\nassert.ok(response.usageMetadata.promptTokenCount > 0 && response.usageMetadata.candidatesTokenCount > 0);\nconst stream = await ai.models.generateContentStream({ model, contents });\nlet text = '', finishReason, usage;\nfor await (const chunk of stream) {\n  text += chunk.text ?? '';\n  finishReason = chunk.candidates?.[0]?.finishReason ?? finishReason;\n  if (chunk.usageMetadata) usage = chunk.usageMetadata;\n}\nassert.equal(text, expected);\nassert.equal(finishReason, 'STOP');\nassert.ok(usage.promptTokenCount > 0 && usage.candidatesTokenCount > 0);\nconsole.log(JSON.stringify({ model, text, finishReason, usage }));\n"
+  },
+  "run": [
+    "node",
+    "generate.mjs"
+  ],
+  "retention": {
+    "none": "generateContent and streamGenerateContent return stateless computed answers. The served API has no stored-generation retrieval; private response IDs and issued-key bookkeeping are not application records to read after resume."
+  }
+}
