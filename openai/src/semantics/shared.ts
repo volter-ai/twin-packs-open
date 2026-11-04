@@ -2347,13 +2347,12 @@ export async function codexCredentials(ctx: HandlerContext): Promise<Row> {
 async function subscriptionCredentials(ctx: HandlerContext, account: Row): Promise<Row> {
   const active = (row: Row): boolean => row._account === account.id && row.status === 'active' && Number(row._expires) > epoch(ctx);
   if (!ctx.rowsRaw('_codex_grant').some(active)) await codexTokens(ctx, account);
-  const id = await ctx.atomically((rows) => {
-    const native = rows('_codex_account').find((row) => row.id === account.id)!;
-    const held = rows('_codex_grant').find((row) => row.id === native._credential_grant && active(row)) ?? rows('_codex_grant').find(active)!;
-    return native._credential_grant === held.id ? { value: String(held.id) }
-      : { value: String(held.id), write: { resource: '_codex_account', id: String(account.id), fields: { _credential_grant: held.id }, operation: 'codex.account.grant' } };
-  });
-  const grant = ctx.row('_codex_grant', id)!;
+  let grant!: Row;
+  await ctx.change('_codex_account', String(account.id), (native) => {
+    const grants = ctx.rowsRaw('_codex_grant');
+    grant = grants.find((row) => row.id === native._credential_grant && active(row)) ?? grants.find(active)!;
+    return native._credential_grant === grant.id ? undefined : { _credential_grant: grant.id };
+  }, 'codex.account.grant', { input: 'omit' });
   const tokens = { access_token: grant._access, id_token: grant._id_token, refresh_token: grant._refresh };
   const auth = { auth_mode: 'chatgpt', OPENAI_API_KEY: null, tokens: { ...tokens, account_id: account.id },
     last_refresh: grant._issued_at ?? new Date((Number(grant._expires) - 3600) * 1000).toISOString() };

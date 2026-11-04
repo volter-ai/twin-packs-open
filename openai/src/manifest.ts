@@ -496,7 +496,7 @@ export const manifest: DerivedManifest = {
     Project: { shared: true, storedAs: 'project', idPrefix: 'proj', ids: '{prefix}_{ksuid:24}', notFound: 'Project {id} not found', order: { field: 'created_at', direction: 'desc' }, ...states.Project, refresh: { none: "the Admin API answers only an admin key, and the root's key is the API's" } },
     // Where documentation stops: key_abc is a placeholder, not evidence of a suffix length; keep the default 27 characters.
     // source: spec:list-project-api-keys "key_abc"
-    ProjectServiceAccount: { idPrefix: 'svc_acct', ids: '{prefix}_{ksuid:24}', ...states.ProjectServiceAccount },
+    ProjectServiceAccount: { idPrefix: 'svc_acct', ids: '{prefix}_{ksuid:24}', ...states.ProjectServiceAccount, refresh: { none: "the Admin API answers only an admin key, and the root's key is the API's" } },
     ProjectApiKey: { storedAs: 'api_key', idPrefix: 'key', ids: '{prefix}_{ksuid}', notFound: 'API key {id} not found', parent: { param: 'project_id', field: '_project_id', resource: 'Project' }, deleted: { id: '{id}', object: 'organization.project.api_key.deleted', deleted: true }, order: { field: 'created_at', direction: 'desc' }, ...states.ProjectApiKey, refresh: { none: "the Admin API answers only an admin key, and the root's key is the API's" } },
   },
   // the descriptor, as data (twin-world's architecture, "The descriptor"): the pack registers packOf(manifest, surface), the
