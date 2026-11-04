@@ -8,6 +8,7 @@ export const manifest: DerivedManifest = {
   // both lanes are one service, so one store: the ingest lane writes events the API lane reads, and the doors' accounts
   // are the ingest lane's too (aws's lanes likewise)
   service: 'sentry',
+  hosts: [{ host: 'sentry.io' }, { host: 'us.sentry.io' }, { host: 'de.sentry.io' }],
   body: { json: 'always' },
   ids: { template: '{uuid}' },
   time: 'iso',

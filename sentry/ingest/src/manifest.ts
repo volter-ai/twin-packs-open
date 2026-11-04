@@ -7,6 +7,9 @@ export const manifest: DerivedManifest = {
   vendor: 'sentry',
   // one service with the API lane (../../api/src/manifest.ts), so one store
   service: 'sentry',
+  hosts: [{ suffix: '.ingest.sentry.io' }, { suffix: '.ingest.us.sentry.io' }, { suffix: '.ingest.de.sentry.io' }],
+  // source: spec:/servers/0/url
+  remoteHost: { template: 'o0.ingest.us.sentry.io' },
   // an envelope is not JSON: its bytes are kept (./semantics/around.ts) and read by the handler
   body: {},
   // source: https://raw.githubusercontent.com/getsentry/sentry-docs/3ec4e139711af82b38a3c2c17261f5f5cdb66dfc/develop-docs/sdk/foundations/transport/compression.mdx "The following content encodings are accepted by Relay and Sentry:"
