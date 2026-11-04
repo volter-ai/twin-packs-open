@@ -369,8 +369,8 @@ export const manifest: DerivedManifest = {
   ],
   resources: {
     oauth1_app: { idPrefix: '', ids: '{letters:25}', refresh: { none: 'Developer console registrations have no public X API reader.' } },
-    oauth_client: { idPrefix: '', ids: '{letters:21}', unique: [{ fields: ['app_id'], refusal: { status: 409, code: 'invalid_request', message: 'An OAuth client already exists for this App.' } }], refresh: { none: 'Developer console registrations and secrets have no public X API reader.' } },
-    _client_secret: { idPrefix: '', ids: '{uuid}', unique: [{ fields: ['_client'], refusal: { status: 409, code: 'invalid_request', message: 'A secret already exists for this client.' } }] },
+    oauth_client: { idPrefix: '', unique: [{ fields: ['app_id'], refusal: { status: 409, code: 'invalid_request', message: 'An OAuth client already exists for this App.' } }], refresh: { none: 'Developer console registrations and secrets have no public X API reader.' } },
+    _client_secret: { idPrefix: '', unique: [{ fields: ['_client'], refusal: { status: 409, code: 'invalid_request', message: 'A secret already exists for this client.' } }] },
     _credential_issue: { idPrefix: '', ids: '{uuid}' },
     CreatePostsResponseData: { idPrefix: '', storedAs: 'post', refresh: { none: 'The create response is a thin view of Post; Post refresh reads the user timeline.' } },
     // source: spec:getUsersMe "Get Users Me"
