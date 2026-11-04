@@ -35,7 +35,7 @@ export async function secretKeys(ctx: HandlerContext): Promise<Response> {
 
 /** The Webhooks page creates an endpoint, updates its destination/events or rotates its signing secret by id,
  *  and deletes it by id. The secret belongs to that endpoint, as Svix's Endpoint API does.
- *  source: https://docs.svix.com/api-reference/endpoints */
+ *  source: https://api.svix.com/docs#tag/Endpoint/operation/v1.endpoint.get-secret */
 export async function webhookEndpoints(ctx: HandlerContext): Promise<Response> {
   const b = bodyOf(ctx);
   const held = typeof b.id === 'string' ? ctx.row('webhook_endpoint', b.id) : undefined;
