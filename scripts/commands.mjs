@@ -61,12 +61,12 @@ export async function runOwnedCommand(command, args, options) {
   collect(child.stdout, (text) => { stdout += text; });
   collect(child.stderr, (text) => { stderr += text; });
   try {
-    const status = await new Promise((resolve) => {
+    const status = await /** @type {Promise<number | null>} */ (new Promise((resolve) => {
       child.once('error', (cause) => { error = cause; });
       // close waits for inherited pipes too, so end orphan writers as soon as their parent exits.
       child.once('exit', () => { if (grouped) endGroup('SIGKILL'); });
       child.once('close', resolve);
-    });
+    }));
     if (grouped && child.pid) {
       // An exited npm parent is not a finished step while a descendant still writes.
       endGroup('SIGKILL');
