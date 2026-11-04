@@ -247,7 +247,7 @@ export function appView(ctx: Pick<HandlerContext, 'row' | 'rowsRaw' | 'own'>, a:
   const view = vendorView(ctx, a);
   // source: https://docs.discord.com/developers/resources/application "Approximate count of guilds the app has been added to"
   const approximate_guild_count = ctx.rowsRaw(MEMBER).filter((m) => m.deleted !== true && m._user === a._bot && live(ctx.row(GUILD, String(m._guild)))).length;
-  return { ...view, approximate_guild_count, ...(owner ? { owner: userView(owner) } : {}), ...(bot ? { bot: userView(bot) } : {}) };
+  return { id: a.id, ...view, approximate_guild_count, ...(owner ? { owner: userView(owner) } : {}), ...(bot ? { bot: userView(bot) } : {}) };
 }
 
 export const IDENTIFY = '_identify';
