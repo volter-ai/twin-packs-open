@@ -36,7 +36,7 @@ export const manifest: DerivedManifest = {
     stores: "OAuth clients, the World's Google accounts and service accounts, codes and refresh tokens (by their SHA-256), access tokens and the project's API keys (by their SHA-256) as the Google API packs read them",
   },
   resources: {
-    account: { idPrefix: '', unique: [{ fields: ['id'], refusal: { status: 409, code: 'ALREADY_EXISTS', message: 'Google account belongs to another email' } }] },
+    account: { idPrefix: '', refresh: { none: 'Google OAuth exposes the consenting account through token-scoped userinfo, not an account directory or an API that lists all Google accounts.' }, unique: [{ fields: ['id'], refusal: { status: 409, code: 'ALREADY_EXISTS', message: 'Google account belongs to another email' } }] },
     _project: { idPrefix: '', unique: [{ fields: ['project_id'], refusal: { status: 409, code: 'ALREADY_EXISTS', message: 'Cloud project already exists' } }] },
     _service_account: { idPrefix: '', unique: [{ fields: ['client_email'], refusal: { status: 409, code: 'ALREADY_EXISTS', message: 'Service account already exists' } }] },
     _serial: { idPrefix: '', ids: '{n}' },
