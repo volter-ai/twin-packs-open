@@ -15,7 +15,7 @@ export const APP = '_app';
 export const CODE = '_code';
 export const ACCESS = '_access_token';
 export const REFRESH = '_refresh_token';
-export const BROWSER_SESSION = '_browser_session';
+const BROWSER_SESSION = '_browser_session';
 
 export const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 export const arr = <T = Row>(v: unknown): T[] => (Array.isArray(v) ? v as T[] : []);
@@ -27,7 +27,7 @@ export const hexToken = async (ctx: Pick<HandlerContext, 'secret' | 'crypto'>, l
 
 /** Relation ids survive refresh in the vendor's nested response shape. Private ids are local indexes. */
 export const relation = (r: Row | undefined, field: string): unknown => r?.[`_${field}`] ?? obj(r?.[field]).id;
-export function belongs(ctx: HandlerContext, r: Row, org: string): boolean {
+function belongs(ctx: HandlerContext, r: Row, org: string): boolean {
   if (r._org !== undefined) return r._org === org;
   return observedParentBelongs(ctx, r, org);
 }
@@ -140,7 +140,7 @@ export const ORGANIZATION_SELECTION = ORGANIZATION_FIELDS.map((field) => {
 // These values describe this synthetic workspace, not undocumented vendor defaults. There is no paid plan,
 // configured project-status model, Slack project integration, customer feature, AI service or reminder schedule.
 // Required Day/ReleaseChannel/SLADayCountType values are SDL enum members for inactive starter settings.
-export const ORGANIZATION_STARTER_FIELDS: Row = {
+const ORGANIZATION_STARTER_FIELDS: Row = {
   archivedAt: null, createdIssueCount: 0, allowedAuthServices: [], allowedFileUploadContentTypes: null,
   authSettings: {}, customersConfiguration: {}, defaultFeedSummarySchedule: null, previousUrlKeys: [],
   periodUploadVolume: 0, securitySettings: {}, slackProjectChannelIntegration: null, logoUrl: null,
@@ -289,13 +289,13 @@ export function issueFields(ctx: HandlerContext, input: Row, identifier: string,
   };
 }
 
-export function issueBranchName(identifier: string, title: unknown): string {
+function issueBranchName(identifier: string, title: unknown): string {
   const slug = String(title ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return `${identifier.toLowerCase()}${slug ? `-${slug}` : ''}`;
 }
 
 /** Root observations carry their declared parent and vendor-shaped relation ids, not a local _org index. */
-export function observedParentBelongs(ctx: HandlerContext, r: Row, org: string): boolean {
+function observedParentBelongs(ctx: HandlerContext, r: Row, org: string): boolean {
   const team = relation(r, 'team');
   if (team) return ctx.row(TEAM, ctx.resolve(TEAM, String(team)))?._org === org;
   const issue = relation(r, 'issue');
@@ -305,7 +305,7 @@ export function observedParentBelongs(ctx: HandlerContext, r: Row, org: string):
 
 // The optional IssueUpdateInput fields are declared by the vendored schema. This customer only changes state and labels.
 // source: https://linear.app/developers/graphql "Creating & Editing Issues"
-export function optionalIssueChanges(ctx: HandlerContext, c: Caller, input: Row): Row {
+function optionalIssueChanges(ctx: HandlerContext, c: Caller, input: Row): Row {
   return { ...(input.priority !== undefined ? priorityChange(input.priority) : {}), ...(input.assigneeId !== undefined ? assignmentChange(ctx, c, input.assigneeId) : {}), ...(input.projectId !== undefined ? projectChange(ctx, c, input.projectId) : {}) };
 }
 
