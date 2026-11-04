@@ -6,6 +6,7 @@ import * as discovery from './discovery.ts';
 import * as keys from './keys.ts';
 import * as revocation from './revocation.ts';
 import * as token from './token.ts';
+import * as tokeninfo from './tokeninfo.ts';
 import * as userinfo from './userinfo.ts';
 
 export const googleoauthSemantics: Record<string, Handler> = {
@@ -15,5 +16,6 @@ export const googleoauthSemantics: Record<string, Handler> = {
   openidConfiguration: discovery.openidConfiguration,
   revoke: revocation.revoke,
   token: token.token,
+  tokeninfoPost: tokeninfo.tokeninfoPost,
   userinfoV3: userinfo.userinfoV3,
 };
