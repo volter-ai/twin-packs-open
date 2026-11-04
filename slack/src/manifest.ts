@@ -7,7 +7,7 @@
 // token as `Authorization: Bearer` or the `token` argument (https://docs.slack.dev/authentication/tokens). A method the
 // twin does not serve answers Slack's `unknown_method`.
 //
-// THE WORLD'S SLACK. An ordinary workspace, `T0VOLTER01`, made on the sign-up page (./screens/get-started.tsx).
+// THE WORLD'S SLACK. Ordinary workspaces, made on the sign-up page or by the credential door.
 // No Enterprise Grid or SCIM provisioning is modeled. A person acts with their own client token,
 // `xoxp-<their user id>` (the twin's decision: the Slack client's session, which no API mints); an app acts with the
 // tokens its install makes (oauth.v2.access), each kept by its SHA-256 with the scopes granted (`_token`). A browser's
@@ -137,7 +137,7 @@ export const manifest: DerivedManifest = {
     },
     {
       id: 'get-started', kind: 'flow', host: 'slack.com', path: '/get-started', status: 'done',
-      demand: 'a workspace exists only once someone creates it here', controls: ['Email', 'Full name', 'Create workspace'],
+      demand: 'a person creates a workspace with themselves as its primary owner', controls: ['Email', 'Full name', 'Create workspace'],
       source: 'https://slack.com/help/articles/206845317-Create-a-Slack-workspace',
     },
     {
