@@ -10,8 +10,7 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
     const user = await ctx.tenant(USER, async org => {
       const existing = ctx.rowsRaw(USER).find(row => row._member_email === email);
       if (existing && accountWith(ctx, String(existing.id), await password(existing))) return String(existing.id);
-      const local = email.split('@')[0]!;
-      const label = org.id === 'default' ? WORLD_ACCOUNT : local.length < 2 ? `user-${local}` : local;
+      const label = org.id === 'default' ? WORLD_ACCOUNT : org.id.length < 2 ? `user-${org.id}` : org.id;
       const rule = { max: 15, allowed: /[A-Za-z0-9_-]/ };
       const create = async (suffixed: boolean): Promise<string | Response> => {
         const acct = ctx.vendorName(label, rule, { suffixed, identity: org.id });
