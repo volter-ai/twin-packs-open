@@ -26,6 +26,24 @@ export const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string =
 /** E2B's error body: `{code, message}`. */
 export const e2bError = (code: number, message: string): Response => Response.json({ code, message }, { status: code });
 
+/** The native project retained for the selected World organization and deployment. */
+export async function projectFor(ctx: HandlerContext, name?: string): Promise<Row> {
+  const workspace = await ctx.tenant('_workspace', async (organization) => String((await ctx.create('_workspace', {
+    name: organization.label, owner: organization.members[0]!.toLowerCase(),
+  }, 'workspace.create')).id));
+  const account = await ctx.account();
+  return ctx.deploymentObject(`project:${workspace.id}:${name ?? ''}`, TEAM, async (deployment) => {
+    const existing = !deployment && name !== undefined ? ctx.rowsRaw(TEAM).find((row) => row.name === name && (row._world_account ?? 'default') === account) : undefined;
+    if (existing) {
+      await ctx.record(TEAM, { workspaceId: workspace.id, _default: account === 'default' }, String(existing.id));
+      return String(existing.id);
+    }
+    return String((await ctx.create(TEAM, { name: name ?? (deployment || (account === 'default' ? 'World team' : workspace.name)),
+      workspaceId: workspace.id, _world_account: account, _default: account === 'default' && !deployment,
+    }, 'project.create')).id);
+  });
+}
+
 export async function readProjectKey(ctx: HandlerContext, row: Row): Promise<string | undefined> {
   if (row.deleted === true || row.revoked === true) return undefined;
   const key = `e2b_${sha256(ctx, await ctx.secret(String(row.label))).slice(0, 40)}`;
