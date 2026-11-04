@@ -60,9 +60,9 @@ export const manifest: DerivedManifest = {
     // a Twitch account (the sign-up the World's doors stand in for), in Get Users' shape; its email is answered only to a
     // user access token with user:read:email (./semantics/users.ts)
     // source: spec:getUsers "Gets information about one or more users."
-    // Get Users lists no whole type: with no id or login it answers the token's own user, so a refresh reads that one and
-    // never takes the type as complete
-    GetUsersResponseData: { unique: [{ fields: ['login'], refusal: { status: 409, message: 'Login is taken' } }], storedAs: 'user', idPrefix: '', refresh: { list: 'getUsers', items: 'data', complete: false } },
+    // Get Users lists no whole type. Read each known user by id: app access tokens require an id or login, and a user
+    // access token can read the same known accounts without treating its own user as the whole type.
+    GetUsersResponseData: { unique: [{ fields: ['login'], refusal: { status: 409, message: 'Login is taken' } }], storedAs: 'user', idPrefix: '', refresh: { get: 'getUsers', known: true, query: { id: '{id}' } } },
     // a user's channel, made with the account (every account has one), keyed by the broadcaster's id
     // source: spec:getChannelInformation "Gets information about one or more channels."
     GetChannelInformationResponseData: { storedAs: 'channel', idPrefix: '', ...states.GetChannelInformationResponseData, parent: { resource: 'GetUsersResponseData', field: 'broadcaster_id', param: 'broadcaster_id' }, refresh: { list: 'getChannelInformation', items: 'data' } },
