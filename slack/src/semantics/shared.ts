@@ -13,9 +13,11 @@ export const CLIENT_COOKIE = 'slack_client_session';
 export function clientMember(ctx: HandlerContext): Row | undefined {
   const token = browserSessionToken(ctx.call.request, CLIENT_COOKIE);
   const session = token ? ctx.rowsRaw('_web_session').find((s) => s.token === token) : undefined;
-  const person = session ? personOf(ctx, String(session.email)) : undefined;
+  if (!session) return undefined;
+  const person = personOf(ctx, String(session.email));
   return person ? ctx.rowsRaw('user').find((u) => u.deleted !== true
-    && String((u.profile as Row | undefined)?.email ?? '').toLowerCase() === person.email.toLowerCase()) : undefined;
+    && String((u.profile as Row | undefined)?.email ?? '').toLowerCase() === person.email.toLowerCase()
+    && (session.scope === undefined || u.team_id === session.scope)) : undefined;
 }
 
 /** The workspace carried by Slack's conversation wire object; retained local rows may use team_id. */
@@ -152,7 +154,9 @@ export async function makeWorkspace(ctx: HandlerContext, team: string | undefine
     name: owner.email.split('@')[0], team_id: teamId, deleted: false, is_primary_owner: true, is_owner: true, is_admin: true, created: at, updated: at,
     profile: { real_name: owner.name, display_name: '', email: owner.email, first_name: first, last_name: rest.join(' '), title: '' },
   };
-  const user = owner.id ? await ctx.write('user', owner.id, profile, 'user.join') : await ctx.create('user', profile, 'user.join');
+  // A Slack member id belongs to its workspace; another workspace gets its own member and roles.
+  const user = owner.id && !ctx.row('user', owner.id, { withDeleted: true })
+    ? await ctx.write('user', owner.id, profile, 'user.join') : await ctx.create('user', profile, 'user.join');
   const ownerId = String(user.id);
   await ctx.write('team', teamId, { ...fields, created_by: ownerId }, 'team.create');
   await addToTeam(ctx, teamId, ownerId);
