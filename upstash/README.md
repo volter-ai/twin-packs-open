@@ -12,7 +12,7 @@ Use Node 22.6 or newer.
 For an app using the supported Redis REST or QStash workflows, install the exact release:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.165 @volter/twin-upstash@1.0.3
+npm install --save-dev --save-exact @volter/world@3.0.186 @volter/twin-upstash@1.0.4
 ./node_modules/.bin/volter world init --name my-app --twins upstash --source upstash=@volter/twin-upstash
 ```
 

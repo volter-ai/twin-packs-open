@@ -9,6 +9,7 @@ import { states } from './semantics/states.ts';
 export const manifest: DerivedManifest = {
   vendor: 'stripe',
   service: 'stripe',
+  tenant: { field: '_sandbox', storage: 'namespaced' },
   body: { form: { coerce: true } },
   ids: { template: '{prefix}_twin_{n}', acceptProvided: true },
   unmodeled: [
@@ -360,7 +361,7 @@ export const manifest: DerivedManifest = {
     // to the real Stripe
     // a World's applications hold the platform's keys the dashboard shows (the credential door), never fixtures: the API
     // refuses a key Stripe did not issue
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { STRIPE_SECRET_KEY: 'secret_key', STRIPE_API_KEY: 'secret_key', STRIPE_PRIVATE_KEY: 'secret_key', BILLING_STRIPE_API_KEY: 'secret_key', STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLIC_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_KEY: 'publishable_key', STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SIGNING_SECRET: 'webhook_secret', STRIPE_ENDPOINT_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SECRET_KEY: 'webhook_secret', NEXT_PRIVATE_STRIPE_WEBHOOK_SECRET: 'webhook_secret', BILLING_STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_CONNECT_WEBHOOK_SECRET: 'connect_webhook_secret', STRIPE_WEBHOOK_SECRET_CONNECT: 'connect_webhook_secret', STRIPE_CONNECT_WEBHOOK_SIGNING_SECRET: 'connect_webhook_secret' } },
+    credentialDoor: { path: '/_twin/app-credentials', body: {}, account: { field: 'account', tenancy: 'Stripe merchant account', source: 'https://docs.stripe.com/keys' }, deployment: { field: 'deployment', object: 'Sandbox', source: 'https://docs.stripe.com/sandboxes' }, fill: { STRIPE_SECRET_KEY: 'secret_key', STRIPE_API_KEY: 'secret_key', STRIPE_PRIVATE_KEY: 'secret_key', BILLING_STRIPE_API_KEY: 'secret_key', STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_PUBLIC_KEY: 'publishable_key', NEXT_PUBLIC_STRIPE_KEY: 'publishable_key', STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SIGNING_SECRET: 'webhook_secret', STRIPE_ENDPOINT_SECRET: 'webhook_secret', STRIPE_WEBHOOK_SECRET_KEY: 'webhook_secret', NEXT_PRIVATE_STRIPE_WEBHOOK_SECRET: 'webhook_secret', BILLING_STRIPE_WEBHOOK_SECRET: 'webhook_secret', STRIPE_CONNECT_WEBHOOK_SECRET: 'connect_webhook_secret', STRIPE_WEBHOOK_SECRET_CONNECT: 'connect_webhook_secret', STRIPE_CONNECT_WEBHOOK_SIGNING_SECRET: 'connect_webhook_secret' } },
     hosts: [
       { host: 'api.stripe.com' }, { host: 'checkout.stripe.com', pathPattern: '^/c/pay/' }, { host: 'billing.stripe.com', pathPattern: '^/p/session/' },
       { host: 'connect.stripe.com', pathPattern: '^/setup/' },
@@ -415,6 +416,9 @@ export const manifest: DerivedManifest = {
     },
   ],
   resources: {
+    _merchant_account: { shared: true, idPrefix: 'acct', ids: 'acct_twin_merchant_{n}' },
+    _sandbox: { shared: true, idPrefix: 'sandbox' },
+    _platform_key: { idPrefix: 'key', unique: [{ fields: ['sandbox', 'kind'], refusal: { status: 409, message: 'A key already exists for this sandbox and role.' } }] },
     'billing.meter': { refresh: { list: 'GetBillingMeters' },
       // source: spec:/components/schemas/billing.meter/properties/status "active"
       assigned: { object: { value: 'billing.meter' }, created: { now: true }, updated: { now: true }, livemode: { value: false }, status: { value: 'active' }, status_transitions: { value: { deactivated_at: null } },

@@ -3,7 +3,7 @@
 // Connect invitations to people outside the workspace.
 import type { HandlerContext } from '@volter/world-core';
 import { listArg, nameRefusal, page } from '../engine/wire.ts';
-import { channelTeam, addMember, arg, channelMembers, channelNamed, channelView, fail, messageId, messagesIn, messageView, now, ok, removeMember, sees, sendMail, systemMessage, teamView, userView, who, type Caller } from './shared.ts';
+import { channelTeam, addMember, arg, channelMembers, channelNamed, channelView, fail, messageId, messagesIn, messageView, now, ok, removeMember, sees, sendMail, systemMessage, teamsOf, teamView, userView, who, type Caller } from './shared.ts';
 
 type Row = Record<string, unknown>;
 
@@ -84,7 +84,7 @@ export async function conversations_invite(ctx: HandlerContext): Promise<Respons
   const users = listArg(ctx.params.users);
   if (users.length === 0) return fail(ctx, 'no_user');
   if (users.includes(by.user)) return fail(ctx, 'cant_invite_self');
-  for (const u of users) if (!ctx.get('user', u)) return fail(ctx, 'user_not_found');
+  for (const u of users) if (!ctx.get('user', u) || !teamsOf(ctx, u).includes(channelTeam(c))) return fail(ctx, 'user_not_found');
   const added = users.filter((u) => !members.includes(u));
   if (added.length === 0) return fail(ctx, 'already_in_channel');
   for (const u of added) { await addMember(ctx, String(c.id), u); await systemMessage(ctx, c, u, 'channel_join', { inviter: by.user }); }
@@ -185,7 +185,7 @@ export async function conversations_open(ctx: HandlerContext): Promise<Response>
   }
   const users = listArg(ctx.params.users);
   if (users.length === 0) return fail(ctx, 'users_list_not_supplied');
-  for (const u of users) if (!ctx.get('user', u)) return fail(ctx, 'user_not_found');
+  for (const u of users) if (!ctx.get('user', u) || (!by.enterprise && !teamsOf(ctx, u).includes(by.team))) return fail(ctx, 'user_not_found');
   const people = [...new Set([by.user, ...users])].sort();
   const same = (c: Row): boolean => { const m = channelMembers(ctx, String(c.id)).sort(); return m.length === people.length && m.every((x, i) => x === people[i]); };
   const found = ctx.rowsRaw('channel').find((c) => (c.is_im === true || c.is_mpim === true) && same(c));

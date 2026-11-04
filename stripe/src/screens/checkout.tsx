@@ -15,13 +15,14 @@
 // only sets the card up: setup mode, or a subscription's trial);
 // any other number that passes the Luhn check pays, and a card that asks for authentication pays without
 // the challenge. A subscription session with no customer makes one from the email, as Stripe does.
+import { platformAccountId } from '../engine/connect.ts';
 import type { HandlerContext } from '@volter/world-core';
 import { flowPage, Payment, PAYMENT_CSS, type PaymentField } from '@volter/world-ui';
 import { isOneTime } from '../engine/checkout.ts';
 import { newCustomer } from '../engine/customers.ts';
 import type { Row } from '../engine/common.ts';
 import { publicBusinessName } from '../engine/display.ts';
-import { applyCouponDiscount, nowUnix, PLATFORM_ACCOUNT_ID, resolveTrial } from '../engine/stripe.ts';
+import { applyCouponDiscount, nowUnix, resolveTrial } from '../engine/stripe.ts';
 import { cardAnswer, COUNTRIES, formOf, money, notFound, parseExpiry } from './shared.tsx';
 import { completeSession, created } from '../semantics/shared.ts';
 const CS = 'checkout.session';
@@ -181,7 +182,7 @@ async function pay(ctx: HandlerContext, id: string, session: Row, v: Record<stri
 function merchantOf(ctx: HandlerContext, stored: Row): string {
   const brand = (stored._branding_settings as Row | undefined)?.display_name;
   const behalf = (stored._payment_intent_data as Row | undefined)?.on_behalf_of ?? (stored._subscription_data as Row | undefined)?.on_behalf_of;
-  const account = typeof behalf === 'string' ? behalf : typeof stored._brand_account === 'string' ? stored._brand_account : PLATFORM_ACCOUNT_ID;
+  const account = typeof behalf === 'string' ? behalf : typeof stored._brand_account === 'string' ? stored._brand_account : platformAccountId(ctx);
   return typeof brand === 'string' && brand.trim() ? brand : publicBusinessName(ctx.get('account', account));
 }
 

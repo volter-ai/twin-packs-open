@@ -12,7 +12,8 @@ export async function PostWebhookEndpoints(ctx: HandlerContext): Promise<Respons
   if (typeof params.url !== 'string' || params.url === '') return fail(ctx, 'Missing required param: url.', 400, 'parameter_missing');
   // source: spec:PostWebhookEndpoints "The list of events to enable for this endpoint."
   if (params.enabled_events === undefined || params.enabled_events === '' || (Array.isArray(params.enabled_events) && !params.enabled_events.length)) return fail(ctx, 'Missing required param: enabled_events.', 400, 'parameter_missing');
-  const id = ctx.mint(WE);
+  const reserved = await ctx.create(WE, { object: 'webhook_endpoint' }, 'webhook_endpoint.reserve');
+  const id = String(reserved.id);
   // source: spec:/components/schemas/webhook_endpoint/properties/secret/description "The endpoint's secret, used to generate"
   const secret = `whsec_${(await ctx.secret(`webhook-endpoint-secret:${id}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 32)}`;
   return ctx.reply(await created(ctx, WE, { ...params, id }, {

@@ -17,18 +17,24 @@ export async function users(ctx: HandlerContext): Promise<Response> {
   return Response.json({ email }, { status: 201 });
 }
 
-/** POST /_twin/app-credentials {owner?}: what an application's environment needs from Upstash, made as its owner makes
+/** POST /_twin/app-credentials: what an application's environment needs from Upstash, made as its owner makes
  *  them on the console: a Redis database (its REST URL and token) and the account's QStash (its token and signing keys).
  *  The runtime issues these to a World's applications (the descriptor's credentialDoor). */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  const b = bodyOf(ctx);
-  const owner = (typeof b.owner === 'string' ? b.owner : 'owner@world.test').toLowerCase();
-  // the application's database, made the first time the runtime asks and the same at every boot after
-  const name = typeof b.name === 'string' ? b.name : 'world';
-  const d = ctx.rowsRaw(DATABASE).find((x) => x.customer_id === owner && x.database_name === name && x.deleted !== true) ?? await makeDatabase(ctx, { owner, name, region: 'us-east-1' });
+  const customer = await ctx.tenant('_customer', async (organization) => {
+    const email = organization.members[0]!.toLowerCase();
+    return ctx.record('_customer', { email }, email);
+  });
+  const owner = String(customer.email);
+  const d = await ctx.deploymentObject(`redis-database:${String(customer.id)}`, DATABASE, async (deployment) =>
+    String((await makeDatabase(ctx, { owner, name: deployment || 'world', region: 'us-east-1' })).id));
+  const redis = await ctx.accountKey('redis-rest', DATABASE, {
+    make: async () => String(d.id),
+    read: async (row) => row.id === d.id && row.customer_id === owner && row.state === 'active' && typeof row.rest_token === 'string' ? row.rest_token : undefined,
+  });
   const q = await openQStash(ctx, { owner, region: 'eu-central-1' });
   return Response.json({
-    redis_url: `https://${String(d.endpoint)}.upstash.io`, redis_token: d.rest_token,
+    redis_url: `https://${String(d.endpoint)}.upstash.io`, redis_token: redis.secret,
     qstash_url: q._url, qstash_token: q.token, qstash_current_signing_key: q._current_signing_key, qstash_next_signing_key: q._next_signing_key,
   }, { status: 201 });
 }

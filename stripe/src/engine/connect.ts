@@ -6,21 +6,26 @@
 import { accountRequirements, accountSettings, PLATFORM_ACCOUNT_ID } from './stripe.ts';
 import { currentlyDue, kindOf } from './onboarding.ts';
 import { externalList, type Row } from './common.ts';
+import type { HandlerContext } from '@volter/world-core';
 // the platform's own account: stored once it is written, otherwise Stripe's default. It "controls itself" (controller
 // type `account`, docs.stripe.com/api/accounts/object), is fully onboarded with nothing due, and takes card payments
 // and transfers. Where the documentation stops and the twin decides: it was created as the World began (2026-01-01),
 // and its bank account, which its automatic payouts reach, is not modelled, so it lists none.
 export const PLATFORM_CREATED = 1_767_225_600;
 /** The platform's own account as Stripe's default has it, before anything is written to it. */
-export const platformAccountDefault = (): Row => ({
-  object: 'account', id: PLATFORM_ACCOUNT_ID, type: 'standard', country: 'US', default_currency: 'usd', created: PLATFORM_CREATED,
+export const platformAccountDefault = (id: string): Row => ({
+  object: 'account', id, type: 'standard', country: 'US', default_currency: 'usd', created: PLATFORM_CREATED,
   charges_enabled: true, payouts_enabled: true, details_submitted: true, email: null, metadata: {},
   capabilities: { card_payments: 'active', transfers: 'active' }, controller: { type: 'account' },
   requirements: { alternatives: [], current_deadline: null, currently_due: [], disabled_reason: null, errors: [], eventually_due: [], past_due: [], pending_verification: [] },
   future_requirements: { alternatives: [], current_deadline: null, currently_due: [], disabled_reason: null, errors: [], eventually_due: [], past_due: [], pending_verification: [] },
-  external_accounts: externalList(PLATFORM_ACCOUNT_ID, []), tos_acceptance: { date: null, ip: null, user_agent: null }, business_profile: {},
+  external_accounts: externalList(id, []), tos_acceptance: { date: null, ip: null, user_agent: null }, business_profile: {},
   settings: accountSettings(undefined), livemode: false,
 });
+
+/** The merchant's native account projected into the selected sandbox. */
+export const platformAccountId = (ctx: Pick<HandlerContext, 'rowsRaw'>): string =>
+  String(ctx.rowsRaw('account').find((row) => row._platform === true)?.id ?? PLATFORM_ACCOUNT_ID);
 
 /** A new Express account owes what its hosted onboarding will ask for (screens/connect-onboarding.tsx; the US sets
  *  docs.stripe.com/connect/required-verification-information lists), or, where the twin does not model the set, the

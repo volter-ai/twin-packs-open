@@ -32,6 +32,7 @@ export const stripeSemantics: Record<string, Handler> = {
   DeleteSubscriptionsSubscriptionExposedId: subscriptions.DeleteSubscriptionsSubscriptionExposedId,
   DeleteSubscriptionsSubscriptionExposedIdDiscount: subscriptions.DeleteSubscriptionsSubscriptionExposedIdDiscount,
   GetAccount: account.GetAccount,
+  GetAccounts: accounts.GetAccounts,
   GetAccountsAccountExternalAccounts: accounts.GetAccountsAccountExternalAccounts,
   GetAppsSecretsFind: apps.GetAppsSecretsFind,
   GetBalance: balance.GetBalance,

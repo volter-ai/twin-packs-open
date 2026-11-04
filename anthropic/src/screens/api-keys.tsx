@@ -6,7 +6,7 @@
 // twin's. A workspace (docs/contributing/architecture.md, "Screens").
 import type { HandlerContext } from '@volter/world-core';
 import { flowPage, formOf, signedIn } from '@volter/world-ui';
-import { KEY, keyValue, WORKSPACE } from '../semantics/shared.ts';
+import { issueKey, KEY, WORKSPACE } from '../semantics/shared.ts';
 import { consolePath, COOKIE, notAllowed, type Row, toLogin } from './shared.tsx';
 
 // source: https://platform.claude.com/docs/en/manage-claude/authentication "a preset (3 hours, 1 day, 7 days, or 30 days), a custom duration, or Never"
@@ -39,12 +39,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (!name || lifetime === undefined) return page(ctx, person, 'A key needs a name and an expiration.', 422);
   const workspace = ctx.rowsRaw(WORKSPACE).find((w) => w.organization === person.organization && w.name === 'Default' && w.deleted !== true);
   if (!workspace) return page(ctx, person, 'This organization has no Default workspace.', 422);
-  const id = `apikey_01${ctx.mint(KEY)}`;
-  const value = await keyValue(ctx, id);
-  await ctx.write(KEY, id, {
-    name, workspace: workspace.id, _organization: person.organization, created_by: person.email, created_at: ctx.occurredAt, hint: `${value.slice(0, 14)}...${value.slice(-4)}`,
-    _sha256: ctx.crypto.sha256(value), expires_at: lifetime === null ? null : new Date(Date.parse(ctx.occurredAt) + lifetime).toISOString(), status: 'active', deleted: false,
-  }, 'api_key.create');
+  const { key: value } = await issueKey(ctx, String(person.organization), String(workspace.id), String(person.email), name, lifetime === null ? null : new Date(Date.parse(ctx.occurredAt) + lifetime).toISOString());
   return page(ctx, person, `Key ${name} created: ${value} — save it now; you won't be able to see it again.`, 201, value);
 }
 

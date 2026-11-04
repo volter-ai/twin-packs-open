@@ -1,10 +1,11 @@
+import { platformAccountId } from '../engine/connect.ts';
 import type { EventsDecl, Handler, HandlerContext, TwinResource } from '@volter/world-core';
 import { NAMED_EVENTS, readDecision, STRIPE_EVENT_TYPES, STRIPE_REALTIME_AUTH_TIMEOUT_MS, type StripeAuthRequestOutcome, stripeSignature } from '../engine/webhooks.ts';
 import { redactKey, requestKey } from '../engine/oauth.ts';
 import { HOUR, INV, itemQuantity, itemsOf, keptAfter, oneTimeLines, RENEWING, SUB } from '../engine/renewals.ts';
 import { DAY, payoutDay } from '../engine/balance.ts';
 import { AFTER_SUCCESS_CARDS, BY_NUMBER, type Outcome } from '../engine/after-payment.ts';
-import { accountSettings, addBillingInterval, applyCouponDiscount, asBool, buildDiscount, buildSubscriptionItemsList, cardError, chargeDefaults, declineFor, disputeEvidence, microdepositsNextAction, mintClientSecret, nowUnix, OBJECT_NAME, paginate, paymentMethodSubObject, PLATFORM_ACCOUNT_ID, priceAmount, requiresAuthentication, requiresMicrodeposits, resolveSubscriptionBillingInterval, resolveTrial, searchOver, type StripeResponse, subscriptionItemEntries, subscriptionItemPrice, TEST_TOKEN_DECLINES, threeDsNextAction, view } from '../engine/stripe.ts';
+import { accountSettings, addBillingInterval, applyCouponDiscount, asBool, buildDiscount, buildSubscriptionItemsList, cardError, chargeDefaults, declineFor, disputeEvidence, microdepositsNextAction, mintClientSecret, nowUnix, OBJECT_NAME, paginate, paymentMethodSubObject, priceAmount, requiresAuthentication, requiresMicrodeposits, resolveSubscriptionBillingInterval, resolveTrial, searchOver, type StripeResponse, subscriptionItemEntries, subscriptionItemPrice, TEST_TOKEN_DECLINES, threeDsNextAction, view } from '../engine/stripe.ts';
 import { SECRET } from '../engine/apps-secrets.ts';
 import { collectsThroughIntent, invoicePrefix, transitions } from '../engine/invoices.ts';
 import { CS, type EnteredCard, isOneTime, nestedMetadata } from '../engine/checkout.ts';
@@ -307,10 +308,10 @@ export function noExternalAccount(ctx: HandlerContext, currency: string): Respon
  *  scheduled days that has come, what became available by then. */
 export async function advancePayouts(ctx: HandlerContext): Promise<void> {
   const now = Number(nowUnix(ctx.occurredAt));
-  const platform = ctx.get('account', PLATFORM_ACCOUNT_ID);
+  const platform = ctx.get('account', platformAccountId(ctx));
   const accounts: Array<{ id: string | undefined; settings: unknown }> = [{ id: undefined, settings: platform?.settings }];
   for (const a of ctx.rows('account')) {
-    if (a.id === PLATFORM_ACCOUNT_ID || a.payouts_enabled !== true) continue;
+    if (a.id === platformAccountId(ctx) || a.payouts_enabled !== true) continue;
     if (!ctx.rows('external_account').some((e) => e.account === a.id)) continue;
     accounts.push({ id: String(a.id), settings: a.settings });
   }
@@ -441,7 +442,7 @@ export function publishableKeyRefused(ctx: HandlerContext): Response | undefined
 export function platformKeyRefused(ctx: HandlerContext, request: Request): Response | undefined {
   const key = requestKey(request);
   if (!key) return ctx.refuse({ status: 401, message: "You did not provide an API key. You need to provide your API key in the Authorization header, using Bearer auth (e.g. 'Authorization: Bearer YOUR_SECRET_KEY'). See https://stripe.com/docs/api#authentication for details, or we can help at https://support.stripe.com/." });
-  const held = ctx.rowsRaw('_platform_key').some((k) => k._sha256 === ctx.crypto.sha256(key) && k.deleted !== true);
+  const held = ctx.rowsRaw('_platform_key').some((k) => ['secret', 'publishable'].includes(String(k.kind)) && k._sha256 === ctx.crypto.sha256(key) && k.deleted !== true);
   return held ? undefined : ctx.refuse({ status: 401, message: `Invalid API Key provided: ${redactKey(key)}` });
 }
 
@@ -1286,7 +1287,7 @@ export function bypassesPending(ctx: HandlerContext, card: string | undefined): 
 
 /** The connected account a request acts for, or undefined for the platform. */
 // The platform's own account ID denotes the same balance as an omitted Stripe-Account header.
-export const actingAccount = (ctx: HandlerContext): string | undefined => { const id = ctx.call.request.headers.get('stripe-account'); return id && id !== PLATFORM_ACCOUNT_ID ? id : undefined; };
+export const actingAccount = (ctx: HandlerContext): string | undefined => { const id = ctx.call.request.headers.get('stripe-account'); return id && id !== platformAccountId(ctx) ? id : undefined; };
 
 /** A ledger entry on an account's balance: the acting account's unless one is named (null names the platform). */
 export async function write(ctx: HandlerContext, fields: Row, account: string | null | undefined = actingAccount(ctx)): Promise<string> {

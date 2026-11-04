@@ -1,0 +1,5927 @@
+{
+ "vendor": "planetscale",
+ "author": "Contributor 86",
+ "about": "Trailmark, a two-person startup selling branded short links with a partner program, over its first half-year on PlanetScale: Maya sets up the database, its passwords and service tokens, a migration job creates and changes the schema through @planetscale/database with an admin password and backs the branch up before each change, the application counts clicks, imports campaigns and runs monthly partner payouts with a read/write password, and in June the program closes and Trailmark exports its data and deletes the database. Credentials are captured as opaque values: https://planetscale.com/docs/vitess/connecting/connection-strings documents a unique username and password pair, and https://planetscale.com/docs/vitess/tutorials/planetscale-serverless-driver names <PS_USERNAME> without a hexadecimal format or fixed length. Empty query results and an update matching no rows are checked on the wire, where psdb's JSON leaves a field at its default value out (https://protobuf.dev/programming-guides/json/), and as @planetscale/database decodes them (https://raw.githubusercontent.com/planetscale/database-js/v1.19.0/src/index.ts).",
+ "steps": [
+  {
+   "name": "The World: Maya's PlanetScale login, maya@trailmark.io, with the password she chose when she signed up and made the organization trailmark",
+   "method": "POST",
+   "path": "/_twin/users/maya@trailmark.io",
+   "body": {
+    "password": "lantern-harbor-2026",
+    "organization": "trailmark"
+   },
+   "status": 201
+  },
+  {
+   "name": "Friday 2 January: Maya sets Trailmark up on PlanetScale",
+   "wait": "34h"
+  },
+  {
+   "name": "Maya opens her organization in the dashboard; nobody is signed in in this browser, so PlanetScale sends her to sign in",
+   "method": "GET",
+   "path": "https://app.planetscale.com/trailmark",
+   "status": 302,
+   "capture": {
+    "signin": "header:location"
+   }
+  },
+  {
+   "name": "The sign-in page",
+   "method": "GET",
+   "path": "https://app.planetscale.com{signin}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Sign in to PlanetScale"
+    }
+   ]
+  },
+  {
+   "name": "She signs in with her email and password, and PlanetScale returns her to the organization",
+   "method": "POST",
+   "path": "https://app.planetscale.com/sign-in",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "email=maya%40trailmark.io&password=lantern-harbor-2026&next=%2Ftrailmark",
+   "status": 302,
+   "capture": {
+    "ps_session": "header:set-cookie:pscale_twin_session=([^;]+)"
+   },
+   "expect": [
+    {
+     "path": "location",
+     "equals": "/trailmark"
+    }
+   ]
+  },
+  {
+   "name": "The organization, signed in: no databases yet",
+   "method": "GET",
+   "path": "https://app.planetscale.com/trailmark",
+   "headers": {
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "No databases yet."
+    }
+   ]
+  },
+  {
+   "name": "New database: trailmark, us-east, cluster size PS_10",
+   "method": "POST",
+   "path": "https://app.planetscale.com/trailmark",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "body": "name=trailmark&region=us-east&cluster=PS_10",
+   "status": 302,
+   "expect": [
+    {
+     "path": "location",
+     "equals": "/trailmark/trailmark"
+    }
+   ]
+  },
+  {
+   "name": "The database's page: its branch main, initializing",
+   "method": "GET",
+   "path": "https://app.planetscale.com/trailmark/trailmark",
+   "headers": {
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Initializing"
+    }
+   ]
+  },
+  {
+   "name": "A minute on, it is ready",
+   "wait": "1m"
+  },
+  {
+   "name": "On main's Connect page she creates the admin password migrations; its username and password are shown once and go into her local .env",
+   "method": "POST",
+   "path": "https://app.planetscale.com/trailmark/trailmark?do=password",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "body": "name=migrations&role=admin",
+   "status": 201,
+   "capture": {
+    "mig_user": "text:Username: (\\S+)",
+    "mig_secret": "text:Password: (pscale_pw_[A-Za-z0-9]+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "Password migrations created."
+    },
+    {
+     "path": "",
+     "contains": "us-east.connect.psdb.cloud"
+    }
+   ]
+  },
+  {
+   "name": "and the Read/Write password app, whose username and password go into Vercel's environment",
+   "method": "POST",
+   "path": "https://app.planetscale.com/trailmark/trailmark?do=password",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "body": "name=app&role=readwriter",
+   "status": 201,
+   "capture": {
+    "app_user": "text:Username: (\\S+)",
+    "app_secret": "text:Password: (pscale_pw_[A-Za-z0-9]+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "Password app created."
+    }
+   ]
+  },
+  {
+   "name": "On the organization's settings, Service tokens",
+   "method": "GET",
+   "path": "https://app.planetscale.com/trailmark/settings/service-tokens",
+   "headers": {
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "New service token"
+    }
+   ]
+  },
+  {
+   "name": "She creates the service token ops for the migration job's backups and copies its ID and token, shown once",
+   "method": "POST",
+   "path": "https://app.planetscale.com/trailmark/settings/service-tokens?do=new",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "body": "name=ops",
+   "status": 201,
+   "capture": {
+    "ops_id": "text:ID: ([a-z]{12}) ",
+    "ops_secret": "text:Token: (pscale_tkn_[A-Za-z0-9]+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "Service token ops created."
+    }
+   ]
+  },
+  {
+   "name": "Monday 5 January: Maya runs the migration job to create the launch schema",
+   "wait": "255510s"
+  },
+  {
+   "name": "The migration job connects with the migrations password and creates the Workspace table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE Workspace (id VARCHAR(191) NOT NULL, name VARCHAR(191) NOT NULL, slug VARCHAR(191) NOT NULL, plan VARCHAR(20) NOT NULL DEFAULT 'free', `usage` INT NOT NULL DEFAULT 0, usageLimit INT NOT NULL DEFAULT 1000, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE INDEX Workspace_slug_key (slug))",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "mig": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The migration job creates the User table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE User (id VARCHAR(191) NOT NULL, email VARCHAR(191) NOT NULL, name VARCHAR(191) NULL, workspaceId VARCHAR(191) NOT NULL, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE INDEX User_email_key (email))",
+    "session": "{mig}"
+   },
+   "status": 200,
+   "capture": {
+    "mig": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The migration job creates the Domain table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE Domain (id VARCHAR(191) NOT NULL, slug VARCHAR(191) NOT NULL, workspaceId VARCHAR(191) NOT NULL, verified BOOLEAN NOT NULL DEFAULT false, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE INDEX Domain_slug_key (slug))",
+    "session": "{mig}"
+   },
+   "status": 200,
+   "capture": {
+    "mig": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The migration job creates the Link table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE Link (id VARCHAR(191) NOT NULL, domain VARCHAR(190) NOT NULL, `key` VARCHAR(190) NOT NULL, url TEXT NOT NULL, workspaceId VARCHAR(191) NOT NULL, partnerId VARCHAR(191) NULL, clicks INT NOT NULL DEFAULT 0, lastClicked DATETIME(3) NULL, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE INDEX Link_domain_key_key (domain, `key`))",
+    "session": "{mig}"
+   },
+   "status": 200,
+   "capture": {
+    "mig": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The migration job creates the Tag table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE Tag (id VARCHAR(191) NOT NULL, name VARCHAR(191) NOT NULL, workspaceId VARCHAR(191) NOT NULL, PRIMARY KEY (id), UNIQUE INDEX Tag_name_workspaceId_key (name, workspaceId))",
+    "session": "{mig}"
+   },
+   "status": 200,
+   "capture": {
+    "mig": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The migration job creates the LinkTag table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE LinkTag (linkId VARCHAR(191) NOT NULL, tagId VARCHAR(191) NOT NULL, PRIMARY KEY (linkId, tagId))",
+    "session": "{mig}"
+   },
+   "status": 200,
+   "capture": {
+    "mig": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 6 January: Maya signs up in Trailmark's own app",
+   "wait": "25h"
+  },
+  {
+   "name": "The dashboard opens a transaction for her new workspace and user",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "signup": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "It inserts the workspace trailmark",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Workspace (id, name, slug, usageLimit) VALUES ('ws_trailmark', 'Trailmark', 'trailmark', 1000)",
+    "session": "{signup}"
+   },
+   "status": 200,
+   "capture": {
+    "signup": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and Maya as its first user",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO User (id, email, name, workspaceId) VALUES ('usr_maya', 'maya@trailmark.io', 'Maya Okafor', 'ws_trailmark')",
+    "session": "{signup}"
+   },
+   "status": 200,
+   "capture": {
+    "signup": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits both",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{signup}"
+   },
+   "status": 200,
+   "capture": {
+    "signup": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "She adds the domain go.trailmark.io in the dashboard",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Domain (id, slug, workspaceId, verified) VALUES ('dom_go', 'go.trailmark.io', 'ws_trailmark', true)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "domain": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Twenty minutes later she opens go.trailmark.io in her browser",
+   "wait": "20m"
+  },
+  {
+   "name": "The edge function looks the domain up by slug on this first request to it",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Domain WHERE slug = 'go.trailmark.io'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "edge1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 7 January: Maya creates the launch links",
+   "wait": "1480m"
+  },
+  {
+   "name": "The API checks that go.trailmark.io/pricing is free",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT 1 FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'pricing' LIMIT 1",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "mk_pricing": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and creates the link pricing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Link (id, domain, `key`, url, workspaceId) VALUES ('lnk_pricing', 'go.trailmark.io', 'pricing', 'https://trailmark.io/pricing', 'ws_trailmark')",
+    "session": "{mk_pricing}"
+   },
+   "status": 200,
+   "capture": {
+    "mk_pricing": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "The API checks that go.trailmark.io/demo is free",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT 1 FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'demo' LIMIT 1",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "mk_demo": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and creates the link demo",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Link (id, domain, `key`, url, workspaceId) VALUES ('lnk_demo', 'go.trailmark.io', 'demo', 'https://trailmark.io/demo', 'ws_trailmark')",
+    "session": "{mk_demo}"
+   },
+   "status": 200,
+   "capture": {
+    "mk_demo": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "The API checks that go.trailmark.io/changelog is free",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT 1 FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'changelog' LIMIT 1",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "mk_changelog": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and creates the link changelog",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Link (id, domain, `key`, url, workspaceId) VALUES ('lnk_changelog', 'go.trailmark.io', 'changelog', 'https://trailmark.io/changelog', 'ws_trailmark')",
+    "session": "{mk_changelog}"
+   },
+   "status": 200,
+   "capture": {
+    "mk_changelog": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "She tags the three launch: the API upserts the tag launch",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Tag (id, name, workspaceId) VALUES ('tag_launch', 'launch', 'ws_trailmark') ON DUPLICATE KEY UPDATE name = VALUES(name)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "tag": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and links it to the three links in one insert",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO LinkTag (linkId, tagId) VALUES ('lnk_pricing', 'tag_launch'), ('lnk_demo', 'tag_launch'), ('lnk_changelog', 'tag_launch')",
+    "session": "{tag}"
+   },
+   "status": 200,
+   "capture": {
+    "tag": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 8 January, launch day: the links go out in the announcement",
+   "wait": "27h"
+  },
+  {
+   "name": "A reader clicks the pricing link: the edge function reads go.trailmark.io/pricing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, url FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'pricing'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "click_pricing_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "counts the click",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Link SET clicks = clicks + 1, lastClicked = NOW(3) WHERE id = 'lnk_pricing'",
+    "session": "{click_pricing_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_pricing_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and raises the workspace's usage, while it is under the plan's limit",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Workspace SET `usage` = `usage` + 1 WHERE id = 'ws_trailmark' AND `usage` < usageLimit",
+    "session": "{click_pricing_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_pricing_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Three minutes later",
+   "wait": "3m"
+  },
+  {
+   "name": "another reader clicks the demo link: the edge function reads go.trailmark.io/demo",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, url FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'demo'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "click_demo_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "counts the click",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Link SET clicks = clicks + 1, lastClicked = NOW(3) WHERE id = 'lnk_demo'",
+    "session": "{click_demo_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_demo_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and raises the workspace's usage, while it is under the plan's limit",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Workspace SET `usage` = `usage` + 1 WHERE id = 'ws_trailmark' AND `usage` < usageLimit",
+    "session": "{click_demo_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_demo_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "That afternoon",
+   "wait": "147m"
+  },
+  {
+   "name": "a second reader clicks the pricing link: the edge function reads go.trailmark.io/pricing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, url FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'pricing'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "click_pricing_2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "counts the click",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Link SET clicks = clicks + 1, lastClicked = NOW(3) WHERE id = 'lnk_pricing'",
+    "session": "{click_pricing_2}"
+   },
+   "status": 200,
+   "capture": {
+    "click_pricing_2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and raises the workspace's usage, while it is under the plan's limit",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Workspace SET `usage` = `usage` + 1 WHERE id = 'ws_trailmark' AND `usage` < usageLimit",
+    "session": "{click_pricing_2}"
+   },
+   "status": 200,
+   "capture": {
+    "click_pricing_2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 15 January",
+   "wait": "161h"
+  },
+  {
+   "name": "A customer clicks the changelog link from the newsletter: the edge function reads go.trailmark.io/changelog",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, url FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'changelog'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "click_changelog_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "counts the click",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Link SET clicks = clicks + 1, lastClicked = NOW(3) WHERE id = 'lnk_changelog'",
+    "session": "{click_changelog_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_changelog_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and raises the workspace's usage, while it is under the plan's limit",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Workspace SET `usage` = `usage` + 1 WHERE id = 'ws_trailmark' AND `usage` < usageLimit",
+    "session": "{click_changelog_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_changelog_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Maya opens the workspace page: the dashboard reads the workspace with its domains",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT w.id, w.name, w.`usage`, w.usageLimit, d.slug FROM Workspace w LEFT JOIN Domain d ON w.id = d.workspaceId WHERE w.id = 'ws_trailmark'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "wspage": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Monday 19 January: Jon imports the spring campaign links from a CSV",
+   "wait": "5790m"
+  },
+  {
+   "name": "Before importing, Jon searches the dashboard's links for the spring campaign, so as not to make its links twice: there are none yet",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT `key` FROM Link WHERE workspaceId = 'ws_trailmark' AND `key` LIKE 'spring%' ORDER BY `key`",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "search": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "The dashboard inserts the CSV's 20 links in one statement; the row for pricing, which Maya made on 7 January, collides",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Link (id, domain, `key`, url, workspaceId) VALUES ('lnk_cmp_spring', 'go.trailmark.io', 'spring', 'https://trailmark.io/spring', 'ws_trailmark'), ('lnk_cmp_spring_ads', 'go.trailmark.io', 'spring-ads', 'https://trailmark.io/spring-ads', 'ws_trailmark'), ('lnk_cmp_spring_email', 'go.trailmark.io', 'spring-email', 'https://trailmark.io/spring-email', 'ws_trailmark'), ('lnk_cmp_spring_social', 'go.trailmark.io', 'spring-social', 'https://trailmark.io/spring-social', 'ws_trailmark'), ('lnk_cmp_webinar', 'go.trailmark.io', 'webinar', 'https://trailmark.io/webinar', 'ws_trailmark'), ('lnk_cmp_webinar_replay', 'go.trailmark.io', 'webinar-replay', 'https://trailmark.io/webinar-replay', 'ws_trailmark'), ('lnk_cmp_ebook', 'go.trailmark.io', 'ebook', 'https://trailmark.io/ebook', 'ws_trailmark'), ('lnk_cmp_case_study', 'go.trailmark.io', 'case-study', 'https://trailmark.io/case-study', 'ws_trailmark'), ('lnk_cmp_partners', 'go.trailmark.io', 'partners', 'https://trailmark.io/partners', 'ws_trailmark'), ('lnk_cmp_pricing', 'go.trailmark.io', 'pricing', 'https://trailmark.io/pricing', 'ws_trailmark'), ('lnk_cmp_trial', 'go.trailmark.io', 'trial', 'https://trailmark.io/trial', 'ws_trailmark'), ('lnk_cmp_signup', 'go.trailmark.io', 'signup', 'https://trailmark.io/signup', 'ws_trailmark'), ('lnk_cmp_docs', 'go.trailmark.io', 'docs', 'https://trailmark.io/docs', 'ws_trailmark'), ('lnk_cmp_api', 'go.trailmark.io', 'api', 'https://trailmark.io/api', 'ws_trailmark'), ('lnk_cmp_status', 'go.trailmark.io', 'status', 'https://trailmark.io/status', 'ws_trailmark'), ('lnk_cmp_careers', 'go.trailmark.io', 'careers', 'https://trailmark.io/careers', 'ws_trailmark'), ('lnk_cmp_press', 'go.trailmark.io', 'press', 'https://trailmark.io/press', 'ws_trailmark'), ('lnk_cmp_blog', 'go.trailmark.io', 'blog', 'https://trailmark.io/blog', 'ws_trailmark'), ('lnk_cmp_roadmap', 'go.trailmark.io', 'roadmap', 'https://trailmark.io/roadmap', 'ws_trailmark'), ('lnk_cmp_contact', 'go.trailmark.io', 'contact', 'https://trailmark.io/contact', 'ws_trailmark')",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "import1": "session"
+   },
+   "expect": [
+    {
+     "path": "error.code",
+     "equals": "ALREADY_EXISTS"
+    },
+    {
+     "path": "error.message",
+     "contains": "Duplicate entry 'go.trailmark.io-pricing' for key 'Link.Link_domain_key_key'"
+    }
+   ]
+  },
+  {
+   "name": "Nothing was inserted, and the dashboard names the row; Jon drops it and imports the other 19",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Link (id, domain, `key`, url, workspaceId) VALUES ('lnk_cmp_spring', 'go.trailmark.io', 'spring', 'https://trailmark.io/spring', 'ws_trailmark'), ('lnk_cmp_spring_ads', 'go.trailmark.io', 'spring-ads', 'https://trailmark.io/spring-ads', 'ws_trailmark'), ('lnk_cmp_spring_email', 'go.trailmark.io', 'spring-email', 'https://trailmark.io/spring-email', 'ws_trailmark'), ('lnk_cmp_spring_social', 'go.trailmark.io', 'spring-social', 'https://trailmark.io/spring-social', 'ws_trailmark'), ('lnk_cmp_webinar', 'go.trailmark.io', 'webinar', 'https://trailmark.io/webinar', 'ws_trailmark'), ('lnk_cmp_webinar_replay', 'go.trailmark.io', 'webinar-replay', 'https://trailmark.io/webinar-replay', 'ws_trailmark'), ('lnk_cmp_ebook', 'go.trailmark.io', 'ebook', 'https://trailmark.io/ebook', 'ws_trailmark'), ('lnk_cmp_case_study', 'go.trailmark.io', 'case-study', 'https://trailmark.io/case-study', 'ws_trailmark'), ('lnk_cmp_partners', 'go.trailmark.io', 'partners', 'https://trailmark.io/partners', 'ws_trailmark'), ('lnk_cmp_trial', 'go.trailmark.io', 'trial', 'https://trailmark.io/trial', 'ws_trailmark'), ('lnk_cmp_signup', 'go.trailmark.io', 'signup', 'https://trailmark.io/signup', 'ws_trailmark'), ('lnk_cmp_docs', 'go.trailmark.io', 'docs', 'https://trailmark.io/docs', 'ws_trailmark'), ('lnk_cmp_api', 'go.trailmark.io', 'api', 'https://trailmark.io/api', 'ws_trailmark'), ('lnk_cmp_status', 'go.trailmark.io', 'status', 'https://trailmark.io/status', 'ws_trailmark'), ('lnk_cmp_careers', 'go.trailmark.io', 'careers', 'https://trailmark.io/careers', 'ws_trailmark'), ('lnk_cmp_press', 'go.trailmark.io', 'press', 'https://trailmark.io/press', 'ws_trailmark'), ('lnk_cmp_blog', 'go.trailmark.io', 'blog', 'https://trailmark.io/blog', 'ws_trailmark'), ('lnk_cmp_roadmap', 'go.trailmark.io', 'roadmap', 'https://trailmark.io/roadmap', 'ws_trailmark'), ('lnk_cmp_contact', 'go.trailmark.io', 'contact', 'https://trailmark.io/contact', 'ws_trailmark')",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "import2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "19"
+    }
+   ]
+  },
+  {
+   "name": "Monday 2 February: the partner program opens",
+   "wait": "335h"
+  },
+  {
+   "name": "The migration job's first real backup is refused 403 Forbidden: Maya made ops in January but never saved its access",
+   "method": "POST",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 403,
+   "body": {
+    "name": "before-partner-program",
+    "retention_unit": "day",
+    "retention_value": 14
+   }
+  },
+  {
+   "name": "She saves ops's permission to make backups, write_backups on trailmark",
+   "method": "POST",
+   "path": "https://app.planetscale.com/trailmark/settings/service-tokens?do=access",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "body": "token={ops_id}&database=trailmark&access=write_backups",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Permissions saved: write_backups on trailmark for ops."
+    }
+   ]
+  },
+  {
+   "name": "and its permission to read them, read_backups, so the job can see a backup finish before it touches the schema; the job tries again",
+   "method": "POST",
+   "path": "https://app.planetscale.com/trailmark/settings/service-tokens?do=access",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "body": "token={ops_id}&database=trailmark&access=read_backups",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Permissions saved: read_backups on trailmark for ops."
+    }
+   ]
+  },
+  {
+   "name": "Before changing the schema the migration job asks for a backup of main with ops, as Dub's trigger-backup cron does, kept 14 days in case the change must be undone",
+   "method": "POST",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 201,
+   "body": {
+    "name": "before-partner-program",
+    "retention_unit": "day",
+    "retention_value": 14
+   },
+   "capture": {
+    "backup1": "id"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "pending"
+    },
+    {
+     "path": "name",
+     "equals": "before-partner-program"
+    }
+   ]
+  },
+  {
+   "name": "The job waits a minute",
+   "wait": "1m"
+  },
+  {
+   "name": "Another minute",
+   "wait": "1m"
+  },
+  {
+   "name": "and reads the backup back: success, so the schema change can go ahead",
+   "method": "GET",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups/{backup1}",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{backup1}"
+    },
+    {
+     "path": "name",
+     "equals": "before-partner-program"
+    },
+    {
+     "path": "state",
+     "equals": "success"
+    }
+   ]
+  },
+  {
+   "name": "then connects and creates the PartnerTag table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE PartnerTag (id VARCHAR(191) NOT NULL, workspaceId VARCHAR(191) NOT NULL, name VARCHAR(191) NOT NULL, PRIMARY KEY (id), UNIQUE INDEX PartnerTag_workspaceId_name_key (workspaceId, name))",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "mig2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and the ProgramPartnerTag table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE ProgramPartnerTag (workspaceId VARCHAR(191) NOT NULL, partnerId VARCHAR(191) NOT NULL, partnerTagId VARCHAR(191) NOT NULL, PRIMARY KEY (workspaceId, partnerId, partnerTagId))",
+    "session": "{mig2}"
+   },
+   "status": 200,
+   "capture": {
+    "mig2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and the Partner table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE Partner (id VARCHAR(191) NOT NULL, name VARCHAR(191) NOT NULL, email VARCHAR(191) NOT NULL, defaultPayoutMethod VARCHAR(20) NULL, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE INDEX Partner_email_key (email))",
+    "session": "{mig2}"
+   },
+   "status": 200,
+   "capture": {
+    "mig2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and the ProgramEnrollment table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE ProgramEnrollment (id VARCHAR(191) NOT NULL, partnerId VARCHAR(191) NOT NULL, workspaceId VARCHAR(191) NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'approved', createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE INDEX ProgramEnrollment_partnerId_workspaceId_key (partnerId, workspaceId))",
+    "session": "{mig2}"
+   },
+   "status": 200,
+   "capture": {
+    "mig2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and the Commission table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE Commission (id VARCHAR(191) NOT NULL, partnerId VARCHAR(191) NOT NULL, linkId VARCHAR(191) NOT NULL, amount INT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'pending', payoutId VARCHAR(191) NULL, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id))",
+    "session": "{mig2}"
+   },
+   "status": 200,
+   "capture": {
+    "mig2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and the Payout table",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "CREATE TABLE Payout (id VARCHAR(191) NOT NULL, partnerId VARCHAR(191) NOT NULL, amount INT NOT NULL DEFAULT 0, status VARCHAR(20) NOT NULL DEFAULT 'pending', method VARCHAR(20) NULL, invoiceId VARCHAR(191) NULL, createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), updatedAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id))",
+    "session": "{mig2}"
+   },
+   "status": 200,
+   "capture": {
+    "mig2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Two hours later",
+   "wait": "118m"
+  },
+  {
+   "name": "Maya enrolls the first three partners in the dashboard, in one transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "enroll": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "It inserts Ana, Ben and Ravi",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Partner (id, name, email) VALUES ('pn_ana', 'Ana Lima', 'ana@lima.studio'), ('pn_ben', 'Ben Adeyemi', 'ben@adeyemi.co'), ('pn_ravi', 'Ravi Menon', 'ravi@menon.dev')",
+    "session": "{enroll}"
+   },
+   "status": 200,
+   "capture": {
+    "enroll": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "enrolls them in the program",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO ProgramEnrollment (id, partnerId, workspaceId) VALUES ('pe_ana', 'pn_ana', 'ws_trailmark'), ('pe_ben', 'pn_ben', 'ws_trailmark'), ('pe_ravi', 'pn_ravi', 'ws_trailmark')",
+    "session": "{enroll}"
+   },
+   "status": 200,
+   "capture": {
+    "enroll": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "and gives each a partner link",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Link (id, domain, `key`, url, workspaceId, partnerId) VALUES ('lnk_ana', 'go.trailmark.io', 'ana', 'https://trailmark.io/?via=ana', 'ws_trailmark', 'pn_ana'), ('lnk_ben', 'go.trailmark.io', 'ben', 'https://trailmark.io/?via=ben', 'ws_trailmark', 'pn_ben'), ('lnk_ravi', 'go.trailmark.io', 'ravi', 'https://trailmark.io/?via=ravi', 'ws_trailmark', 'pn_ravi')",
+    "session": "{enroll}"
+   },
+   "status": 200,
+   "capture": {
+    "enroll": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "makes the partner tags creator and agency",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO PartnerTag (id, workspaceId, name) VALUES ('ptag_creator', 'ws_trailmark', 'creator'), ('ptag_agency', 'ws_trailmark', 'agency')",
+    "session": "{enroll}"
+   },
+   "status": 200,
+   "capture": {
+    "enroll": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "tags Ana and Ravi as creators and Ben as an agency",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO ProgramPartnerTag (workspaceId, partnerId, partnerTagId) VALUES ('ws_trailmark', 'pn_ana', 'ptag_creator'), ('ws_trailmark', 'pn_ben', 'ptag_agency'), ('ws_trailmark', 'pn_ravi', 'ptag_creator')",
+    "session": "{enroll}"
+   },
+   "status": 200,
+   "capture": {
+    "enroll": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "then commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{enroll}"
+   },
+   "status": 200,
+   "capture": {
+    "enroll": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 3 February",
+   "wait": "28h"
+  },
+  {
+   "name": "Ana sets Stripe as her default payout method on her partner page",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Partner SET defaultPayoutMethod = 'stripe' WHERE id = 'pn_ana'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "ana_pm": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 4 February",
+   "wait": "17h"
+  },
+  {
+   "name": "Ben does the same; Ravi leaves his unset",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Partner SET defaultPayoutMethod = 'stripe' WHERE id = 'pn_ben'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "ben_pm": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 10 February",
+   "wait": "149h"
+  },
+  {
+   "name": "A sale through Ana's link: the application records Ana's pending commission of $40",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_feb_ana_1', 'pn_ana', 'lnk_ana', 4000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_feb_ana_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Ana opens her partner page: it reads her enrollment with her partner record and her tags, gathered with JSON_ARRAYAGG as Dub's getPartnerEnrollmentInfo does",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT Partner.id, Partner.name, ProgramEnrollment.status, tagAgg.partnerTagIds FROM ProgramEnrollment LEFT JOIN Partner ON Partner.id = ProgramEnrollment.partnerId LEFT JOIN (SELECT workspaceId, partnerId, JSON_ARRAYAGG(partnerTagId) AS partnerTagIds FROM (SELECT DISTINCT workspaceId, partnerId, partnerTagId FROM ProgramPartnerTag WHERE workspaceId = 'ws_trailmark' AND partnerId = 'pn_ana') AS distinct_program_partner_tags GROUP BY workspaceId, partnerId) AS tagAgg ON tagAgg.workspaceId = ProgramEnrollment.workspaceId AND tagAgg.partnerId = ProgramEnrollment.partnerId WHERE ProgramEnrollment.partnerId = 'pn_ana' AND ProgramEnrollment.workspaceId = 'ws_trailmark'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "anapage": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": [
+      [
+       "pn_ana",
+       "Ana Lima",
+       "approved",
+       "[\"ptag_creator\"]"
+      ]
+     ]
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "Tuesday 17 February",
+   "wait": "165h"
+  },
+  {
+   "name": "A sale through Ben's link: the application records Ben's pending commission of $25",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_feb_ben_1', 'pn_ben', 'lnk_ben', 2500)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_feb_ben_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Friday 20 February",
+   "wait": "78h"
+  },
+  {
+   "name": "A sale through Ravi's link: the application records Ravi's pending commission of $30",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_feb_ravi_1', 'pn_ravi', 'lnk_ravi', 3000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_feb_ravi_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 25 February",
+   "wait": "115h"
+  },
+  {
+   "name": "A sale through Ana's link: the application records Ana's pending commission of $40",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_feb_ana_2', 'pn_ana', 'lnk_ana', 4000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_feb_ana_2": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Sunday 1 March: the first payout run",
+   "wait": "5610m"
+  },
+  {
+   "name": "It is the first time Trailmark's code moves money records, so the migration job first asks for a backup of main with ops, as Dub's trigger-backup cron does, kept 32 days: through the next run",
+   "method": "POST",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 201,
+   "body": {
+    "name": "before-first-payout-run",
+    "retention_unit": "day",
+    "retention_value": 32
+   },
+   "capture": {
+    "backup2": "id"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "pending"
+    },
+    {
+     "path": "name",
+     "equals": "before-first-payout-run"
+    }
+   ]
+  },
+  {
+   "name": "The job waits a minute",
+   "wait": "1m"
+  },
+  {
+   "name": "Another minute",
+   "wait": "1m"
+  },
+  {
+   "name": "and reads the backup back: success, so the payout run can go ahead",
+   "method": "GET",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups/{backup2}",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{backup2}"
+    },
+    {
+     "path": "name",
+     "equals": "before-first-payout-run"
+    },
+    {
+     "path": "state",
+     "equals": "success"
+    }
+   ]
+  },
+  {
+   "name": "At 09:00 the payout cron runs",
+   "wait": "28m"
+  },
+  {
+   "name": "The run reads every partner's pending commissions: all three partners have some",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT partnerId, COUNT(*) AS n FROM Commission WHERE status = 'pending' GROUP BY partnerId ORDER BY partnerId",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run03_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": [
+      [
+       "pn_ana",
+       "2"
+      ],
+      [
+       "pn_ben",
+       "1"
+      ],
+      [
+       "pn_ravi",
+       "1"
+      ]
+     ]
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and their pending payouts: none",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, partnerId FROM Payout WHERE status = 'pending'",
+    "session": "{run03_read}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "Ana's turn: the run opens Ana's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run03_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ana",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ana_2026_03', 'pn_ana')",
+    "session": "{run03_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ana's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ana_2026_03' SET c.status = 'processed', c.payoutId = 'po_ana_2026_03' WHERE c.partnerId = 'pn_ana' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run03_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ana_2026_03'), updatedAt = NOW(3) WHERE id = 'po_ana_2026_03' AND status = 'pending'",
+    "session": "{run03_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run03_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ben's turn: the run opens Ben's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run03_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ben",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ben_2026_03', 'pn_ben')",
+    "session": "{run03_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ben's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ben_2026_03' SET c.status = 'processed', c.payoutId = 'po_ben_2026_03' WHERE c.partnerId = 'pn_ben' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run03_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ben_2026_03'), updatedAt = NOW(3) WHERE id = 'po_ben_2026_03' AND status = 'pending'",
+    "session": "{run03_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run03_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ravi's turn: the run opens Ravi's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run03_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ravi",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ravi_2026_03', 'pn_ravi')",
+    "session": "{run03_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ravi's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ravi_2026_03' SET c.status = 'processed', c.payoutId = 'po_ravi_2026_03' WHERE c.partnerId = 'pn_ravi' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run03_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ravi_2026_03'), updatedAt = NOW(3) WHERE id = 'po_ravi_2026_03' AND status = 'pending'",
+    "session": "{run03_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run03_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run03_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Monday 2 March",
+   "wait": "25h"
+  },
+  {
+   "name": "Jon charges the March invoice: the payouts of the partners with a payout method go on it (Ana's and Ben's; Ravi's has no method and stays pending)",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET invoiceId = 'inv_2026_03', updatedAt = NOW(3) WHERE status = 'pending' AND invoiceId IS NULL AND partnerId IN (SELECT id FROM Partner WHERE defaultPayoutMethod IS NOT NULL)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "inv03": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 4 March",
+   "wait": "47h"
+  },
+  {
+   "name": "The invoice is paid: the charged payouts move to processing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'processing', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_03' AND status = 'pending'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid03": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "and the cron copies each partner's default payout method onto the invoice's payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout p INNER JOIN Partner pn ON p.partnerId = pn.id SET p.method = pn.defaultPayoutMethod WHERE p.invoiceId = 'inv_2026_03' AND pn.defaultPayoutMethod IS NOT NULL AND p.status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid03b": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "The partners' transfers go out: those payouts are sent",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'sent', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_03' AND status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "Monday 9 March",
+   "wait": "123h"
+  },
+  {
+   "name": "A sale through Ana's link: the application records Ana's pending commission of $40",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_mar_ana_1', 'pn_ana', 'lnk_ana', 4000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_mar_ana_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Monday 16 March",
+   "wait": "171h"
+  },
+  {
+   "name": "A sale through Ravi's link: the application records Ravi's pending commission of $30",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_mar_ravi_1', 'pn_ravi', 'lnk_ravi', 3000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_mar_ravi_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 24 March",
+   "wait": "187h"
+  },
+  {
+   "name": "A sale through Ben's link: the application records Ben's pending commission of $25",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_mar_ben_1', 'pn_ben', 'lnk_ben', 2500)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_mar_ben_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 1 April: Ravi still has no payout method and his March payout is a month old, so Jon pays him by bank transfer",
+   "wait": "11415m"
+  },
+  {
+   "name": "At 09:00 the payout run starts",
+   "wait": "45m"
+  },
+  {
+   "name": "The run reads every partner's pending commissions: all three partners have some",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT partnerId, COUNT(*) AS n FROM Commission WHERE status = 'pending' GROUP BY partnerId ORDER BY partnerId",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run04_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": [
+      [
+       "pn_ana",
+       "1"
+      ],
+      [
+       "pn_ben",
+       "1"
+      ],
+      [
+       "pn_ravi",
+       "1"
+      ]
+     ]
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and their pending payouts: only Ravi's March payout is still pending",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, partnerId FROM Payout WHERE status = 'pending'",
+    "session": "{run04_read}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": [
+      [
+       "po_ravi_2026_03",
+       "pn_ravi"
+      ]
+     ]
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "A minute later, Stripe has priced Ana's commissions for the invoice",
+   "wait": "1m"
+  },
+  {
+   "name": "Ana's turn: the run opens Ana's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run04_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ana",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ana_2026_04', 'pn_ana')",
+    "session": "{run04_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ana's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ana_2026_04' SET c.status = 'processed', c.payoutId = 'po_ana_2026_04' WHERE c.partnerId = 'pn_ana' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run04_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ana_2026_04'), updatedAt = NOW(3) WHERE id = 'po_ana_2026_04' AND status = 'pending'",
+    "session": "{run04_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run04_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Another minute, and Ben's are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ben's turn: the run opens Ben's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run04_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ben",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ben_2026_04', 'pn_ben')",
+    "session": "{run04_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ben's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ben_2026_04' SET c.status = 'processed', c.payoutId = 'po_ben_2026_04' WHERE c.partnerId = 'pn_ben' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run04_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ben_2026_04'), updatedAt = NOW(3) WHERE id = 'po_ben_2026_04' AND status = 'pending'",
+    "session": "{run04_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run04_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Thirty seconds later",
+   "wait": "30s"
+  },
+  {
+   "name": "Jon marks Ravi's March payout sent, paid by bank transfer, in the dashboard",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'sent', method = 'bank_transfer', updatedAt = NOW(3) WHERE id = 'po_ravi_2026_03'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "jon_sent": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "At 09:03 the run reaches Ravi, whose March payout it read as pending",
+   "wait": "30s"
+  },
+  {
+   "name": "Ravi's turn: the run opens Ravi's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run04_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and claims his March payout to add the commissions this run pays to it, only while it is still pending: the update matches no row, since Jon marked it sent thirty seconds ago",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET updatedAt = NOW(3) WHERE id = 'po_ravi_2026_03' AND status = 'pending'",
+    "session": "{run04_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "exists": false
+    },
+    {
+     "path": "rowsAffected",
+     "equals": 0
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "so the run rolls Ravi's transaction back and skips him",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "ROLLBACK",
+    "session": "{run04_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run04_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Later that morning",
+   "wait": "117m"
+  },
+  {
+   "name": "Jon charges the April invoice: Ana's and Ben's new payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET invoiceId = 'inv_2026_04', updatedAt = NOW(3) WHERE status = 'pending' AND invoiceId IS NULL AND partnerId IN (SELECT id FROM Partner WHERE defaultPayoutMethod IS NOT NULL)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "inv04": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 2 April: Jon has asked Ravi to add a payout method",
+   "wait": "1350m"
+  },
+  {
+   "name": "Ravi sets Stripe on his partner page",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Partner SET defaultPayoutMethod = 'stripe' WHERE id = 'pn_ravi'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "ravi_pm": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Friday 3 April",
+   "wait": "1410m"
+  },
+  {
+   "name": "The invoice is paid: the charged payouts move to processing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'processing', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_04' AND status = 'pending'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid04": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "and the cron copies each partner's default payout method onto the invoice's payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout p INNER JOIN Partner pn ON p.partnerId = pn.id SET p.method = pn.defaultPayoutMethod WHERE p.invoiceId = 'inv_2026_04' AND pn.defaultPayoutMethod IS NOT NULL AND p.status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid04b": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "The partners' transfers go out: those payouts are sent",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'sent', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_04' AND status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "Monday 13 April: links get an archived flag",
+   "wait": "240h"
+  },
+  {
+   "name": "The migration job asks for a backup of main with ops, as Dub's trigger-backup cron does before the change, kept 14 days",
+   "method": "POST",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 201,
+   "body": {
+    "name": "before-link-archived",
+    "retention_unit": "day",
+    "retention_value": 14
+   },
+   "capture": {
+    "backup3": "id"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "pending"
+    },
+    {
+     "path": "name",
+     "equals": "before-link-archived"
+    }
+   ]
+  },
+  {
+   "name": "The job waits a minute",
+   "wait": "1m"
+  },
+  {
+   "name": "Another minute",
+   "wait": "1m"
+  },
+  {
+   "name": "and reads the backup back: success, so the column can be added",
+   "method": "GET",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups/{backup3}",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{backup3}"
+    },
+    {
+     "path": "name",
+     "equals": "before-link-archived"
+    },
+    {
+     "path": "state",
+     "equals": "success"
+    }
+   ]
+  },
+  {
+   "name": "then connects and adds the column",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "ALTER TABLE Link ADD COLUMN archived BOOLEAN NOT NULL DEFAULT false",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "mig3": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "An hour later",
+   "wait": "58m"
+  },
+  {
+   "name": "Maya archives the three launch links in the dashboard",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Link SET archived = true WHERE id IN ('lnk_pricing', 'lnk_demo', 'lnk_changelog')",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "archive": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "Monday 20 April",
+   "wait": "172h"
+  },
+  {
+   "name": "A sale through Ravi's link: the application records Ravi's pending commission of $30",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_apr_ravi_1', 'pn_ravi', 'lnk_ravi', 3000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_apr_ravi_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 22 April",
+   "wait": "44h"
+  },
+  {
+   "name": "A sale through Ana's link: the application records Ana's pending commission of $40",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_apr_ana_1', 'pn_ana', 'lnk_ana', 4000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_apr_ana_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 28 April",
+   "wait": "151h"
+  },
+  {
+   "name": "A sale through Ben's link: the application records Ben's pending commission of $25",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_apr_ben_1', 'pn_ben', 'lnk_ben', 2500)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_apr_ben_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Friday 1 May: the payout run pays all three partners, Ravi's commissions since March included",
+   "wait": "64h"
+  },
+  {
+   "name": "The run reads every partner's pending commissions: all three partners, Ravi's two since March among them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT partnerId, COUNT(*) AS n FROM Commission WHERE status = 'pending' GROUP BY partnerId ORDER BY partnerId",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run05_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": [
+      [
+       "pn_ana",
+       "1"
+      ],
+      [
+       "pn_ben",
+       "1"
+      ],
+      [
+       "pn_ravi",
+       "2"
+      ]
+     ]
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and their pending payouts: none",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, partnerId FROM Payout WHERE status = 'pending'",
+    "session": "{run05_read}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "Ana's commissions are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ana's turn: the run opens Ana's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run05_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ana",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ana_2026_05', 'pn_ana')",
+    "session": "{run05_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ana's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ana_2026_05' SET c.status = 'processed', c.payoutId = 'po_ana_2026_05' WHERE c.partnerId = 'pn_ana' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run05_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ana_2026_05'), updatedAt = NOW(3) WHERE id = 'po_ana_2026_05' AND status = 'pending'",
+    "session": "{run05_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run05_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ben's commissions are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ben's turn: the run opens Ben's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run05_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ben",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ben_2026_05', 'pn_ben')",
+    "session": "{run05_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ben's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ben_2026_05' SET c.status = 'processed', c.payoutId = 'po_ben_2026_05' WHERE c.partnerId = 'pn_ben' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run05_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ben_2026_05'), updatedAt = NOW(3) WHERE id = 'po_ben_2026_05' AND status = 'pending'",
+    "session": "{run05_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run05_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ravi's commissions are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ravi's turn: the run opens Ravi's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run05_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ravi",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ravi_2026_05', 'pn_ravi')",
+    "session": "{run05_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ravi's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ravi_2026_05' SET c.status = 'processed', c.payoutId = 'po_ravi_2026_05' WHERE c.partnerId = 'pn_ravi' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run05_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ravi_2026_05'), updatedAt = NOW(3) WHERE id = 'po_ravi_2026_05' AND status = 'pending'",
+    "session": "{run05_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run05_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run05_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Monday 4 May",
+   "wait": "4377m"
+  },
+  {
+   "name": "Jon charges the May invoice: all three payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET invoiceId = 'inv_2026_05', updatedAt = NOW(3) WHERE status = 'pending' AND invoiceId IS NULL AND partnerId IN (SELECT id FROM Partner WHERE defaultPayoutMethod IS NOT NULL)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "inv05": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 6 May",
+   "wait": "47h"
+  },
+  {
+   "name": "The invoice is paid: the charged payouts move to processing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'processing', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_05' AND status = 'pending'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid05": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "and the cron copies each partner's default payout method onto the invoice's payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout p INNER JOIN Partner pn ON p.partnerId = pn.id SET p.method = pn.defaultPayoutMethod WHERE p.invoiceId = 'inv_2026_05' AND pn.defaultPayoutMethod IS NOT NULL AND p.status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid05b": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "The partners' transfers go out: those payouts are sent",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'sent', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_05' AND status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 12 May",
+   "wait": "147h"
+  },
+  {
+   "name": "A reader clicks the spring campaign link: the edge function reads go.trailmark.io/spring",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, url FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'spring'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "click_spring_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "counts the click",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Link SET clicks = clicks + 1, lastClicked = NOW(3) WHERE id = 'lnk_cmp_spring'",
+    "session": "{click_spring_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_spring_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and raises the workspace's usage, while it is under the plan's limit",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Workspace SET `usage` = `usage` + 1 WHERE id = 'ws_trailmark' AND `usage` < usageLimit",
+    "session": "{click_spring_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_spring_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 19 May",
+   "wait": "167h"
+  },
+  {
+   "name": "A sale through Ana's link: the application records Ana's pending commission of $40",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_may_ana_1', 'pn_ana', 'lnk_ana', 4000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_may_ana_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 26 May",
+   "wait": "175h"
+  },
+  {
+   "name": "A reader clicks Ben's partner link: the edge function reads go.trailmark.io/ben",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, url FROM Link WHERE domain = 'go.trailmark.io' AND `key` = 'ben'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "click_ben_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows.0",
+     "exists": true
+    },
+    {
+     "path": "result.rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "counts the click",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Link SET clicks = clicks + 1, lastClicked = NOW(3) WHERE id = 'lnk_ben'",
+    "session": "{click_ben_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_ben_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and raises the workspace's usage, while it is under the plan's limit",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Workspace SET `usage` = `usage` + 1 WHERE id = 'ws_trailmark' AND `usage` < usageLimit",
+    "session": "{click_ben_1}"
+   },
+   "status": 200,
+   "capture": {
+    "click_ben_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Twenty minutes later the reader buys",
+   "wait": "20m"
+  },
+  {
+   "name": "A sale through Ben's link: the application records Ben's pending commission of $25",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_may_ben_1', 'pn_ben', 'lnk_ben', 2500)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_may_ben_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 28 May",
+   "wait": "2560m"
+  },
+  {
+   "name": "A sale through Ravi's link: the application records Ravi's pending commission of $30",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_may_ravi_1', 'pn_ravi', 'lnk_ravi', 3000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_may_ravi_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Monday 1 June: the payout run",
+   "wait": "92h"
+  },
+  {
+   "name": "The run reads every partner's pending commissions: all three partners have one",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT partnerId, COUNT(*) AS n FROM Commission WHERE status = 'pending' GROUP BY partnerId ORDER BY partnerId",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run06_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": [
+      [
+       "pn_ana",
+       "1"
+      ],
+      [
+       "pn_ben",
+       "1"
+      ],
+      [
+       "pn_ravi",
+       "1"
+      ]
+     ]
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and their pending payouts: none",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, partnerId FROM Payout WHERE status = 'pending'",
+    "session": "{run06_read}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "Ana's commissions are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ana's turn: the run opens Ana's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run06_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ana",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ana_2026_06', 'pn_ana')",
+    "session": "{run06_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ana's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ana_2026_06' SET c.status = 'processed', c.payoutId = 'po_ana_2026_06' WHERE c.partnerId = 'pn_ana' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run06_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ana_2026_06'), updatedAt = NOW(3) WHERE id = 'po_ana_2026_06' AND status = 'pending'",
+    "session": "{run06_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run06_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ben's are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ben's turn: the run opens Ben's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run06_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ben",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ben_2026_06', 'pn_ben')",
+    "session": "{run06_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ben's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ben_2026_06' SET c.status = 'processed', c.payoutId = 'po_ben_2026_06' WHERE c.partnerId = 'pn_ben' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run06_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ben_2026_06'), updatedAt = NOW(3) WHERE id = 'po_ben_2026_06' AND status = 'pending'",
+    "session": "{run06_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run06_ben}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ben": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ravi's are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ravi's turn: the run opens Ravi's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "run06_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ravi",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ravi_2026_06', 'pn_ravi')",
+    "session": "{run06_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ravi's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ravi_2026_06' SET c.status = 'processed', c.payoutId = 'po_ravi_2026_06' WHERE c.partnerId = 'pn_ravi' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{run06_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ravi_2026_06'), updatedAt = NOW(3) WHERE id = 'po_ravi_2026_06' AND status = 'pending'",
+    "session": "{run06_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{run06_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "run06_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 2 June",
+   "wait": "1497m"
+  },
+  {
+   "name": "Jon charges the June invoice: all three payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET invoiceId = 'inv_2026_06', updatedAt = NOW(3) WHERE status = 'pending' AND invoiceId IS NULL AND partnerId IN (SELECT id FROM Partner WHERE defaultPayoutMethod IS NOT NULL)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "inv06": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 4 June",
+   "wait": "47h"
+  },
+  {
+   "name": "The invoice is paid: the charged payouts move to processing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'processing', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_06' AND status = 'pending'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid06": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "and the cron copies each partner's default payout method onto the invoice's payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout p INNER JOIN Partner pn ON p.partnerId = pn.id SET p.method = pn.defaultPayoutMethod WHERE p.invoiceId = 'inv_2026_06' AND pn.defaultPayoutMethod IS NOT NULL AND p.status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paid06b": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "The partners' transfers go out: those payouts are sent",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'sent', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_06' AND status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 10 June",
+   "wait": "150h"
+  },
+  {
+   "name": "A sale through Ravi's link: the application records Ravi's pending commission of $30",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_jun_ravi_1', 'pn_ravi', 'lnk_ravi', 3000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_jun_ravi_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 16 June",
+   "wait": "138h"
+  },
+  {
+   "name": "A sale through Ana's link: the application records Ana's pending commission of $40",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Commission (id, partnerId, linkId, amount) VALUES ('cm_jun_ana_1', 'pn_ana', 'lnk_ana', 4000)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "s_cm_jun_ana_1": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "Monday 22 June: Trailmark will shut down at the end of June, and Jon closes the partner program",
+   "wait": "144h"
+  },
+  {
+   "name": "Before the final payout run moves the program's last money records, the migration job backs up main, kept a month: through the program's close",
+   "method": "POST",
+   "path": "https://api.planetscale.com/v1/organizations/trailmark/databases/trailmark/branches/main/backups",
+   "headers": {
+    "authorization": "{ops_id}:{ops_secret}"
+   },
+   "status": 201,
+   "body": {
+    "name": "before-final-payout-run",
+    "retention_unit": "month",
+    "retention_value": 1
+   },
+   "capture": {
+    "backup_final": "id"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "pending"
+    },
+    {
+     "path": "name",
+     "equals": "before-final-payout-run"
+    }
+   ]
+  },
+  {
+   "name": "The run reads every partner's pending commissions: the final run finds Ana and Ravi with some",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT partnerId, COUNT(*) AS n FROM Commission WHERE status = 'pending' GROUP BY partnerId ORDER BY partnerId",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "final_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": [
+      [
+       "pn_ana",
+       "1"
+      ],
+      [
+       "pn_ravi",
+       "1"
+      ]
+     ]
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "and their pending payouts: none",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT id, partnerId FROM Payout WHERE status = 'pending'",
+    "session": "{final_read}"
+   },
+   "status": 200,
+   "capture": {
+    "final_read": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rows",
+     "exists": false
+    },
+    {
+     "path": "rows",
+     "equals": []
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "Ana's commissions are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ana's turn: the run opens Ana's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "final_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ana",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ana_final', 'pn_ana')",
+    "session": "{final_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ana's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ana_final' SET c.status = 'processed', c.payoutId = 'po_ana_final' WHERE c.partnerId = 'pn_ana' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{final_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ana_final'), updatedAt = NOW(3) WHERE id = 'po_ana_final' AND status = 'pending'",
+    "session": "{final_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{final_ana}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ana": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Ravi's commissions are priced",
+   "wait": "1m"
+  },
+  {
+   "name": "Ravi's turn: the run opens Ravi's transaction",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "BEGIN",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "final_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "inserts a pending payout for Ravi",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "INSERT INTO Payout (id, partnerId) VALUES ('po_ravi_final', 'pn_ravi')",
+    "session": "{final_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "attaches Ravi's pending commissions to it and marks them processed",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Commission c INNER JOIN Payout p ON p.id = 'po_ravi_final' SET c.status = 'processed', c.payoutId = 'po_ravi_final' WHERE c.partnerId = 'pn_ravi' AND c.status = 'pending' AND p.status = 'pending'",
+    "session": "{final_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "sets the payout's amount from them",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET amount = (SELECT SUM(amount) FROM Commission WHERE payoutId = 'po_ravi_final'), updatedAt = NOW(3) WHERE id = 'po_ravi_final' AND status = 'pending'",
+    "session": "{final_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "COMMIT",
+    "session": "{final_ravi}"
+   },
+   "status": 200,
+   "capture": {
+    "final_ravi": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "An hour later",
+   "wait": "58m"
+  },
+  {
+   "name": "Jon charges the final invoice: Ana's and Ravi's payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET invoiceId = 'inv_2026_final', updatedAt = NOW(3) WHERE status = 'pending' AND invoiceId IS NULL AND partnerId IN (SELECT id FROM Partner WHERE defaultPayoutMethod IS NOT NULL)",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "invfin": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "and the dashboard marks every enrollment ended",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE ProgramEnrollment SET status = 'ended' WHERE workspaceId = 'ws_trailmark'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "ended": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "3"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 24 June",
+   "wait": "47h"
+  },
+  {
+   "name": "The invoice is paid: the charged payouts move to processing",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'processing', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_final' AND status = 'pending'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paidfin": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "and the cron copies each partner's default payout method onto the invoice's payouts",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout p INNER JOIN Partner pn ON p.partnerId = pn.id SET p.method = pn.defaultPayoutMethod WHERE p.invoiceId = 'inv_2026_final' AND pn.defaultPayoutMethod IS NOT NULL AND p.status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "paidfinb": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "That morning the redirect service's new release, on Prisma, connects with DATABASE_URL, the database's MySQL connection string (the native wire); a password pasted wrong is refused as MySQL refuses it",
+   "link": "typo",
+   "signIn": {
+    "user": "{app_user}",
+     "password": "invalid-database-password"
+   },
+   "refused": 1045,
+   "expect": [
+    {
+     "path": "sqlstate",
+     "equals": "28000"
+    }
+   ]
+  },
+  {
+   "name": "with the app password from Vercel's environment it signs in",
+   "link": "api",
+   "signIn": {
+    "user": "{app_user}",
+    "password": "{app_secret}"
+   }
+  },
+  {
+   "name": "Prisma's driver reads the server's settings as it connects",
+   "link": "api",
+   "mysql": "SELECT @@socket, @@max_allowed_packet, @@wait_timeout",
+   "expect": [
+    {
+     "path": "rows.0.@@max_allowed_packet",
+     "equals": "16777214"
+    },
+    {
+     "path": "rows.0.@@wait_timeout",
+     "equals": "28800"
+    },
+    {
+     "path": "rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "a redirect looks its link up by domain and key, a prepared statement with its parameters bound",
+   "link": "api",
+   "mysql": "SELECT id, url FROM Link WHERE domain = ? AND `key` = ?",
+   "values": [
+    "go.trailmark.io",
+    "demo"
+   ],
+   "expect": [
+    {
+     "path": "rows.0.id",
+     "equals": "lnk_demo"
+    },
+    {
+     "path": "rows.0.url",
+     "equals": "https://trailmark.io/demo"
+    },
+    {
+     "path": "rows.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Prisma sets the isolation level before its transaction, as it does before every one",
+   "link": "api",
+   "mysql": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
+   "expect": [
+    {
+     "path": "affectedRows",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "opens the transaction",
+   "link": "api",
+   "mysql": "BEGIN"
+  },
+  {
+   "name": "records the click's time, bound as a parameter",
+   "link": "api",
+   "mysql": "UPDATE Link SET lastClicked = ? WHERE id = ?",
+   "values": [
+    "2026-06-24 19:30:00.000",
+    "lnk_demo"
+   ],
+   "expect": [
+    {
+     "path": "affectedRows",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "and commits",
+   "link": "api",
+   "mysql": "COMMIT"
+  },
+  {
+   "name": "The dashboard, still on @planetscale/database over psdb, reads the same row the release wrote over the native wire: one database",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "SELECT lastClicked FROM Link WHERE id = 'lnk_demo'",
+    "session": null
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.0.0",
+     "equals": "2026-06-24 19:30:00.000"
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "A release built ahead of its migration asks for a table that does not exist yet, and is refused as MySQL refuses it",
+   "link": "api",
+   "mysql": "SELECT * FROM LinkWebhook",
+   "refused": 1146,
+   "expect": [
+    {
+     "path": "sqlstate",
+     "equals": "42S02"
+    }
+   ]
+  },
+  {
+   "name": "The release shuts its connection",
+   "link": "api",
+   "mysql": "SELECT 1",
+   "close": true,
+   "expect": [
+    {
+     "path": "rows.0.1",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "name": "The partners' transfers go out: those payouts are sent",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:app_user:app_secret}"
+   },
+   "body": {
+    "query": "UPDATE Payout SET status = 'sent', updatedAt = NOW(3) WHERE invoiceId = 'inv_2026_final' AND status = 'processing'",
+    "session": null
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "result.rowsAffected",
+     "equals": "2"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 30 June: Trailmark shuts down",
+   "wait": "145h"
+  },
+  {
+   "name": "The migration job exports the Workspace table to Maya's laptop",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Workspace",
+    "session": null
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.0",
+     "exists": true
+    },
+    {
+     "path": "rows.1",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then User",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM User",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.0",
+     "exists": true
+    },
+    {
+     "path": "rows.1",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then Domain",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Domain",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.0",
+     "exists": true
+    },
+    {
+     "path": "rows.1",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then Link",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Link",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.24",
+     "exists": true
+    },
+    {
+     "path": "rows.25",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then Tag",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Tag",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.0",
+     "exists": true
+    },
+    {
+     "path": "rows.1",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then LinkTag",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM LinkTag",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.2",
+     "exists": true
+    },
+    {
+     "path": "rows.3",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then PartnerTag",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM PartnerTag",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.1",
+     "exists": true
+    },
+    {
+     "path": "rows.2",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then ProgramPartnerTag",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM ProgramPartnerTag",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.2",
+     "exists": true
+    },
+    {
+     "path": "rows.3",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then Partner",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Partner",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.2",
+     "exists": true
+    },
+    {
+     "path": "rows.3",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then ProgramEnrollment",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM ProgramEnrollment",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.2",
+     "exists": true
+    },
+    {
+     "path": "rows.3",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then Commission",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Commission",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.14",
+     "exists": true
+    },
+    {
+     "path": "rows.15",
+     "exists": false
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "then Payout",
+   "method": "POST",
+   "path": "/psdb.v1alpha1.Database/Execute",
+   "headers": {
+    "authorization": "{basic:mig_user:mig_secret}"
+   },
+   "body": {
+    "query": "SELECT * FROM Payout ORDER BY id",
+    "session": "{export}"
+   },
+   "status": 200,
+   "capture": {
+    "export": "session"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "exists": false
+    },
+    {
+     "path": "rows.12",
+     "exists": true
+    },
+    {
+     "path": "rows.13",
+     "exists": false
+    },
+    {
+     "path": "rows.0.0",
+     "equals": "po_ana_2026_03"
+    },
+    {
+     "path": "rows.0.2",
+     "equals": "8000"
+    },
+    {
+     "path": "rows.0.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.1.0",
+     "equals": "po_ana_2026_04"
+    },
+    {
+     "path": "rows.1.2",
+     "equals": "4000"
+    },
+    {
+     "path": "rows.1.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.2.0",
+     "equals": "po_ana_2026_05"
+    },
+    {
+     "path": "rows.2.2",
+     "equals": "4000"
+    },
+    {
+     "path": "rows.2.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.3.0",
+     "equals": "po_ana_2026_06"
+    },
+    {
+     "path": "rows.3.2",
+     "equals": "4000"
+    },
+    {
+     "path": "rows.3.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.4.0",
+     "equals": "po_ana_final"
+    },
+    {
+     "path": "rows.4.2",
+     "equals": "4000"
+    },
+    {
+     "path": "rows.4.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.5.0",
+     "equals": "po_ben_2026_03"
+    },
+    {
+     "path": "rows.5.2",
+     "equals": "2500"
+    },
+    {
+     "path": "rows.5.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.6.0",
+     "equals": "po_ben_2026_04"
+    },
+    {
+     "path": "rows.6.2",
+     "equals": "2500"
+    },
+    {
+     "path": "rows.6.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.7.0",
+     "equals": "po_ben_2026_05"
+    },
+    {
+     "path": "rows.7.2",
+     "equals": "2500"
+    },
+    {
+     "path": "rows.7.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.8.0",
+     "equals": "po_ben_2026_06"
+    },
+    {
+     "path": "rows.8.2",
+     "equals": "2500"
+    },
+    {
+     "path": "rows.8.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.9.0",
+     "equals": "po_ravi_2026_03"
+    },
+    {
+     "path": "rows.9.2",
+     "equals": "3000"
+    },
+    {
+     "path": "rows.9.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.10.0",
+     "equals": "po_ravi_2026_05"
+    },
+    {
+     "path": "rows.10.2",
+     "equals": "6000"
+    },
+    {
+     "path": "rows.10.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.11.0",
+     "equals": "po_ravi_2026_06"
+    },
+    {
+     "path": "rows.11.2",
+     "equals": "3000"
+    },
+    {
+     "path": "rows.11.3",
+     "equals": "sent"
+    },
+    {
+     "path": "rows.12.0",
+     "equals": "po_ravi_final"
+    },
+    {
+     "path": "rows.12.2",
+     "equals": "3000"
+    },
+    {
+     "path": "rows.12.3",
+     "equals": "sent"
+    }
+   ],
+   "view": "rows"
+  },
+  {
+   "name": "In the dashboard, on trailmark's page, Maya deletes the database, typing its name to confirm: its branches, passwords, data and backups go with it",
+   "method": "POST",
+   "path": "https://app.planetscale.com/trailmark/trailmark?do=delete",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "pscale_twin_session={ps_session}"
+   },
+   "body": "confirm=trailmark",
+   "status": 303,
+   "expect": [
+    {
+     "path": "location",
+     "equals": "/trailmark"
+    }
+   ]
+  }
+ ]
+}

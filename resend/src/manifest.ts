@@ -114,6 +114,7 @@ export const manifest: DerivedManifest = {
   discovery: { twinOf: 'the Resend email API', stores: 'API keys, domains, sent and received emails, webhook endpoints and deliveries' },
   resources: {
     // keyed by their stored names: every served operation is a handler
+    team: { idPrefix: '', refresh: { none: 'the team and its members are dashboard account settings; the served API exposes its keys, mail and domains, not a team endpoint' } },
     email: { idPrefix: '', ...states.email, refresh: { list: 'emails/list', detail: 'emails/get' } },
     domain: { idPrefix: '', ...states.domain, refresh: { list: 'domains/list', detail: 'domains/get' } },
     _api_key: { idPrefix: '', ...states._api_key },
@@ -130,13 +131,17 @@ export const manifest: DerivedManifest = {
     transport: 'rest',
     archetype: 'crud',
     bin: 'world-resend',
-    resources: ['email', 'domain', 'received'],
+    resources: ['team', 'email', 'domain', 'received'],
     specSource: "Resend's OpenAPI document (spec/, provenance in spec/SOURCE.md)",
     description: 'Resend email API twin — emails sent singly and in batches and their lifecycle, sending domains verified against their DNS, received emails, and svix-signed webhooks; keys and endpoints made on the dashboard.',
     adoption: { pypi: ['resend'], sdks: ['resend'], envStems: ['RESEND', 'NEXTPRIVATERESEND'] },
     hosts: [{ host: 'api.resend.com' }, { host: 'inbound-cdn.resend.com' }, { host: 'resend.com', pathPattern: '^/emails(?:/|$)' }],
     // the World's applications hold a key the API Keys page made (the keys door), never a fixture: the twin refuses any
     // key it did not issue
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { RESEND_API_KEY: 'token' } },
+    credentialDoor: {
+      path: '/_twin/app-credentials', body: {}, fill: { RESEND_API_KEY: 'token' },
+      account: { field: 'account', tenancy: 'Team', source: 'https://resend.com/docs/dashboard/settings/team' },
+      deployment: { field: 'deployment', object: 'Named API key', source: 'https://resend.com/docs/api-reference/api-keys/create-api-key' },
+    },
   },
 };

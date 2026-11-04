@@ -1,0 +1,11 @@
+# A studio connects AI Gateway
+
+Mira administers a small pottery studio. LibreChat acts with the studio's application bearer key, granted access to model discovery and inference. A small planning assistant later uses the same key through the published AI SDK gateway protocol. These are server applications, not users with different grants. The World substitutes dashboard key creation; it runs no model and its scripts establish conversation outcomes.
+
+On Thursday 1 October 2026 at 09:00, Mira configures LibreChat's Vercel custom endpoint. She forgot to supply its credential, so discovery is refused. She creates the application key using the World dashboard stand-in, supplies that captured key, and LibreChat discovers its available models. She uses the connected chat to draft a welcome for a new studio member.
+
+On Friday morning she returns to prepare the next week's briefing, with LibreChat streaming the reply while she reads it. On Monday the World resumes the deployment and supplies the same held application key; she begins using the studio's AI SDK planning assistant. It summarizes the request, puts the plan into structured data for the application, asks the calendar tool for the next pottery class, receives the application's calendar result, and streams a draft invitation after she approves the date. The application echoes the captured tool call and its input, rather than inventing an id.
+
+On Tuesday, a deployment has mistyped the model identifier. The assistant's reminder is refused; Mira repairs the setting and the reminder succeeds. On Wednesday a transient provider rate limit (a one-shot World script) delays her next briefing. She waits a minute and retries successfully. On Friday 9 October at 09:01 she retires the trial assistant and stops sending calls. Deleting the application key is a dashboard act outside the served API, so the story makes no API revocation claim. Each sitting uses fewer than 30 calls; the applications retain the credential they were issued.
+
+Before retiring the trial, Mira connects Dub to publish the studio booking link. Its destination evaluation asks named boolean, choice and score questions. The World scripts the known studio URL; other requests receive explicitly labeled deterministic answers. A deployment omits the model header and then malformed questions, and Mira repairs those settings.

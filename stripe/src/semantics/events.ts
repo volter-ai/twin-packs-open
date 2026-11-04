@@ -1,7 +1,8 @@
 // Stripe's Events API (the events family: the account's stored events, which the kernel keeps as each is sent), and how
 // Stripe renders the events its writes send (`data` and `values`, bound in the manifest's `events`).
+import { platformAccountId } from '../engine/connect.ts';
 import type { EventWrite, WriteHookContext } from '@volter/world-core';
-import { isValidApiVersion, PLATFORM_ACCOUNT_ID, TWIN_API_VERSION } from '../engine/stripe.ts';
+import { isValidApiVersion, TWIN_API_VERSION } from '../engine/stripe.ts';
 import { render } from '../engine/version.ts';
 // ── the events Stripe's writes send (the manifest's `events`: ./shared.ts STRIPE_EVENTS) ──
 
@@ -20,11 +21,12 @@ export function data(ctx: WriteHookContext, write: EventWrite): Record<string, u
  *  written row is kept on (its `_account`) — and the API version it is rendered in. A connected account whose OAuth
  *  connection was revoked "can't be accessed by your platform" (docs.stripe.com/connect/oauth-reference): its events are
  *  kept but no longer sent (`$send: false`), except the account.application.deauthorized that says so. */
-export function values(ctx: WriteHookContext, write: EventWrite, type: string): Record<string, unknown> {
+export function values(ctx: WriteHookContext, write: EventWrite): Record<string, unknown> {
   const id = write.body.id;
   const kept = typeof id === 'string' ? ctx.rowsRaw(write.storedType, { withDeleted: true }).find((r) => r.id === id)?._account : undefined;
-  const account = write.request?.headers.get('stripe-account')
-    ?? (write.storedType === 'account' && typeof id === 'string' && id !== PLATFORM_ACCOUNT_ID ? id : undefined)
+  const requestedAccount = write.request?.headers.get('stripe-account');
+  const account = (requestedAccount && requestedAccount !== platformAccountId(ctx) ? requestedAccount : undefined)
+    ?? (write.storedType === 'account' && typeof id === 'string' && id !== platformAccountId(ctx) ? id : undefined)
     ?? (write.storedType === '_balance_notice' && typeof write.body.account === 'string' ? write.body.account : undefined)
     ?? (typeof kept === 'string' ? kept : undefined);
   return { $account: account, $version: eventVersion(write) };

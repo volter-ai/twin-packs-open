@@ -1,0 +1,82 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "commit": "7e0101363b2a",
+      "client": "fetch to api.vercel.com with VERCEL_API_KEY; @vercel/edge-config ^0.4.1",
+      "backend": [
+        {
+          "call": "POST /v10/projects/{project}/domains?teamId= {name, redirect?}: a workspace's custom domain added to Dub's project (a new domain, a renamed one, the admin's refresh, a claimed .link domain)",
+          "operation": "addProjectDomain",
+          "evidence": "apps/web/lib/api/domains/add-domain-vercel.ts:24"
+        },
+        {
+          "call": "GET /v9/projects/{project}/domains/{domain}: the domain on the project, with its verification challenges (first its *.apex wildcard)",
+          "operation": "getProjectDomain",
+          "evidence": "apps/web/lib/api/domains/get-domain-response.ts:6"
+        },
+        {
+          "call": "GET /v6/domains/{domain}/config: whether the domain is misconfigured (first its *.apex wildcard)",
+          "operation": "getDomainConfig",
+          "evidence": "apps/web/lib/api/domains/get-config-response.ts:6"
+        },
+        {
+          "call": "POST /v9/projects/{project}/domains/{domain}/verify, retried until verified",
+          "operation": "verifyProjectDomain",
+          "evidence": "apps/web/lib/api/domains/verify-domain.ts:4"
+        },
+        {
+          "call": "DELETE /v9/projects/{project}/domains/{domain}: a domain removed from the project while another domain under its apex is in use",
+          "operation": "removeProjectDomain",
+          "evidence": "apps/web/lib/api/domains/remove-domain-vercel.ts:27"
+        },
+        {
+          "call": "DELETE /v9/projects/{project}/domains/{domain}: the admin's refresh removes a domain before adding it again",
+          "operation": "removeProjectDomain",
+          "evidence": "apps/web/app/(ee)/api/admin/domains/refresh/route.ts:10"
+        },
+        {
+          "call": "DELETE /v6/domains/{domain}: the only domain in use under its apex removed from the team",
+          "operation": "deleteDomain",
+          "evidence": "apps/web/lib/api/domains/remove-domain-vercel.ts:39"
+        },
+        {
+          "call": "PATCH /v3/domains/{domain} {op: update, zone: true}: a bought .link domain's nameservers made Vercel's",
+          "operation": "patchDomain",
+          "evidence": "apps/web/lib/api/domains/configure-vercel-nameservers.ts:7"
+        },
+        {
+          "call": "PATCH /v1/edge-config/{id}/items {items: [{operation: update, key, value}]}: a ban adds to the blocklists Dub keeps in Edge Config",
+          "operation": "patchEdgeConfigItemsAtEdgeConfigPath",
+          "evidence": "apps/web/lib/edge-config/update.ts:29"
+        },
+        {
+          "call": "@vercel/edge-config get(key): GET /{id}/item/{key}?version=1 at edge-config.vercel.com (reserved usernames, blocked emails, keys and referrers, beta features, custom domain terms)",
+          "operation": "edge-config.vercel.com item read (the edge-config screen)",
+          "evidence": "apps/web/lib/edge-config/is-reserved-username.ts:14; apps/web/lib/edge-config/update.ts:25; apps/web/lib/edge-config/get-feature-flags.ts:36"
+        },
+        {
+          "call": "@vercel/edge-config getAll([domains, terms, whitelistedDomains]): GET /{id}/items?version=1&key=… at edge-config.vercel.com",
+          "operation": "edge-config.vercel.com items read (the edge-config screen)",
+          "evidence": "apps/web/lib/edge-config/is-blacklisted-domain.ts:15"
+        }
+      ],
+      "name": "dubinc/dub",
+      "gate": "Shipped domain management calls Vercel directly; absent credentials are not a provider choice (apps/web/lib/api/domains/get-domain-response.ts:10-15,19-30)."
+    },
+    {
+      "commit": "54343aa685ae8f33159d2f485ec4a57bad5c574a",
+      "client": "@vercel/edge-config 0.1.1",
+      "backend": [
+        {
+          "call": "@vercel/edge-config get('isSignupDisabled') in the proxy on /api/auth/signup: GET /{id}/item/isSignupDisabled?version=1 at edge-config.vercel.com",
+          "operation": "edge-config.vercel.com item read (the edge-config screen)",
+          "evidence": "apps/web/proxy.ts:74"
+        }
+      ],
+      "name": "calcom/cal.diy",
+      "gate": "Shipped signup calls safeGet('isSignupDisabled') through @vercel/edge-config, authenticated by EDGE_CONFIG; missing credentials are not an opt-in, and VERCEL_URL does not gate this path (apps/web/proxy.ts:3,9,74)."
+    }
+  ],
+  "optional": []
+}

@@ -9,7 +9,7 @@
 // token names; a second sign-up makes no second workspace (409).
 import type { HandlerContext } from '@volter/world-core';
 import { HOME_TEAM } from '../engine/wire.ts';
-import { addMember, addToTeam } from '../semantics/shared.ts';
+import { makeWorkspace } from '../semantics/shared.ts';
 import { field, page, refused, visitor } from './shared.tsx';
 
 const form = (ctx: HandlerContext, error?: string): Response => page('Create a workspace', (
@@ -38,21 +38,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !name) return form(ctx, 'Enter your work email and your full name.');
   if (ctx.get('team', HOME_TEAM)) return refused(409, 'This World already has its workspace');
   const label = email.split('@')[1]!.split('.')[0]!;
-  const at = Math.floor(Date.parse(ctx.occurredAt) / 1000);
-  await ctx.write('team', HOME_TEAM, { name: label[0]!.toUpperCase() + label.slice(1), domain: label, email_domain: email.split('@')[1], created: at, created_by: who.id }, 'team.create');
-  const [first, ...rest] = name.split(/\s+/);
-  await ctx.write('user', who.id, {
-    name: email.split('@')[0], team_id: HOME_TEAM, deleted: false, is_primary_owner: true, is_owner: true, is_admin: true, created: at, updated: at,
-    profile: { real_name: name, display_name: '', email, first_name: first, last_name: rest.join(' '), title: '' },
-  }, 'user.join');
-  await addToTeam(ctx, HOME_TEAM, who.id);
-  // the purpose is Slack's own, set by no one
-  // source: spec:/paths/~1conversations.list/get/responses/200/examples/application~1json/channels/0/purpose "creator"
-  const general = ctx.mint('channel');
-  await ctx.write('channel', general, {
-    name: 'general', context_team_id: HOME_TEAM, is_private: false, is_general: true, created: at, updated: at * 1000, creator: who.id, is_archived: false,
-    topic: { value: '', creator: '', last_set: 0 }, purpose: { value: 'This is the one channel that will always include everyone.', creator: '', last_set: 0 },
-  }, 'channel.create');
-  await addMember(ctx, general, who.id);
-  return page('Your workspace is ready', <><h1>Your workspace is ready</h1><p className="sk-lead">Welcome to Slack, {name}.</p><p><a href={`${ctx.publicBase}/client/${HOME_TEAM}/${general}`}>Open Slack</a></p></>, 201);
+  const made = await makeWorkspace(ctx, HOME_TEAM, { id: who.id, email, name }, { name: label[0]!.toUpperCase() + label.slice(1), domain: label });
+  if (!made) return form(ctx, 'This workspace URL is already in use.');
+  return page('Your workspace is ready', <><h1>Your workspace is ready</h1><p className="sk-lead">Welcome to Slack, {name}.</p><p><a href={`${ctx.publicBase}/client/${HOME_TEAM}/${made.general}`}>Open Slack</a></p></>, 201);
 }

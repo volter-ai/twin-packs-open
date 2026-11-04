@@ -27,10 +27,9 @@ const FREE = { db_disk_threshold: 268435456, db_request_limit: 500000, db_max_re
  *  shape of the page's examples); the twin draws it from the minted id. */
 // source: https://upstash.com/docs/redis/features/restapi "Upstash by default provides two separate access tokens per database"
 export async function makeDatabase(ctx: HandlerContext, input: { owner: string; name: string; region: string }): Promise<Row> {
-  const id = ctx.mint('Database');
+  const id = await ctx.issue('_identity');
   // drawn from a secret the World holds (ctx.secret), so no one computes a database's password or tokens from its id
   const password = (await ctx.secret(`upstash-db-password:${id}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 32);
-  // p3: keyed by the password drawn from ctx.secret above
   const token = (kind: string): string => Buffer.from(`${kind}${id.replace(/-/g, '').slice(0, 12)}:${digest('sha256', `${kind}:${password}`).slice(0, 32)}`).toString('base64');
   return ctx.write(DATABASE, id, {
     database_id: id, database_name: input.name, region: 'global', primary_region: input.region, primary_members: [input.region], all_members: [input.region], read_regions: [],
@@ -63,13 +62,13 @@ const PAY_AS_YOU_GO = { type: 'paid', max_retries: 999, max_delay: 31536000, tim
 export async function openQStash(ctx: HandlerContext, input: { owner: string; region: string }): Promise<Row> {
   const held = ctx.rowsRaw(QSTASH_USER).find((q) => q.customer_id === input.owner && q.deleted !== true);
   if (held) return held;
-  const id = ctx.mint('QStashUser');
-  await ctx.write(QSTASH_USER, id, {
+  const id = await ctx.issue('_identity');
+  const made = await ctx.createUnique('QStashUser', {
     id, customer_id: input.owner, created_by: input.owner, token: await qstashToken(ctx, id, input.owner, 0, 'rw'), read_only_token: await qstashToken(ctx, id, input.owner, 0, 'ro'),
     active: true, state: 'active', ...PAY_AS_YOU_GO, region: input.region, creation_time: Math.floor(Date.parse(ctx.occurredAt) / 1000),
     _url: qstashUrl(input.region), _current_signing_key: await signingKey(ctx, id, 1), _next_signing_key: await signingKey(ctx, id, 2), deleted: false,
-  }, 'qstash_user.create');
-  return ctx.rowsRaw(QSTASH_USER).find((q) => q.id === id)!;
+  }, 'qstash_user.create', { id });
+  return ctx.row(QSTASH_USER, String(made.row.id))!;
 }
 
 /** How many times an account's QStash has had its token reset, or its keys rolled: its history's writes of each. */

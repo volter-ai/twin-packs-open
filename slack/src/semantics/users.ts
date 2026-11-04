@@ -25,6 +25,7 @@ export async function users_info(ctx: HandlerContext): Promise<Response> {
 export async function users_list(ctx: HandlerContext): Promise<Response> {
   const by = who(ctx);
   const team = arg(ctx, 'team_id') ?? by.team;
+  if (!by.enterprise && team !== by.team) return fail(ctx, 'team_access_not_granted');
   const people = ctx.rowsRaw('user', { withDeleted: true }).filter((u) => teamsOf(ctx, String(u.id)).includes(team)).sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const p = page(people, ctx.params, 200);
   if (!p) return fail(ctx, 'invalid_cursor');
@@ -35,7 +36,7 @@ export async function users_list(ctx: HandlerContext): Promise<Response> {
 export async function users_profile_get(ctx: HandlerContext): Promise<Response> {
   const by = who(ctx);
   const u = ctx.get('user', arg(ctx, 'user') ?? by.user);
-  if (!u) return fail(ctx, 'user_not_found');
+  if (!u || (!by.enterprise && !teamsOf(ctx, String(u.id)).includes(by.team))) return fail(ctx, 'user_not_found');
   return ok(ctx, { profile: (userView(ctx, u, by.team).profile as Row) });
 }
 
@@ -51,7 +52,7 @@ export async function users_profile_set(ctx: HandlerContext): Promise<Response> 
   const target = arg(ctx, 'user') ?? by.user;
   if (target !== by.user && ctx.get('user', by.user)?.is_admin !== true) return fail(ctx, 'cannot_update_admin_user');
   const u = ctx.get('user', target);
-  if (!u) return fail(ctx, 'user_not_found');
+  if (!u || (!by.enterprise && !teamsOf(ctx, String(u.id)).includes(by.team))) return fail(ctx, 'user_not_found');
   const given = arg(ctx, 'name') !== undefined ? { [String(arg(ctx, 'name'))]: ctx.params.value ?? '' } : jsonArg(ctx, 'profile');
   if (!given || typeof given !== 'object' || Array.isArray(given)) return fail(ctx, 'invalid_profile');
   const fields = given as Row;
@@ -81,7 +82,7 @@ export async function users_conversations(ctx: HandlerContext): Promise<Response
 export async function users_getPresence(ctx: HandlerContext): Promise<Response> {
   const by = who(ctx);
   const u = ctx.row('user', arg(ctx, 'user') ?? by.user);
-  if (!u) return fail(ctx, 'user_not_found');
+  if (!u || (!by.enterprise && !teamsOf(ctx, String(u.id)).includes(by.team))) return fail(ctx, 'user_not_found');
   const presence = u._presence === 'away' ? 'away' : 'active';
   if (u.id !== by.user) return ok(ctx, { presence });
   const said = ctx.rowsRaw('message').filter((m) => m.user === u.id).map((m) => Math.floor(Number(m.ts)));

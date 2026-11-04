@@ -33,7 +33,7 @@ export const manifest: DerivedManifest = {
   unmodeled: ['createDatabase', 'getDatabase', 'deleteDatabase', 'listDatabases', 'enableTls', 'renameDatabase', 'resetPassword', 'resetQStashToken', 'getQStashUser', 'listQStashUsers'],
   doors: [
     { id: 'users', method: 'POST', path: '/_twin/users/{email}', note: "{ password }: a person who can sign in to the console (the World's stand-in for Upstash's sign-up)" },
-    { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: '{ owner? }: an application\'s Upstash credentials (a Redis database and the account\'s QStash), as the runtime issues them' },
+    { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: 'a deployment\'s Redis database and its customer account\'s QStash credentials' },
   ],
   screens: [{
     id: 'sign-in', kind: 'flow', host: 'console.upstash.com', path: '/login',
@@ -50,11 +50,12 @@ export const manifest: DerivedManifest = {
     status: 'done', controls: ['Region', 'Reset token', 'Roll keys'], source: 'https://upstash.com/docs/qstash/howto/reset-token',
   }],
   resources: {
+    _identity: { idPrefix: '' },
     // a Redis database: made on the console's Redis page. Not state the twin moves: `state` is active from its create;
     // its plan, regions and limits are set when it is made
     Database: { storedAs: 'database', idPrefix: '', idAs: 'database_id', ...states.Database, refresh: { none: 'listDatabases is not served by the twin (no demand or life calls the Developer API); a database is made on the console\'s Redis page' } },
     // an account's QStash, made when its owner first opens the QStash page in a region (its region fixed then; active from
     // its making: no served operation moves either)
-    QStashUser: { storedAs: 'qstash_user', idPrefix: '', ...states.QStashUser, refresh: { none: "getQStashUser is not served by the twin (no demand or life calls the Developer API); an account's QStash is opened on the console's QStash page" } },
+    QStashUser: { storedAs: 'qstash_user', idPrefix: '', ...states.QStashUser, unique: [{ fields: ['customer_id'], refusal: { status: 409, code: 'conflict', message: 'QStash is already open for this customer' } }], refresh: { none: "getQStashUser is not served by the twin (no demand or life calls the Developer API); an account's QStash is opened on the console's QStash page" } },
   },
 };

@@ -37,8 +37,8 @@ export const manifest: DerivedManifest = {
   // (https://docs.slack.dev/apis/web-api/pagination)
   list: { style: 'envelope', envelope: { response_metadata: { next_cursor: '{next_cursor}' } }, limit: { param: 'limit', default: 100, max: 1000 }, cursor: { param: 'cursor', encoding: 'base64-offset' } },
   resources: {
-    team: { idPrefix: 'T0', ...states.team, refresh: { get: 'team_info' } },
-    user: { idPrefix: 'U0', ...states.user, refresh: { list: 'users_list', items: 'members' } },
+    team: { idPrefix: 'T0', ...states.team, unique: [{ fields: ['domain'], refusal: { status: 200, code: 'url_taken', message: 'This workspace URL is already in use' } }], refresh: { get: 'team_info' } },
+    user: { idPrefix: 'U0', ...states.user, unique: [{ fields: ['app_id', 'install_team'], refusal: { status: 200, code: 'user_already_exists', message: 'The app already has a bot in this workspace' } }], refresh: { list: 'users_list', items: 'members' } },
     // conversations.list asked for every type ("Mix and match channel types by providing a comma-separated list of any
     // combination of public_channel, private_channel, mpim, im"), DMs among them; a token lists only what it can see: not
     // the whole type
@@ -58,7 +58,6 @@ export const manifest: DerivedManifest = {
     // source: https://docs.slack.dev/reference/methods/usergroups.list "Include results for disabled User Groups."
     usergroup: { idPrefix: 'S0', ...states.usergroup, refresh: { list: 'usergroups_list', query: { include_disabled: 'true' }, unpaginated: true } },
     app: { idPrefix: 'A0', refresh: { none: "an app is its developer's: apps.manifest.export reads one only with its developer's app configuration token, which no workspace's credential is, and the Web API lists no workspace's apps" } },
-    bot: { idPrefix: 'B0', refresh: { none: 'no bot row is kept: a bot is stored as its bot user (`user`, is_bot and bot_id), which the user refresh reads back (users.list)' } },
     invite_request: { idPrefix: 'Ir', ...states.invite_request, refresh: { none: "an ordinary workspace's invitation requests are read only on its admin pages: the API that lists them (admin.inviteRequests.list) is Enterprise Grid's org admin API, which no ordinary workspace's credential calls" } },
     invitation: { idPrefix: 'Iv', refresh: { none: 'an invitation is an email Slack sent; nothing reads it back' } },
     // Pending outgoing Connect invitations use the list item's nested vendor identity, not a second workspace member.
@@ -221,7 +220,12 @@ export const manifest: DerivedManifest = {
     archetype: 'crud',
     bin: 'world-slack',
     resources: ['team', 'user', 'channel', 'message', 'file', 'usergroup', 'app'],
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { SLACK_BOT_TOKEN: 'bot_token', SLACK_TOKEN: 'bot_token', SLACK_APP_TOKEN: 'app_token', SLACK_SIGNING_SECRET: 'signing_secret', SLACK_CLIENT_ID: 'client_id', SLACK_CLIENT_SECRET: 'client_secret' } },
+    credentialDoor: {
+      path: '/_twin/app-credentials', body: {},
+      fill: { SLACK_BOT_TOKEN: 'bot_token', SLACK_TOKEN: 'bot_token', SLACK_APP_TOKEN: 'app_token', SLACK_SIGNING_SECRET: 'signing_secret', SLACK_CLIENT_ID: 'client_id', SLACK_CLIENT_SECRET: 'client_secret' },
+      account: { field: 'account', tenancy: 'Workspace', source: 'https://docs.slack.dev/authentication/tokens/' },
+      deployment: { field: 'deployment', object: 'Developer app and workspace installation', source: 'https://docs.slack.dev/authentication/installing-with-oauth' },
+    },
     specSource: "Slack's Web API OpenAPI document (spec/, provenance in spec/SOURCE.md)",
     description: "Slack Web API twin — an org and its workspaces, people, channels, messages and threads, files, apps and their OAuth install, and the pages people use.",
     // the Web API/OAuth SDKs and Bolt, in both languages, the whole `@slack/` scope, and the SLACK_* credential stems
