@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "source": "https://dev.bitly.com/api-reference/#createFullBitlink",
+  "about": "A native-fetch application uses its World-issued Bitly user grant to discover the account's group, create a titled and tagged Bitlink through POST /v4/bitlinks, then read it through the authenticated group listing and tags. The resumed application reads the same saved link without making another link or asking for another grant.",
+  "files": {
+    "package.json": "{\n  \"name\": \"bitly-link-customer\",\n  \"private\": true,\n  \"type\": \"module\"\n}\n",
+    ".env.example": "BUFFER_BITLY_API_KEY=\n",
+    ".gitignore": "bitlink.json\n",
+    "client.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync, writeFileSync } from 'node:fs';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nassert.ok(process.env.BUFFER_BITLY_API_KEY, 'the application receives its account grant');\nconst headers = { Authorization: `Bearer ${process.env.BUFFER_BITLY_API_KEY}` };\nasync function get(path) {\n  const response = await fetch('https://api-ssl.bitly.com/v4' + path, { headers });\n  assert.equal(response.status, 200);\n  return response.json();\n}\nconst longUrl = 'https://example.com/observatory/open-evening';\nconst title = 'Observatory open evening';\nconst tag = 'community';\nlet saved;\nif (process.argv[2] === 'readback') {\n  saved = JSON.parse(readFileSync('bitlink.json', 'utf8'));\n} else {\n  const user = await get('/user');\n  assert.ok(user.login && user.default_group_guid);\n  const response = await fetch('https://api-ssl.bitly.com/v4/bitlinks', {\n    method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },\n    body: JSON.stringify({ long_url: longUrl, title, tags: [tag], group_guid: user.default_group_guid, domain: 'bit.ly' }),\n  });\n  assert.equal(response.status, 201);\n  const link = await response.json();\n  assert.ok(typeof link.id === 'string' && link.id.startsWith('bit.ly/'));\n  saved = { id: link.id, group: user.default_group_guid, login: user.login };\n  writeFileSync('bitlink.json', JSON.stringify(saved) + '\\n', { mode: 0o600 });\n}\nconst query = new URLSearchParams({ size: '100', archived: 'both', query: longUrl });\nconst page = await get(`/groups/${encodeURIComponent(saved.group)}/bitlinks?${query}`);\nconst retained = page.links.find((link) => link.id === saved.id);\nassert.ok(retained, 'the authenticated group listing contains the created link');\nassert.equal(retained.long_url, longUrl);\nassert.equal(retained.title, title);\nassert.deepEqual(retained.tags, [tag]);\nassert.equal(retained.created_by, saved.login);\nassert.equal(retained.archived, false);\nassert.equal(retained.link, 'https://' + saved.id);\nassert.equal(typeof page.pagination.search_after, 'string');\nconst tags = await get(`/groups/${encodeURIComponent(saved.group)}/tags`);\nassert.ok(tags.tags.includes(tag));\nconsole.log(JSON.stringify({ id: retained.id, destination: retained.long_url, group: saved.group, retained: process.argv[2] === 'readback' }));\n"
+  },
+  "run": [
+    "node",
+    "client.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "client.mjs",
+      "readback"
+    ]
+  }
+}

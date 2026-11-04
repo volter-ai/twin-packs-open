@@ -8,7 +8,7 @@ import { applicationFor, makeSecretKey, readSecretKey, ensureInstanceKey, instan
 
 type Row = Record<string, unknown>;
 const bodyOf = (ctx: HandlerContext): Row => (ctx.body && typeof ctx.body === 'object' && !Array.isArray(ctx.body) ? (ctx.body as Row) : {});
-const bare = ({ type: _t, updatedAt: _u, ...m }: Row): Row => m;
+const bare = (row: Row): Row => Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'type' && key !== 'updatedAt' && !key.startsWith('_')));
 
 /** GET /_twin/emails?to=<address>: what Clerk sent an address (invitations, verification codes), oldest first. */
 export async function emails(ctx: HandlerContext): Promise<Response> {
