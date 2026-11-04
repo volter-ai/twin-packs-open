@@ -1,10 +1,8 @@
 // The World's doors (the manifest's `doors`): what stands in for an act Stripe's API does not have, each under /_twin/.
 import type { HandlerContext } from '@volter/world-core';
 import type { Row } from '../engine/common.ts';
-import { platformAccountId } from '../engine/connect.ts';
 import { accountSettings } from '../engine/stripe.ts';
-import { balanceBody, payDuePayouts, settleDueEntries } from './shared.ts';
-import { credentialSandbox, endpointSecret, projectMerchant, retainedAppKey, selectedSandbox } from './tenant.ts';
+import { platformAccountId, credentialSandbox, endpointSecret, projectMerchant, retainedAppKey, selectedSandbox, balanceBody, payDuePayouts, settleDueEntries } from './shared.ts';
 /** The merchant's account settings as edited on the Dashboard: nested settings and public details merge. */
 export async function account(ctx: HandlerContext): Promise<Response> {
   await projectMerchant(ctx, selectedSandbox(ctx)!);

@@ -12,9 +12,9 @@ export function createXaiFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
     manifest,
     surface: surface as DerivedSurface,
-    around,
     handlers: xaiSemantics,
     doors,
+    around,
     scenario,
   }, options);
 }
