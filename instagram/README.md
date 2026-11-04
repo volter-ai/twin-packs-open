@@ -67,5 +67,5 @@ webhooks.
 ## Package facts
 
 Protocol 3; vendor specification in spec/, provenance in spec/SOURCE.md. Apache-2.0; Node >= 22.3; peer
-`@volter/world-core`. Issues: https://github.com/volter-ai/twin-packs-p3/issues.
+`@volter/world-core`. Issues: https://github.com/volter-ai/twin-packs-open/issues.
 Contributor mechanics belong to the [pack procedure](https://world-docs.volter.ai/docs/contributing/architecture#creating-a-pack).
