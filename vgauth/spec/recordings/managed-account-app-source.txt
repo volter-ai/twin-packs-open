@@ -1,0 +1,862 @@
+import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { AccountSpendPolicySchema } from '../../vgai-sdk/src/account';
+import {
+  ClerkPolarAccountBackend,
+  type ClerkPolarAccountConfiguration,
+  type ManagedIdentity,
+  type PolarCheckout,
+  type PolarSubscription,
+} from './clerk-polar';
+import type {
+  ManagedAccountDatabase,
+  ManagedPlanId,
+  ManagedUsageKind,
+  StoredAccount,
+} from './database';
+
+export interface ManagedPlanCatalogEntry {
+  name: string;
+  includedCredits: number;
+  /** Display metadata only. Polar remains the checkout price authority. */
+  monthlyPriceUsd?: number;
+  productId?: string;
+}
+
+export interface ManagedAccountCatalog {
+  plans: Record<ManagedPlanId, ManagedPlanCatalogEntry>;
+  creditPacks: Record<
+    string,
+    { name: string; productId: string; credits: number; expiresInDays?: number }
+  >;
+}
+
+export interface ManagedCreditMeterInput extends Record<string, unknown> {
+  phase: 'quote' | 'settle';
+  kind: ManagedUsageKind;
+  provider: string;
+}
+
+export interface ManagedAccountAppConfiguration extends ClerkPolarAccountConfiguration {
+  publicBaseUrl: string;
+  catalog: ManagedAccountCatalog;
+  /** Shared only with first-party Workers that hold a VGAI_BILLING service
+   * binding. It is not an account token and is never sent to a browser. */
+  internalServiceToken: string;
+  /** Deployed account workers resolve Clerk identity through vgai-auth so they
+   * never hold a reusable Clerk credential. */
+  identityAuthority?: { fetch(request: Request): Promise<Response> };
+  /** Provider-cost → VGAI-credit conversion. This is the billing boundary;
+   * provider adapters remain native and no execution meta-router is created. */
+  meterCredits(input: ManagedCreditMeterInput): number | Promise<number>;
+  /** Deployment-wide UTC-day safety ceiling shared by every managed service.
+   * It limits real provider exposure independently of user balances. */
+  platformDailyCreditLimit?: number;
+}
+
+function json(body: unknown, status = 200): Response {
+  return Response.json(body, { status });
+}
+
+function validateCatalog(catalog: ManagedAccountCatalog): void {
+  for (const id of ['free', 'creator', 'max', 'ultra'] as const) {
+    const plan = catalog.plans[id];
+    if (!plan || !Number.isSafeInteger(plan.includedCredits) || plan.includedCredits < 0) {
+      throw new Error(`Catalog credits must be a non-negative integer: ${id}.`);
+    }
+    if (!plan.name.trim()) throw new Error(`Catalog plan name is required: ${id}.`);
+    if (id !== 'free' && !plan.productId) {
+      throw new Error(`Paid catalog plan requires a Polar product id: ${id}.`);
+    }
+  }
+  for (const [id, pack] of Object.entries(catalog.creditPacks)) {
+    if (!pack.productId || !Number.isSafeInteger(pack.credits) || pack.credits <= 0) {
+      throw new Error(`Credit pack requires a product and positive integer credits: ${id}.`);
+    }
+    if (
+      pack.expiresInDays !== undefined &&
+      (!Number.isSafeInteger(pack.expiresInDays) || pack.expiresInDays <= 0)
+    ) {
+      throw new Error(`Credit-pack expiration must be positive days: ${id}.`);
+    }
+  }
+}
+
+async function bodyRecord(request: Request): Promise<Record<string, unknown>> {
+  try {
+    const body: unknown = await request.json();
+    return body !== null && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function remainingCredits(account: StoredAccount): number {
+  return Math.max(
+    0,
+    account.includedCredits -
+      account.includedUsedCredits +
+      account.purchasedCredits -
+      account.reservedCredits,
+  );
+}
+
+function accountSnapshot(
+  account: StoredAccount,
+  catalog: ManagedAccountCatalog,
+  alerts: ReturnType<ManagedAccountDatabase['alerts']> = [],
+) {
+  return {
+    authenticated: true as const,
+    backend: 'live' as const,
+    user: {
+      id: account.userId,
+      email: account.email,
+      ...(account.name ? { name: account.name } : {}),
+    },
+    plan: {
+      id: account.planId,
+      name: catalog.plans[account.planId].name,
+      status: account.planStatus,
+      ...(account.planId === 'free'
+        ? {}
+        : {
+            interval: 'month' as const,
+            ...(account.planStatus === 'cancelling'
+              ? { endsAt: account.cycleEndsAt }
+              : { renewsAt: account.cycleEndsAt }),
+          }),
+    },
+    credits: {
+      included: account.includedCredits,
+      purchased: account.purchasedCredits,
+      used: account.usedCredits,
+      reserved: account.reservedCredits,
+      remaining: remainingCredits(account),
+      ...(account.cycleEndsAt ? { resetsAt: account.cycleEndsAt } : {}),
+      ...(account.purchasedExpiresAt ? { purchasedExpiresAt: account.purchasedExpiresAt } : {}),
+    },
+    spendPolicy: {
+      overageEnabled: account.overageEnabled,
+      monthlyLimitCredits: account.monthlyLimitCredits,
+      alertThresholds: account.alertThresholds,
+      ...(account.autoReload ? { autoReload: account.autoReload } : {}),
+    },
+    alerts,
+    entitlements: { generation: account.managedServicesAllowed },
+  };
+}
+
+function usageKind(body: Record<string, unknown>): ManagedUsageKind {
+  if (body['workload'] === 'coding') return 'inference';
+  const kind = body['kind'];
+  return ['inference', 'generation', 'workspace', 'storage', 'relay', 'deployment'].includes(
+    String(kind),
+  )
+    ? (kind as ManagedUsageKind)
+    : 'generation';
+}
+
+function isManagedIdentity(value: unknown): value is ManagedIdentity {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const identity = value as Record<string, unknown>;
+  return (
+    typeof identity['userId'] === 'string' &&
+    identity['userId'].length > 0 &&
+    typeof identity['email'] === 'string' &&
+    identity['email'].includes('@') &&
+    typeof identity['managedServicesAllowed'] === 'boolean' &&
+    (identity['name'] === undefined || typeof identity['name'] === 'string')
+  );
+}
+
+export class ManagedAccountApp {
+  private readonly backend: ClerkPolarAccountBackend;
+  readonly database: ManagedAccountDatabase;
+
+  constructor(
+    private readonly configuration: ManagedAccountAppConfiguration,
+    database: ManagedAccountDatabase,
+  ) {
+    validateCatalog(configuration.catalog);
+    if (configuration.internalServiceToken.length < 32) {
+      throw new Error('internalServiceToken must contain at least 32 characters.');
+    }
+    if (
+      configuration.platformDailyCreditLimit !== undefined &&
+      (!Number.isSafeInteger(configuration.platformDailyCreditLimit) ||
+        configuration.platformDailyCreditLimit <= 0)
+    ) {
+      throw new Error('platformDailyCreditLimit must be a positive integer.');
+    }
+    this.backend = new ClerkPolarAccountBackend(configuration);
+    this.database = database;
+  }
+
+  close(): void {
+    this.database.close();
+  }
+
+  private async authenticatedAccount(request: Request): Promise<{
+    account: StoredAccount;
+    identity: ManagedIdentity;
+  }> {
+    const identity = this.configuration.identityAuthority
+      ? await this.serviceBoundIdentity(request)
+      : await this.backend.authenticate(request);
+    return {
+      identity,
+      account: this.database.upsertIdentity(
+        identity,
+        this.configuration.catalog.plans.free.includedCredits,
+      ),
+    };
+  }
+
+  private async serviceBoundIdentity(request: Request): Promise<ManagedIdentity> {
+    const authorization = request.headers.get('Authorization');
+    const response = await this.configuration.identityAuthority!.fetch(
+      new Request('https://vgai-auth.internal/internal/account-identity', {
+        headers: {
+          'X-VGAI-Service-Token': this.configuration.internalServiceToken,
+          ...(authorization ? { Authorization: authorization } : {}),
+        },
+      }),
+    );
+    if (!response.ok) {
+      if (response.status === 401) throw new Error('Unauthorized (identity authority)');
+      throw new Error(`Identity authority failed (${response.status}).`);
+    }
+    const value: unknown = await response.json();
+    if (!isManagedIdentity(value)) throw new Error('Identity authority returned an invalid user.');
+    return value;
+  }
+
+  private async customerFor(account: StoredAccount, identity: ManagedIdentity): Promise<string> {
+    if (account.polarCustomerId) return account.polarCustomerId;
+    const customer = await this.backend.createOrGetCustomer(identity);
+    this.database.setPolarCustomer(account.userId, customer.id);
+    return customer.id;
+  }
+
+  private returnUrl(path: string): string {
+    return new URL(path, `${this.configuration.publicBaseUrl.replace(/\/$/, '')}/`).toString();
+  }
+
+  private checkoutSuccessUrl(): string {
+    return this.returnUrl('/account?checkout=success&checkout_id=CHECKOUT_ID').replace(
+      'CHECKOUT_ID',
+      '{CHECKOUT_ID}',
+    );
+  }
+
+  private checkoutPresentationUrl(checkout: PolarCheckout): string {
+    if (!this.configuration.testOnlyPolarTwin && !this.configuration.sealedPolarTwin)
+      return checkout.url;
+    const url = new URL(
+      '/__editor/account/twin-checkout',
+      `${this.configuration.publicBaseUrl.replace(/\/$/, '')}/`,
+    );
+    url.searchParams.set('checkout_id', checkout.id);
+    return url.toString();
+  }
+
+  private autoReloadPack(account: StoredAccount) {
+    const target = account.autoReload?.reloadTo ?? 0;
+    const gap = Math.max(1, target - remainingCredits(account));
+    return Object.entries(this.configuration.catalog.creditPacks)
+      .filter(([, pack]) => pack.credits >= gap)
+      .sort(([, left], [, right]) => left.credits - right.credits)[0];
+  }
+
+  private async maybeAutoReload(accountId: string, operationId: string): Promise<void> {
+    const account = this.database.getAccount(accountId);
+    if (
+      !account.managedServicesAllowed ||
+      !account.autoReload?.enabled ||
+      remainingCredits(account) >= account.autoReload.whenRemainingBelow
+    ) {
+      return;
+    }
+    const selected = this.autoReloadPack(account);
+    if (!selected || !account.polarCustomerId) return;
+    const [packId, pack] = selected;
+    const attempt = this.database.prepareAutoReload(
+      accountId,
+      `auto-reload:${operationId}`,
+      packId,
+      pack.credits,
+    );
+    if (!attempt || attempt.state !== 'pending') return;
+    try {
+      const charge = await this.backend.chargeAutoReload({
+        accountId,
+        customerId: account.polarCustomerId,
+        productId: pack.productId,
+        packId,
+        credits: pack.credits,
+        idempotencyKey: `vgai:auto-reload:${attempt.id}`,
+        successUrl: this.checkoutSuccessUrl(),
+        returnUrl: this.returnUrl('/account'),
+      });
+      if (!charge.paid) throw new Error('Polar auto-reload order was not paid.');
+      this.database.succeedAutoReload(attempt.id, charge.id, pack.expiresInDays);
+    } catch (error) {
+      this.database.failAutoReload(
+        attempt.id,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  private idempotencyKey(request: Request, accountId: string, sku: string): string {
+    const callerKey = request.headers.get('Idempotency-Key');
+    if (!callerKey || !/^[A-Za-z0-9._:-]{1,100}$/.test(callerKey)) {
+      throw new Error('A valid Idempotency-Key header is required.');
+    }
+    return `vgai:${accountId}:${sku}:${callerKey}`;
+  }
+
+  private async subscriptionCheckout(
+    request: Request,
+    account: StoredAccount,
+    identity: ManagedIdentity,
+  ): Promise<Response> {
+    const body = await bodyRecord(request);
+    const planId = body['plan'];
+    if (!isPaidPlan(planId)) return json({ error: 'Unknown plan.' }, 400);
+    const plan = this.configuration.catalog.plans[planId];
+    const idempotencyKey = this.idempotencyKey(request, account.userId, planId);
+    if (account.polarSubscriptionId) {
+      const subscription = await this.backend.updateSubscriptionProduct(
+        account.polarSubscriptionId,
+        plan.productId!,
+      );
+      await this.syncSubscription(subscription);
+      return json({ subscription: { id: subscription.id, plan: planId } });
+    }
+    const existing = this.database.checkoutByIdempotency(idempotencyKey);
+    if (existing) {
+      const checkout = await this.backend.getCheckout(existing.sessionId);
+      return json(
+        { checkout: { url: this.checkoutPresentationUrl(checkout), sessionId: checkout.id } },
+        200,
+      );
+    }
+    const customerId = await this.customerFor(account, identity);
+    const session = await this.backend.createCheckout({
+      accountId: account.userId,
+      customerId,
+      productId: plan.productId!,
+      kind: 'subscription',
+      sku: planId,
+      credits: plan.includedCredits,
+      successUrl: this.checkoutSuccessUrl(),
+      returnUrl: this.returnUrl('/account?checkout=cancelled'),
+      idempotencyKey,
+    });
+    this.database.recordCheckout({
+      sessionId: session.id,
+      accountId: account.userId,
+      kind: 'subscription',
+      sku: planId,
+      productId: plan.productId!,
+      idempotencyKey,
+      credits: plan.includedCredits,
+    });
+    return json(
+      { checkout: { url: this.checkoutPresentationUrl(session), sessionId: session.id } },
+      201,
+    );
+  }
+
+  private async creditCheckout(
+    request: Request,
+    account: StoredAccount,
+    identity: ManagedIdentity,
+  ): Promise<Response> {
+    const body = await bodyRecord(request);
+    const packId = typeof body['packId'] === 'string' ? body['packId'] : '';
+    const pack = this.configuration.catalog.creditPacks[packId];
+    if (!pack) return json({ error: 'Unknown credit pack.' }, 400);
+    const idempotencyKey = this.idempotencyKey(request, account.userId, packId);
+    const existing = this.database.checkoutByIdempotency(idempotencyKey);
+    if (existing) {
+      const checkout = await this.backend.getCheckout(existing.sessionId);
+      return json(
+        { checkout: { url: this.checkoutPresentationUrl(checkout), sessionId: checkout.id } },
+        200,
+      );
+    }
+    const customerId = await this.customerFor(account, identity);
+    const session = await this.backend.createCheckout({
+      accountId: account.userId,
+      customerId,
+      productId: pack.productId,
+      kind: 'credits',
+      sku: packId,
+      credits: pack.credits,
+      successUrl: this.checkoutSuccessUrl(),
+      returnUrl: this.returnUrl('/account?checkout=cancelled'),
+      idempotencyKey,
+    });
+    this.database.recordCheckout({
+      sessionId: session.id,
+      accountId: account.userId,
+      kind: 'credits',
+      sku: packId,
+      productId: pack.productId,
+      idempotencyKey,
+      credits: pack.credits,
+      ...(pack.expiresInDays ? { expiresInDays: pack.expiresInDays } : {}),
+    });
+    return json(
+      { checkout: { url: this.checkoutPresentationUrl(session), sessionId: session.id } },
+      201,
+    );
+  }
+
+  private verifyTrustedCheckout(checkout: PolarCheckout, accountId?: string): void {
+    const intent = this.database.checkout(checkout.id);
+    if (accountId && intent.accountId !== accountId) throw new Error('Checkout account mismatch.');
+    if (checkout.product_id !== intent.productId) throw new Error('Checkout product mismatch.');
+    if (checkout.metadata?.['vgai_account_id'] !== intent.accountId) {
+      throw new Error('Checkout metadata account mismatch.');
+    }
+    if (checkout.metadata?.['vgai_purchase_kind'] !== intent.kind) {
+      throw new Error('Checkout metadata kind mismatch.');
+    }
+    if (checkout.metadata?.['vgai_sku'] !== intent.sku) {
+      throw new Error('Checkout metadata SKU mismatch.');
+    }
+    if (Number(checkout.metadata?.['vgai_credits']) !== intent.credits) {
+      throw new Error('Checkout metadata credit amount mismatch.');
+    }
+  }
+
+  private async fulfillPolarCheckout(
+    checkout: PolarCheckout,
+    eventId: string,
+    eventType: 'checkout.updated' | 'checkout.confirmed',
+    accountId?: string,
+  ) {
+    this.verifyTrustedCheckout(checkout, accountId);
+    const fulfillment = this.database.fulfillCheckout(
+      eventId,
+      eventType,
+      checkout.id,
+      checkout.status,
+    );
+    if (checkout.subscription_id) {
+      this.database.attachPolarSubscription(
+        checkout.id,
+        checkout.subscription_id,
+        checkout.customer_id ?? undefined,
+      );
+      await this.syncSubscription(await this.backend.getSubscription(checkout.subscription_id));
+    }
+    return fulfillment;
+  }
+
+  private async syncSubscription(subscription: PolarSubscription): Promise<void> {
+    const account = this.database.accountForPolarCustomer(subscription.customer_id);
+    const plan = (
+      Object.entries(this.configuration.catalog.plans) as Array<
+        [ManagedPlanId, ManagedPlanCatalogEntry]
+      >
+    ).find(([, entry]) => entry.productId === subscription.product_id);
+    if (!plan || plan[0] === 'free')
+      throw new Error('Polar subscription product is not cataloged.');
+    if (subscription.status === 'past_due') {
+      this.database.setSubscriptionStatus(account.userId, 'past_due');
+      return;
+    }
+    if (subscription.status === 'canceled' || subscription.status === 'revoked') {
+      const at = new Date().toISOString();
+      this.database.resetIncludedCredits(
+        account.userId,
+        `${subscription.id}:${subscription.status}:${subscription.current_period_end}`,
+        'free',
+        this.configuration.catalog.plans.free.includedCredits,
+        at,
+        at,
+      );
+      this.database.clearPolarSubscription(account.userId, at);
+      return;
+    }
+    const status = subscription.cancel_at_period_end ? 'cancelling' : 'active';
+    if (account.cycleStartsAt === subscription.current_period_start) {
+      this.database.updatePlanWithinCycle(
+        account.userId,
+        plan[0],
+        plan[1].includedCredits,
+        status,
+        subscription.current_period_end,
+      );
+    } else {
+      this.database.resetIncludedCredits(
+        account.userId,
+        `${subscription.id}:${subscription.current_period_start}`,
+        plan[0],
+        plan[1].includedCredits,
+        subscription.current_period_start,
+        subscription.current_period_end,
+      );
+      this.database.setSubscriptionStatus(account.userId, status);
+    }
+  }
+
+  private async polarWebhook(request: Request): Promise<Response> {
+    const payload = await request.text();
+    const eventId = request.headers.get('webhook-id');
+    if (!eventId) return json({ error: 'Missing Polar webhook-id.' }, 400);
+    let event: ReturnType<ClerkPolarAccountBackend['validateWebhook']>;
+    try {
+      event = this.backend.validateWebhook(payload, request.headers);
+    } catch {
+      return json({ error: 'Invalid Polar webhook signature.' }, 400);
+    }
+    try {
+      if (event.type === 'checkout.updated') {
+        return json({
+          received: true,
+          ...(await this.fulfillPolarCheckout(webhookCheckout(event.data), eventId, event.type)),
+        });
+      }
+      if (event.type === 'order.paid') {
+        const checkoutId = webhookOrderCheckoutId(event.data);
+        return json({
+          received: true,
+          ...(await this.fulfillPolarCheckout(
+            await this.backend.getCheckout(checkoutId),
+            eventId,
+            'checkout.confirmed',
+          )),
+        });
+      }
+      if (event.type.startsWith('subscription.')) {
+        await this.syncSubscription(webhookSubscription(event.data));
+      }
+      return json({ received: true, applied: 'none' });
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+    }
+  }
+
+  private async meter(body: Record<string, unknown>, phase: 'quote' | 'settle'): Promise<number> {
+    const provider = typeof body['provider'] === 'string' ? body['provider'] : '';
+    if (!provider) throw new Error('Managed operation provider is required.');
+    const credits = await this.configuration.meterCredits({
+      ...body,
+      phase,
+      kind: usageKind(body),
+      provider,
+    });
+    if (!Number.isSafeInteger(credits) || credits < 0) {
+      throw new Error('Managed credit meter returned an invalid amount.');
+    }
+    return credits;
+  }
+
+  private async managedUsage(request: Request, action: string): Promise<Response> {
+    if (!validServiceToken(request, this.configuration.internalServiceToken)) {
+      return json({ error: 'Unauthorized service.' }, 401);
+    }
+    const body = await bodyRecord(request);
+    if (action === 'quote') return json({ estimatedCredits: await this.meter(body, 'quote') });
+    if (action === 'authorize') {
+      const userId = typeof body['userId'] === 'string' ? body['userId'] : '';
+      const provider = typeof body['provider'] === 'string' ? body['provider'] : '';
+      if (!userId || !provider) return json({ error: 'Invalid managed operation.' }, 400);
+      const estimatedCredits = await this.meter(body, 'quote');
+      try {
+        return json(
+          this.database.reserve({
+            accountId: userId,
+            kind: usageKind(body),
+            provider,
+            ...(typeof body['operation'] === 'string'
+              ? { operation: body['operation'] }
+              : typeof body['target'] === 'string'
+                ? { operation: body['target'] }
+                : {}),
+            estimatedCredits,
+            ...(this.configuration.platformDailyCreditLimit === undefined
+              ? {}
+              : { platformDailyCreditLimit: this.configuration.platformDailyCreditLimit }),
+            ...(typeof body['operationId'] === 'string'
+              ? { operationId: body['operationId'] }
+              : {}),
+          }),
+        );
+      } catch (error) {
+        if (error instanceof Error && error.message === 'CREDIT_LIMIT_REACHED') {
+          return json({ error: 'Managed credit limit reached', code: error.message }, 402);
+        }
+        if (error instanceof Error && error.message === 'PLATFORM_DAILY_CREDIT_LIMIT_REACHED') {
+          return json(
+            {
+              error: 'Managed services are temporarily at their daily safety limit',
+              code: error.message,
+            },
+            429,
+          );
+        }
+        throw error;
+      }
+    }
+    const reservationId = typeof body['reservationId'] === 'string' ? body['reservationId'] : '';
+    if (!reservationId) return json({ error: 'reservationId is required.' }, 400);
+    if (action === 'settle') {
+      const accountId = this.database.reservationAccountId(reservationId);
+      const settled = this.database.settle(
+        reservationId,
+        await this.meter(body, 'settle'),
+        typeof body['externalId'] === 'string' ? body['externalId'] : undefined,
+      );
+      this.database.recordThresholdAlerts(accountId);
+      await this.maybeAutoReload(accountId, reservationId);
+      return json(settled);
+    }
+    if (action === 'release') {
+      return json(
+        this.database.release(
+          reservationId,
+          typeof body['externalId'] === 'string' ? body['externalId'] : undefined,
+        ),
+      );
+    }
+    return json({ error: 'Not found.' }, 404);
+  }
+
+  private async authenticatedFetch(request: Request, pathname: string): Promise<Response> {
+    const { account, identity } = await this.authenticatedAccount(request);
+    if (request.method === 'GET' && pathname === '/v1/account') {
+      return json(
+        accountSnapshot(account, this.configuration.catalog, this.database.alerts(account.userId)),
+      );
+    }
+    if (request.method === 'GET' && pathname === '/v1/catalog') {
+      return json(this.configuration.catalog);
+    }
+    if (request.method === 'GET' && pathname === '/v1/usage') {
+      return json({ entries: this.database.usage(account.userId) });
+    }
+    if (request.method === 'POST' && pathname === '/v1/alerts/read') {
+      this.database.markAlertsRead(account.userId);
+      return json(
+        accountSnapshot(
+          this.database.getAccount(account.userId),
+          this.configuration.catalog,
+          this.database.alerts(account.userId),
+        ),
+      );
+    }
+    if (request.method === 'PUT' && pathname === '/v1/spend-policy') {
+      const parsed = AccountSpendPolicySchema.safeParse(await bodyRecord(request));
+      if (!parsed.success) return json({ error: 'Invalid spend policy.' }, 400);
+      const autoReload = parsed.data.autoReload;
+      if (autoReload?.enabled) {
+        if (!account.polarCustomerId) {
+          return json(
+            { error: 'Buy credits or subscribe once before enabling automatic reload.' },
+            409,
+          );
+        }
+        if (autoReload.reloadTo <= autoReload.whenRemainingBelow) {
+          return json({ error: 'Auto-reload target must be above its trigger balance.' }, 400);
+        }
+        const pack = Object.values(this.configuration.catalog.creditPacks)
+          .filter((candidate) => candidate.credits >= autoReload.reloadTo)
+          .sort((left, right) => left.credits - right.credits)[0];
+        if (!pack) {
+          return json({ error: 'No catalog credit pack can satisfy this reload target.' }, 400);
+        }
+        if (autoReload.monthlyLimitCredits < pack.credits) {
+          return json({ error: 'Monthly reload cap must cover at least one credit pack.' }, 400);
+        }
+      }
+      return json(
+        accountSnapshot(
+          this.database.setSpendPolicy(account.userId, parsed.data),
+          this.configuration.catalog,
+        ),
+      );
+    }
+    if (request.method === 'POST' && pathname === '/v1/billing/checkout') {
+      if (!account.managedServicesAllowed) return managedAccessDenied();
+      return this.subscriptionCheckout(request, account, identity);
+    }
+    if (request.method === 'POST' && pathname === '/v1/credits/checkout') {
+      if (!account.managedServicesAllowed) return managedAccessDenied();
+      return this.creditCheckout(request, account, identity);
+    }
+    if (request.method === 'POST' && pathname === '/v1/billing/confirm') {
+      if (!account.managedServicesAllowed) return managedAccessDenied();
+      const body = await bodyRecord(request);
+      const checkoutId = typeof body['checkoutId'] === 'string' ? body['checkoutId'] : '';
+      if (!checkoutId) return json({ error: 'checkoutId is required.' }, 400);
+      const checkout = await this.backend.getCheckout(checkoutId);
+      if (checkout.status !== 'confirmed')
+        return json({ error: 'Checkout is not confirmed.' }, 409);
+      return json({
+        checkout: {
+          id: checkout.id,
+          ...(await this.fulfillPolarCheckout(
+            checkout,
+            `polar-checkout:${checkout.id}`,
+            'checkout.confirmed',
+            account.userId,
+          )),
+        },
+      });
+    }
+    if (request.method === 'POST' && pathname === '/v1/billing/twin-confirm') {
+      if (!this.configuration.testOnlyPolarTwin && !this.configuration.sealedPolarTwin)
+        return json({ error: 'Not found.' }, 404);
+      if (!account.managedServicesAllowed) return managedAccessDenied();
+      const body = await bodyRecord(request);
+      const checkoutId = typeof body['checkoutId'] === 'string' ? body['checkoutId'] : '';
+      if (!checkoutId) return json({ error: 'checkoutId is required.' }, 400);
+      const confirmed = await this.backend.confirmTwinCheckout(checkoutId);
+      this.verifyTrustedCheckout(confirmed, account.userId);
+      await this.fulfillPolarCheckout(
+        confirmed,
+        `polar-checkout:${confirmed.id}`,
+        'checkout.confirmed',
+        account.userId,
+      );
+      return json(
+        accountSnapshot(
+          this.database.getAccount(account.userId),
+          this.configuration.catalog,
+          this.database.alerts(account.userId),
+        ),
+      );
+    }
+    if (request.method === 'POST' && pathname === '/v1/billing/portal') {
+      if (!account.managedServicesAllowed && !account.polarCustomerId) {
+        return managedAccessDenied();
+      }
+      const customerId = await this.customerFor(account, identity);
+      const session = await this.backend.createCustomerSession(customerId);
+      return json(
+        {
+          portal: {
+            url:
+              this.configuration.testOnlyPolarTwin || this.configuration.sealedPolarTwin
+                ? this.returnUrl('/__editor/account/twin-portal')
+                : session.customer_portal_url,
+          },
+        },
+        201,
+      );
+    }
+    if (request.method === 'PATCH' && pathname === '/v1/billing/subscription') {
+      if (!account.polarSubscriptionId) return json({ error: 'No active subscription.' }, 409);
+      const body = await bodyRecord(request);
+      if (typeof body['cancelAtPeriodEnd'] !== 'boolean') {
+        return json({ error: 'cancelAtPeriodEnd must be boolean.' }, 400);
+      }
+      const subscription = await this.backend.updateSubscription(
+        account.polarSubscriptionId,
+        body['cancelAtPeriodEnd'],
+      );
+      await this.syncSubscription(subscription);
+      return json(
+        accountSnapshot(this.database.getAccount(account.userId), this.configuration.catalog),
+      );
+    }
+    return json({ error: 'Not found.' }, 404);
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true });
+    if (request.method === 'POST' && url.pathname === '/v1/webhooks/polar') {
+      return this.polarWebhook(request);
+    }
+    const usage = /^\/(?:usage|generation)\/(quote|authorize|settle|release)$/.exec(url.pathname);
+    try {
+      if (request.method === 'POST' && usage?.[1]) return this.managedUsage(request, usage[1]);
+      return await this.authenticatedFetch(request, url.pathname);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.startsWith('Unauthorized')) return json({ error: 'Unauthorized.' }, 401);
+      if (message.includes('Idempotency-Key')) return json({ error: message }, 400);
+      if (message === 'UNKNOWN_RESERVATION') return json({ error: message }, 404);
+      if (message === 'MANAGED_ACCESS_DENIED') return managedAccessDenied();
+      if (message === 'RESERVATION_RELEASED' || message === 'RESERVATION_SETTLED') {
+        return json({ error: message }, 409);
+      }
+      if (message === 'IDEMPOTENCY_SCOPE_MISMATCH' || message === 'OPERATION_ALREADY_RESOLVED') {
+        return json({ error: message }, 409);
+      }
+      return json({ error: message, requestId: randomUUID() }, 500);
+    }
+  }
+}
+
+function managedAccessDenied(): Response {
+  return json({ error: 'This account has not been admitted to VGAI managed services.' }, 403);
+}
+
+function validServiceToken(request: Request, expected: string): boolean {
+  const provided = request.headers.get('X-VGAI-Service-Token') ?? '';
+  const providedBytes = Buffer.from(provided);
+  const expectedBytes = Buffer.from(expected);
+  return (
+    providedBytes.length === expectedBytes.length && timingSafeEqual(providedBytes, expectedBytes)
+  );
+}
+
+function isPaidPlan(value: unknown): value is Exclude<ManagedPlanId, 'free'> {
+  return value === 'creator' || value === 'max' || value === 'ultra';
+}
+
+function webhookCheckout(data: unknown): PolarCheckout {
+  const value = data as Record<string, unknown>;
+  return {
+    id: String(value['id']),
+    status: String(value['status']) as PolarCheckout['status'],
+    url: String(value['url']),
+    product_id: optionalString(value['productId'] ?? value['product_id']),
+    customer_id: optionalString(value['customerId'] ?? value['customer_id']),
+    subscription_id: optionalString(value['subscriptionId'] ?? value['subscription_id']),
+    metadata: (value['metadata'] ?? {}) as Record<string, string | number | boolean>,
+  };
+}
+
+function webhookSubscription(data: unknown): PolarSubscription {
+  const value = data as Record<string, unknown>;
+  return {
+    id: String(value['id']),
+    status: String(value['status']),
+    customer_id: String(value['customerId'] ?? value['customer_id']),
+    product_id: String(value['productId'] ?? value['product_id']),
+    current_period_start: isoString(value['currentPeriodStart'] ?? value['current_period_start']),
+    current_period_end: isoString(value['currentPeriodEnd'] ?? value['current_period_end']),
+    cancel_at_period_end: Boolean(value['cancelAtPeriodEnd'] ?? value['cancel_at_period_end']),
+  };
+}
+
+function webhookOrderCheckoutId(data: unknown): string {
+  const value = data as Record<string, unknown>;
+  const checkoutId = value['checkoutId'] ?? value['checkout_id'];
+  if (typeof checkoutId !== 'string' || !checkoutId) {
+    throw new Error('Polar paid order has no checkout id.');
+  }
+  return checkoutId;
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null;
+}
+
+function isoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && !Number.isNaN(Date.parse(value)))
+    return new Date(value).toISOString();
+  throw new Error('Polar subscription period is missing.');
+}

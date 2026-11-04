@@ -1,0 +1,122 @@
+{
+  "measured": "Two callers. (1) dubinc/dub, read at the scan's commit 7e0101363b2a (generated/demand.json: Dub, env YOUTUBE_API_KEY in apps/web/.env.example, host www.googleapis.com at apps/web/lib/youtube/client.ts:7, shipped as Partner channel statistics): its daily cron reads verified partners' channels in chunks of 50 through channels.list with part=statistics,snippet and the ids, authenticated by the project's API key in X-Goog-Api-Key, and keeps each channel's subscriber, video and view counts, its handle (snippet.customUrl) and its avatar (snippet.thumbnails.default.url). The files were read as raw files at that commit (the scan's cache is empty on this machine). (2) volter-ai/videogame-ai, which the demand scan does not read (a private repository its applications list does not hold), so its use is the sourced ruling recorded in twin-world's demand/vendor-identities.json (demandedBy: owner volter, product videogame-ai, source docs/adr/0002-the-games-ecosystem-sandbox.md). Read at origin/videogame-run-2 3ad856dc1128: ADR 0002 decision 2 makes YouTube a Protocol 3 pack of the games-ecosystem sandbox that covers live broadcasts and their chat, and decision 6 makes its people clients that sign up on each platform and act through the vendor's API with their own token. The calls below are what a game studio's tooling makes for that through the YouTube Data API v3 with Google's OAuth 2.0 (whose authorize page and token endpoint are the googleoauth twin's): reading its channel, uploading a trailer (the resumable session and its PUT, or one multipart request), reading it back and editing its metadata, a live broadcast with its stream (insert, bind, the transitions, the RTMP ingest), its live chat (polling, posting, deleting), and the community's comments (threads, replies, moderation). e2e/people/ at that commit holds no YouTube client yet (platforms.mjs: reddit, x, discord, tiktok); its TikTok person is the model for YouTube's audience: an account signed up on the platform, whose views, likes and lines from outside the World are the twin's doors, as an audience is no API.",
+  "applications": [
+    {
+      "name": "dubinc/dub",
+      "commit": "7e0101363b2a",
+      "client": "Dub's own HTTP client (apps/web/lib/http/base-client.ts) with the project's API key in X-Goog-Api-Key (apps/web/lib/youtube/client.ts:9-13)",
+      "gate": "The shipped partner-platforms cron updates every verified YouTube partner daily (apps/web/app/(ee)/api/cron/partner-platforms/youtube/route.ts:21-24); its credential is YOUTUBE_API_KEY with no independent opt-in (twin-world demand/vendor-identities.json, youtube.added).",
+      "evidence": "apps/web/lib/youtube/client.ts:11",
+      "backend": [
+        {
+          "call": "GET www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=<up to 50 channel ids>: each channel's statistics (videoCount, subscriberCount, viewCount as strings), snippet.customUrl and snippet.thumbnails.default.url",
+          "operation": "youtube.channels.list",
+          "evidence": "apps/web/lib/youtube/client.ts:16-24"
+        }
+      ],
+      "frontend": []
+    },
+    {
+      "name": "volter-ai/videogame-ai",
+      "commit": "3ad856dc1128",
+      "client": "a game studio's launch tooling and the sandbox's simulated people calling the YouTube Data API v3 with fetch and Google OAuth 2.0 tokens, by the ruling of docs/adr/0002-the-games-ecosystem-sandbox.md",
+      "gate": "ADR 0002 decision 2: the sandbox World serves YouTube as a Protocol 3 twin covering live broadcasts and their chat (docs/adr/0002-the-games-ecosystem-sandbox.md:35-38); decision 6: people act through the vendor's API with their own token (docs/adr/0002-the-games-ecosystem-sandbox.md:57-60).",
+      "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38",
+      "frontend": [],
+      "backend": [
+        {
+          "call": "GET youtube/v3/channels?mine=true&part=id,snippet,statistics: the studio's own channel",
+          "operation": "youtube.channels.list",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:36"
+        },
+        {
+          "call": "POST upload/youtube/v3/videos?uploadType=resumable: a trailer's upload session (its metadata, the Location to send the file to); uploadType=multipart: metadata and file in one request",
+          "operation": "youtube.videos.insert.simple",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:36"
+        },
+        {
+          "call": "PUT the session URI: the trailer's bytes (whole, or in chunks), and an empty PUT asking how much arrived",
+          "operation": "youtube.videos.insert.upload",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:36"
+        },
+        {
+          "call": "GET youtube/v3/videos?id=<video>&part=snippet,status,statistics: the trailer read back, its upload status and counts",
+          "operation": "youtube.videos.list",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:36"
+        },
+        {
+          "call": "PUT youtube/v3/videos?part=snippet,status: the trailer's title, description, tags and privacy changed",
+          "operation": "youtube.videos.update",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:36"
+        },
+        {
+          "call": "POST youtube/v3/liveStreams?part=snippet,cdn,status: the stream an encoder sends, its RTMP ingestion address and stream name",
+          "operation": "youtube.liveStreams.insert",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "GET youtube/v3/liveStreams?mine=true or id=<stream>&part=status: whether the encoder's stream is active",
+          "operation": "youtube.liveStreams.list",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "POST youtube/v3/liveBroadcasts?part=snippet,status,contentDetails: a scheduled broadcast and its liveChatId",
+          "operation": "youtube.liveBroadcasts.insert",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "GET youtube/v3/liveBroadcasts?mine=true or broadcastStatus=<status>: the channel's broadcasts",
+          "operation": "youtube.liveBroadcasts.list",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "POST youtube/v3/liveBroadcasts/bind?id=<broadcast>&streamId=<stream>: the broadcast bound to its stream",
+          "operation": "youtube.liveBroadcasts.bind",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "POST youtube/v3/liveBroadcasts/transition?broadcastStatus=testing|live|complete: the broadcast taken live and ended",
+          "operation": "youtube.liveBroadcasts.transition",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "GET youtube/v3/liveChat/messages?liveChatId=<chat>&part=snippet,authorDetails&pageToken=: the chat polled",
+          "operation": "youtube.liveChatMessages.list",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "POST youtube/v3/liveChat/messages?part=snippet: a line in the chat (the studio's, or a person's)",
+          "operation": "youtube.liveChatMessages.insert",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:38"
+        },
+        {
+          "call": "DELETE youtube/v3/liveChat/messages?id=<message>: a troll's line removed by the studio",
+          "operation": "youtube.liveChatMessages.delete",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:65"
+        },
+        {
+          "call": "GET youtube/v3/commentThreads?videoId=<video>&part=snippet,replies (moderationStatus=heldForReview for the owner): the trailer's comments",
+          "operation": "youtube.commentThreads.list",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:65"
+        },
+        {
+          "call": "POST youtube/v3/commentThreads?part=snippet: a person's top-level comment on the trailer",
+          "operation": "youtube.commentThreads.insert",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:65"
+        },
+        {
+          "call": "POST youtube/v3/comments?part=snippet: the studio's reply to a comment",
+          "operation": "youtube.comments.insert",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:65"
+        },
+        {
+          "call": "POST youtube/v3/comments/setModerationStatus?id=<comment>&moderationStatus=rejected&banAuthor=true: a spammer's comment rejected and its author banned",
+          "operation": "youtube.comments.setModerationStatus",
+          "evidence": "docs/adr/0002-the-games-ecosystem-sandbox.md:65"
+        }
+      ]
+    }
+  ],
+  "standIns": "a person's YouTube channel (the step YouTube asks of a Google account before it uploads, streams or comments) is the channel door's, its Google account the googleoauth twin's account door's; a Google Cloud project's API key and the application's OAuth client are the googleoauth twin's (Google's credentials page; its credential door fills YOUTUBE_API_KEY, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET); the audience at work (views, likes, subscribers, a comment or a chat line from someone outside the World) is the audience doors'. The twin decodes no media: a video's duration is answered as none and its definition as standard. The encoder's RTMP publish is the kernel's live ingest.",
+  "optional": []
+}

@@ -1,0 +1,470 @@
+{
+ "vendor": "hackernews",
+ "author": "Contributor 190",
+ "host": "news.ycombinator.com",
+ "about": "Every example Hacker News publishes for an operation the twin serves, in its API README (a story, a comment, an Ask HN, a user, the largest id, the top and Ask HN lists, the changes), sent as published (with print=pretty) on Monday 21 September 2026, after the setup on the site's own pages that makes each example's item. Topstories asserts membership rather than an exhaustive set: the API exposes changing near-real-time data and up to 500 top stories, including jobs (https://github.com/HackerNews/API, api/spec/api-readme.md:5,179: “Up to 500 top and new stories are at”). Other current IDs can coexist with this story and ask; the Ask HN replay asserts its closed set.",
+ "notReplayed": {
+  "getItem#doc job": "A job is a YC startup's ad, placed on the front page by Hacker News (newsfaq.html: \"Another kind of job ad is reserved for YC-funded startups.\"); no form of the site makes one, so no World holds one.",
+  "getItem#doc poll": "A poll is made on the newpoll page (newsfaq.html: \"How do I submit a poll?\"), outside the pages this pack serves; no World holds one.",
+  "getItem#doc pollopt": "A pollopt is a poll's part, made with its poll on the newpoll page, outside the pages this pack serves; no World holds one."
+ },
+ "steps": [
+  {
+   "name": "Monday 21 September 2026, 15:00: the examples are sent today",
+   "wait": "6327h"
+  },
+  {
+   "name": "Drew opens the submit page; signed out, it asks him to log in",
+   "method": "GET",
+   "path": "/submit",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "You have to be logged in to submit."
+    }
+   ]
+  },
+  {
+   "name": "He makes an account with its create-account form, which posts to the submit page; the site answers the submit form",
+   "method": "POST",
+   "path": "/submit",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "creating=t&acct=drew_h&pw=sync-folder-2026",
+   "status": 200,
+   "capture": {
+    "drew": "header:set-cookie:user=([^;]+)",
+    "drew_fnid": "text:name=\"fnid\" value=\"([^\"]+)\""
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "value=\"submit\""
+    }
+   ]
+  },
+  {
+   "name": "Drew submits his screencast as a link (the story the README shows)",
+   "method": "POST",
+   "path": "/r",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "user={drew}"
+   },
+   "body": "fnid={drew_fnid}&fnop=submit-page&title=My+YC+app%3A+Dropbox+-+Throw+away+your+USB+drive&url=http%3A%2F%2Fwww.getdropbox.com%2Fu%2F2%2Fscreencast.html&text=",
+   "status": 302
+  },
+  {
+   "name": "Newest shows it first",
+   "method": "GET",
+   "path": "/newest",
+   "status": 200,
+   "headers": {
+    "cookie": "user={drew}"
+   },
+   "capture": {
+    "story": "text:<tr id=\"(\\d+)\">"
+   }
+  },
+  {
+   "name": "Peter opens the front page and its login link",
+   "method": "GET",
+   "path": "/news",
+   "status": 200,
+   "capture": {
+    "peter_login": "text:href=\"(login\\?goto=[^\"]+)\""
+   }
+  },
+  {
+   "name": "and makes an account on the login page",
+   "method": "POST",
+   "path": "/{peter_login}",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "creating=t&acct=peter_n&pw=ai-a-modern-2026",
+   "status": 302,
+   "capture": {
+    "peter": "header:set-cookie:user=([^;]+)"
+   },
+   "expect": [
+    {
+     "path": "location",
+     "equals": "news"
+    }
+   ]
+  },
+  {
+   "name": "Peter opens Drew's thread",
+   "method": "GET",
+   "path": "/item?id={story}",
+   "status": 200,
+   "headers": {
+    "cookie": "user={peter}"
+   },
+   "capture": {
+    "peter_hmac": "text:name=\"hmac\" value=\"([0-9a-f]+)\""
+   }
+  },
+  {
+   "name": "and comments (the comment the README shows)",
+   "method": "POST",
+   "path": "/comment",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "user={peter}"
+   },
+   "body": "parent={story}&goto=item%3Fid%3D{story}&hmac={peter_hmac}&text=Aw+shucks%2C+guys+...+you+make+me+blush+with+your+compliments.%0A%0ATell+you+what%2C+I%27ll+make+a+deal%3A+I%27ll+keep+writing+if+you+keep+reading.+K%3F",
+   "status": 302
+  },
+  {
+   "name": "Drew opens his thread and follows the reply link under Peter's comment",
+   "method": "GET",
+   "path": "/item?id={story}",
+   "status": 200,
+   "headers": {
+    "cookie": "user={drew}"
+   },
+   "capture": {
+    "comment": "text:href=\"reply\\?id=(\\d+)",
+    "comment_goto": "text:href=\"reply\\?id=\\d+&amp;goto=([^\"]+)\""
+   }
+  },
+  {
+   "name": "the reply page",
+   "method": "GET",
+   "path": "/reply?id={comment}&goto={comment_goto}",
+   "status": 200,
+   "headers": {
+    "cookie": "user={drew}"
+   },
+   "capture": {
+    "drew_hmac": "text:name=\"hmac\" value=\"([0-9a-f]+)\"",
+    "drew_goto": "text:name=\"goto\" value=\"([^\"]+)\""
+   }
+  },
+  {
+   "name": "Drew replies",
+   "method": "POST",
+   "path": "/comment",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "user={drew}"
+   },
+   "body": "parent={comment}&goto={drew_goto}&hmac={drew_hmac}&text=Deal.",
+   "status": 302,
+   "expect": [
+    {
+     "path": "location",
+     "equals": "{drew_goto}"
+    }
+   ]
+  },
+  {
+   "name": "The site sends him back to his thread, his reply under the comment",
+   "method": "GET",
+   "path": "/item?id={story}",
+   "status": 200,
+   "headers": {
+    "cookie": "user={drew}"
+   },
+   "capture": {
+    "reply": "text:reply\\?id=\\d+[\\s\\S]*?reply\\?id=(\\d+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "Deal."
+    }
+   ]
+  },
+  {
+   "name": "Peter opens the submit page",
+   "method": "GET",
+   "path": "/submit",
+   "status": 200,
+   "headers": {
+    "cookie": "user={peter}"
+   },
+   "capture": {
+    "peter_fnid": "text:name=\"fnid\" value=\"([^\"]+)\""
+   }
+  },
+  {
+   "name": "and asks an Ask HN (the ask the README shows)",
+   "method": "POST",
+   "path": "/r",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "user={peter}"
+   },
+   "body": "fnid={peter_fnid}&fnop=submit-page&title=Ask+HN%3A+The+Arc+Effect&url=&text=%2Aor%2A+HN%3A+the+Next+Iteration%0A%0AI+get+the+impression+that+with+Arc+being+released+a+lot+of+people+who+never+had+time+for+HN+before+are+suddenly+dropping+in+more+often.",
+   "status": 302
+  },
+  {
+   "name": "Newest shows the ask first",
+   "method": "GET",
+   "path": "/newest",
+   "status": 200,
+   "headers": {
+    "cookie": "user={peter}"
+   },
+   "capture": {
+    "ask": "text:<tr id=\"(\\d+)\">"
+   }
+  },
+  {
+   "name": "Drew opens Peter's ask",
+   "method": "GET",
+   "path": "/item?id={ask}",
+   "status": 200,
+   "headers": {
+    "cookie": "user={drew}"
+   },
+   "capture": {
+    "ask_hmac": "text:name=\"hmac\" value=\"([0-9a-f]+)\""
+   }
+  },
+  {
+   "name": "and answers it",
+   "method": "POST",
+   "path": "/comment",
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "user={drew}"
+   },
+   "body": "parent={ask}&goto=item%3Fid%3D{ask}&hmac={ask_hmac}&text=The+signal+is+still+good+here.",
+   "status": 302
+  },
+  {
+   "name": "The site sends him back to the ask, his answer under it",
+   "method": "GET",
+   "path": "/item?id={ask}",
+   "status": 200,
+   "headers": {
+    "cookie": "user={drew}"
+   },
+   "capture": {
+    "answer": "text:reply\\?id=(\\d+)"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "The signal is still good here."
+    }
+   ]
+  },
+  {
+   "name": "The story, as the README shows one",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/item/{story}.json?print=pretty",
+   "status": 200,
+   "example": "getItem#200 application/json",
+   "expect": [
+    {
+     "path": "by",
+     "equals": "drew_h"
+    },
+    {
+     "path": "type",
+     "equals": "story"
+    },
+    {
+     "path": "url",
+     "equals": "http://www.getdropbox.com/u/2/screencast.html"
+    },
+    {
+     "path": "title",
+     "equals": "My YC app: Dropbox - Throw away your USB drive"
+    },
+    {
+     "path": "score",
+     "equals": 1
+    },
+    {
+     "path": "descendants",
+     "equals": 2
+    },
+    {
+     "path": "kids.0",
+     "equals": "{comment}"
+    }
+   ]
+  },
+  {
+   "name": "The comment, as the README shows one",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/item/{comment}.json?print=pretty",
+   "status": 200,
+   "example": "getItem#doc comment",
+   "expect": [
+    {
+     "path": "by",
+     "equals": "peter_n"
+    },
+    {
+     "path": "type",
+     "equals": "comment"
+    },
+    {
+     "path": "parent",
+     "equals": "{story}"
+    },
+    {
+     "path": "text",
+     "contains": "blush with your compliments.<p>Tell you what"
+    },
+    {
+     "path": "kids.0",
+     "equals": "{reply}"
+    },
+    {
+     "path": "kids.1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The ask, as the README shows one",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/item/{ask}.json?print=pretty",
+   "status": 200,
+   "example": "getItem#doc ask",
+   "expect": [
+    {
+     "path": "by",
+     "equals": "peter_n"
+    },
+    {
+     "path": "title",
+     "equals": "Ask HN: The Arc Effect"
+    },
+    {
+     "path": "text",
+     "contains": "<i>or</i> HN: the Next Iteration<p>"
+    },
+    {
+     "path": "url",
+     "exists": false
+    },
+    {
+     "path": "score",
+     "equals": 1
+    },
+    {
+     "path": "descendants",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Peter's user record",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/user/peter_n.json?print=pretty",
+   "status": 200,
+   "example": "getUser#200 application/json",
+   "exampleDiffers": {
+    "about": "The user's optional self-description: no person of these examples writes one (the profile page that sets it is outside the pack's demand), so the World's user carries none."
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "peter_n"
+    },
+    {
+     "path": "submitted.0",
+     "equals": "{ask}"
+    },
+    {
+     "path": "submitted.1",
+     "equals": "{comment}"
+    }
+   ]
+  },
+  {
+   "name": "The largest item id: Drew's answer, the last item made",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/maxitem.json?print=pretty",
+   "status": 200,
+   "example": "getMaxItem#200 application/json",
+   "expect": [
+    {
+     "path": "",
+     "equals": "{answer}"
+    }
+   ],
+   "exampleDiffers": {
+    "(the answer)": "The page's example is the largest id on Hacker News when it was written (9130260); the World's Hacker News holds only the items its people made, so its largest is the last of those, Drew's answer, asserted by the step."
+   }
+  },
+  {
+   "name": "The changes",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/updates.json?print=pretty",
+   "status": 200,
+   "example": "getUpdates#200 application/json",
+   "expect": [
+    {
+     "path": "items",
+     "matches": "(^|[\\[,]){story}([,\\]]|$)"
+    },
+    {
+     "path": "items",
+     "matches": "(^|[\\[,]){comment}([,\\]]|$)"
+    },
+    {
+     "path": "items",
+     "matches": "(^|[\\[,]){ask}([,\\]]|$)"
+    },
+    {
+     "path": "profiles",
+     "matches": "\"drew_h\""
+    },
+    {
+     "path": "profiles",
+     "matches": "\"peter_n\""
+    }
+   ]
+  },
+  {
+   "name": "The top stories hold the story and the ask",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty",
+   "status": 200,
+   "example": "getTopStories#doc topstories",
+   "expect": [
+    {
+     "path": "",
+     "matches": "(^|[\\[,])\\s*{story}\\s*([,\\]]|$)"
+    },
+    {
+     "path": "",
+     "matches": "(^|[\\[,])\\s*{ask}\\s*([,\\]]|$)"
+    }
+   ]
+  },
+  {
+   "name": "The Ask HN stories hold the ask and not the story",
+   "method": "GET",
+   "path": "https://hacker-news.firebaseio.com/v0/askstories.json?print=pretty",
+   "status": 200,
+   "example": "getAskStories#doc askstories",
+   "expect": [
+    {
+     "path": "",
+     "matches": "(^|[\\[,])\\s*{ask}\\s*([,\\]]|$)"
+    },
+    {
+     "path": "0",
+     "equals": "{ask}"
+    },
+    {
+     "path": "1",
+     "exists": false
+    }
+   ]
+  }
+ ]
+}

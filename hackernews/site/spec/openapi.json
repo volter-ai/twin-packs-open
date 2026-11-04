@@ -1,0 +1,539 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hacker News (news.ycombinator.com) forms",
+    "version": "2026-10-02",
+    "description": "Hacker News publishes no document of its site's forms. Each operation is written from the site's pages as a person sees them (the forms' fields, actions and answers) and the rules of its newsguidelines, newsfaq, showhn and security pages; SOURCE.md lists every page and answer read."
+  },
+  "servers": [
+    {
+      "url": "https://news.ycombinator.com"
+    }
+  ],
+  "paths": {
+    "/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Log in, or create an account",
+        "description": "The login page's two forms post to the page's own address (login?goto=...): 'login' (acct, pw) and 'create account' (creating=t, acct, pw). Either answers a redirect to the goto page with the user cookie, or the login page again with what went wrong.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "acct",
+                  "pw"
+                ],
+                "properties": {
+                  "acct": {
+                    "type": "string",
+                    "description": "username"
+                  },
+                  "pw": {
+                    "type": "string",
+                    "description": "password"
+                  },
+                  "creating": {
+                    "type": "string",
+                    "enum": [
+                      "t"
+                    ],
+                    "description": "present on the 'create account' form"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "logged in, or the account made and logged in",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "the page to go to: the goto field, or the page the act returns to"
+              }
+            }
+          },
+          "200": {
+            "description": "the login page again, with what went wrong",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "goto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the page to return to, in the address of the page the forms are on (login?goto=news)"
+          }
+        ]
+      }
+    },
+    "/r": {
+      "post": {
+        "operationId": "submit",
+        "summary": "Submit a story",
+        "description": "The submit page's form posts here: a title with a url, or a title with text (a question for discussion: leave url blank). Answers a redirect to newest, or to the story already submitted at that url.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fnid",
+                  "title"
+                ],
+                "properties": {
+                  "fnid": {
+                    "type": "string",
+                    "description": "the submit page's own link for this form"
+                  },
+                  "fnop": {
+                    "type": "string",
+                    "enum": [
+                      "submit-page"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "submitted: to newest, or to the story the url was already submitted as",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "the page to go to: the goto field, or the page the act returns to"
+              }
+            }
+          },
+          "200": {
+            "description": "the submit page or the login page again, with what went wrong",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comment": {
+      "post": {
+        "operationId": "comment",
+        "summary": "Add a comment, or reply to one",
+        "description": "An item page's 'add comment' form and a reply page's 'reply' form post here. Signed out, it answers 'You have to be logged in to comment.' over the login and create-account forms, which carry the comment and post back here: signed in, the site answers the add comment page with the text kept, and the comment is made when that form is posted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "parent",
+                  "hmac"
+                ],
+                "properties": {
+                  "parent": {
+                    "type": "integer",
+                    "description": "the story or comment replied to"
+                  },
+                  "goto": {
+                    "type": "string",
+                    "description": "the page to return to"
+                  },
+                  "hmac": {
+                    "type": "string",
+                    "description": "the form's own token"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "acct": {
+                    "type": "string",
+                    "description": "username, from the login form the site answers a signed-out comment with"
+                  },
+                  "pw": {
+                    "type": "string",
+                    "description": "password, likewise"
+                  },
+                  "creating": {
+                    "type": "string",
+                    "enum": [
+                      "t"
+                    ],
+                    "description": "present on that page's create-account form"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "commented: to the goto page",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "the page to go to: the goto field, or the page the act returns to"
+              }
+            }
+          },
+          "200": {
+            "description": "a page saying what went wrong",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vote": {
+      "get": {
+        "operationId": "vote",
+        "summary": "Upvote",
+        "description": "The upvote arrow beside a story or comment is a link here.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "how",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "up"
+              ]
+            }
+          },
+          {
+            "name": "auth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the link's own token"
+          },
+          {
+            "name": "goto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "voted: to the goto page",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "the page to go to: the goto field, or the page the act returns to"
+              }
+            }
+          },
+          "200": {
+            "description": "the login page, or a page saying what went wrong",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "voteLogin",
+        "summary": "Log in from a vote link, and vote",
+        "description": "Signed out, a vote link answers 'You have to be logged in to vote.' over the login and create-account forms, which post to the vote link's own address. Signed in, the vote is made and the person goes on to the goto page.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "how",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "up"
+              ]
+            }
+          },
+          {
+            "name": "goto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "acct",
+                  "pw"
+                ],
+                "properties": {
+                  "acct": {
+                    "type": "string",
+                    "description": "username"
+                  },
+                  "pw": {
+                    "type": "string",
+                    "description": "password"
+                  },
+                  "creating": {
+                    "type": "string",
+                    "enum": [
+                      "t"
+                    ],
+                    "description": "present on the 'create account' form"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "signed in and voted: to the goto page",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "the forms again, with what went wrong",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/submit": {
+      "post": {
+        "operationId": "submitLogin",
+        "summary": "Log in from the submit page",
+        "description": "Signed out, the submit page says 'You have to be logged in to submit.' over the login and create-account forms, which post to the submit page's own address. Signed in, the site answers the submit page itself with the user cookie, or the forms again with what went wrong.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "acct",
+                  "pw"
+                ],
+                "properties": {
+                  "acct": {
+                    "type": "string",
+                    "description": "username"
+                  },
+                  "pw": {
+                    "type": "string",
+                    "description": "password"
+                  },
+                  "creating": {
+                    "type": "string",
+                    "enum": [
+                      "t"
+                    ],
+                    "description": "present on the 'create account' form"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "signed in: the submit page, with the user cookie; or the forms again, with what went wrong",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reply": {
+      "post": {
+        "operationId": "replyLogin",
+        "summary": "Log in from the reply page",
+        "description": "Signed out, the reply page says 'You have to be logged in to reply.' over the login and create-account forms, which post to the reply page's own address. Signed in, the site answers the add comment page itself with the user cookie, or the forms again with what went wrong.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "goto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "acct",
+                  "pw"
+                ],
+                "properties": {
+                  "acct": {
+                    "type": "string",
+                    "description": "username"
+                  },
+                  "pw": {
+                    "type": "string",
+                    "description": "password"
+                  },
+                  "creating": {
+                    "type": "string",
+                    "enum": [
+                      "t"
+                    ],
+                    "description": "present on the 'create account' form"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "signed in: the add comment page, with the user cookie; or the forms again, with what went wrong",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "get": {
+        "operationId": "logout",
+        "summary": "Log out",
+        "description": "The logout link the top bar draws beside the name of the person signed in: their session ends, and the page they were on is shown signed out.",
+        "parameters": [
+          {
+            "name": "auth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the link's own token"
+          },
+          {
+            "name": "goto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "to the goto page",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

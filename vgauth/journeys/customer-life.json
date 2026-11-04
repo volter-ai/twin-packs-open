@@ -1,0 +1,774 @@
+{
+  "vendor": "vgauth",
+  "author": "Contributor 100",
+  "host": "auth.videogame.ai",
+  "companions": [
+    "clerk"
+  ],
+  "about": "Marta signs in, consents and exchanges through the Worker, reads both the explicit no-binding projection and the service-bound first-read stored account with the source-shipped non-production Free/100 catalog, then shares through Clerk. The configured Free catalog is the source-shipped non-production deployment input, not production values; admission remains server-owned Clerk metadata.",
+  "steps": [
+    {
+      "name": "The operator records the deployed Clerk Frontend API domain on its dashboard",
+      "method": "POST",
+      "path": "https://api.clerk.com/_twin/instance",
+      "status": 200,
+      "body": {
+        "frontend_api": "clerk.auth.videogame.ai"
+      }
+    },
+    {
+      "name": "The operator obtains the development Clerk application keys from its dashboard door",
+      "method": "POST",
+      "path": "https://api.clerk.com/_twin/app-credentials",
+      "status": 201,
+      "capture": {
+        "clerkKey": "secret_key",
+        "publishableKey": "publishable_key"
+      }
+    },
+    {
+      "name": "The operator selects the documented development IdP and no-ledger branches",
+      "method": "POST",
+      "path": "/_twin/configuration",
+      "status": 200,
+      "body": {
+        "clerkKey": "{clerkKey}",
+        "publishableKey": "{publishableKey}",
+        "clerkApi": "https://api.clerk.com",
+        "billingBound": false
+      }
+    },
+    {
+      "name": "The operator enables organizations through Clerk’s own application settings API",
+      "method": "PATCH",
+      "path": "https://api.clerk.com/v1/instance/organization_settings",
+      "status": 200,
+      "body": {
+        "enabled": true
+      },
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      }
+    },
+    {
+      "name": "Marta signs up in the development IdP; the setup uses Clerk’s own user API",
+      "method": "POST",
+      "path": "https://api.clerk.com/v1/users",
+      "status": 200,
+      "body": {
+        "email_address": [
+          "marta@example.test"
+        ],
+        "first_name": "Marta",
+        "last_name": "Silva",
+        "skip_password_requirement": true
+      },
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "capture": {
+        "userId": "id"
+      }
+    },
+    {
+      "name": "Clerk’s supported development session API opens Marta’s session",
+      "method": "POST",
+      "path": "https://api.clerk.com/v1/sessions",
+      "status": 200,
+      "body": {
+        "user_id": "{userId}"
+      },
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "capture": {
+        "sessionId": "id"
+      }
+    },
+    {
+      "name": "Clerk issues the session JWT; no account authority makes an identity beneath the IdP",
+      "method": "POST",
+      "path": "https://api.clerk.com/v1/sessions/{sessionId}/tokens",
+      "status": 200,
+      "body": {
+        "expires_in_seconds": 3600
+      },
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "capture": {
+        "sessionToken": "jwt"
+      }
+    },
+    {
+      "name": "The operator registers the public PKCE provider client through Clerk’s own Backend API",
+      "method": "POST",
+      "path": "https://api.clerk.com/v1/oauth_applications",
+      "status": 200,
+      "body": {
+        "name": "Volter Editor account worker",
+        "redirect_uris": [
+          "https://auth.videogame.ai/account/callback"
+        ],
+        "scopes": "openid profile email user:org:read",
+        "public": true,
+        "pkce_required": true
+      },
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "capture": {
+        "providerClientId": "client_id",
+        "providerApplicationId": "id",
+        "providerTokenEndpoint": "token_fetch_url"
+      },
+      "expect": [
+        {
+          "path": "client_secret",
+          "equals": ""
+        },
+        {
+          "path": "public",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The operator reads back the registered Clerk provider client",
+      "method": "GET",
+      "path": "https://api.clerk.com/v1/oauth_applications/{providerApplicationId}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "expect": [
+        {
+          "path": "client_id",
+          "equals": "{providerClientId}"
+        },
+        {
+          "path": "public",
+          "equals": true
+        },
+        {
+          "path": "redirect_uris",
+          "equals": [
+            "https://auth.videogame.ai/account/callback"
+          ]
+        },
+        {
+          "path": "pkce_required",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The worker uses the client ID and token endpoint issued by Clerk",
+      "method": "POST",
+      "path": "/_twin/configuration",
+      "status": 200,
+      "body": {
+        "providerClientId": "{providerClientId}",
+        "tokenEndpoint": "{providerTokenEndpoint}"
+      }
+    },
+    {
+      "name": "Clerk’s Backend API issues a browser sign-in ticket for the existing person",
+      "method": "POST",
+      "path": "https://api.clerk.com/v1/sign_in_tokens",
+      "status": 200,
+      "body": {
+        "user_id": "{userId}"
+      },
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "capture": {
+        "browserTicket": "token"
+      }
+    },
+    {
+      "name": "The browser signs in through Clerk’s Frontend API with that ticket",
+      "method": "POST",
+      "path": "https://clerk.auth.videogame.ai/v1/client/sign_ins",
+      "status": 200,
+      "body": "strategy=ticket&ticket={browserTicket}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "capture": {
+        "browserClient": "header:set-cookie:__client=([^;]+)"
+      },
+      "expect": [
+        {
+          "path": "response.status",
+          "equals": "complete"
+        },
+        {
+          "path": "client.sessions.0.user.id",
+          "equals": "{userId}"
+        }
+      ]
+    },
+    {
+      "name": "The editor discovers browser sign-in and sees no device grant",
+      "method": "GET",
+      "path": "/.well-known/oauth-authorization-server",
+      "status": 200,
+      "capture": {
+        "authorizationEndpoint": "authorization_endpoint",
+        "tokenEndpoint": "token_endpoint"
+      },
+      "expect": [
+        {
+          "path": "issuer",
+          "equals": "https://auth.videogame.ai"
+        },
+        {
+          "path": "grant_types_supported",
+          "equals": [
+            "authorization_code",
+            "refresh_token"
+          ]
+        },
+        {
+          "path": "device_authorization_endpoint",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Marta opens browser sign-in with the deployed editor client and S256 PKCE",
+      "method": "GET",
+      "path": "/account/authorize?response_type=code&client_id=vgai-editor&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2F__editor%2Faccount%2Fbrowser-authorization%2Fcallback&state=editor-browser-state&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&scope=openid%20profile%20email",
+      "status": 302,
+      "capture": {
+        "providerAuthorization": "header:location",
+        "state": "redirect.state",
+        "providerChallenge": "redirect.code_challenge"
+      },
+      "expect": [
+        {
+          "path": "redirect.client_id",
+          "equals": "{providerClientId}"
+        },
+        {
+          "path": "redirect.redirect_uri",
+          "equals": "https://auth.videogame.ai/account/callback"
+        }
+      ]
+    },
+    {
+      "name": "The signed-in browser follows the worker’s authorization redirect through its Clerk proxy",
+      "method": "GET",
+      "path": "{providerAuthorization}",
+      "status": 302,
+      "headers": {
+        "cookie": "__client={browserClient}"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "https://auth.videogame.ai/__clerk/oauth/consent?"
+        }
+      ]
+    },
+    {
+      "name": "The person grants the worker access through Clerk’s own consent API",
+      "method": "POST",
+      "path": "https://clerk.auth.videogame.ai/v1/me/oauth/consent/{providerClientId}",
+      "status": 303,
+      "body": "response_type=code&client_id={providerClientId}&redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback&state={state}&code_challenge={providerChallenge}&code_challenge_method=S256&scope=openid%20profile%20email%20user%3Aorg%3Aread&consented=true",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "__client={browserClient}"
+      },
+      "capture": {
+        "providerCode": "header:location:[?&]code=([^&]+)"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "https://auth.videogame.ai/account/callback?"
+        },
+        {
+          "header": "location",
+          "contains": "state={state}"
+        }
+      ]
+    },
+    {
+      "name": "Clerk redirects Marta back to the worker, which wraps the genuine provider code for Editor",
+      "method": "GET",
+      "path": "/account/callback?state={state}&code={providerCode}",
+      "status": 302,
+      "capture": {
+        "code": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "editor-browser-state"
+        }
+      ]
+    },
+    {
+      "name": "Editor exchanges the wrapped code and its original verifier at the worker token endpoint",
+      "method": "POST",
+      "path": "/account/token",
+      "status": 200,
+      "body": "grant_type=authorization_code&client_id=vgai-editor&code={code}&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2F__editor%2Faccount%2Fbrowser-authorization%2Fcallback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "capture": {
+        "providerRefresh": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        },
+        {
+          "path": "expires_in",
+          "equals": 86400
+        },
+        {
+          "path": "access_token",
+          "matches": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+        },
+        {
+          "path": "id_token",
+          "exists": true
+        },
+        {
+          "header": "cache-control",
+          "equals": "no-store"
+        }
+      ]
+    },
+    {
+      "name": "Editor later refreshes through the same registered provider client",
+      "method": "POST",
+      "path": "/account/token",
+      "status": 200,
+      "body": "grant_type=refresh_token&client_id=vgai-editor&refresh_token={providerRefresh}",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "expect": [
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        },
+        {
+          "path": "expires_in",
+          "equals": 86400
+        },
+        {
+          "path": "access_token",
+          "matches": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+        },
+        {
+          "path": "id_token",
+          "exists": true
+        },
+        {
+          "header": "cache-control",
+          "equals": "no-store"
+        }
+      ]
+    },
+    {
+      "name": "Marta’s signed-in editor reads the source’s no-ledger Free account projection",
+      "method": "GET",
+      "path": "/v1/account",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "expect": [
+        {
+          "path": "authenticated",
+          "equals": true
+        },
+        {
+          "path": "user.id",
+          "equals": "{userId}"
+        },
+        {
+          "path": "user.email",
+          "equals": "marta@example.test"
+        },
+        {
+          "path": "credits.remaining",
+          "equals": 0
+        },
+        {
+          "path": "organizations",
+          "equals": []
+        }
+      ]
+    },
+    {
+      "name": "Hosting a share verifies identity without requiring managed-services admission",
+      "method": "GET",
+      "path": "/collaboration/verify",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "expect": [
+        {
+          "path": "userId",
+          "equals": "{userId}"
+        }
+      ]
+    },
+    {
+      "name": "The share host creates an invitation-bound handoff for its Cloudflare tunnel",
+      "method": "POST",
+      "path": "/collaboration/handoff",
+      "status": 201,
+      "body": {
+        "callbackUrl": "https://marta.trycloudflare.com/__vgai_share/callback",
+        "sessionId": "share-session",
+        "invitationId": "share-invitation"
+      },
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "capture": {
+        "handoff": "authorizationUrl",
+        "deliveryAuthorization": "deliveryAuthorization",
+        "shareState": "text:\"authorizationUrl\":\"[^\"]*[?&]state=([^&\"]+)",
+        "invitationExpiresAt": "expiresAt"
+      },
+      "expect": [
+        {
+          "path": "authorizationUrl",
+          "contains": "redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Fcollaboration%2Fcallback"
+        },
+        {
+          "path": "deliveryAuthorization",
+          "matches": "^[A-Za-z0-9]{64}$"
+        }
+      ]
+    },
+    {
+      "name": "The development authority refuses to send public invitation mail",
+      "method": "POST",
+      "path": "/collaboration/invitations",
+      "status": 503,
+      "body": {
+        "emailAddress": "joao@example.test",
+        "redirectUrl": "https://marta.trycloudflare.com/#token=abcdefghijklmnopqrstuvwxyz0123456789",
+        "callbackUrl": "https://marta.trycloudflare.com/__vgai_share/callback",
+        "sessionId": "share-session",
+        "invitationId": "share-invitation",
+        "deliveryAuthorization": "{deliveryAuthorization}",
+        "expiresAt": "{invitationExpiresAt}"
+      },
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "The Clerk twin does not deliver public invitation email."
+        }
+      ]
+    },
+    {
+      "name": "The operator enables the ledger binding with the source-shipped non-production Free catalog",
+      "method": "POST",
+      "path": "/_twin/configuration",
+      "body": {
+        "clerkApi": "",
+        "billingBound": true,
+        "freePlan": {
+          "name": "Free",
+          "includedCredits": 100
+        }
+      },
+      "status": 200
+    },
+    {
+      "name": "The signed-in Editor first reads its service-bound account; the ledger creates the configured non-production Free row",
+      "method": "GET",
+      "path": "/v1/account",
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "authenticated",
+          "equals": true
+        },
+        {
+          "path": "user.id",
+          "equals": "{userId}"
+        },
+        {
+          "path": "plan",
+          "equals": {
+            "id": "free",
+            "name": "Free",
+            "status": "free"
+          }
+        },
+        {
+          "path": "credits",
+          "equals": {
+            "included": 100,
+            "purchased": 0,
+            "used": 0,
+            "reserved": 0,
+            "remaining": 100
+          }
+        },
+        {
+          "path": "spendPolicy",
+          "equals": {
+            "overageEnabled": false,
+            "monthlyLimitCredits": 0,
+            "alertThresholds": [
+              50,
+              80,
+              100
+            ]
+          }
+        },
+        {
+          "path": "alerts",
+          "equals": []
+        },
+        {
+          "path": "entitlements.generation",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Reading the signed-in account again retains its Free balance and admission",
+      "method": "GET",
+      "path": "/v1/account",
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "credits.remaining",
+          "equals": 100
+        },
+        {
+          "path": "entitlements.generation",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "The operator updates Marta’s public name through Clerk",
+      "method": "PATCH",
+      "path": "https://api.clerk.com/v1/users/{userId}",
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "body": {
+        "last_name": "Costa"
+      },
+      "status": 200
+    },
+    {
+      "name": "The next account read refreshes identity while retaining ledger balance",
+      "method": "GET",
+      "path": "/v1/account",
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "user.name",
+          "equals": "Marta Costa"
+        },
+        {
+          "path": "credits.remaining",
+          "equals": 100
+        }
+      ]
+    },
+    {
+      "name": "Production /inference/grant exposes the ledger flow gap rather than a Free account or admission",
+      "method": "POST",
+      "path": "/inference/grant",
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "Not found"
+        }
+      ]
+    },
+    {
+      "name": "Marta sends the share invitation through the production Clerk branch",
+      "method": "POST",
+      "path": "/collaboration/invitations",
+      "status": 201,
+      "body": {
+        "emailAddress": "  JOAO@EXAMPLE.TEST  ",
+        "redirectUrl": "https://marta.trycloudflare.com/#token=abcdefghijklmnopqrstuvwxyz0123456789",
+        "callbackUrl": "https://marta.trycloudflare.com/__vgai_share/callback",
+        "sessionId": "share-session",
+        "invitationId": "share-invitation",
+        "deliveryAuthorization": "{deliveryAuthorization}",
+        "expiresAt": "{invitationExpiresAt}"
+      },
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "expect": [
+        {
+          "path": "emailAddress",
+          "equals": "joao@example.test"
+        },
+        {
+          "path": "status",
+          "equals": "pending"
+        }
+      ],
+      "capture": {
+        "invitationId": "id"
+      }
+    },
+    {
+      "name": "Clerk holds the application invitation made by the account authority",
+      "method": "GET",
+      "path": "https://api.clerk.com/v1/invitations?query=joao@example.test",
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{invitationId}"
+        },
+        {
+          "path": "0.email_address",
+          "equals": "joao@example.test"
+        },
+        {
+          "path": "0.status",
+          "equals": "pending"
+        },
+        {
+          "path": "0.expires_at",
+          "equals": 1767312000000
+        }
+      ]
+    },
+    {
+      "name": "Joao receives the invitation in his Clerk-delivered inbox",
+      "method": "GET",
+      "path": "https://api.clerk.com/_twin/emails?to=joao@example.test",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.invitation_id",
+          "equals": "{invitationId}"
+        },
+        {
+          "path": "data.0.link",
+          "contains": "https://marta.trycloudflare.com/"
+        },
+        {
+          "path": "total_count",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "The operator restores the explicit development configuration for the local editor",
+      "method": "POST",
+      "path": "/_twin/configuration",
+      "status": 200,
+      "body": {
+        "clerkApi": "https://api.clerk.com",
+        "billingBound": false
+      }
+    },
+    {
+      "name": "Marta keeps editing; a coding grant reports the missing ledger binding",
+      "method": "POST",
+      "path": "/inference/grant",
+      "status": 503,
+      "body": {
+        "workspaceId": "marta-workspace",
+        "provider": "openrouter",
+        "workload": "coding",
+        "model": "z-ai/glm-5.2"
+      },
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "Managed-service admission is unavailable."
+        }
+      ]
+    },
+    {
+      "name": "The account snapshot still names Marta after those refusals",
+      "method": "GET",
+      "path": "/v1/account",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "expect": [
+        {
+          "path": "user.id",
+          "equals": "{userId}"
+        }
+      ]
+    },
+    {
+      "name": "Later, Marta’s session expires while the editor is closed",
+      "wait": "2h"
+    },
+    {
+      "name": "The old credential no longer proves the share host’s identity",
+      "method": "GET",
+      "path": "/collaboration/verify",
+      "status": 401,
+      "headers": {
+        "authorization": "Bearer {sessionToken}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "Unauthorized"
+        }
+      ]
+    },
+    {
+      "name": "The shipped editor browser request is refused because volter-editor differs from the deployed vgai-editor",
+      "method": "GET",
+      "path": "{authorizationEndpoint}?response_type=code&client_id=volter-editor&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2F__editor%2Faccount%2Fbrowser-authorization%2Fcallback&state=editor-browser-state&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&scope=openid%20profile%20email",
+      "status": 400,
+      "expect": [
+        {
+          "path": "error",
+          "equals": "Invalid editor account authorization request."
+        }
+      ]
+    }
+  ]
+}

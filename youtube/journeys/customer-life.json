@@ -1,0 +1,1765 @@
+{
+ "vendor": "youtube",
+ "author": "the youtube twin builder",
+ "host": "youtube.googleapis.com",
+ "startsAt": "2026-11-03T10:00:00Z",
+ "about": "Hollow Lantern Games launches Emberfall on YouTube from its launch tooling in the games-ecosystem sandbox: the studio, a fan and a spam account sign up and sign in with Google, the tooling reads its channel, uploads the trailer resumably (in two chunks, its progress asked between them) and a dev diary in one multipart request, edits the trailer, the audience watches and comments, the studio replies and moderates (rejecting and banning a spammer), schedules the launch broadcast bound to its encoder's stream, is refused going live before the encoder publishes, and runs the chat (a troll's line deleted); then Dub's cron reads the channel's statistics with its Google Cloud project's API key, which the googleoauth twin (Google's credentials page) issued. The encoder's RTMP publish (the stream active, the broadcast testing, live and complete, the chat ended) is the encoder's act, which no journey step speaks. Google's authorize page and token endpoint are the googleoauth twin's, which the World runs beside this one.",
+ "steps": [
+  {
+   "name": "The World: the launch tooling's OAuth client in Hollow Lantern's Google Cloud project",
+   "method": "POST",
+   "path": "https://accounts.google.com/_twin/clients",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "client_id": "731904826153-hollowlantern4q8.apps.googleusercontent.com",
+    "client_secret": "GOCSPX-hL4nt3rnEmb3rfa11Tw1nW0rld",
+    "redirect_uris": [
+     "https://tools.hollowlantern.games/oauth/google/callback"
+    ],
+    "name": "Hollow Lantern Launch Tools"
+   }
+  },
+  {
+   "name": "The World: Ayla Reyes's Google account",
+   "method": "POST",
+   "path": "https://accounts.google.com/_twin/accounts",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "sub": "109876543210987654321",
+    "email": "ayla@hollowlantern.games",
+    "name": "Ayla Reyes",
+    "given_name": "Ayla",
+    "family_name": "Reyes"
+   }
+  },
+  {
+   "name": "The World: Jun Park's Google account",
+   "method": "POST",
+   "path": "https://accounts.google.com/_twin/accounts",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "sub": "113579246801357924680",
+    "email": "jun.park.plays@example.com",
+    "name": "Jun Park",
+    "given_name": "Jun",
+    "family_name": "Park"
+   }
+  },
+  {
+   "name": "The World: Free Gems's Google account",
+   "method": "POST",
+   "path": "https://accounts.google.com/_twin/accounts",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "sub": "102468135790246813579",
+    "email": "free.gems.now@example.com",
+    "name": "Free Gems",
+    "given_name": "Free",
+    "family_name": "Gems"
+   }
+  },
+  {
+   "name": "Ayla signs Hollow Lantern Games up for YouTube",
+   "method": "POST",
+   "path": "/_twin/channels",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "sub": "109876543210987654321",
+    "title": "Hollow Lantern Games",
+    "handle": "hollowlanterngames",
+    "description": "We make Emberfall."
+   },
+   "capture": {
+    "studio": "id"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "matches": "^UC[0-9A-Za-z]{22}$"
+    },
+    {
+     "path": "customUrl",
+     "equals": "@hollowlanterngames"
+    }
+   ]
+  },
+  {
+   "name": "Asking again answers the channel the account has",
+   "method": "POST",
+   "path": "/_twin/channels",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "sub": "109876543210987654321",
+    "title": "Another name"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{studio}"
+    }
+   ]
+  },
+  {
+   "name": "Jun signs up for YouTube",
+   "method": "POST",
+   "path": "/_twin/channels",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "sub": "113579246801357924680",
+    "title": "Jun Plays"
+   },
+   "capture": {
+    "junChannel": "id"
+   }
+  },
+  {
+   "name": "The spam account signs up for YouTube",
+   "method": "POST",
+   "path": "/_twin/channels",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "sub": "102468135790246813579",
+    "title": "Free Gems Now"
+   },
+   "capture": {
+    "spamChannel": "id"
+   }
+  },
+  {
+   "name": "The World: Dub's Google Cloud project and its API key, from the Cloud console's Credentials page",
+   "method": "POST",
+   "path": "https://accounts.google.com/_twin/credentials",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "client_email": "partner-stats@dub-partners.iam.gserviceaccount.com",
+    "api_key": {
+     "name": "YouTube partner stats"
+    }
+   },
+   "capture": {
+    "apiKey": "api_key"
+   },
+   "expect": [
+    {
+     "path": "api_key",
+     "matches": "^AIza[0-9A-Za-z_-]{35}$"
+    }
+   ]
+  },
+  {
+   "name": "Ayla is sent to Google's account chooser with the YouTube scopes",
+   "method": "GET",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth?client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.force-ssl+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.upload&access_type=offline&state=ayla",
+   "status": 200
+  },
+  {
+   "name": "Ayla chooses their account; Google returns to the tooling with a code",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "request=client_id%3D731904826153-hollowlantern4q8.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Ftools.hollowlantern.games%252Foauth%252Fgoogle%252Fcallback%26response_type%3Dcode%26scope%3Dhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fyoutube.force-ssl%2Bhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fyoutube.upload%26access_type%3Doffline%26state%3Dayla&sub=109876543210987654321",
+   "capture": {
+    "code_ayla": "header:location:code=([^&]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "state=ayla"
+    }
+   ]
+  },
+  {
+   "name": "The tooling exchanges Ayla's code",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code_ayla}&client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&client_secret=GOCSPX-hL4nt3rnEmb3rfa11Tw1nW0rld&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback",
+   "capture": {
+    "ayla": "access_token",
+    "aylaRefresh": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "scope",
+     "contains": "youtube.force-ssl"
+    },
+    {
+     "path": "refresh_token",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Jun is sent to Google's account chooser with the YouTube scopes",
+   "method": "GET",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth?client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.force-ssl&access_type=offline&state=jun",
+   "status": 200
+  },
+  {
+   "name": "Jun chooses their account; Google returns to the tooling with a code",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "request=client_id%3D731904826153-hollowlantern4q8.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Ftools.hollowlantern.games%252Foauth%252Fgoogle%252Fcallback%26response_type%3Dcode%26scope%3Dhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fyoutube.force-ssl%26access_type%3Doffline%26state%3Djun&sub=113579246801357924680",
+   "capture": {
+    "code_jun": "header:location:code=([^&]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "state=jun"
+    }
+   ]
+  },
+  {
+   "name": "The tooling exchanges Jun's code",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code_jun}&client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&client_secret=GOCSPX-hL4nt3rnEmb3rfa11Tw1nW0rld&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback",
+   "capture": {
+    "jun": "access_token"
+   },
+   "expect": [
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "scope",
+     "contains": "youtube.force-ssl"
+    }
+   ]
+  },
+  {
+   "name": "The spam account is sent to Google's account chooser with the YouTube scopes",
+   "method": "GET",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth?client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.force-ssl&access_type=offline&state=spam",
+   "status": 200
+  },
+  {
+   "name": "The spam account chooses their account; Google returns to the tooling with a code",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "request=client_id%3D731904826153-hollowlantern4q8.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Ftools.hollowlantern.games%252Foauth%252Fgoogle%252Fcallback%26response_type%3Dcode%26scope%3Dhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fyoutube.force-ssl%26access_type%3Doffline%26state%3Dspam&sub=102468135790246813579",
+   "capture": {
+    "code_spam": "header:location:code=([^&]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "state=spam"
+    }
+   ]
+  },
+  {
+   "name": "The tooling exchanges The spam account's code",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code_spam}&client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&client_secret=GOCSPX-hL4nt3rnEmb3rfa11Tw1nW0rld&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback",
+   "capture": {
+    "spam": "access_token"
+   },
+   "expect": [
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "scope",
+     "contains": "youtube.force-ssl"
+    }
+   ]
+  },
+  {
+   "name": "A call with no credential is refused",
+   "method": "GET",
+   "path": "/youtube/v3/channels?part=snippet&mine=true",
+   "status": 403,
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "forbidden"
+    },
+    {
+     "path": "error.code",
+     "equals": 403
+    }
+   ]
+  },
+  {
+   "name": "A token Google never issued is refused",
+   "method": "GET",
+   "path": "/youtube/v3/channels?part=snippet&mine=true",
+   "status": 401,
+   "headers": {
+    "authorization": "Bearer ya29.a0NotATokenGoogleIssued"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "authError"
+    }
+   ]
+  },
+  {
+   "name": "The tooling reads Ayla's channel",
+   "method": "GET",
+   "path": "/youtube/v3/channels?part=id,snippet,statistics&mine=true",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "kind",
+     "equals": "youtube#channelListResponse"
+    },
+    {
+     "path": "items.0.id",
+     "equals": "{studio}"
+    },
+    {
+     "path": "items.0.snippet.title",
+     "equals": "Hollow Lantern Games"
+    },
+    {
+     "path": "items.0.statistics.videoCount",
+     "equals": "0"
+    },
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "mine with the API key alone is refused",
+   "method": "GET",
+   "path": "/youtube/v3/channels?part=snippet&mine=true&key={apiKey}",
+   "status": 401,
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "authorizationRequired"
+    }
+   ]
+  },
+  {
+   "name": "A resumable session with no title is refused",
+   "method": "POST",
+   "path": "/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json",
+    "x-upload-content-length": "30",
+    "x-upload-content-type": "video/mp4"
+   },
+   "body": {
+    "snippet": {
+     "description": "no title"
+    },
+    "status": {
+     "privacyStatus": "private"
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "invalidTitle"
+    }
+   ]
+  },
+  {
+   "name": "The tooling starts the trailer's resumable upload",
+   "method": "POST",
+   "path": "/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status,contentDetails",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json; charset=UTF-8",
+    "x-upload-content-length": "30",
+    "x-upload-content-type": "video/mp4"
+   },
+   "body": {
+    "snippet": {
+     "title": "Emberfall: Launch Trailer",
+     "description": "Emberfall is out November 3.",
+     "tags": [
+      "emberfall",
+      "indie",
+      "trailer"
+     ],
+     "categoryId": "20"
+    },
+    "status": {
+     "privacyStatus": "private",
+     "embeddable": true,
+     "license": "youtube"
+    }
+   },
+   "capture": {
+    "session": "header:location:upload_id=([^&]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id="
+    }
+   ]
+  },
+  {
+   "name": "It sends the first 14 bytes",
+   "method": "PUT",
+   "path": "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id={session}&part=snippet,status,contentDetails",
+   "status": 308,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "video/mp4",
+    "content-range": "bytes 0-13/30"
+   },
+   "body": "EMBERFALL-TRAI",
+   "expect": [
+    {
+     "header": "range",
+     "equals": "bytes=0-13"
+    }
+   ]
+  },
+  {
+   "name": "It asks how much has arrived",
+   "method": "PUT",
+   "path": "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id={session}&part=snippet,status,contentDetails",
+   "status": 308,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-range": "bytes */30"
+   },
+   "expect": [
+    {
+     "header": "range",
+     "equals": "bytes=0-13"
+    }
+   ]
+  },
+  {
+   "name": "It sends the rest from where the upload stands",
+   "method": "PUT",
+   "path": "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id={session}&part=snippet,status,contentDetails",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "video/mp4",
+    "content-range": "bytes 14-29/30"
+   },
+   "body": "LER-SYNTHETIC-01",
+   "capture": {
+    "trailer": "id"
+   },
+   "expect": [
+    {
+     "path": "kind",
+     "equals": "youtube#video"
+    },
+    {
+     "path": "status.uploadStatus",
+     "equals": "uploaded"
+    },
+    {
+     "path": "snippet.channelId",
+     "equals": "{studio}"
+    },
+    {
+     "path": "snippet.title",
+     "equals": "Emberfall: Launch Trailer"
+    },
+    {
+     "path": "contentDetails.projection",
+     "equals": "rectangular"
+    }
+   ]
+  },
+  {
+   "name": "The finished session answers its first answer again",
+   "method": "PUT",
+   "path": "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id={session}&part=snippet,status,contentDetails",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-range": "bytes */30"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{trailer}"
+    },
+    {
+     "path": "status.uploadStatus",
+     "equals": "uploaded"
+    }
+   ]
+  },
+  {
+   "name": "The trailer reads back processed and private",
+   "method": "GET",
+   "path": "/youtube/v3/videos?part=snippet,status,statistics&id={trailer}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{trailer}"
+    },
+    {
+     "path": "items.0.status.uploadStatus",
+     "equals": "processed"
+    },
+    {
+     "path": "items.0.status.privacyStatus",
+     "equals": "private"
+    },
+    {
+     "path": "items.0.statistics.viewCount",
+     "equals": "0"
+    },
+    {
+     "path": "items.0.snippet.tags",
+     "members": [
+      "emberfall",
+      "indie",
+      "trailer"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Another person reading a private video finds no video",
+   "method": "GET",
+   "path": "/youtube/v3/videos?part=snippet&id={trailer}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {jun}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "equals": []
+    },
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "The tooling uploads a dev diary in one multipart request",
+   "method": "POST",
+   "path": "/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "multipart/related; boundary=emberfall_boundary_7f3a"
+   },
+   "body": "--emberfall_boundary_7f3a\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n{\"snippet\":{\"title\":\"Emberfall Dev Diary #4: Lanterns\",\"description\":\"How the lantern light works.\",\"categoryId\":\"20\"}}\r\n--emberfall_boundary_7f3a\r\nContent-Type: video/mp4\r\n\r\nDEV-DIARY-SYNTHETIC-04\r\n--emberfall_boundary_7f3a--\r\n",
+   "capture": {
+    "diary": "id"
+   },
+   "expect": [
+    {
+     "path": "status.uploadStatus",
+     "equals": "uploaded"
+    },
+    {
+     "path": "status.privacyStatus",
+     "equals": "public"
+    }
+   ]
+  },
+  {
+   "name": "The dev diary reads back processed",
+   "method": "GET",
+   "path": "/youtube/v3/videos?part=status&id={diary}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items.0.status.uploadStatus",
+     "equals": "processed"
+    }
+   ]
+  },
+  {
+   "name": "The tooling retitles the trailer and makes it public",
+   "method": "PUT",
+   "path": "/youtube/v3/videos?part=snippet,status",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "id": "{trailer}",
+    "snippet": {
+     "title": "Emberfall: Official Launch Trailer",
+     "description": "Emberfall is out now.",
+     "tags": [
+      "emberfall",
+      "launch"
+     ],
+     "categoryId": "20"
+    },
+    "status": {
+     "privacyStatus": "public"
+    }
+   },
+   "expect": [
+    {
+     "path": "snippet.title",
+     "equals": "Emberfall: Official Launch Trailer"
+    },
+    {
+     "path": "status.privacyStatus",
+     "equals": "public"
+    },
+    {
+     "path": "status.uploadStatus",
+     "equals": "processed"
+    }
+   ]
+  },
+  {
+   "name": "An update of the snippet without a category is refused",
+   "method": "PUT",
+   "path": "/youtube/v3/videos?part=snippet",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "id": "{trailer}",
+    "snippet": {
+     "title": "Emberfall"
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "invalidCategoryId"
+    }
+   ]
+  },
+  {
+   "name": "The trailer's audience watches and likes it, and a viewer outside the World comments",
+   "method": "POST",
+   "path": "/_twin/videos/{trailer}/audience",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "views": 1200,
+    "likes": 140,
+    "comment": {
+     "author": "Lumen Fan",
+     "text": "The lantern shot at 0:42 gave me chills."
+    }
+   },
+   "capture": {
+    "lumenThread": "commentThreadId"
+   },
+   "expect": [
+    {
+     "path": "statistics.viewCount",
+     "equals": "1200"
+    },
+    {
+     "path": "statistics.likeCount",
+     "equals": "140"
+    }
+   ]
+  },
+  {
+   "name": "Jun comments on the trailer",
+   "method": "POST",
+   "path": "/youtube/v3/commentThreads?part=snippet",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {jun}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "channelId": "{studio}",
+     "videoId": "{trailer}",
+     "topLevelComment": {
+      "snippet": {
+       "textOriginal": "Day one buy for me. Will there be a co-op mode?"
+      }
+     }
+    }
+   },
+   "capture": {
+    "junThread": "id"
+   },
+   "expect": [
+    {
+     "path": "kind",
+     "equals": "youtube#commentThread"
+    },
+    {
+     "path": "snippet.topLevelComment.snippet.authorDisplayName",
+     "equals": "Jun Plays"
+    },
+    {
+     "path": "snippet.topLevelComment.snippet.textOriginal",
+     "equals": "Day one buy for me. Will there be a co-op mode?"
+    }
+   ]
+  },
+  {
+   "name": "A comment with no video is refused",
+   "method": "POST",
+   "path": "/youtube/v3/commentThreads?part=snippet",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {jun}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "topLevelComment": {
+      "snippet": {
+       "textOriginal": "hello"
+      }
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "channelOrVideoIdMissing"
+    }
+   ]
+  },
+  {
+   "name": "Ayla replies to Jun",
+   "method": "POST",
+   "path": "/youtube/v3/comments?part=snippet",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "parentId": "{junThread}",
+     "textOriginal": "Co-op lands in the first update. Thanks Jun!"
+    }
+   },
+   "capture": {
+    "reply": "id"
+   },
+   "expect": [
+    {
+     "path": "snippet.parentId",
+     "equals": "{junThread}"
+    },
+    {
+     "path": "id",
+     "contains": "{junThread}."
+    }
+   ]
+  },
+  {
+   "name": "The spam account comments a link",
+   "method": "POST",
+   "path": "/youtube/v3/commentThreads?part=snippet",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {spam}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "channelId": "{studio}",
+     "videoId": "{trailer}",
+     "topLevelComment": {
+      "snippet": {
+       "textOriginal": "FREE GEMS at gems-free-now.example"
+      }
+     }
+    }
+   },
+   "capture": {
+    "spamThread": "id"
+   }
+  },
+  {
+   "name": "Ayla reads the trailer's comment threads, newest first, with replies",
+   "method": "GET",
+   "path": "/youtube/v3/commentThreads?part=snippet,replies&videoId={trailer}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{spamThread}"
+    },
+    {
+     "path": "items.1.id",
+     "equals": "{junThread}"
+    },
+    {
+     "path": "items.1.snippet.totalReplyCount",
+     "equals": 1
+    },
+    {
+     "path": "items.1.replies.comments.0.id",
+     "equals": "{reply}"
+    },
+    {
+     "path": "items.1.snippet.topLevelComment.snippet.moderationStatus",
+     "equals": "published"
+    },
+    {
+     "path": "items.2.id",
+     "equals": "{lumenThread}"
+    },
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 3
+    }
+   ]
+  },
+  {
+   "name": "Jun asking for the comments held for review is refused",
+   "method": "GET",
+   "path": "/youtube/v3/commentThreads?part=snippet&videoId={trailer}&moderationStatus=heldForReview",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {jun}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "forbidden"
+    }
+   ]
+  },
+  {
+   "name": "banAuthor without rejecting is refused",
+   "method": "POST",
+   "path": "/youtube/v3/comments/setModerationStatus?id={spamThread}&moderationStatus=heldForReview&banAuthor=true",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "banWithoutReject"
+    }
+   ]
+  },
+  {
+   "name": "Jun cannot moderate the studio's comments",
+   "method": "POST",
+   "path": "/youtube/v3/comments/setModerationStatus?id={spamThread}&moderationStatus=rejected",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {jun}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "forbidden"
+    }
+   ]
+  },
+  {
+   "name": "Ayla rejects the spam comment and bans its author",
+   "method": "POST",
+   "path": "/youtube/v3/comments/setModerationStatus?id={spamThread}&moderationStatus=rejected&banAuthor=true",
+   "status": 204,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   }
+  },
+  {
+   "name": "The spam account's next comment is rejected as it arrives",
+   "method": "POST",
+   "path": "/youtube/v3/commentThreads?part=snippet",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {spam}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "channelId": "{studio}",
+     "videoId": "{trailer}",
+     "topLevelComment": {
+      "snippet": {
+       "textOriginal": "FREE GEMS again"
+      }
+     }
+    }
+   },
+   "capture": {
+    "spamThread2": "id"
+   }
+  },
+  {
+   "name": "The published threads show neither spam comment",
+   "method": "GET",
+   "path": "/youtube/v3/commentThreads?part=snippet&videoId={trailer}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 2
+    },
+    {
+     "path": "items.0.id",
+     "equals": "{junThread}"
+    },
+    {
+     "path": "items.1.id",
+     "equals": "{lumenThread}"
+    }
+   ]
+  },
+  {
+   "name": "Publishing the rejected comment is refused",
+   "method": "POST",
+   "path": "/youtube/v3/comments/setModerationStatus?id={spamThread}&moderationStatus=published",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "processingFailure"
+    }
+   ]
+  },
+  {
+   "name": "Ayla holds the outside viewer's comment for review",
+   "method": "POST",
+   "path": "/youtube/v3/comments/setModerationStatus?id={lumenThread}&moderationStatus=heldForReview",
+   "status": 204,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   }
+  },
+  {
+   "name": "The held comment is listed for its owner",
+   "method": "GET",
+   "path": "/youtube/v3/commentThreads?part=snippet&videoId={trailer}&moderationStatus=heldForReview",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 1
+    },
+    {
+     "path": "items.0.id",
+     "equals": "{lumenThread}"
+    },
+    {
+     "path": "items.0.snippet.topLevelComment.snippet.moderationStatus",
+     "equals": "heldForReview"
+    }
+   ]
+  },
+  {
+   "name": "Ayla publishes it again",
+   "method": "POST",
+   "path": "/youtube/v3/comments/setModerationStatus?id={lumenThread}&moderationStatus=published",
+   "status": 204,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   }
+  },
+  {
+   "name": "Before the stream the tooling renews Ayla's access token with her refresh token",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={aylaRefresh}&client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&client_secret=GOCSPX-hL4nt3rnEmb3rfa11Tw1nW0rld",
+   "capture": {
+    "ayla": "access_token"
+   },
+   "expect": [
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "scope",
+     "contains": "youtube.upload"
+    }
+   ]
+  },
+  {
+   "name": "The renewed token reads Ayla's channel",
+   "method": "GET",
+   "path": "/youtube/v3/channels?part=id&mine=true",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{studio}"
+    }
+   ]
+  },
+  {
+   "name": "Jun signs in to the studio's stats page, read only",
+   "method": "GET",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth?client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.readonly&state=junread",
+   "status": 200
+  },
+  {
+   "name": "Jun chooses his account for the read-only grant",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "request=client_id%3D731904826153-hollowlantern4q8.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Ftools.hollowlantern.games%252Foauth%252Fgoogle%252Fcallback%26response_type%3Dcode%26scope%3Dhttps%253A%252F%252Fwww.googleapis.com%252Fauth%252Fyoutube.readonly%26state%3Djunread&sub=113579246801357924680",
+   "capture": {
+    "code_junread": "header:location:code=([^&]+)"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "state=junread"
+    }
+   ]
+  },
+  {
+   "name": "The stats page exchanges the read-only code",
+   "method": "POST",
+   "path": "https://oauth2.googleapis.com/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={code_junread}&client_id=731904826153-hollowlantern4q8.apps.googleusercontent.com&client_secret=GOCSPX-hL4nt3rnEmb3rfa11Tw1nW0rld&redirect_uri=https%3A%2F%2Ftools.hollowlantern.games%2Foauth%2Fgoogle%2Fcallback",
+   "capture": {
+    "junread": "access_token"
+   },
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "https://www.googleapis.com/auth/youtube.readonly"
+    }
+   ]
+  },
+  {
+   "name": "The read-only token reads Jun's channel",
+   "method": "GET",
+   "path": "/youtube/v3/channels?part=id&mine=true",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {junread}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{junChannel}"
+    }
+   ]
+  },
+  {
+   "name": "The read-only token is refused an upload, which needs a scope it lacks",
+   "method": "POST",
+   "path": "/upload/youtube/v3/videos?uploadType=resumable&part=snippet",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {junread}",
+    "content-type": "application/json",
+    "x-upload-content-length": "10",
+    "x-upload-content-type": "video/mp4"
+   },
+   "body": {
+    "snippet": {
+     "title": "Jun reacts",
+     "categoryId": "20"
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "insufficientPermissions"
+    }
+   ]
+  },
+  {
+   "name": "and a chat line",
+   "method": "POST",
+   "path": "/youtube/v3/liveChat/messages?part=snippet",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {junread}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "liveChatId": "none",
+     "type": "textMessageEvent",
+     "textMessageDetails": {
+      "messageText": "hi"
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "insufficientPermissions"
+    }
+   ]
+  },
+  {
+   "name": "The tooling makes the stream its encoder sends",
+   "method": "POST",
+   "path": "/youtube/v3/liveStreams?part=snippet,cdn,status,contentDetails",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "title": "Emberfall launch encoder"
+    },
+    "cdn": {
+     "ingestionType": "rtmp",
+     "resolution": "1080p",
+     "frameRate": "30fps"
+    },
+    "contentDetails": {
+     "isReusable": true
+    }
+   },
+   "capture": {
+    "stream": "id",
+    "streamName": "cdn.ingestionInfo.streamName"
+   },
+   "expect": [
+    {
+     "path": "kind",
+     "equals": "youtube#liveStream"
+    },
+    {
+     "path": "cdn.ingestionInfo.ingestionAddress",
+     "equals": "rtmp://a.rtmp.youtube.com/live2"
+    },
+    {
+     "path": "cdn.ingestionInfo.streamName",
+     "matches": "^[a-z0-9]{4}(-[a-z0-9]{4}){4}$"
+    },
+    {
+     "path": "status.streamStatus",
+     "equals": "ready"
+    }
+   ]
+  },
+  {
+   "name": "A stream with no cdn is refused",
+   "method": "POST",
+   "path": "/youtube/v3/liveStreams?part=snippet",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "title": "no cdn"
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "cdnRequired"
+    }
+   ]
+  },
+  {
+   "name": "The tooling schedules the launch broadcast for 18:00 UTC",
+   "method": "POST",
+   "path": "/youtube/v3/liveBroadcasts?part=snippet,status,contentDetails",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "title": "Emberfall Launch Stream",
+     "description": "Play along with the team.",
+     "scheduledStartTime": "2026-11-03T18:00:00Z"
+    },
+    "status": {
+     "privacyStatus": "public"
+    },
+    "contentDetails": {
+     "enableAutoStart": false,
+     "enableAutoStop": false
+    }
+   },
+   "capture": {
+    "broadcast": "id",
+    "chat": "snippet.liveChatId"
+   },
+   "expect": [
+    {
+     "path": "status.lifeCycleStatus",
+     "equals": "created"
+    },
+    {
+     "path": "snippet.liveChatId",
+     "exists": true
+    },
+    {
+     "path": "contentDetails.monitorStream.enableMonitorStream",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "A broadcast with no start time is refused",
+   "method": "POST",
+   "path": "/youtube/v3/liveBroadcasts?part=snippet",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "title": "Later"
+    },
+    "status": {
+     "privacyStatus": "public"
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "scheduledStartTimeRequired"
+    }
+   ]
+  },
+  {
+   "name": "The broadcast is bound to the stream",
+   "method": "POST",
+   "path": "/youtube/v3/liveBroadcasts/bind?id={broadcast}&streamId={stream}&part=id,contentDetails,status",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "contentDetails.boundStreamId",
+     "equals": "{stream}"
+    },
+    {
+     "path": "status.lifeCycleStatus",
+     "equals": "ready"
+    }
+   ]
+  },
+  {
+   "name": "Going to testing before the encoder publishes is refused",
+   "method": "POST",
+   "path": "/youtube/v3/liveBroadcasts/transition?id={broadcast}&broadcastStatus=testing&part=status",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "errorStreamInactive"
+    }
+   ]
+  },
+  {
+   "name": "Going live straight from ready with a monitor stream is refused",
+   "method": "POST",
+   "path": "/youtube/v3/liveBroadcasts/transition?id={broadcast}&broadcastStatus=live&part=status",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "invalidTransition"
+    }
+   ]
+  },
+  {
+   "name": "Completing a broadcast that never started is refused",
+   "method": "POST",
+   "path": "/youtube/v3/liveBroadcasts/transition?id={broadcast}&broadcastStatus=complete&part=status",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "invalidTransition"
+    }
+   ]
+  },
+  {
+   "name": "The encoder's RTMP publish to the stream name is the encoder's act, outside the walk: the stream still reads ready",
+   "method": "GET",
+   "path": "/youtube/v3/liveStreams?part=status&id={stream}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items.0.status.streamStatus",
+     "equals": "ready"
+    }
+   ]
+  },
+  {
+   "name": "The upcoming broadcasts list the launch stream",
+   "method": "GET",
+   "path": "/youtube/v3/liveBroadcasts?part=snippet,status&broadcastStatus=upcoming",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{broadcast}"
+    },
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "The broadcast is a video: read by its id, it is an upcoming live broadcast",
+   "method": "GET",
+   "path": "/youtube/v3/videos?part=snippet,liveStreamingDetails&id={broadcast}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{broadcast}"
+    },
+    {
+     "path": "items.0.snippet.liveBroadcastContent",
+     "equals": "upcoming"
+    },
+    {
+     "path": "items.0.liveStreamingDetails.scheduledStartTime",
+     "equals": "2026-11-03T18:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "name": "No broadcast is active",
+   "method": "GET",
+   "path": "/youtube/v3/liveBroadcasts?part=status&broadcastStatus=active",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Ayla writes in the chat",
+   "method": "POST",
+   "path": "/youtube/v3/liveChat/messages?part=snippet,authorDetails",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "liveChatId": "{chat}",
+     "type": "textMessageEvent",
+     "textMessageDetails": {
+      "messageText": "Welcome! The launch stream starts at 18:00 UTC."
+     }
+    }
+   },
+   "capture": {
+    "aylaLine": "id"
+   },
+   "expect": [
+    {
+     "path": "authorDetails.isChatOwner",
+     "equals": true
+    },
+    {
+     "path": "snippet.type",
+     "equals": "textMessageEvent"
+    }
+   ]
+  },
+  {
+   "name": "Jun writes in the chat",
+   "method": "POST",
+   "path": "/youtube/v3/liveChat/messages?part=snippet,authorDetails",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {jun}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "liveChatId": "{chat}",
+     "type": "textMessageEvent",
+     "textMessageDetails": {
+      "messageText": "Hyped! Saving a seat."
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "authorDetails.displayName",
+     "equals": "Jun Plays"
+    },
+    {
+     "path": "authorDetails.isChatOwner",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "A viewer outside the World writes in the chat",
+   "method": "POST",
+   "path": "/_twin/live-chats/{chat}/audience",
+   "status": 201,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "author": "Lumen Fan",
+    "text": "First stream I have set a reminder for in years"
+   }
+  },
+  {
+   "name": "The spam account writes in the chat",
+   "method": "POST",
+   "path": "/youtube/v3/liveChat/messages?part=snippet,authorDetails",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {spam}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "liveChatId": "{chat}",
+     "type": "textMessageEvent",
+     "textMessageDetails": {
+      "messageText": "FREE GEMS gems-free-now.example"
+     }
+    }
+   },
+   "capture": {
+    "trollLine": "id"
+   }
+  },
+  {
+   "name": "A message with no text is refused",
+   "method": "POST",
+   "path": "/youtube/v3/liveChat/messages?part=snippet",
+   "status": 400,
+   "headers": {
+    "authorization": "Bearer {jun}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "snippet": {
+     "liveChatId": "{chat}",
+     "type": "textMessageEvent"
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "messageTextRequired"
+    }
+   ]
+  },
+  {
+   "name": "The tooling's chat bot polls the chat",
+   "method": "GET",
+   "path": "/youtube/v3/liveChat/messages?liveChatId={chat}&part=snippet,authorDetails",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "capture": {
+    "chatPage": "nextPageToken"
+   },
+   "expect": [
+    {
+     "path": "kind",
+     "equals": "youtube#liveChatMessageListResponse"
+    },
+    {
+     "path": "pageInfo.totalResults",
+     "equals": 4
+    },
+    {
+     "path": "items.0.snippet.displayMessage",
+     "equals": "Welcome! The launch stream starts at 18:00 UTC."
+    },
+    {
+     "path": "items.2.authorDetails.displayName",
+     "equals": "Lumen Fan"
+    },
+    {
+     "path": "pollingIntervalMillis",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Jun cannot delete Ayla's line",
+   "method": "DELETE",
+   "path": "/youtube/v3/liveChat/messages?id={aylaLine}",
+   "status": 403,
+   "headers": {
+    "authorization": "Bearer {jun}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "forbidden"
+    }
+   ]
+  },
+  {
+   "name": "Ayla deletes the troll's line",
+   "method": "DELETE",
+   "path": "/youtube/v3/liveChat/messages?id={trollLine}",
+   "status": 204,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   }
+  },
+  {
+   "name": "Polling from the page token finds nothing new",
+   "method": "GET",
+   "path": "/youtube/v3/liveChat/messages?liveChatId={chat}&part=snippet&pageToken={chatPage}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "items",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "A chat the World does not hold is not found",
+   "method": "GET",
+   "path": "/youtube/v3/liveChat/messages?liveChatId=NoSuchChat&part=snippet",
+   "status": 404,
+   "headers": {
+    "authorization": "Bearer {ayla}"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "liveChatNotFound"
+    }
+   ]
+  },
+  {
+   "name": "The studio's channel has 12,345 subscribers",
+   "method": "POST",
+   "path": "/_twin/channels/{studio}/audience",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "subscribers": 12345
+   },
+   "expect": [
+    {
+     "path": "subscriberCount",
+     "equals": "12300"
+    }
+   ]
+  },
+  {
+   "name": "Dub's cron reads its partner channel with the project's API key",
+   "method": "GET",
+   "path": "https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id={studio}",
+   "status": 200,
+   "headers": {
+    "x-goog-api-key": "{apiKey}"
+   },
+   "expect": [
+    {
+     "path": "items.0.id",
+     "equals": "{studio}"
+    },
+    {
+     "path": "items.0.statistics.subscriberCount",
+     "equals": "12300"
+    },
+    {
+     "path": "items.0.statistics.videoCount",
+     "equals": "2"
+    },
+    {
+     "path": "items.0.statistics.viewCount",
+     "equals": "1200"
+    },
+    {
+     "path": "items.0.snippet.customUrl",
+     "equals": "@hollowlanterngames"
+    },
+    {
+     "path": "items.0.snippet.thumbnails.default.url",
+     "matches": "^https://"
+    }
+   ]
+  },
+  {
+   "name": "A key the project does not hold is refused",
+   "method": "GET",
+   "path": "https://www.googleapis.com/youtube/v3/channels?part=statistics&id={studio}",
+   "status": 400,
+   "headers": {
+    "x-goog-api-key": "AIzaNotAKeyThisProjectHolds0000000000"
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "keyInvalid"
+    }
+   ]
+  },
+  {
+   "name": "The key is refused on a method that writes, which needs a person's token",
+   "method": "PUT",
+   "path": "https://www.googleapis.com/youtube/v3/videos?part=snippet",
+   "status": 401,
+   "headers": {
+    "x-goog-api-key": "{apiKey}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "id": "{trailer}",
+    "snippet": {
+     "title": "Emberfall",
+     "categoryId": "20"
+    }
+   },
+   "expect": [
+    {
+     "path": "error.errors.0.reason",
+     "equals": "required"
+    }
+   ]
+  }
+ ],
+ "companions": [
+  "googleoauth"
+ ]
+}
