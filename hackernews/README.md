@@ -23,8 +23,9 @@ pages no World holds and the twin does not republish (they open the real page in
 **For whom:** a World where a person posts a launch as Hacker News sees it (Volter's dry-run launch of its Model Editor
 as a Show HN), and anything that reads the posts back through the API.
 
-**Doors:** `POST /_twin/app-credentials` (the descriptor's `credentialDoor`): the World's own account, `yuerany` (the launch's
-channel `hn-aaron`), and its password, filled as `HN_USERNAME` and `HN_PASSWORD`; a person signs in with them on the login page.
+**Doors:** `POST /_twin/app-credentials` (the descriptor's `credentialDoor`): the organization's retained site login and
+password, shared by its deployments and filled as `HN_USERNAME` and `HN_PASSWORD`; a person signs in with them on the login page.
+The implicit organization uses `yuerany` (the launch's channel `hn-aaron`).
 
 **Left out:** item deletion and editing, flags, vouches, hide and favorite, downvotes and unvoting, polls and jobs (no
 form a person uses makes one; jobstories answers the gap), the user's profile settings, password reset, Ask HN's and the other listing
