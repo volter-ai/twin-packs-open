@@ -9,7 +9,7 @@ const STATUS = 'https://developers.tiktok.com/doc/content-posting-api-reference-
  *  PROCESSING_DOWNLOAD (written so at the post's start); the vendor finishes it when the last chunk arrives or the pull
  *  ends. Not made by the twin: a post the creator makes from an inbox draft (PUBLISH_COMPLETE after SEND_TO_USER_INBOX,
  *  the creator's move in the app), a moderation that fails a post, and a cancelled pull (the cancel is unmodeled). */
-export const publishStatus: StateField = {
+const publishStatus: StateField = {
   initial: 'PROCESSING_UPLOAD',
   transitions: [
     { actor: 'vendor', from: ['PROCESSING_UPLOAD', 'PROCESSING_DOWNLOAD'], to: 'PUBLISH_COMPLETE', source: `${STATUS} "it indicates that the content has been posted"` },

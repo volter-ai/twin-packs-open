@@ -45,7 +45,7 @@ export function jsonParam(ctx: HandlerContext, name: string): { value?: unknown;
 }
 
 /** The vendor's own fields of a stored row: the kernel's bookkeeping (`_` fields, a tombstone) left out. */
-export function vendorFields(ctx: HandlerContext, row: Row): Row {
+function vendorFields(ctx: HandlerContext, row: Row): Row {
   return Object.fromEntries(Object.entries(ctx.own(row)).filter(([k]) => !k.startsWith('_') && k !== 'deleted'));
 }
 
@@ -100,7 +100,7 @@ export function userView(ctx: HandlerContext, id: unknown): Row {
 }
 
 /** A Chat as a message names it: its id, type and names. */
-export function chatView(ctx: HandlerContext, id: unknown): Row {
+function chatView(ctx: HandlerContext, id: unknown): Row {
   const row = ctx.row('chat', String(id));
   const v = row ? vendorFields(ctx, row) : { id: Number(id), type: 'private' };
   return Object.fromEntries(Object.entries(v).filter(([k]) => ['id', 'type', 'title', 'username', 'first_name', 'last_name', 'is_forum', 'is_direct_messages'].includes(k)));
