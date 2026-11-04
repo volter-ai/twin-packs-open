@@ -4,6 +4,7 @@
   (the source of its Fern SDKs), fetched 2026-09-30 and vendored gzipped with the example-value substitution listed below. Server `https://api.elevenlabs.io`.
 - **Corrections:** only the captured-example string substitutions below; operations and schemas are unchanged.
 - **Original captured compressed bytes (sha256):** `openapi.json.gz` `14163f190ceeb1ba37fa9e523d8cf2b81735158c7306b9637c1f2d4d610614de`.
+- **Packaged redacted uncompressed bytes (sha256):** `openapi.json.gz` `c308d7fe3371019f5f1883466463ee8524e070aa13a814f1e6a16cc4b3e49b55`.
 
 - **Read:** 2026-10-01. The life's multipart sample is synthetic spoken audio generated with macOS Samantha (`say`) and encoded as MP3 with ffmpeg; it says Maya's studio welcome, rather than naming a file with no bytes.
 
