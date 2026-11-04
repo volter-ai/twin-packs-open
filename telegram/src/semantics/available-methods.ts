@@ -50,11 +50,14 @@ function captionOf(ctx: HandlerContext, caption: unknown, parseMode: unknown, en
   return textFields(text, 'caption');
 }
 
-/** A medium's fields on its message, from an upload or a file sent again: a photo's one size, a video's size and
- *  length, a document's name and type. */
-async function mediaFields(ctx: HandlerContext, botId: number, kind: 'photo' | 'video' | 'document', upload: Upload, given: { width?: unknown; height?: unknown; duration?: unknown }): Promise<Row | { refusal: Response }> {
-  const operation = ctx.call.operation.id;
-  let file: Row;
+type MediaKind = 'photo' | 'video' | 'document';
+type PreparedMedia = { upload: Upload; bytes: Uint8Array } & (
+  { kind: 'photo'; size: { width: number; height: number } } |
+  { kind: 'video' | 'document'; fields: Row }
+);
+
+/** Read and validate a medium without creating files, thumbnails or messages. */
+async function prepareMedia(ctx: HandlerContext, kind: MediaKind, upload: Upload, given: { width?: unknown; height?: unknown; duration?: unknown }): Promise<PreparedMedia | { refusal: Response }> {
   let bytes: Uint8Array;
   if ('file' in upload) {
     // a file sent again keeps its type: a photo is not sent as a document, nor a video as a photo
@@ -64,52 +67,59 @@ async function mediaFields(ctx: HandlerContext, botId: number, kind: 'photo' | '
     const real = types[String(upload.file._kind)] ?? 'Document';
     const wanted = kind === 'photo' ? 'Photo' : kind === 'video' ? 'Video' : 'Document';
     if (real !== wanted) return { refusal: refuse(ctx, 400, `Bad Request: can't use file of type ${real} as ${wanted}`) };
-    file = upload.file;
-    bytes = await fileBytes(ctx, file);
+    bytes = await fileBytes(ctx, upload.file);
   }
-  else {
-    bytes = upload.bytes;
-    // source: https://core.telegram.org/bots/api#sendphoto "The photo must be at most 10 MB in size."
-    // source: https://core.telegram.org/bots/api#sendvideo "Bots can currently send video files of up to 50 MB in size, this limit may be changed in the future."
-    // source: https://core.telegram.org/bots/api#senddocument "Bots can currently send files of any type of up to 50 MB in size, this limit may be changed in the future."
-    // Where the documentation stops: the words for a file over its limit are the server's for a file too big
-    // source: https://raw.githubusercontent.com/tdlib/telegram-bot-api/e3e9dd8e5b3d7ab8537cd5a10dc31d5ffa8f82d1/telegram-bot-api/Client.cpp "Bad Request: file is too big"
-    if (bytes.byteLength > (kind === 'photo' ? 10 : 50) * 1024 * 1024) return { refusal: refuse(ctx, 400, 'Bad Request: file is too big') };
-    if (kind === 'photo' && !imageSize(bytes)) {
+  else bytes = upload.bytes;
+  // source: https://core.telegram.org/bots/api#sendphoto "The photo must be at most 10 MB in size."
+  // source: https://core.telegram.org/bots/api#sendvideo "Bots can currently send video files of up to 50 MB in size, this limit may be changed in the future."
+  // source: https://core.telegram.org/bots/api#senddocument "Bots can currently send files of any type of up to 50 MB in size, this limit may be changed in the future."
+  // Where the documentation stops: the words for a file over its limit are the server's for a file too big
+  // source: https://raw.githubusercontent.com/tdlib/telegram-bot-api/e3e9dd8e5b3d7ab8537cd5a10dc31d5ffa8f82d1/telegram-bot-api/Client.cpp "Bad Request: file is too big"
+  if (!('file' in upload) && bytes.byteLength > (kind === 'photo' ? 10 : 50) * 1024 * 1024) return { refusal: refuse(ctx, 400, 'Bad Request: file is too big') };
+  const size = kind === 'photo' ? imageSize(bytes) : undefined;
+  if (!('file' in upload)) {
+    if (kind === 'photo' && !size) {
       // an upload that is no image Telegram can read: Telegram's own error for it, which the server relays as it is (its
       // second character an underscore or a capital)
       // source: https://core.telegram.org/method/messages.sendMedia "Failure while processing image."
       // source: https://raw.githubusercontent.com/tdlib/telegram-bot-api/e3e9dd8e5b3d7ab8537cd5a10dc31d5ffa8f82d1/telegram-bot-api/Client.cpp "(error_message[1] == '_' || ('A' <= error_message[1] && error_message[1] <= 'Z'))) {"
       return { refusal: refuse(ctx, 400, 'Bad Request: IMAGE_PROCESS_FAILED') };
     }
-    const size = kind === 'photo' ? imageSize(bytes)! : undefined;
     // source: https://core.telegram.org/bots/api#sendphoto "The photo's width and height must not exceed 10000 in total. Width and height ratio must be at most 20."
     // (Telegram's own error for it, relayed as it is: an MTProto error's second character is a capital)
     if (size && (size.width + size.height > 10000 || Math.max(size.width, size.height) > 20 * Math.max(1, Math.min(size.width, size.height)))) return { refusal: refuse(ctx, 400, 'Bad Request: PHOTO_INVALID_DIMENSIONS') };
-    file = await storeFile(ctx, bytes, { kind: kind === 'photo' ? 'photos' : kind === 'video' ? 'videos' : 'documents', bot: botId, ...(upload.mime ? { mime: upload.mime } : {}), ...(upload.name ? { name: upload.name } : {}) }, operation);
   }
-  const ids = { file_id: file.file_id, file_unique_id: file.file_unique_id };
-  if (kind === 'photo') {
-    const size = imageSize(bytes) ?? { width: 0, height: 0 };
-    // its smaller sizes first, then the photo as it was given
-    // source: https://core.telegram.org/bots/api#message "Optional. Message is a photo, available sizes of the photo"
-    const thumbnails = await photoThumbnails(ctx, file, size.width, size.height, operation);
-    return { photo: [...thumbnails, { ...ids, file_size: bytes.byteLength, width: size.width, height: size.height }] };
-  }
-  const name = typeof file._name === 'string' ? file._name : undefined;
-  const mime = typeof file._mime === 'string' ? file._mime : undefined;
+  if (kind === 'photo') return { kind, upload, bytes, size: size ?? { width: 0, height: 0 } };
+  const name = 'file' in upload ? upload.file._name : upload.name;
+  const mime = 'file' in upload ? upload.file._mime : upload.mime;
+  const fields = { ...(typeof name === 'string' && name ? { file_name: name } : {}), ...(typeof mime === 'string' && mime ? { mime_type: mime } : {}), file_size: bytes.byteLength };
   if (kind === 'video') {
     const info = mp4Info(bytes);
     // the request's own width, height and duration, else the file's
     // source: https://core.telegram.org/bots/api#sendvideo "Duration of sent video in seconds"
     const num = (v: unknown, fallback: number): number => (typeof v === 'number' ? v : typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : fallback);
-    return { video: { ...ids, width: num(given.width, info?.width ?? 0), height: num(given.height, info?.height ?? 0), duration: num(given.duration, info?.duration ?? 0), ...(name ? { file_name: name } : {}), ...(mime ? { mime_type: mime } : {}), file_size: bytes.byteLength } };
+    return { kind, upload, bytes, fields: { width: num(given.width, info?.width ?? 0), height: num(given.height, info?.height ?? 0), duration: num(given.duration, info?.duration ?? 0), ...fields } };
   }
-  return { document: { ...ids, ...(name ? { file_name: name } : {}), ...(mime ? { mime_type: mime } : {}), file_size: bytes.byteLength } };
+  return { kind, upload, bytes, fields };
+}
+
+/** Persist a validated medium and assemble its message fields. */
+async function mediaFields(ctx: HandlerContext, botId: number, media: PreparedMedia): Promise<Row> {
+  const operation = ctx.call.operation.id;
+  const upload = media.upload;
+  const file = 'file' in upload ? upload.file : await storeFile(ctx, media.bytes, { kind: media.kind === 'photo' ? 'photos' : media.kind === 'video' ? 'videos' : 'documents', bot: botId, ...(upload.mime ? { mime: upload.mime } : {}), ...(upload.name ? { name: upload.name } : {}) }, operation);
+  const ids = { file_id: file.file_id, file_unique_id: file.file_unique_id };
+  if (media.kind === 'photo') {
+    // its smaller sizes first, then the photo as it was given
+    // source: https://core.telegram.org/bots/api#message "Optional. Message is a photo, available sizes of the photo"
+    const thumbnails = await photoThumbnails(ctx, file, media.size.width, media.size.height, operation);
+    return { photo: [...thumbnails, { ...ids, file_size: media.bytes.byteLength, ...media.size }] };
+  }
+  return { [media.kind]: { ...ids, ...media.fields } };
 }
 
 /** One medium sent to a chat with its caption. */
-async function sendMedium(ctx: HandlerContext, kind: 'photo' | 'video' | 'document'): Promise<Response> {
+async function sendMedium(ctx: HandlerContext, kind: MediaKind): Promise<Response> {
   const { id: botId } = botOf(ctx);
   const access = chatFor(ctx, botId, param(ctx, 'chat_id'), 'write');
   if ('refusal' in access) return access.refusal;
@@ -119,9 +129,10 @@ async function sendMedium(ctx: HandlerContext, kind: 'photo' | 'video' | 'docume
   if ('refusal' in caption) return caption.refusal as Response;
   const reply = replyTarget(ctx, access.chat, botId);
   if ('refusal' in reply) return reply.refusal;
-  const media = await mediaFields(ctx, botId, kind, upload, { width: param(ctx, 'width'), height: param(ctx, 'height'), duration: param(ctx, 'duration') });
+  const media = await prepareMedia(ctx, kind, upload, { width: param(ctx, 'width'), height: param(ctx, 'height'), duration: param(ctx, 'duration') });
   if ('refusal' in media) return media.refusal as Response;
-  const row = await storeBotMessage(ctx, botId, access.chat, { ...media, ...caption }, reply.key, ctx.call.operation.id);
+  const fields = await mediaFields(ctx, botId, media);
+  const row = await storeBotMessage(ctx, botId, access.chat, { ...fields, ...caption }, reply.key, ctx.call.operation.id);
   return answer(messageView(ctx, row));
 }
 
@@ -164,21 +175,22 @@ export async function sendMediaGroup(ctx: HandlerContext): Promise<Response> {
   const reply = replyTarget(ctx, access.chat, botId);
   if ('refusal' in reply) return reply.refusal;
   // every part checked before any is sent
-  const prepared: Array<{ kind: 'photo' | 'video' | 'document'; upload: Upload; caption: Row; item: Row }> = [];
+  const prepared: Array<{ media: PreparedMedia; caption: Row }> = [];
   for (const item of items) {
     const upload = uploadOf(ctx, item.media, botId);
     if ('refusal' in upload) return upload.refusal;
     const caption = captionOf(ctx, item.caption, item.parse_mode, item.caption_entities);
     if ('refusal' in caption) return caption.refusal as Response;
-    prepared.push({ kind: item.type as 'photo' | 'video' | 'document', upload, caption, item });
+    const medium = await prepareMedia(ctx, item.type as MediaKind, upload, { width: item.width, height: item.height, duration: item.duration });
+    if ('refusal' in medium) return medium.refusal;
+    prepared.push({ media: medium, caption });
   }
   // the album's one media_group_id, the World's for it
   // source: https://core.telegram.org/bots/api#message "Optional. The unique identifier inside this chat of a media message group this message belongs to"
   const group = await ctx.issue('_media_group');
   const sent: Row[] = [];
   for (const p of prepared) {
-    const fields = await mediaFields(ctx, botId, p.kind, p.upload, { width: p.item.width, height: p.item.height, duration: p.item.duration });
-    if ('refusal' in fields) return fields.refusal as Response;
+    const fields = await mediaFields(ctx, botId, p.media);
     const row = await storeBotMessage(ctx, botId, access.chat, { media_group_id: group, ...fields, ...p.caption }, reply.key, ctx.call.operation.id);
     sent.push(messageView(ctx, row));
   }
@@ -245,9 +257,9 @@ export async function getFile(ctx: HandlerContext): Promise<Response> {
 
 // source: https://core.telegram.org/bots/api#getfile "The file can then be downloaded via the link https://api.telegram.org/file/bot<token>/<file_path> , where <file_path> is taken from the response."
 export async function downloadFile(ctx: HandlerContext): Promise<Response> {
-  botOf(ctx);
+  const { id: botId } = botOf(ctx);
   const path = String(ctx.call.params.file_path ?? '');
-  const file = ctx.rowsRaw('file').find((r) => r.deleted !== true && r.file_path === path);
+  const file = ctx.rowsRaw('file').filter((r) => r.file_path === path).map((r) => fileById(ctx, r.file_id, botId)).find((r) => r?.file_path === path);
   // source: https://raw.githubusercontent.com/tdlib/telegram-bot-api/e3e9dd8e5b3d7ab8537cd5a10dc31d5ffa8f82d1/telegram-bot-api/HttpConnection.cpp "return send_http_error(404,"
   if (!file) return refuse(ctx, 404, 'Not Found');
   const bytes = await fileBytes(ctx, file);

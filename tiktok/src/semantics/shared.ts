@@ -15,7 +15,7 @@ export const CHUNK = '_chunk';
 
 export const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string => ctx.crypto.digest('sha256', v, 'hex');
 export const seconds = (iso: string): number => Math.floor(Date.parse(iso) / 1000);
-const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
+export const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 export const bodyOf = (ctx: Pick<HandlerContext, 'body'>): Row => obj(ctx.body);
 
 // ── apps and people ────────────────────────────────────────────────────────────────────────────
@@ -77,5 +77,3 @@ export function videoPage(ctx: Pick<HandlerContext, 'rowsRaw'>, person: string, 
  *  PUBLIC_TO_EVERYONE MUTUAL_FOLLOW_FRIENDS SELF_ONLY"; a private one's, FOLLOWER_OF_CREATOR in place of the first. */
 // source: https://developers.tiktok.com/doc/content-posting-api-reference-query-creator-info "If the TikTok creator account is public, the available options are:"
 export const privacyOptions = (p: Row): string[] => (p.private === true ? ['FOLLOWER_OF_CREATOR', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'] : ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY']);
-
-export { publish } from "../../open/src/semantics/states.ts";

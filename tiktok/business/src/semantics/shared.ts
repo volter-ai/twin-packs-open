@@ -5,7 +5,6 @@ import type { HandlerContext } from '@volter/world-core';
 import { ACCESS, ACCESS_TTL, APP, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, bodyOf, bySha, clientSecret, credential, mediaUrl, next, openIdOf, seconds, type Row, videoMoment } from '../../../src/semantics/shared.ts';
 
 export * from '../../../src/semantics/shared.ts';
-export type { HandlerContext };
 
 /** A request's id, as the API answers it. */
 const requestId = (ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, what: string): string =>
@@ -75,8 +74,6 @@ export const DEFAULT = ['display_name', 'profile_image'];
 export const profileFields = ['display_name', 'profile_image', 'username', 'profile_deep_link', 'bio_description', 'is_verified', 'followers_count', 'following_count', 'total_likes', 'videos_count'];
 
 export const postsFields = ['item_id', 'create_time', 'thumbnail_url', 'share_url', 'embed_url', 'caption', 'video_duration', 'likes', 'comments', 'shares', 'video_views'];
-
-export const publishObj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 
 /** Pull each URL through the World; the bytes pulled, or undefined when one fails. */
 async function pullAll(ctx: HandlerContext, urls: string[]): Promise<number | undefined> {

@@ -1,10 +1,9 @@
 // What every family of the open lane shares beyond the vendor's (../../../src/semantics/shared.ts): the open platform's
 // envelope, the scopes its apps are granted, and who a request is.
 import type { HandlerContext } from '@volter/world-core';
-import { ACCESS, ACCESS_TTL, APP, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, bySha, credential, next, openIdOf, privacyOptions, seconds, sha256, type Row } from '../../../src/semantics/shared.ts';
+import { ACCESS, ACCESS_TTL, APP, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, bySha, credential, next, obj, openIdOf, privacyOptions, seconds, sha256, type Row } from '../../../src/semantics/shared.ts';
 
 export * from '../../../src/semantics/shared.ts';
-export type { HandlerContext };
 
 /** The scopes an app on the developer site is granted: every product scope the life's app asks for (the World's app is set up
  *  with the products it uses). */
@@ -24,7 +23,7 @@ export const refuse = (ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, statu
   Response.json({ data: {}, error: { code, message, log_id: logId(ctx, code) } }, { status });
 
 /** Who a request is: the access token it bears, live, with its app, its person and its scopes. */
-export type Caller = { token: Row; app: Row; person: Row; scopes: string[]; openId: string };
+type Caller = { token: Row; app: Row; person: Row; scopes: string[]; openId: string };
 function callerOf(ctx: HandlerContext): Caller | undefined {
   const value = /^Bearer\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
   const token = value ? bySha(ctx, ACCESS, value) : undefined;
@@ -73,8 +72,6 @@ export const FIELD_SCOPE: Record<string, string> = {
   follower_count: 'user.info.stats', following_count: 'user.info.stats', likes_count: 'user.info.stats', video_count: 'user.info.stats',
 };
 
-export const videosObj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
-
 // source: https://developers.tiktok.com/doc/tiktok-api-v2-video-query "choose from"
 const FIELDS = ['id', 'create_time', 'cover_image_url', 'share_url', 'video_description', 'duration', 'height', 'width', 'title', 'embed_html', 'embed_link', 'like_count', 'comment_count', 'share_count', 'view_count', 'is_aigc'];
 
@@ -88,8 +85,6 @@ export const project = (ctx: HandlerContext, v: Row, fields: string[]): Row => {
   const served = ctx.get(VIDEO, String(v.id)) ?? {};
   return Object.fromEntries(fields.map((f) => [f, served[f]]));
 };
-
-export const publishObj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 
 const MB = 1024 * 1024;
 
@@ -118,9 +113,9 @@ function chunkRefusal(size: number, chunk: number, count: number): string | unde
 export async function initVideo(ctx: HandlerContext, direct: boolean): Promise<Response> {
   const c = authorized(ctx, direct ? 'video.publish' : 'video.upload');
   if (c instanceof Response) return c;
-  const b = publishObj(ctx.body);
-  const post = publishObj(b.post_info);
-  const source = publishObj(b.source_info);
+  const b = obj(ctx.body);
+  const post = obj(b.post_info);
+  const source = obj(b.source_info);
   if (direct) {
     // source: https://developers.tiktok.com/doc/content-posting-api-reference-direct-post "privacy_level is not specified or not among the options from the privacy_level_options returned in /publish/creator_info/query/ API."
     if (!privacyOptions(c.person).includes(String(post.privacy_level))) return refuse(ctx, 403, 'privacy_level_option_mismatch', 'privacy_level is not specified or not among the options from the privacy_level_options returned in /publish/creator_info/query/ API.');

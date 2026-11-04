@@ -1,5 +1,5 @@
 import type { HandlerContext } from '@volter/world-core';
-import { CODE, DEFAULT, NO_PERMISSION, PARAM, PERSON, PUBLISH, REFRESH, VIDEO, appOf, authorized, bodyOf, bySha, issue, jsonArray, mediaUrl, ok, postsFields, privacyOptions, profileFields, publish, publishObj, refuse, seconds, type Row, videoPage } from './shared.ts';
+import { CODE, DEFAULT, NO_PERMISSION, PARAM, PERSON, PUBLISH, REFRESH, VIDEO, appOf, authorized, bodyOf, bySha, issue, jsonArray, mediaUrl, obj, ok, postsFields, privacyOptions, profileFields, publish, refuse, seconds, type Row, videoPage } from './shared.ts';
 
 // source: https://business-api.tiktok.com/gateway/api/doc/client/node/get/v2/?identify_key=c0138ffadd90a955c1f0670a56fe348d1d40680b3c89461e09f78ed26785164b&doc_id=1738084387220481&language=ENGLISH "The code is valid for 10 minutes and can only be used once."
 export async function ttUserOauth2Token(ctx: HandlerContext): Promise<Response> {
@@ -79,7 +79,7 @@ export async function businessVideoPublish(ctx: HandlerContext): Promise<Respons
   const b = bodyOf(ctx);
   if (typeof b.video_url !== 'string' || !/^https?:\/\//.test(b.video_url)) return refuse(ctx, PARAM, 'video_url must be an http(s) URL.');
   if (b.post_info === undefined || typeof b.post_info !== 'object') return refuse(ctx, PARAM, 'post_info is required.');
-  const post = publishObj(b.post_info);
+  const post = obj(b.post_info);
   if (typeof post.is_brand_organic !== 'boolean' || typeof post.is_branded_content !== 'boolean') return refuse(ctx, PARAM, 'post_info.is_brand_organic and post_info.is_branded_content are required.');
   return publish(ctx, 'VIDEO', [b.video_url], post, post.upload_to_draft === true, c.person);
 }
@@ -93,7 +93,7 @@ export async function businessPhotoPublish(ctx: HandlerContext): Promise<Respons
   if (images.length < 1 || images.length > 35) return refuse(ctx, PARAM, 'photo_images must hold 1 to 35 URLs.');
   const cover = Number(b.photo_cover_index ?? 0);
   if (!Number.isInteger(cover) || cover < 0 || cover >= images.length) return refuse(ctx, PARAM, 'photo_cover_index must index photo_images.');
-  const post = publishObj(b.post_info);
+  const post = obj(b.post_info);
   const draft = post.is_draft === true;
   if (typeof post.is_brand_organic !== 'boolean' || typeof post.is_branded_content !== 'boolean') return refuse(ctx, PARAM, 'post_info.is_brand_organic and post_info.is_branded_content are required.');
   // source: https://business-api.tiktok.com/gateway/api/doc/client/node/get/v2/?identify_key=c0138ffadd90a955c1f0670a56fe348d1d40680b3c89461e09f78ed26785164b&doc_id=1803630424390658&language=ENGLISH "Length limit: 90 runes (UTF-16 code units)."
