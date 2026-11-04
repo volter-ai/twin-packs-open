@@ -59,7 +59,7 @@ export function chunks(content: string, query: string, limit: number): string {
 
 // source: spec:extract "returns plain text"
 // The pages door accepts the cleaned Markdown plus an optional exact text rendering; this fallback removes formatting.
-export const plain = (content: string): string => content.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/<[^>]*>/g, '').replace(/^[#>]+\s*/gm, '').replace(/[*_`]/g, '');
+const plain = (content: string): string => content.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/<[^>]*>/g, '').replace(/^[#>]+\s*/gm, '').replace(/[*_`]/g, '');
 export const pageContent = (p: Row, format: unknown, advanced = false): string => {
   const markdown = String((advanced ? p.advanced_content : undefined) ?? p.raw_content ?? p.content);
   return format === 'text' ? String(p.text_content ?? plain(markdown)) : markdown;

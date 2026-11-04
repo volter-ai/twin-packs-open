@@ -17,7 +17,7 @@ export const RATE_WINDOW = '_rate_window';
 export const VOTE = '_vote';
 export const MEMBERSHIP = '_membership';
 /** The session cookie reddit.com names its person by. */
-export const SESSION_COOKIE = 'reddit_session';
+const SESSION_COOKIE = 'reddit_session';
 /** The caller this pack's front resolved (./around.ts), named to a handler in a header only that front sets. */
 export const CALLER_HEADER = 'x-twin-reddit-caller';
 

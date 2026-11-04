@@ -39,4 +39,3 @@ export function grantOf(ctx: HandlerContext): Grant | undefined {
   if (!t || Date.parse(String(t.expires)) <= Date.parse(ctx.occurredAt)) return undefined;
   return { sites: arr<string>(t.sites), person: String(t.person), scopes: String(t.scope).split(' ') };
 }
-
