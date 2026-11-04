@@ -14,8 +14,5 @@ const conversationStatus: StateField = {
 };
 
 export const states = {
-  voice: {},
-  workspace_secret: {},
-  agent: {},
   conversation: { state: { status: conversationStatus } },
 };
