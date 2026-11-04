@@ -7,7 +7,7 @@
 //                             api_key?: { name? } }  the World's credentials: the service account, its OAuth client, its
 //                                                  person and its project's API key (the credential door)
 import type { HandlerContext } from '@volter/world-core';
-import { googleSubFor } from '../google-account-id.ts';
+import { googleSubFor } from '../engine/google-account-id.ts';
 import { ACCOUNT, API_KEY, CLIENT, credential, serial, SERVICE_ACCOUNT, SERVICE_ACCOUNT_KEY, type Row } from './shared.ts';
 
 const bad = (error: string): Response => Response.json({ error }, { status: 400 });
@@ -24,7 +24,9 @@ async function ensureGoogleAccount(ctx: HandlerContext, sub: string, fields: Row
   const made = await ctx.createUnique(ACCOUNT, { id: sub, ...fields }, 'account.create', { id: sub });
   const account = ctx.row(ACCOUNT, sub)!;
   if (account.email !== fields.email) return Response.json({ error: 'ALREADY_EXISTS', error_description: `Google account ${sub} belongs to another email (${String(fields.email)})` }, { status: 409 });
-  return made.created ? account : ctx.write(ACCOUNT, sub, fields, 'account.update');
+  if (!made.created) await ctx.change(ACCOUNT, sub, (current) =>
+    Object.entries(fields).some(([key, value]) => current[key] !== value) ? fields : undefined, 'account.update');
+  return ctx.row(ACCOUNT, sub)!;
 }
 
 export async function accounts(ctx: HandlerContext): Promise<Response> {

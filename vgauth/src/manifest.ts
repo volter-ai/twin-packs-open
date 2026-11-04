@@ -34,7 +34,7 @@ export const manifest: DerivedManifest = {
     // source: recording:deployment-source.txt "custom_domain = true"
     hosts: [{ host: 'auth.videogame.ai' }],
     // The editor derives its OAuth issuer and auth URL from this account URL; discovery returns the vendor origin.
-    endpointEnv: { name: 'VOLTER_ACCOUNT_URL', note: 'Volter Editor managed-account-defaults.ts derives VOLTER_OAUTH_ISSUER_URL and VOLTER_AUTH_URL from this URL.' },
+    endpointEnv: { name: 'VOLTER_ACCOUNT_URL', templates: { VOLTER_ACCOUNT_URL: '${url}' }, note: 'Volter Editor managed-account-defaults.ts derives VOLTER_OAUTH_ISSUER_URL and VOLTER_AUTH_URL from this URL.' },
     credentialDoor: { path: '/_twin/configuration', body: {}, account: { field: 'account', tenancy: 'none (one Worker, fixed client vgai-editor)', source: 'https://github.com/volter-ai/vgai-engine/tree/archive/launch-scope-2026-09-20/packages/vgai-auth' }, deployment: { field: 'deployment', object: 'none', source: 'https://github.com/volter-ai/vgai-engine/tree/archive/launch-scope-2026-09-20/packages/vgai-auth' }, fill: {} },
   },
 };
