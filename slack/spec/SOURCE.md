@@ -40,4 +40,6 @@ markers, API submission, member identity and routing retain the existing convers
 
 ## Credential-like captured example
 
+SHA-256 of the packaged uncompressed `openapi.json.gz` after the listed redactions: `36a588c924b4b9ff013b8050cde764954d8f39750cd25ff681aeaa4126bc8808`.
+
 The exact archive sweep flags `/paths/~1oauth.v2.access/get/responses/200/examples/application~1json/access_token` in the original uncompressed `openapi.json.gz`. Only that string is replaced by `<bot-token-issued-at-runtime>`; all other uncompressed bytes, schema fields and the upstream locator stay unchanged. The original capture is retained outside the archive beside the release custody record. The OAuth handler (`src/semantics/oauth.ts`) issues its own bot token through `mintToken` and never serves the captured example, so client response formats remain unchanged.

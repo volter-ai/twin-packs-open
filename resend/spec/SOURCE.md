@@ -4,7 +4,7 @@
 - **Upstream:** https://github.com/resend/resend-openapi, `resend.json` on `main` at commit
   `83c9782f3e14d5c6e5a89c6eb92f872aa0dad64d` (committed 2026-09-25), fetched 2026-09-25.
 - **Spec version:** `1.5.1` (`info.version`); server `https://api.resend.com`; 113 operations.
-- **SHA-256 of the uncompressed document:** `834cc0af1324a7a01e8cbe7d125297a249233ecb0fd344faf1024acff9139949`.
+- **SHA-256 of the original uncompressed document:** `834cc0af1324a7a01e8cbe7d125297a249233ecb0fd344faf1024acff9139949`.
 - **Corrections:** `patches.json` (RFC 6902, each with its reason and evidence), applied before the IR.
 - **Read by:** `bun scripts/derive-pack.ts resend`, which writes `../src/generated/`.
 - **Published examples:** the spec carries no operation-level examples; Resend's API-reference pages publish one
@@ -16,6 +16,8 @@
 Credential-shaped values in documentation example outputs are redacted to explicit placeholders. The examples retain their source URLs and identify the redaction; no example key is a World credential.
 
 ## Credential example redactions
+
+SHA-256 of the packaged uncompressed `openapi.json.gz` after the listed redactions: `f9354610a292e7a0e3d26e25f1cf708e94cd9c889a5bd628b46d3d691b322934`.
 
 The upstream locator and capture hash above describe the original document. The packaged copy replaces only the
 following string scalars; all other uncompressed bytes are preserved. Unmodified captures are retained outside the package.
