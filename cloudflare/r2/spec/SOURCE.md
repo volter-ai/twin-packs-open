@@ -6,7 +6,7 @@ R2 publishes a compatibility reference instead of its own machine-readable S3 sp
 https://developers.cloudflare.com/r2/api/s3/api/ (updated 2026-07-31, read 2026-09-30).
 The wire document is AWS's Smithy JSON AST `models/s3/service/2006-03-01/s3-2006-03-01.json`
 at https://github.com/aws/api-models-aws commit `9b1a4929274443d8671ea8acfda7afbe856e29e9`.
-`smithy.json.gz` is those vendor bytes compressed with gzip; SHA-256 of the uncompressed bytes:
+Upstream SHA-256 of the uncompressed bytes:
 `e632755547997bbfbde67d5630d6f09601c909ed9026713e5ff3f71887ab4892`.
 Version `2006-03-01`, service `com.amazonaws.s3#AmazonS3`, protocol `aws.protocols#restXml`, auth `aws.auth#sigv4`.
 The spec has 112 operations. The compatibility corrections select 69, of which 26 are listed implemented by R2.
@@ -43,3 +43,27 @@ API-issued temporary S3 sessions are served; locally signed temporary JWT sessio
 remain unserved wire features and refuse authentication/unsupported framing instead of granting parent access.
 
 Screen references, read 2026-10-08: [Cloudflare's developer-platform changelog](https://developers.cloudflare.com/changelog/product-group/developer-platform/4/), its 2026-08-14 Worker screenshots, supplies the dashboard navigation. [Cloudflare's Workers/Pages convergence announcement](https://blog.cloudflare.com/pages-and-workers-are-converging-into-one-experience/), published 2023-05-16, supplies the historic application-list layout. The authored list shows stored Worker scripts and their actual domains; API-token dialogs perform the existing token operations. Additional navigation remains outside the declared screen scope. No upstream page or screenshot asset is shipped.
+
+## Packaged example scalars
+
+Only the credential-like example strings listed below differ from the pinned upstream capture. The original compressed and uncompressed bytes are retained outside the package at `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/cloudflare/r2/spec/smithy.json.gz` and `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/cloudflare/r2/spec/smithy.json`. Original SHA-256: `e632755547997bbfbde67d5630d6f09601c909ed9026713e5ff3f71887ab4892`; packaged uncompressed SHA-256: `a2b97b5c045d81322106ed6ae31249677ee09780c7c5582461c2d505fb1d4e60`. All other uncompressed bytes are unchanged. These are public documentation samples, never credentials issued by the twin.
+
+| JSON pointer | Packaged value | Reason |
+| --- | --- | --- |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/14/operationInputs/0/operationParams/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/14/params/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/15/operationInputs/0/operationParams/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/15/params/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/16/operationInputs/0/operationParams/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/16/params/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/17/operationInputs/0/operationParams/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/17/params/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/18/operationInputs/0/operationParams/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/18/params/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/21/operationInputs/0/operationParams/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/21/params/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/78/operationInputs/0/operationParams/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#AmazonS3/traits/smithy.rules#endpointTests/testCases/78/params/Bucket` | `<example-bucket-arn>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+| `/shapes/com.amazonaws.s3#ListObjectsV2/traits/smithy.api#examples/0/output/NextContinuationToken` | `<example-continuation-token>` | Public credential-like example replaced with an inert marker; native runtime credentials are issued through the existing doors. |
+
+The SSE-C examples in `journeys/vendor-examples.json` derive the base64 customer key and base64 MD5 checksum from two 32-byte caller-owned text fixtures read through the ordinary R2 object API. Every key/checksum response expectation and invalid-header case remains. `journeys/customer-life.json` uses a plainly invalid fixture string for its wrong-signature refusal. Original journeys are retained outside the package at `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/cloudflare/journeys`; they are documentation/verification inputs, never issued credentials.

@@ -1,0 +1,5691 @@
+{
+ "vendor": "discord",
+ "author": "Contributor 87",
+ "host": "discord.com",
+ "about": "Tidewater Yoga's Discord: Maya's own helper bot builds the server and answers on the Gateway, Scheduler posts the week's schedule, Cal.com announces bookings; and Open Autonomy's project server, where the kit's setup checks its bot and home channel and the project's agent answers on the Gateway, first Hermes (reconciling its slash commands with the application's as it starts, then reacting, threading and editing its answer), then Volter Harness (journeys/customer-life.outline.md). Aaron also uses the registered /status and /usage commands: Hermes privately defers, edits or deletes the original acknowledgement, then resolves a confirmation with a callback and token-scoped followup.",
+ "steps": [
+  {
+   "name": "Thursday 1 January: the morning",
+   "wait": "9h"
+  },
+  {
+   "name": "Act 1: Maya has a Discord account",
+   "method": "POST",
+   "path": "/_twin/people",
+   "status": 201,
+   "body": {
+    "username": "maya",
+    "global_name": "Maya Chen",
+    "email": "maya@tidewater.yoga",
+    "password": "savasana-2026"
+   },
+   "capture": {
+    "maya": "id"
+   }
+  },
+  {
+   "name": "Jonah has one",
+   "method": "POST",
+   "path": "/_twin/people",
+   "status": 201,
+   "body": {
+    "username": "jonah",
+    "global_name": "Jonah Park",
+    "email": "jonah.park@example.com",
+    "password": "tadasana-77"
+   },
+   "capture": {
+    "jonah": "id"
+   }
+  },
+  {
+   "name": "Priya has one",
+   "method": "POST",
+   "path": "/_twin/people",
+   "status": 201,
+   "body": {
+    "username": "priya",
+    "global_name": "Priya Shah",
+    "email": "priya.shah@example.com",
+    "password": "balasana-lotus"
+   },
+   "capture": {
+    "priya": "id"
+   }
+  },
+  {
+   "name": "Maya creates the server \"Tidewater Yoga\" in the client",
+   "method": "POST",
+   "path": "/_twin/guilds",
+   "status": 201,
+   "body": {
+    "owner": "maya",
+    "name": "Tidewater Yoga"
+   },
+   "capture": {
+    "g": "id",
+    "general": "system_channel_id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Tidewater Yoga"
+    }
+   ]
+  },
+  {
+   "name": "Act 2: in the Developer Portal Maya makes the application \"Tidewater Helper\"",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {
+    "name": "Tidewater Helper"
+   },
+   "capture": {
+    "hid": "client_id",
+    "htok": "bot_token",
+    "hbot": "bot_user_id"
+   },
+   "expect": [
+    {
+     "path": "public_key",
+     "matches": "^[0-9a-f]{64}$"
+    }
+   ]
+  },
+  {
+   "name": "She opens the portal's install link: Discord asks her to log in",
+   "method": "GET",
+   "path": "https://discord.com/oauth2/authorize?client_id={hid}&scope=bot&permissions=8",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Log In"
+    }
+   ]
+  },
+  {
+   "name": "She logs in: the page names the application and offers her server",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={hid}&scope=bot&permissions=8&username=maya&password=savasana-2026",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Tidewater Helper"
+    },
+    {
+     "path": "",
+     "contains": "Tidewater Yoga"
+    }
+   ]
+  },
+  {
+   "name": "She picks Tidewater Yoga and authorizes: the bot is added",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={hid}&scope=bot&permissions=8&username=maya&password=savasana-2026&decision=authorize&guild_id={g}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "was added to Tidewater Yoga"
+    }
+   ]
+  },
+  {
+   "name": "Her setup script runs as the bot: it reads its own application",
+   "method": "GET",
+   "path": "/api/v10/applications/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{hid}"
+    },
+    {
+     "path": "name",
+     "equals": "Tidewater Helper"
+    },
+    {
+     "path": "bot.id",
+     "equals": "{hbot}"
+    },
+    {
+     "path": "approximate_guild_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "\u2026and its servers, with their member counts",
+   "method": "GET",
+   "path": "/api/v10/users/@me/guilds?with_counts=true",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "0.name",
+     "equals": "Tidewater Yoga"
+    },
+    {
+     "path": "0.owner",
+     "equals": false
+    },
+    {
+     "path": "0.approximate_member_count",
+     "equals": 2
+    },
+    {
+     "path": "1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "It makes the Teachers role, shown apart and mentionable",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/roles",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "name": "Teachers",
+    "hoist": true,
+    "mentionable": true
+   },
+   "capture": {
+    "teachers": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Teachers"
+    },
+    {
+     "path": "managed",
+     "equals": false
+    },
+    {
+     "path": "hoist",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "\u2026and Students",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/roles",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "name": "Students"
+   },
+   "capture": {
+    "students": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Students"
+    },
+    {
+     "path": "position",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "It makes #classes",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "name": "classes",
+    "topic": "The week at Tidewater"
+   },
+   "capture": {
+    "classes": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "classes"
+    },
+    {
+     "path": "type",
+     "equals": 0
+    },
+    {
+     "path": "topic",
+     "equals": "The week at Tidewater"
+    },
+    {
+     "path": "guild_id",
+     "equals": "{g}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026#bookings, for Cal.com",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "name": "bookings",
+    "topic": "New bookings from our Cal.com page"
+   },
+   "capture": {
+    "bookings": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "bookings"
+    }
+   ]
+  },
+  {
+   "name": "\u2026#announcements, where only Teachers post",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "name": "announcements",
+    "permission_overwrites": [
+     {
+      "id": "{g}",
+      "type": 0,
+      "deny": "2048"
+     },
+     {
+      "id": "{teachers}",
+      "type": 0,
+      "allow": "2048"
+     }
+    ]
+   },
+   "capture": {
+    "ann": "id"
+   },
+   "expect": [
+    {
+     "path": "permission_overwrites.0.deny",
+     "equals": "2048"
+    },
+    {
+     "path": "permission_overwrites.1.allow",
+     "equals": "2048"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and a private #teachers: @everyone cannot see it, Teachers can",
+   "method": "POST",
+   "path": "/api/v10/guilds/{g}/channels",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "name": "teachers",
+    "permission_overwrites": [
+     {
+      "id": "{g}",
+      "type": 0,
+      "deny": "1024"
+     },
+     {
+      "id": "{teachers}",
+      "type": 0,
+      "allow": "1024"
+     }
+    ]
+   },
+   "capture": {
+    "tch": "id"
+   },
+   "expect": [
+    {
+     "path": "permission_overwrites.0.deny",
+     "equals": "1024"
+    }
+   ]
+  },
+  {
+   "name": "It makes the webhook \"Cal.com\" in #bookings: Maya pastes its URL into Cal.com",
+   "method": "POST",
+   "path": "/api/v10/channels/{bookings}/webhooks",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "name": "Cal.com"
+   },
+   "capture": {
+    "hook": "id",
+    "hooktok": "token"
+   },
+   "expect": [
+    {
+     "path": "channel_id",
+     "equals": "{bookings}"
+    },
+    {
+     "path": "type",
+     "equals": 1
+    },
+    {
+     "path": "url",
+     "contains": "https://discord.com/api/webhooks/{hook}/"
+    },
+    {
+     "path": "user.id",
+     "equals": "{hbot}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and an invite to #general that never expires, for the studio website",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/invites",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "max_age": 0
+   },
+   "capture": {
+    "inv": "code"
+   },
+   "expect": [
+    {
+     "path": "max_age",
+     "equals": 0
+    },
+    {
+     "path": "uses",
+     "equals": 0
+    },
+    {
+     "path": "expires_at",
+     "equals": null
+    },
+    {
+     "path": "guild.name",
+     "equals": "Tidewater Yoga"
+    },
+    {
+     "path": "channel.id",
+     "equals": "{general}"
+    },
+    {
+     "path": "inviter.id",
+     "equals": "{hbot}"
+    }
+   ]
+  },
+  {
+   "name": "Friday 2 January",
+   "wait": "1d"
+  },
+  {
+   "name": "Act 3: Jonah follows the website's invite and joins",
+   "method": "POST",
+   "path": "/_twin/invites/{inv}/accept",
+   "status": 201,
+   "body": {
+    "username": "jonah"
+   },
+   "expect": [
+    {
+     "path": "joined",
+     "equals": true
+    },
+    {
+     "path": "guild_id",
+     "equals": "{g}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and Priya",
+   "method": "POST",
+   "path": "/_twin/invites/{inv}/accept",
+   "status": 201,
+   "body": {
+    "username": "priya"
+   },
+   "expect": [
+    {
+     "path": "joined",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The studio website shows its community's size: it reads the invite with its counts, with no token",
+   "method": "GET",
+   "path": "/api/v10/invites/{inv}?with_counts=true",
+   "status": 200,
+   "expect": [
+    {
+     "path": "code",
+     "equals": "{inv}"
+    },
+    {
+     "path": "approximate_member_count",
+     "exists": true
+    },
+    {
+     "path": "uses",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "A visitor with a mistyped invite link: Discord does not know it",
+   "method": "GET",
+   "path": "/api/v10/invites/notarealcode",
+   "status": 404,
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10006
+    }
+   ]
+  },
+  {
+   "name": "Monday 5 January",
+   "wait": "3d"
+  },
+  {
+   "name": "Act 4: Scheduler's application, made in the portal when Maya installed Scheduler, with its redirect URL",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {
+    "name": "Tidewater Scheduler",
+    "redirect_uris": [
+     "https://scheduler.tidewater.yoga/integrations/social/discord"
+    ]
+   },
+   "capture": {
+    "pid": "client_id",
+    "psec": "client_secret",
+    "ptok": "bot_token",
+    "pbot": "bot_user_id"
+   }
+  },
+  {
+   "name": "Maya adds a Discord channel in Scheduler: it sends her to the authorize page",
+   "method": "GET",
+   "path": "https://discord.com/oauth2/authorize?client_id={pid}&permissions=377957124096&response_type=code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Fdiscord&integration_type=0&scope=bot+identify+guilds&state=Xk29qp",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Log In"
+    }
+   ]
+  },
+  {
+   "name": "She logs in: the page lists what Scheduler asks and offers her server",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={pid}&permissions=377957124096&response_type=code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Fdiscord&integration_type=0&scope=bot%20identify%20guilds&state=Xk29qp&username=maya&password=savasana-2026",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Tidewater Scheduler"
+    },
+    {
+     "path": "",
+     "contains": "Tidewater Yoga"
+    },
+    {
+     "path": "",
+     "contains": "would like to access your Discord account"
+    }
+   ]
+  },
+  {
+   "name": "She authorizes: the bot joins, and the redirect carries the code, the state, the guild and the permissions",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 302,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={pid}&permissions=377957124096&response_type=code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Fdiscord&integration_type=0&scope=bot%20identify%20guilds&state=Xk29qp&username=maya&password=savasana-2026&decision=authorize&guild_id={g}",
+   "capture": {
+    "pcode": "redirect.code"
+   },
+   "expect": [
+    {
+     "path": "location",
+     "contains": "https://scheduler.tidewater.yoga/integrations/social/discord"
+    },
+    {
+     "path": "redirect.guild_id",
+     "equals": "{g}"
+    },
+    {
+     "path": "redirect.permissions",
+     "equals": "377957124096"
+    },
+    {
+     "path": "redirect.state",
+     "equals": "Xk29qp"
+    }
+   ]
+  },
+  {
+   "name": "Scheduler trades the code (HTTP Basic): the answer carries the guild",
+   "method": "POST",
+   "path": "/api/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "{basic:pid:psec}"
+   },
+   "body": "code={pcode}&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fscheduler.tidewater.yoga%2Fintegrations%2Fsocial%2Fdiscord",
+   "capture": {
+    "pat": "access_token",
+    "prt": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "bot identify guilds"
+    },
+    {
+     "path": "expires_in",
+     "equals": 604800
+    },
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "guild.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "guild.name",
+     "equals": "Tidewater Yoga"
+    }
+   ]
+  },
+  {
+   "name": "Scheduler names the connection: the application and its bot",
+   "method": "GET",
+   "path": "/api/oauth2/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {pat}"
+   },
+   "expect": [
+    {
+     "path": "application.id",
+     "equals": "{pid}"
+    },
+    {
+     "path": "application.name",
+     "equals": "Tidewater Scheduler"
+    },
+    {
+     "path": "application.bot.id",
+     "equals": "{pbot}"
+    },
+    {
+     "path": "scopes",
+     "equals": [
+      "bot",
+      "identify",
+      "guilds"
+     ]
+    },
+    {
+     "path": "user.id",
+     "equals": "{maya}"
+    }
+   ]
+  },
+  {
+   "name": "Scheduler lists the server's channels for its channel picker",
+   "method": "GET",
+   "path": "/api/guilds/{g}/channels",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ptok}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "\"classes\""
+    },
+    {
+     "path": "",
+     "contains": "\"announcements\""
+    },
+    {
+     "path": "",
+     "contains": "\"teachers\""
+    },
+    {
+     "path": "0.name",
+     "equals": "Text Channels"
+    },
+    {
+     "path": "0.type",
+     "equals": 4
+    }
+   ]
+  },
+  {
+   "name": "Maya names the channel \"Tidewater Schedule\" in Scheduler: it sets its bot's nickname",
+   "method": "PATCH",
+   "path": "/api/guilds/{g}/members/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ptok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "nick": "Tidewater Schedule"
+   },
+   "expect": [
+    {
+     "path": "nick",
+     "equals": "Tidewater Schedule"
+    },
+    {
+     "path": "user.id",
+     "equals": "{pbot}"
+    }
+   ]
+  },
+  {
+   "name": "Act 5: the week's post with its picture, scheduled to #announcements: Scheduler's bot may not send there",
+   "method": "POST",
+   "path": "/api/channels/{ann}/messages",
+   "status": 403,
+   "headers": {
+    "authorization": "Bot {ptok}",
+    "content-type": "multipart/form-data; boundary=----schedulerFormBoundary4kTq9Zr2"
+   },
+   "bodyBase64": "LS0tLS0tc2NoZWR1bGVyRm9ybUJvdW5kYXJ5NGtUcTlacjINCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icGF5bG9hZF9qc29uIg0KDQp7ImNvbnRlbnQiOiJUaGlzIHdlZWsgYXQgVGlkZXdhdGVyOiB2aW55YXNhIFR1ZXNkYXkgN2FtIHdpdGggSm9uYWgsIHlpbiBUaHVyc2RheSA2cG0gd2l0aCBNYXlhLiBCb29rIG9uIG91ciBwYWdlLiIsImF0dGFjaG1lbnRzIjpbeyJpZCI6MCwiZGVzY3JpcHRpb24iOiJQaWN0dXJlIDAiLCJmaWxlbmFtZSI6InNjaGVkdWxlLnBuZyJ9XX0NCi0tLS0tLXNjaGVkdWxlckZvcm1Cb3VuZGFyeTRrVHE5WnIyDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImZpbGVzWzBdIjsgZmlsZW5hbWU9InNjaGVkdWxlLnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNColQTkcNChoKAAAADUlIRFIAAABGAAAAQggCAAAAZd03xQAAAIFJREFUeNrt2LENwCAMBEBGyagMkLEYI1WmQFQRA7igijCHvnN1kovH5ao1WQoSEhJSQHrSvUkao0fZcYqEhISEhISEtE46ruO97Y6y6+IhISEhISEhIR3f8XwukJCQkJCQkNzxdDyLh4SEhISEhKTj5e54v1xqkZCQkJCQkJDWph92jz6tyQYdJQAAAABJRU5ErkJggg0KLS0tLS0tc2NoZWR1bGVyRm9ybUJvdW5kYXJ5NGtUcTlacjItLQ0K",
+   "expect": [
+    {
+     "path": "code",
+     "equals": 50013
+    },
+    {
+     "path": "message",
+     "equals": "Missing Permissions"
+    }
+   ]
+  },
+  {
+   "name": "Maya moves it to #classes: the post goes out with the picture",
+   "method": "POST",
+   "path": "/api/channels/{classes}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ptok}",
+    "content-type": "multipart/form-data; boundary=----schedulerFormBoundary4kTq9Zr2"
+   },
+   "bodyBase64": "LS0tLS0tc2NoZWR1bGVyRm9ybUJvdW5kYXJ5NGtUcTlacjINCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icGF5bG9hZF9qc29uIg0KDQp7ImNvbnRlbnQiOiJUaGlzIHdlZWsgYXQgVGlkZXdhdGVyOiB2aW55YXNhIFR1ZXNkYXkgN2FtIHdpdGggSm9uYWgsIHlpbiBUaHVyc2RheSA2cG0gd2l0aCBNYXlhLiBCb29rIG9uIG91ciBwYWdlLiIsImF0dGFjaG1lbnRzIjpbeyJpZCI6MCwiZGVzY3JpcHRpb24iOiJQaWN0dXJlIDAiLCJmaWxlbmFtZSI6InNjaGVkdWxlLnBuZyJ9XX0NCi0tLS0tLXNjaGVkdWxlckZvcm1Cb3VuZGFyeTRrVHE5WnIyDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImZpbGVzWzBdIjsgZmlsZW5hbWU9InNjaGVkdWxlLnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNColQTkcNChoKAAAADUlIRFIAAABGAAAAQggCAAAAZd03xQAAAIFJREFUeNrt2LENwCAMBEBGyagMkLEYI1WmQFQRA7igijCHvnN1kovH5ao1WQoSEhJSQHrSvUkao0fZcYqEhISEhISEtE46ruO97Y6y6+IhISEhISEhIR3f8XwukJCQkJCQkNzxdDyLh4SEhISEhKTj5e54v1xqkZCQkJCQkJDWph92jz6tyQYdJQAAAABJRU5ErkJggg0KLS0tLS0tc2NoZWR1bGVyRm9ybUJvdW5kYXJ5NGtUcTlacjItLQ0K",
+   "capture": {
+    "post": "id"
+   },
+   "expect": [
+    {
+     "path": "content",
+     "equals": "This week at Tidewater: vinyasa Tuesday 7am with Jonah, yin Thursday 6pm with Maya. Book on our page."
+    },
+    {
+     "path": "attachments.0.filename",
+     "equals": "schedule.png"
+    },
+    {
+     "path": "attachments.0.size",
+     "equals": 186
+    },
+    {
+     "path": "attachments.0.content_type",
+     "equals": "image/png"
+    },
+    {
+     "path": "attachments.0.description",
+     "equals": "Picture 0"
+    },
+    {
+     "path": "author.id",
+     "equals": "{pbot}"
+    },
+    {
+     "path": "channel_id",
+     "equals": "{classes}"
+    }
+   ]
+  },
+  {
+   "name": "She types \"@jo\" in a comment: Scheduler reads the roles",
+   "method": "GET",
+   "path": "/api/guilds/{g}/roles",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ptok}",
+    "content-type": "application/json"
+   },
+   "expect": [
+    {
+     "path": "0.name",
+     "equals": "@everyone"
+    },
+    {
+     "path": "",
+     "contains": "\"Teachers\""
+    }
+   ]
+  },
+  {
+   "name": "\u2026and searches the members for \"jo\": Jonah",
+   "method": "GET",
+   "path": "/api/guilds/{g}/members/search?query=jo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ptok}",
+    "content-type": "application/json"
+   },
+   "expect": [
+    {
+     "path": "0.user.id",
+     "equals": "{jonah}"
+    },
+    {
+     "path": "1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Scheduler opens a thread on the post for its comments",
+   "method": "POST",
+   "path": "/api/channels/{classes}/messages/{post}/threads",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {ptok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Thread",
+    "auto_archive_duration": 1440
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{post}"
+    },
+    {
+     "path": "type",
+     "equals": 11
+    },
+    {
+     "path": "parent_id",
+     "equals": "{classes}"
+    },
+    {
+     "path": "owner_id",
+     "equals": "{pbot}"
+    },
+    {
+     "path": "thread_metadata.auto_archive_duration",
+     "equals": 1440
+    }
+   ]
+  },
+  {
+   "name": "\u2026and posts the comment in it, naming Jonah",
+   "method": "POST",
+   "path": "/api/channels/{post}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ptok}",
+    "content-type": "multipart/form-data; boundary=----schedulerFormBoundary4kTq9Zr2"
+   },
+   "body": "------schedulerFormBoundary4kTq9Zr2\r\nContent-Disposition: form-data; name=\"payload_json\"\r\n\r\n{\"content\":\"<@{jonah}> leads Tuesday's vinyasa. Mats are in the studio cupboard.\"}\r\n------schedulerFormBoundary4kTq9Zr2--\r\n",
+   "expect": [
+    {
+     "path": "channel_id",
+     "equals": "{post}"
+    },
+    {
+     "path": "content",
+     "equals": "<@{jonah}> leads Tuesday's vinyasa. Mats are in the studio cupboard."
+    },
+    {
+     "path": "mentions.0.id",
+     "equals": "{jonah}"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 6 January",
+   "wait": "1d"
+  },
+  {
+   "name": "Act 6: Priya books a private session: Cal.com sends its Discord template to the webhook",
+   "method": "POST",
+   "path": "/api/webhooks/{hook}/{hooktok}",
+   "status": 204,
+   "headers": {
+    "content-type": "application/json",
+    "x-cal-signature-256": "no-secret-provided",
+    "x-cal-webhook-version": "2021-10-20"
+   },
+   "body": {
+    "content": "An event has been scheduled/updated",
+    "embeds": [
+     {
+      "color": 2697513,
+      "fields": [
+       {
+        "name": "Event Trigger",
+        "value": "BOOKING_CREATED"
+       },
+       {
+        "name": "What",
+        "value": "Private session between Maya Chen and Priya Shah (private-session)"
+       },
+       {
+        "name": "When",
+        "value": "Start: 2026-01-09T10:00:00Z \n End: 2026-01-09T11:00:00Z \n Timezone: (Europe/London)"
+       },
+       {
+        "name": "Who",
+        "value": "Organizer: Maya Chen (maya@tidewater.yoga) \n Booker: Priya Shah (priya.shah@example.com)"
+       },
+       {
+        "name": "Description",
+        "value": ": "
+       },
+       {
+        "name": "Where",
+        "value": ": Tidewater Yoga, Harbour Street studio "
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "Wednesday 7 January",
+   "wait": "1d"
+  },
+  {
+   "name": "Act 7: Maya starts the helper's listener: it finds the Gateway",
+   "method": "GET",
+   "path": "/api/v10/gateway/bot",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "url",
+     "matches": "^wss?://"
+    },
+    {
+     "path": "shards",
+     "equals": 1
+    },
+    {
+     "path": "session_start_limit.total",
+     "equals": 1000
+    },
+    {
+     "path": "session_start_limit.remaining",
+     "equals": 1000
+    },
+    {
+     "path": "session_start_limit.max_concurrency",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "It opens the Gateway: HELLO",
+   "socket": "first",
+   "open": "/?v=10&encoding=json",
+   "expect": [
+    {
+     "path": "frames.0.op",
+     "equals": 10
+    },
+    {
+     "path": "frames.0.d.heartbeat_interval",
+     "equals": 41250
+    }
+   ]
+  },
+  {
+   "name": "It heartbeats: ACK",
+   "socket": "first",
+   "send": {
+    "op": 1,
+    "d": null
+   },
+   "expect": [
+    {
+     "path": "last.op",
+     "equals": 11
+    }
+   ]
+  },
+  {
+   "name": "It identifies with guilds, guild messages and message content: closed 4014, the intent never turned on in the portal",
+   "socket": "first",
+   "send": {
+    "op": 2,
+    "d": {
+     "token": "{htok}",
+     "intents": 33281,
+     "properties": {
+      "os": "linux",
+      "browser": "discord.js",
+      "device": "discord.js"
+     }
+    }
+   },
+   "status": 4014,
+   "expect": [
+    {
+     "path": "closed.code",
+     "equals": 4014
+    }
+   ]
+  },
+  {
+   "name": "Maya turns on the Message Content intent in the portal",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {
+    "name": "Tidewater Helper",
+    "privileged_intents": [
+     "message_content"
+    ]
+   },
+   "expect": [
+    {
+     "path": "client_id",
+     "equals": "{hid}"
+    }
+   ]
+  },
+  {
+   "name": "She restarts the helper: it finds the Gateway again",
+   "method": "GET",
+   "path": "/api/v10/gateway/bot",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "session_start_limit.remaining",
+     "equals": 1000
+    }
+   ]
+  },
+  {
+   "name": "It opens the Gateway: HELLO",
+   "socket": "helper",
+   "open": "/?v=10&encoding=json",
+   "expect": [
+    {
+     "path": "frames.0.op",
+     "equals": 10
+    }
+   ]
+  },
+  {
+   "name": "It identifies: READY, then its server",
+   "socket": "helper",
+   "send": {
+    "op": 2,
+    "d": {
+     "token": "{htok}",
+     "intents": 33281,
+     "properties": {
+      "os": "linux",
+      "browser": "discord.js",
+      "device": "discord.js"
+     }
+    }
+   },
+   "capture": {
+    "session": "frames.0.d.session_id",
+    "seq": "frames.1.s"
+   },
+   "expect": [
+    {
+     "path": "frames.0.t",
+     "equals": "READY"
+    },
+    {
+     "path": "frames.0.d.user.id",
+     "equals": "{hbot}"
+    },
+    {
+     "path": "frames.0.d.guilds.0.id",
+     "equals": "{g}"
+    },
+    {
+     "path": "frames.0.d.guilds.0.unavailable",
+     "equals": true
+    },
+    {
+     "path": "frames.0.d.application.id",
+     "equals": "{hid}"
+    },
+    {
+     "path": "frames.1.t",
+     "equals": "GUILD_CREATE"
+    },
+    {
+     "path": "frames.1.d.name",
+     "equals": "Tidewater Yoga"
+    },
+    {
+     "path": "frames.1.d.member_count",
+     "equals": 5
+    },
+    {
+     "path": "frames.1.d.members.0.user.id",
+     "equals": "{hbot}"
+    }
+   ]
+  },
+  {
+   "name": "It sets its status: watching the schedule",
+   "socket": "helper",
+   "send": {
+    "op": 3,
+    "d": {
+     "since": null,
+     "activities": [
+      {
+       "name": "the schedule",
+       "type": 3
+      }
+     ],
+     "status": "online",
+     "afk": false
+    }
+   },
+   "expect": [
+    {
+     "path": "closed",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "On start it asks for the website's invite: Discord answers the one it made on day one",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/invites",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "max_age": 0
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": "{inv}"
+    },
+    {
+     "path": "uses",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "Priya asks the helper in #general when yin is this week",
+   "method": "POST",
+   "path": "/_twin/channels/{general}/messages",
+   "status": 201,
+   "body": {
+    "username": "priya",
+    "content": "<@{hbot}> when is yin this week?"
+   },
+   "capture": {
+    "ask": "id"
+   }
+  },
+  {
+   "name": "The helper hears the question, with its content",
+   "socket": "helper",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_CREATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{ask}"
+    },
+    {
+     "path": "last.d.content",
+     "equals": "<@{hbot}> when is yin this week?"
+    },
+    {
+     "path": "last.d.author.id",
+     "equals": "{priya}"
+    },
+    {
+     "path": "last.d.mentions.0.id",
+     "equals": "{hbot}"
+    },
+    {
+     "path": "last.d.guild_id",
+     "equals": "{g}"
+    }
+   ]
+  },
+  {
+   "name": "It answers her with a reply",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "content": "Yin is Thursday at 6pm with Maya, in the main room.",
+    "message_reference": {
+     "message_id": "{ask}"
+    }
+   },
+   "expect": [
+    {
+     "path": "type",
+     "equals": 19
+    },
+    {
+     "path": "message_reference.message_id",
+     "equals": "{ask}"
+    },
+    {
+     "path": "referenced_message.id",
+     "equals": "{ask}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{hbot}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and hears its own reply",
+   "socket": "helper",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_CREATE"
+    },
+    {
+     "path": "last.d.author.id",
+     "equals": "{hbot}"
+    },
+    {
+     "path": "last.d.message_reference.message_id",
+     "equals": "{ask}"
+    }
+   ]
+  },
+  {
+   "name": "Jonah books Thursday's yin on Cal.com: Cal.com posts it to #bookings",
+   "method": "POST",
+   "path": "/api/webhooks/{hook}/{hooktok}",
+   "status": 204,
+   "headers": {
+    "content-type": "application/json",
+    "x-cal-signature-256": "no-secret-provided",
+    "x-cal-webhook-version": "2021-10-20"
+   },
+   "body": {
+    "content": "An event has been scheduled/updated",
+    "embeds": [
+     {
+      "color": 2697513,
+      "fields": [
+       {
+        "name": "Event Trigger",
+        "value": "BOOKING_CREATED"
+       },
+       {
+        "name": "What",
+        "value": "Yin between Maya Chen and Jonah Park (yin)"
+       },
+       {
+        "name": "When",
+        "value": "Start: 2026-01-08T18:00:00Z \n End: 2026-01-08T19:15:00Z \n Timezone: (Europe/London)"
+       },
+       {
+        "name": "Who",
+        "value": "Organizer: Maya Chen (maya@tidewater.yoga) \n Booker: Jonah Park (jonah.park@example.com)"
+       },
+       {
+        "name": "Description",
+        "value": ": "
+       },
+       {
+        "name": "Where",
+        "value": ": Tidewater Yoga, Harbour Street studio "
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "The helper hears the booking arrive in #bookings",
+   "socket": "helper",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_CREATE"
+    },
+    {
+     "path": "last.d.webhook_id",
+     "equals": "{hook}"
+    },
+    {
+     "path": "last.d.channel_id",
+     "equals": "{bookings}"
+    },
+    {
+     "path": "last.d.author.username",
+     "equals": "Cal.com"
+    }
+   ]
+  },
+  {
+   "name": "Maya creates a second server, \"Tidewater Teacher Training\", for the spring course",
+   "method": "POST",
+   "path": "/_twin/guilds",
+   "status": 201,
+   "body": {
+    "owner": "maya",
+    "name": "Tidewater Teacher Training"
+   },
+   "capture": {
+    "g2": "id",
+    "general2": "system_channel_id"
+   }
+  },
+  {
+   "name": "She adds the helper to it with the install link",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={hid}&scope=bot&permissions=8&username=maya&password=savasana-2026&decision=authorize&guild_id={g2}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "was added to Tidewater Teacher Training"
+    }
+   ]
+  },
+  {
+   "name": "The running helper is sent the new server",
+   "socket": "helper",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "GUILD_CREATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{g2}"
+    },
+    {
+     "path": "last.d.name",
+     "equals": "Tidewater Teacher Training"
+    },
+    {
+     "path": "last.d.member_count",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "It posts the course's start in the new server's #general",
+   "method": "POST",
+   "path": "/api/v10/channels/{general2}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "content": "Teacher training starts Monday 2 February, 9am, in the main room."
+   },
+   "expect": [
+    {
+     "path": "channel_id",
+     "equals": "{general2}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{hbot}"
+    }
+   ]
+  },
+  {
+   "name": "Act 8: Maya quits the helper for the night, and the library closes its Gateway connection (code 1000)",
+   "socket": "helper",
+   "close": true,
+   "status": 1000
+  },
+  {
+   "name": "Thursday 8 January",
+   "wait": "1d"
+  },
+  {
+   "name": "In the morning she starts the helper again: it finds the Gateway",
+   "method": "GET",
+   "path": "/api/v10/gateway/bot",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "url",
+     "matches": "^wss?://"
+    },
+    {
+     "path": "shards",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "It opens a new connection: HELLO",
+   "socket": "morning",
+   "open": "/?v=10&encoding=json",
+   "expect": [
+    {
+     "path": "frames.0.op",
+     "equals": 10
+    }
+   ]
+  },
+  {
+   "name": "It identifies afresh, since a 1000 close ended the session: READY, then its servers",
+   "socket": "morning",
+   "send": {
+    "op": 2,
+    "d": {
+     "token": "{htok}",
+     "intents": 33281,
+     "properties": {
+      "os": "linux",
+      "browser": "discord.js",
+      "device": "discord.js"
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "frames.0.t",
+     "equals": "READY"
+    },
+    {
+     "path": "frames.1.t",
+     "equals": "GUILD_CREATE"
+    }
+   ]
+  },
+  {
+   "name": "It sets its status: watching the schedule",
+   "socket": "morning",
+   "send": {
+    "op": 3,
+    "d": {
+     "since": null,
+     "activities": [
+      {
+       "name": "the schedule",
+       "type": 3
+      }
+     ],
+     "status": "online",
+     "afk": false
+    }
+   },
+   "expect": [
+    {
+     "path": "closed",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "On start it asks for the website's invite: Discord answers the same one",
+   "method": "POST",
+   "path": "/api/v10/channels/{general}/invites",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "body": {
+    "max_age": 0
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": "{inv}"
+    },
+    {
+     "path": "uses",
+     "equals": 2
+    }
+   ]
+  },
+  {
+   "name": "Sunday 11 January",
+   "wait": "3d"
+  },
+  {
+   "name": "Act 9: the weekly audit: #bookings's messages, newest first",
+   "method": "GET",
+   "path": "/api/v10/channels/{bookings}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "0.webhook_id",
+     "equals": "{hook}"
+    },
+    {
+     "path": "0.embeds.0.fields.3.value",
+     "contains": "Jonah Park"
+    },
+    {
+     "path": "1.embeds.0.fields.3.value",
+     "contains": "Priya Shah"
+    },
+    {
+     "path": "2",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "\u2026the server's webhooks: Cal.com's, with its token",
+   "method": "GET",
+   "path": "/api/v10/guilds/{g}/webhooks",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{hook}"
+    },
+    {
+     "path": "0.name",
+     "equals": "Cal.com"
+    },
+    {
+     "path": "0.token",
+     "equals": "{hooktok}"
+    },
+    {
+     "path": "0.user.id",
+     "equals": "{hbot}"
+    },
+    {
+     "path": "1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "\u2026and its invites: the website's, used twice",
+   "method": "GET",
+   "path": "/api/v10/guilds/{g}/invites",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {htok}"
+   },
+   "expect": [
+    {
+     "path": "0.code",
+     "equals": "{inv}"
+    },
+    {
+     "path": "0.uses",
+     "equals": 2
+    },
+    {
+     "path": "0.max_age",
+     "equals": 0
+    },
+    {
+     "path": "1",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Monday 12 January, before the grant expires",
+   "wait": "23h"
+  },
+  {
+   "name": "Act 10: Scheduler refreshes Maya's grant (HTTP Basic)",
+   "method": "POST",
+   "path": "/api/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "authorization": "{basic:pid:psec}"
+   },
+   "body": "refresh_token={prt}&grant_type=refresh_token",
+   "capture": {
+    "pat2": "access_token"
+   },
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "bot identify guilds"
+    },
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "expires_in",
+     "equals": 604800
+    }
+   ]
+  },
+  {
+   "name": "\u2026and names the connection with the new token",
+   "method": "GET",
+   "path": "/api/oauth2/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {pat2}"
+   },
+   "expect": [
+    {
+     "path": "application.name",
+     "equals": "Tidewater Scheduler"
+    },
+    {
+     "path": "application.bot.id",
+     "equals": "{pbot}"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 13 January",
+   "wait": "1d"
+  },
+  {
+   "name": "Act 11: Aaron, who maintains Open Autonomy at Volter, has a Discord account",
+   "method": "POST",
+   "path": "/_twin/people",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "global_name": "Aaron",
+    "email": "aaron@volter.ai",
+    "password": "valve-retry-06"
+   },
+   "capture": {
+    "aaron": "id"
+   }
+  },
+  {
+   "name": "He creates the project's server \"Open Autonomy\" in the client",
+   "method": "POST",
+   "path": "/_twin/guilds",
+   "status": 201,
+   "body": {
+    "owner": "aaron",
+    "name": "Open Autonomy"
+   },
+   "capture": {
+    "g3": "id",
+    "oagen": "system_channel_id"
+   }
+  },
+  {
+   "name": "In the Developer Portal he makes the application under the project's branding, \"Open Autonomy\", and turns on the Message Content intent Hermes needs",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {
+    "name": "Open Autonomy",
+    "owner": "aaron",
+    "privileged_intents": [
+     "message_content"
+    ]
+   },
+   "capture": {
+    "oaid": "client_id",
+    "oatok": "bot_token",
+    "oabot": "bot_user_id"
+   },
+   "expect": [
+    {
+     "path": "public_key",
+     "matches": "^[0-9a-f]{64}$"
+    }
+   ]
+  },
+  {
+   "name": "He adds the bot to the server with the portal's install link: view, send, read history, react, open threads and send in them",
+   "method": "POST",
+   "path": "https://discord.com/oauth2/authorize",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={oaid}&scope=bot&permissions=309237713984&username=aaron&password=valve-retry-06&decision=authorize&guild_id={g3}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "was added to Open Autonomy"
+    }
+   ]
+  },
+  {
+   "name": "Before the kit, Aaron tries the application from a scratch script, as Discord's application-commands page shows: it registers /ping",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "ping",
+    "type": 1,
+    "description": "Check the bot answers"
+   },
+   "capture": {
+    "pingcmd": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "ping"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and /status",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "status",
+    "type": 1,
+    "description": "Is the bot up?"
+   },
+   "capture": {
+    "statuscmd": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "status"
+    }
+   ]
+  },
+  {
+   "name": "He runs the kit's setup with the discord door: it reads the bot's application and checks it against the project's branding",
+   "method": "GET",
+   "path": "/api/v10/oauth2/applications/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "name",
+     "equals": "Open Autonomy"
+    },
+    {
+     "path": "bot.id",
+     "equals": "{oabot}"
+    }
+   ]
+  },
+  {
+   "name": "For DISCORD_HOME_CHANNEL he copied the server's id, not the channel's: setup reads it and Discord knows no such channel, so setup stops",
+   "method": "GET",
+   "path": "/api/v10/channels/{g3}",
+   "status": 404,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 10003
+    },
+    {
+     "path": "message",
+     "equals": "Unknown Channel"
+    }
+   ]
+  },
+  {
+   "name": "He copies #general's id and runs setup again: the home channel is a server channel",
+   "method": "GET",
+   "path": "/api/v10/channels/{oagen}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{oagen}"
+    },
+    {
+     "path": "guild_id",
+     "equals": "{g3}"
+    },
+    {
+     "path": "type",
+     "equals": 0
+    },
+    {
+     "path": "name",
+     "equals": "general"
+    }
+   ]
+  },
+  {
+   "name": "The kit starts Hermes's gateway: discord.py logs in with the token setup saved, reading the bot's own user",
+   "method": "GET",
+   "path": "/api/v10/users/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{oabot}"
+    },
+    {
+     "path": "bot",
+     "equals": true
+    },
+    {
+     "path": "username",
+     "equals": "openautonomy"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and its application, with its owner",
+   "method": "GET",
+   "path": "/api/v10/oauth2/applications/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   },
+   "expect": [
+    {
+     "path": "owner.id",
+     "equals": "{aaron}"
+    },
+    {
+     "path": "owner.username",
+     "equals": "aaron"
+    },
+    {
+     "path": "verify_key",
+     "matches": "^[0-9a-f]{64}$"
+    },
+    {
+     "path": "bot_public",
+     "equals": true
+    },
+    {
+     "path": "bot_require_code_grant",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "Hermes opens the Gateway at Discord's own host (gateway.discord.gg): HELLO",
+   "socket": "hermes",
+   "open": "/?v=10&encoding=json&compress=zlib-stream",
+   "expect": [
+    {
+     "path": "frames.0.op",
+     "equals": 10
+    }
+   ]
+  },
+  {
+   "name": "It identifies with discord.py's default intents, message content and voice states: READY, then the server",
+   "socket": "hermes",
+   "send": {
+    "op": 2,
+    "d": {
+     "token": "{oatok}",
+     "intents": 53608189,
+     "large_threshold": 250,
+     "properties": {
+      "os": "linux",
+      "browser": "discord.py",
+      "device": "discord.py"
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "frames.0.t",
+     "equals": "READY"
+    },
+    {
+     "path": "frames.0.d.user.id",
+     "equals": "{oabot}"
+    },
+    {
+     "path": "frames.0.d.application.id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "frames.1.t",
+     "equals": "GUILD_CREATE"
+    },
+    {
+     "path": "frames.1.d.id",
+     "equals": "{g3}"
+    },
+    {
+     "path": "frames.1.d.name",
+     "equals": "Open Autonomy"
+    }
+   ]
+  },
+  {
+   "name": "Once READY, Hermes reconciles its slash commands, as it does on every start: it lists the application's global commands and finds the two of Aaron's script",
+   "method": "GET",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{pingcmd}"
+    },
+    {
+     "path": "0.name",
+     "equals": "ping"
+    },
+    {
+     "path": "1.id",
+     "equals": "{statuscmd}"
+    },
+    {
+     "path": "1.description",
+     "equals": "Is the bot up?"
+    },
+    {
+     "path": "1.application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "/ping is none of Hermes's: it deletes it first",
+   "method": "DELETE",
+   "path": "/api/v10/applications/{oaid}/commands/{pingcmd}",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   }
+  },
+  {
+   "name": "It creates /new, the first of its commands the application lacks, 4.5 seconds apart",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "new",
+    "description": "Start a new conversation",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "new"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "type",
+     "equals": 1
+    },
+    {
+     "path": "dm_permission",
+     "equals": true
+    },
+    {
+     "path": "default_member_permissions",
+     "equals": null
+    },
+    {
+     "path": "version",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "\u2026/reset",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "reset",
+    "description": "Reset your Hermes session",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "reset"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/model",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "model",
+    "description": "Show or change the model",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "name",
+      "description": "Model name (e.g. anthropic/claude-sonnet-4). Leave empty to see current.",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "model"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/reasoning",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "reasoning",
+    "description": "Show/change reasoning effort, or toggle showing it",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "effort",
+      "description": "Pick a level, reset the override, or show/hide reasoning. Leave empty to see current.",
+      "required": false,
+      "choices": [
+       {
+        "name": "none \u2014 disable reasoning",
+        "value": "none"
+       },
+       {
+        "name": "minimal",
+        "value": "minimal"
+       },
+       {
+        "name": "low",
+        "value": "low"
+       },
+       {
+        "name": "medium",
+        "value": "medium"
+       },
+       {
+        "name": "high",
+        "value": "high"
+       },
+       {
+        "name": "xhigh",
+        "value": "xhigh"
+       },
+       {
+        "name": "max",
+        "value": "max"
+       },
+       {
+        "name": "ultra \u2014 maximum reasoning",
+        "value": "ultra"
+       },
+       {
+        "name": "reset \u2014 clear this session's override",
+        "value": "reset"
+       },
+       {
+        "name": "show \u2014 reveal reasoning in replies",
+        "value": "show"
+       },
+       {
+        "name": "hide \u2014 hide reasoning from replies",
+        "value": "hide"
+       }
+      ]
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "reasoning"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "options.0.choices.10.value",
+     "equals": "hide"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/personality",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "personality",
+    "description": "Set a personality",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "name",
+      "description": "Personality name. Leave empty to list available.",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "personality"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/retry",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "retry",
+    "description": "Retry your last message",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "retry"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/undo",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "undo",
+    "description": "Remove the last exchange",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "undo"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "/status is Hermes's own, described otherwise: it edits it, sending its name, description and options",
+   "method": "PATCH",
+   "path": "/api/v10/applications/{oaid}/commands/{statuscmd}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "status",
+    "description": "Show Hermes session status",
+    "options": []
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{statuscmd}"
+    },
+    {
+     "path": "description",
+     "equals": "Show Hermes session status"
+    },
+    {
+     "path": "version",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "\u2026/sethome",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "sethome",
+    "description": "Set this chat as the home channel",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "sethome"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/stop",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "stop",
+    "description": "Stop the running Hermes agent",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "stop"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/steer",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "steer",
+    "description": "Inject a message after the next tool call (no interrupt)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "prompt",
+      "description": "Text to inject into the agent's next tool result",
+      "required": true
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "steer"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/plan",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "plan",
+    "description": "Write a markdown implementation plan (no execution)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "task",
+      "description": "What to plan. Leave empty to infer from the conversation.",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "plan"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/compress",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "compress",
+    "description": "Compress conversation context",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "compress"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/title",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "title",
+    "description": "Set or show the session title",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "name",
+      "description": "Session title. Leave empty to show current.",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "title"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/resume",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "resume",
+    "description": "Resume a previously-named session",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "name",
+      "description": "Session name to resume. Leave empty to list sessions.",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "resume"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/usage",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "usage",
+    "description": "Show token usage for this session",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "usage"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/help",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "help",
+    "description": "Show available commands",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "help"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/insights",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "insights",
+    "description": "Show usage insights and analytics",
+    "type": 1,
+    "options": [
+     {
+      "type": 4,
+      "name": "days",
+      "description": "Number of days to analyze (default: 7)",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "insights"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/reload-mcp",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "reload-mcp",
+    "description": "Reload MCP servers from config",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "reload-mcp"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/reload-skills",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "reload-skills",
+    "description": "Re-scan ~/.hermes/skills/ for new or removed skills",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "reload-skills"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/voice",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "voice",
+    "description": "Toggle voice reply mode",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "mode",
+      "description": "Voice mode: join, channel, leave, on, tts, off, or status",
+      "required": false,
+      "choices": [
+       {
+        "name": "join \u2014 join your voice channel",
+        "value": "join"
+       },
+       {
+        "name": "channel \u2014 join your voice channel (alias)",
+        "value": "channel"
+       },
+       {
+        "name": "leave \u2014 leave voice channel",
+        "value": "leave"
+       },
+       {
+        "name": "on \u2014 voice reply to voice messages",
+        "value": "on"
+       },
+       {
+        "name": "tts \u2014 voice reply to all messages",
+        "value": "tts"
+       },
+       {
+        "name": "off \u2014 text only",
+        "value": "off"
+       },
+       {
+        "name": "status \u2014 show current mode",
+        "value": "status"
+       }
+      ]
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "voice"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/update",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "update",
+    "description": "Update Hermes Agent to the latest version",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "update"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/restart",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "restart",
+    "description": "Gracefully restart the Hermes gateway",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "restart"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/approve",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "approve",
+    "description": "Approve a pending dangerous command",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "scope",
+      "description": "Optional: 'all', 'session', 'always', 'all session', 'all always'",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "approve"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/deny",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "deny",
+    "description": "Deny a pending dangerous command",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "scope",
+      "description": "Optional: 'all' to deny all pending commands",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "deny"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/thread",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "thread",
+    "description": "Create a new thread and start a Hermes session in it",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "name",
+      "description": "Thread name",
+      "required": true
+     },
+     {
+      "type": 3,
+      "name": "message",
+      "description": "Optional first message to send to Hermes in the thread",
+      "required": false
+     },
+     {
+      "type": 4,
+      "name": "auto_archive_duration",
+      "description": "Auto-archive in minutes (60, 1440, 4320, 10080)",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "thread"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/queue",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "queue",
+    "description": "Queue a prompt for the next turn (doesn't interrupt)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "prompt",
+      "description": "The prompt to queue",
+      "required": true
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "queue"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/bg",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "bg",
+    "description": "Run a prompt in a separate background session",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "prompt",
+      "description": "The prompt to run in the background",
+      "required": true
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "bg"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/btw",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "btw",
+    "description": "Ask a side question about the current conversation",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "question",
+      "description": "The side question to answer without interrupting",
+      "required": true
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "btw"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/start",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "start",
+    "description": "Acknowledge platform start pings without a reply",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "start"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/topic",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "topic",
+    "description": "Enable or inspect Telegram DM topic sessions",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [off|help|session-id]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "topic"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/save",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "save",
+    "description": "Export the current conversation (bare /save shows usage)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: <json|md|html> [filename] [redact]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "save"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/branch",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "branch",
+    "description": "Branch the current session (explore a different path)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [name]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "branch"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/rollback",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "rollback",
+    "description": "List or restore filesystem checkpoints (restores keep your hand-edits; --all overrides)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [number] [--all]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "rollback"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/pause",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "pause",
+    "description": "Pause new work globally (emergency stop); '/pause off' resumes",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [reason | off]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "pause"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/agents",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "agents",
+    "description": "Show active agents and running tasks",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "agents"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/goal",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "goal",
+    "description": "Set a standing goal Hermes works on across turns until achieved",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [text | draft <text> | show | gate add <cmd> | pause | resume | clear | status | wait <pi",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "goal"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/heartbeat",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "heartbeat",
+    "description": "Set a recurring prompt that re-enters this session when idle",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [every <interval> <prompt> | status | pause | resume | clear]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "heartbeat"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/refine",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "refine",
+    "description": "Review this conversation now and save lessons to memory/skills",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [focus instructions]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "refine"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/review",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "review",
+    "description": "Spawn an independent subagent to review the work just discussed (PR, code, docs)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [review instructions]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "review"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/loop",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "loop",
+    "description": "Re-run a prompt on a recurring interval in this session",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [interval] <prompt> [--times N] [--until <condition>] | status | pause | resume | stop",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "loop"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/moa",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "moa",
+    "description": "Run one prompt through the default Mixture of Agents preset, then restore your model",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: <prompt>",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "moa"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/subgoal",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "subgoal",
+    "description": "Add or manage extra criteria on the active goal",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [text | remove N | clear]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "subgoal"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/egress",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "egress",
+    "description": "Show Docker egress proxy status",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [status]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "egress"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/context",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "context",
+    "description": "Show detailed context window view with usage gauge, category breakdown, compression stats, and throu",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [all]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "context"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/whoami",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "whoami",
+    "description": "Show your slash command access (admin / user)",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "whoami"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/profile",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "profile",
+    "description": "Show active profile name and home directory",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "profile"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/sessions",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "sessions",
+    "description": "Browse and resume previous sessions",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "sessions"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/codex-runtime",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "codex-runtime",
+    "description": "Toggle codex app-server runtime for OpenAI/Codex models",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [auto|codex_app_server]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "codex-runtime"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/diff",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "diff",
+    "description": "Show git changes in the working directory",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [staged|all|session] [--stat] [path...]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "diff"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/footer",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "footer",
+    "description": "Toggle gateway runtime-metadata footer on final replies",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [on|off|status]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "footer"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/yolo",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "yolo",
+    "description": "Toggle YOLO mode (skip all dangerous command approvals)",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "yolo"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/approvals",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "approvals",
+    "description": "Show or set the persistent dangerous-command approval mode",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [manual|smart|off]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "approvals"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/fast",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "fast",
+    "description": "Toggle fast mode \u2014 OpenAI Priority Processing / Anthropic Fast Mode (Normal/Fast)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [normal|fast|status] [--global]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "fast"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/busy",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "busy",
+    "description": "Control how messages behave while Hermes is working",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [queue|steer|interrupt|status]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "busy"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/memory",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "memory",
+    "description": "Review pending memory writes / toggle the approval gate",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [pending|approve|reject|approval] [id|on|off]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "memory"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/bundles",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "bundles",
+    "description": "List skill bundles (aliases /<name> for multiple skills)",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "bundles"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/learn",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "learn",
+    "description": "Learn a reusable skill from anything you describe (dirs, URLs, this chat, notes)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: <what to learn from>",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "learn"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/init",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "init",
+    "description": "Generate or update AGENTS.md project instructions from a repo scan",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [notes]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "init"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/suggestions",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "suggestions",
+    "description": "Review suggested automations (accept/dismiss)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [accept|dismiss N | catalog]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "suggestions"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/blueprint",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "blueprint",
+    "description": "Set up an automation from a blueprint template",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [name] [slot=value ...]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "blueprint"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/curator",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "curator",
+    "description": "Background skill maintenance (status, run, pin, archive, list-archived)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [subcommand]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "curator"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/kanban",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "kanban",
+    "description": "Multi-profile collaboration board (tasks, links, comments)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [subcommand]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "kanban"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/commands",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "commands",
+    "description": "Browse all commands and skills (paginated)",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [page]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "commands"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/topup",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "topup",
+    "description": "Show your Nous balance and manage billing on the portal",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "topup"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/platform",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "platform",
+    "description": "Pause, resume, or list a failing gateway platform",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: <pause|resume|list> [name]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "platform"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/version",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "version",
+    "description": "Show Hermes Agent version",
+    "type": 1,
+    "options": [],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "version"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026/debug",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "debug",
+    "description": "Upload debug report (system info + logs) and get shareable links",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Arguments: [nous|local]",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "debug"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and /skill, the last: its skill name autocompleted",
+   "method": "POST",
+   "path": "/api/v10/applications/{oaid}/commands",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "skill",
+    "description": "Run a Hermes skill",
+    "type": 1,
+    "options": [
+     {
+      "type": 3,
+      "name": "name",
+      "description": "Which skill to run",
+      "required": true,
+      "autocomplete": true
+     },
+     {
+      "type": 3,
+      "name": "args",
+      "description": "Optional arguments for the skill",
+      "required": false
+     }
+    ],
+    "nsfw": false,
+    "dm_permission": true,
+    "default_member_permissions": null,
+    "contexts": null,
+    "integration_types": null
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "skill"
+    },
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "options.0.autocomplete",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Seventy changes 4.5 seconds apart: about five minutes on, Hermes's commands are in place",
+   "wait": "5m"
+  },
+  {
+   "name": "Aaron asks the agent in #general, naming it, when 0.6 ships",
+   "method": "POST",
+   "path": "/_twin/channels/{oagen}/messages",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "content": "<@{oabot}> when does 0.6 ship?"
+   },
+   "capture": {
+    "ask3": "id"
+   }
+  },
+  {
+   "name": "Hermes hears the question, with its content",
+   "socket": "hermes",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_CREATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{ask3}"
+    },
+    {
+     "path": "last.d.content",
+     "equals": "<@{oabot}> when does 0.6 ship?"
+    },
+    {
+     "path": "last.d.author.id",
+     "equals": "{aaron}"
+    }
+   ]
+  },
+  {
+   "name": "It marks the question \ud83d\udc40 while it works",
+   "method": "PUT",
+   "path": "/api/v10/channels/{oagen}/messages/{ask3}/reactions/%F0%9F%91%80/@me",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   }
+  },
+  {
+   "name": "\u2026and hears its own reaction",
+   "socket": "hermes",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_REACTION_ADD"
+    },
+    {
+     "path": "last.d.emoji.name",
+     "equals": "\ud83d\udc40"
+    },
+    {
+     "path": "last.d.user_id",
+     "equals": "{oabot}"
+    },
+    {
+     "path": "last.d.message_id",
+     "equals": "{ask3}"
+    },
+    {
+     "path": "last.d.message_author_id",
+     "equals": "{aaron}"
+    },
+    {
+     "path": "last.d.member.user.id",
+     "equals": "{oabot}"
+    }
+   ]
+  },
+  {
+   "name": "It shows it is typing",
+   "method": "POST",
+   "path": "/api/v10/channels/{oagen}/typing",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   }
+  },
+  {
+   "name": "It opens a thread on the question, named from it, so the conversation stays apart",
+   "method": "POST",
+   "path": "/api/v10/channels/{oagen}/messages/{ask3}/threads",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "when does 0.6 ship?",
+    "auto_archive_duration": 1440
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{ask3}"
+    },
+    {
+     "path": "parent_id",
+     "equals": "{oagen}"
+    },
+    {
+     "path": "type",
+     "equals": 11
+    },
+    {
+     "path": "thread_metadata.auto_archive_duration",
+     "equals": 1440
+    }
+   ]
+  },
+  {
+   "name": "\u2026and is sent the new thread",
+   "socket": "hermes",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "THREAD_CREATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{ask3}"
+    },
+    {
+     "path": "last.d.newly_created",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Its progress message goes into the thread while the agent reads the roadmap",
+   "method": "POST",
+   "path": "/api/v10/channels/{ask3}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "Reading ROADMAP.md and the open release review\u2026"
+   },
+   "capture": {
+    "prog": "id"
+   },
+   "expect": [
+    {
+     "path": "channel_id",
+     "equals": "{ask3}"
+    },
+    {
+     "path": "edited_timestamp",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "Hermes reads the roadmap and release review for six minutes before answering",
+   "wait": "6m"
+  },
+  {
+   "name": "When the agent has its answer, Hermes edits the progress message into it",
+   "method": "PATCH",
+   "path": "/api/v10/channels/{ask3}/messages/{prog}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "0.6 ships when the release review in #development passes; its last blocker, the valve's retry, merged this morning."
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{prog}"
+    },
+    {
+     "path": "content",
+     "contains": "release review"
+    },
+    {
+     "path": "edited_timestamp",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "It hears its message posted, then edited",
+   "socket": "hermes",
+   "expect": [
+    {
+     "path": "frames.0.t",
+     "equals": "MESSAGE_CREATE"
+    },
+    {
+     "path": "frames.0.d.id",
+     "equals": "{prog}"
+    },
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_UPDATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{prog}"
+    },
+    {
+     "path": "last.d.content",
+     "contains": "release review"
+    },
+    {
+     "path": "last.d.tts",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "The turn done, it takes back its \ud83d\udc40",
+   "method": "DELETE",
+   "path": "/api/v10/channels/{oagen}/messages/{ask3}/reactions/%F0%9F%91%80/@me",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   }
+  },
+  {
+   "name": "\u2026and marks the question \u2705",
+   "method": "PUT",
+   "path": "/api/v10/channels/{oagen}/messages/{ask3}/reactions/%E2%9C%85/@me",
+   "status": 204,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   }
+  },
+  {
+   "name": "It hears both",
+   "socket": "hermes",
+   "expect": [
+    {
+     "path": "frames.0.t",
+     "equals": "MESSAGE_REACTION_REMOVE"
+    },
+    {
+     "path": "frames.0.d.emoji.name",
+     "equals": "\ud83d\udc40"
+    },
+    {
+     "path": "frames.1.t",
+     "equals": "MESSAGE_REACTION_ADD"
+    },
+    {
+     "path": "frames.1.d.emoji.name",
+     "equals": "\u2705"
+    }
+   ]
+  },
+  {
+   "name": "Aaron uses /status in the Discord client",
+   "method": "POST",
+   "path": "/_twin/channels/{oagen}/interactions",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "application_id": "{oaid}",
+    "command": "status"
+   }
+  },
+  {
+   "name": "Hermes receives the /status interaction on the Gateway",
+   "socket": "hermes",
+   "capture": {
+    "statusi": "last.d.id",
+    "statustoken": "last.d.token"
+   },
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "INTERACTION_CREATE"
+    },
+    {
+     "path": "last.d.application_id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "last.d.data.name",
+     "equals": "status"
+    },
+    {
+     "path": "last.d.member.user.id",
+     "equals": "{aaron}"
+    }
+   ]
+  },
+  {
+   "name": "Hermes defers /status privately while it gathers the session status",
+   "method": "POST",
+   "path": "/api/v10/interactions/{statusi}/{statustoken}/callback?with_response=1",
+   "status": 200,
+   "body": {
+    "type": 5,
+    "data": {
+     "flags": 64
+    }
+   },
+   "expect": [
+    {
+     "path": "interaction.id",
+     "equals": "{statusi}"
+    },
+    {
+     "path": "interaction.response_message_loading",
+     "equals": true
+    },
+    {
+     "path": "interaction.response_message_ephemeral",
+     "equals": true
+    }
+   ],
+   "capture": {
+    "statusreply": "interaction.response_message_id"
+   }
+  },
+  {
+   "name": "Hermes gathers the status for two minutes",
+   "wait": "2m"
+  },
+  {
+   "name": "Hermes posts the session status in #general",
+   "method": "POST",
+   "path": "/api/v10/channels/{oagen}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "\ud83d\udcca **Session status**\n\nModel: claude-opus-5-5 \u00b7 MCP servers: none connected"
+   },
+   "expect": [
+    {
+     "path": "content",
+     "contains": "Session status"
+    }
+   ]
+  },
+  {
+   "name": "Hermes edits its original deferred acknowledgement to Status sent",
+   "method": "PATCH",
+   "path": "/api/v10/webhooks/{oaid}/{statustoken}/messages/@original",
+   "status": 200,
+   "body": {
+    "content": "Status sent~"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{statusreply}"
+    },
+    {
+     "path": "content",
+     "equals": "Status sent~"
+    },
+    {
+     "path": "flags",
+     "equals": 64
+    },
+    {
+     "path": "flags",
+     "equals": 64
+    }
+   ]
+  },
+  {
+   "name": "Aaron uses /usage in the Discord client",
+   "method": "POST",
+   "path": "/_twin/channels/{oagen}/interactions",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "application_id": "{oaid}",
+    "command": "usage"
+   }
+  },
+  {
+   "name": "Hermes receives the /usage interaction on the Gateway",
+   "socket": "hermes",
+   "capture": {
+    "usagei": "last.d.id",
+    "usagetoken": "last.d.token"
+   },
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "INTERACTION_CREATE"
+    },
+    {
+     "path": "last.d.application_id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "last.d.data.name",
+     "equals": "usage"
+    },
+    {
+     "path": "last.d.member.user.id",
+     "equals": "{aaron}"
+    }
+   ]
+  },
+  {
+   "name": "Hermes defers /usage privately",
+   "method": "POST",
+   "path": "/api/v10/interactions/{usagei}/{usagetoken}/callback?with_response=1",
+   "status": 200,
+   "body": {
+    "type": 5,
+    "data": {
+     "flags": 64
+    }
+   },
+   "expect": [
+    {
+     "path": "interaction.id",
+     "equals": "{usagei}"
+    },
+    {
+     "path": "interaction.response_message_loading",
+     "equals": true
+    },
+    {
+     "path": "interaction.response_message_ephemeral",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Hermes prepares and posts its usage report for one minute",
+   "wait": "1m"
+  },
+  {
+   "name": "Hermes posts its usage report in #general",
+   "method": "POST",
+   "path": "/api/v10/channels/{oagen}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "\ud83d\udcc8 **Usage**\n\nThis session: 3 commands answered"
+   },
+   "expect": [
+    {
+     "path": "content",
+     "contains": "Usage"
+    }
+   ]
+  },
+  {
+   "name": "The usage command has no acknowledgement text, so Hermes deletes its deferred response",
+   "method": "DELETE",
+   "path": "/api/v10/webhooks/{oaid}/{usagetoken}/messages/@original",
+   "status": 204
+  },
+  {
+   "name": "Aaron uses /reload-mcp in the Discord client",
+   "method": "POST",
+   "path": "/_twin/channels/{oagen}/interactions",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "application_id": "{oaid}",
+    "command": "reload-mcp"
+   }
+  },
+  {
+   "name": "Hermes receives the /reload-mcp interaction on the Gateway",
+   "socket": "hermes",
+   "capture": {
+    "reloadi": "last.d.id",
+    "reloadtoken": "last.d.token"
+   },
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "INTERACTION_CREATE"
+    },
+    {
+     "path": "last.d.data.name",
+     "equals": "reload-mcp"
+    },
+    {
+     "path": "last.d.member.user.id",
+     "equals": "{aaron}"
+    }
+   ]
+  },
+  {
+   "name": "Hermes defers /reload-mcp privately",
+   "method": "POST",
+   "path": "/api/v10/interactions/{reloadi}/{reloadtoken}/callback?with_response=1",
+   "status": 200,
+   "body": {
+    "type": 5,
+    "data": {
+     "flags": 64
+    }
+   },
+   "expect": [
+    {
+     "path": "interaction.id",
+     "equals": "{reloadi}"
+    },
+    {
+     "path": "interaction.response_message_ephemeral",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Reloading MCP servers invalidates the prompt cache, so Hermes asks in #general first: the prompt as text and as an embed, with Approve Once, Always Approve and Cancel",
+   "method": "POST",
+   "path": "/api/v10/channels/{oagen}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "embeds": [
+     {
+      "type": "rich",
+      "description": "\u26a0\ufe0f **Confirm /reload-mcp**\n\nReloading MCP servers rebuilds the tool set for this session and **invalidates the provider prompt cache** \u2014 the next message will re-send full input tokens.  On long-context or high-reasoning models this can be expensive.\n\nChoose:\n\u2022 **Approve Once** \u2014 reload now\n\u2022 **Always Approve** \u2014 reload now and silence this prompt permanently\n\u2022 **Cancel** \u2014 leave MCP tools unchanged\n\n_Text fallback: reply `/approve`, `/always`, or `/cancel`._",
+      "title": "/reload-mcp",
+      "color": 15105570
+     }
+    ],
+    "content": "**/reload-mcp**\n\n\u26a0\ufe0f **Confirm /reload-mcp**\n\nReloading MCP servers rebuilds the tool set for this session and **invalidates the provider prompt cache** \u2014 the next message will re-send full input tokens.  On long-context or high-reasoning models this can be expensive.\n\nChoose:\n\u2022 **Approve Once** \u2014 reload now\n\u2022 **Always Approve** \u2014 reload now and silence this prompt permanently\n\u2022 **Cancel** \u2014 leave MCP tools unchanged\n\n_Text fallback: reply `/approve`, `/always`, or `/cancel`._",
+    "components": [
+     {
+      "type": 1,
+      "components": [
+       {
+        "type": 2,
+        "style": 3,
+        "disabled": false,
+        "custom_id": "5c0e9b2f7a1d4e8396b2c4f0a7d1e3b5",
+        "label": "Approve Once"
+       },
+       {
+        "type": 2,
+        "style": 1,
+        "disabled": false,
+        "custom_id": "b84d1f0c6e2a9357d0c8e1f4a2b6c937",
+        "label": "Always Approve"
+       },
+       {
+        "type": 2,
+        "style": 4,
+        "disabled": false,
+        "custom_id": "2e7a5d9c1b3f48e6a0d5c7b9e1f3a264",
+        "label": "Cancel"
+       }
+      ]
+     }
+    ],
+    "tts": false,
+    "allowed_mentions": {
+     "replied_user": true,
+     "parse": [
+      "users"
+     ]
+    }
+   },
+   "capture": {
+    "confirmmessage": "id"
+   },
+   "expect": [
+    {
+     "path": "embeds.0.title",
+     "equals": "/reload-mcp"
+    },
+    {
+     "path": "embeds.0.color",
+     "equals": 15105570
+    },
+    {
+     "path": "components.0.components.0.label",
+     "equals": "Approve Once"
+    },
+    {
+     "path": "components.0.components.1.label",
+     "equals": "Always Approve"
+    },
+    {
+     "path": "components.0.components.2.label",
+     "equals": "Cancel"
+    },
+    {
+     "path": "author.id",
+     "equals": "{oabot}"
+    }
+   ]
+  },
+  {
+   "name": "/reload-mcp has no acknowledgement text, so Hermes deletes its deferred response",
+   "method": "DELETE",
+   "path": "/api/v10/webhooks/{oaid}/{reloadtoken}/messages/@original",
+   "status": 204
+  },
+  {
+   "name": "Aaron reads the prompt for a minute",
+   "wait": "1m"
+  },
+  {
+   "name": "He clicks Approve Once in the Discord client",
+   "method": "POST",
+   "path": "/_twin/channels/{oagen}/interactions",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "application_id": "{oaid}",
+    "type": 3,
+    "message_id": "{confirmmessage}",
+    "custom_id": "5c0e9b2f7a1d4e8396b2c4f0a7d1e3b5"
+   }
+  },
+  {
+   "name": "Hermes receives the button's interaction, with the prompt it was on",
+   "socket": "hermes",
+   "capture": {
+    "confirmini": "last.d.id",
+    "confirmtoken": "last.d.token"
+   },
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "INTERACTION_CREATE"
+    },
+    {
+     "path": "last.d.type",
+     "equals": 3
+    },
+    {
+     "path": "last.d.data.custom_id",
+     "equals": "5c0e9b2f7a1d4e8396b2c4f0a7d1e3b5"
+    },
+    {
+     "path": "last.d.message.id",
+     "equals": "{confirmmessage}"
+    },
+    {
+     "path": "last.d.message.embeds.0.title",
+     "equals": "/reload-mcp"
+    }
+   ]
+  },
+  {
+   "name": "Hermes answers the click by editing the prompt: its embed green, footed Approved once by Aaron, and its buttons disabled",
+   "method": "POST",
+   "path": "/api/v10/interactions/{confirmini}/{confirmtoken}/callback?with_response=1",
+   "status": 200,
+   "body": {
+    "type": 7,
+    "data": {
+     "tts": false,
+     "embeds": [
+      {
+       "type": "rich",
+       "description": "\u26a0\ufe0f **Confirm /reload-mcp**\n\nReloading MCP servers rebuilds the tool set for this session and **invalidates the provider prompt cache** \u2014 the next message will re-send full input tokens.  On long-context or high-reasoning models this can be expensive.\n\nChoose:\n\u2022 **Approve Once** \u2014 reload now\n\u2022 **Always Approve** \u2014 reload now and silence this prompt permanently\n\u2022 **Cancel** \u2014 leave MCP tools unchanged\n\n_Text fallback: reply `/approve`, `/always`, or `/cancel`._",
+       "title": "/reload-mcp",
+       "color": 3066993,
+       "footer": {
+        "text": "Approved once by Aaron"
+       }
+      }
+     ],
+     "components": [
+      {
+       "type": 1,
+       "components": [
+        {
+         "type": 2,
+         "style": 3,
+         "disabled": true,
+         "custom_id": "5c0e9b2f7a1d4e8396b2c4f0a7d1e3b5",
+         "label": "Approve Once"
+        },
+        {
+         "type": 2,
+         "style": 1,
+         "disabled": true,
+         "custom_id": "b84d1f0c6e2a9357d0c8e1f4a2b6c937",
+         "label": "Always Approve"
+        },
+        {
+         "type": 2,
+         "style": 4,
+         "disabled": true,
+         "custom_id": "2e7a5d9c1b3f48e6a0d5c7b9e1f3a264",
+         "label": "Cancel"
+        }
+       ]
+      }
+     ],
+     "allowed_mentions": {
+      "replied_user": true,
+      "parse": [
+       "users"
+      ]
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "resource.type",
+     "equals": 7
+    },
+    {
+     "path": "resource.message.id",
+     "equals": "{confirmmessage}"
+    },
+    {
+     "path": "resource.message.embeds.0.footer.text",
+     "equals": "Approved once by Aaron"
+    },
+    {
+     "path": "resource.message.components.0.components.0.disabled",
+     "equals": true
+    },
+    {
+     "path": "resource.message.content",
+     "contains": "Confirm /reload-mcp"
+    }
+   ]
+  },
+  {
+   "name": "It reloads the MCP servers and sends the result as a followup",
+   "method": "POST",
+   "path": "/api/v10/webhooks/{oaid}/{confirmtoken}?wait=1&with_components=0",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "\ud83d\udd04 **MCP Servers Reloaded**\n\nNo MCP servers connected.",
+    "tts": false,
+    "allowed_mentions": {
+     "replied_user": true,
+     "parse": [
+      "users"
+     ]
+    }
+   },
+   "capture": {
+    "reloadfollowup": "id"
+   },
+   "expect": [
+    {
+     "path": "application_id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "interaction_metadata.interacted_message_id",
+     "equals": "{confirmmessage}"
+    },
+    {
+     "path": "interaction_metadata.original_response_message_id",
+     "equals": "{confirmmessage}"
+    },
+    {
+     "path": "interaction_metadata.type",
+     "equals": 3
+    },
+    {
+     "path": "content",
+     "contains": "MCP Servers Reloaded"
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 14 January",
+   "wait": "1d"
+  },
+  {
+   "name": "The project picks Codex for its agent: the kit stops Hermes's gateway, and Volter Harness's orchestrator takes the home",
+   "socket": "hermes",
+   "close": true,
+   "status": 1000
+  },
+  {
+   "name": "Harness's Discord platform reads the application for its id and public key, which Hermes's env does not carry",
+   "method": "GET",
+   "path": "/api/v10/applications/@me",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{oaid}"
+    },
+    {
+     "path": "verify_key",
+     "matches": "^[0-9a-f]{64}$"
+    },
+    {
+     "path": "approximate_guild_count",
+     "equals": 1
+    }
+   ]
+  },
+  {
+   "name": "Its Gateway listener (discord.js) finds the Gateway",
+   "method": "GET",
+   "path": "/api/v10/gateway/bot",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "x-volter-twin-original-host": "discord.com"
+   },
+   "expect": [
+    {
+     "path": "url",
+     "equals": "wss://gateway.discord.gg/"
+    },
+    {
+     "path": "session_start_limit.total",
+     "equals": 1000
+    }
+   ]
+  },
+  {
+   "name": "It opens the Gateway: HELLO",
+   "socket": "harness",
+   "open": "/?v=10&encoding=json",
+   "expect": [
+    {
+     "path": "frames.0.op",
+     "equals": 10
+    }
+   ]
+  },
+  {
+   "name": "It identifies with guilds, messages, message content, direct messages and both reactions: READY, then the server",
+   "socket": "harness",
+   "send": {
+    "op": 2,
+    "d": {
+     "token": "{oatok}",
+     "intents": 46593,
+     "properties": {
+      "os": "linux",
+      "browser": "discord.js",
+      "device": "discord.js"
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "frames.0.t",
+     "equals": "READY"
+    },
+    {
+     "path": "frames.0.d.user.id",
+     "equals": "{oabot}"
+    },
+    {
+     "path": "frames.1.t",
+     "equals": "GUILD_CREATE"
+    },
+    {
+     "path": "frames.1.d.id",
+     "equals": "{g3}"
+    }
+   ]
+  },
+  {
+   "name": "Aaron asks the agent in #general what changed in the valve this week",
+   "method": "POST",
+   "path": "/_twin/channels/{oagen}/messages",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "content": "<@{oabot}> what changed in the valve this week?"
+   },
+   "capture": {
+    "ask4": "id"
+   }
+  },
+  {
+   "name": "Harness hears the mention",
+   "socket": "harness",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_CREATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{ask4}"
+    },
+    {
+     "path": "last.d.mentions.0.id",
+     "equals": "{oabot}"
+    }
+   ]
+  },
+  {
+   "name": "The Chat SDK's adapter opens a thread on the mention",
+   "method": "POST",
+   "path": "/api/v10/channels/{oagen}/messages/{ask4}/threads",
+   "status": 201,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "name": "Thread 1/14/2026, 10:04:12 AM",
+    "auto_archive_duration": 1440
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{ask4}"
+    },
+    {
+     "path": "parent_id",
+     "equals": "{oagen}"
+    }
+   ]
+  },
+  {
+   "name": "\u2026and is sent it",
+   "socket": "harness",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "THREAD_CREATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{ask4}"
+    }
+   ]
+  },
+  {
+   "name": "The agent's reply goes into the thread",
+   "method": "POST",
+   "path": "/api/v10/channels/{ask4}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "This week the valve learned to retry a refused grant once before failing the job, and its logs now name the grant they refused."
+   },
+   "capture": {
+    "rep4": "id"
+   },
+   "expect": [
+    {
+     "path": "channel_id",
+     "equals": "{ask4}"
+    },
+    {
+     "path": "author.id",
+     "equals": "{oabot}"
+    }
+   ]
+  },
+  {
+   "name": "Harness hears its own reply",
+   "socket": "harness",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_CREATE"
+    },
+    {
+     "path": "last.d.id",
+     "equals": "{rep4}"
+    },
+    {
+     "path": "last.d.channel_id",
+     "equals": "{ask4}"
+    }
+   ]
+  },
+  {
+   "name": "Aaron reacts \ud83d\udc4d to the reply in the client",
+   "method": "PUT",
+   "path": "/_twin/channels/{ask4}/messages/{rep4}/reactions",
+   "status": 201,
+   "body": {
+    "username": "aaron",
+    "emoji": "\ud83d\udc4d"
+   }
+  },
+  {
+   "name": "Harness hears the reaction, on its own message",
+   "socket": "harness",
+   "expect": [
+    {
+     "path": "last.t",
+     "equals": "MESSAGE_REACTION_ADD"
+    },
+    {
+     "path": "last.d.user_id",
+     "equals": "{aaron}"
+    },
+    {
+     "path": "last.d.message_id",
+     "equals": "{rep4}"
+    },
+    {
+     "path": "last.d.channel_id",
+     "equals": "{ask4}"
+    },
+    {
+     "path": "last.d.message_author_id",
+     "equals": "{oabot}"
+    },
+    {
+     "path": "last.d.emoji.name",
+     "equals": "\ud83d\udc4d"
+    }
+   ]
+  },
+  {
+   "name": "The project's hourly pm job delivers its report to the home channel by its bare id",
+   "method": "POST",
+   "path": "/api/v10/channels/{oagen}/messages",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {oatok}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "content": "PM report, Wednesday 14 January: 0.6's release review is open in #development; two contributor pull requests wait for review."
+   },
+   "expect": [
+    {
+     "path": "channel_id",
+     "equals": "{oagen}"
+    }
+   ]
+  },
+  {
+   "name": "Through the year",
+   "wait": "307d"
+  },
+  {
+   "name": "Tuesday 17 November",
+   "wait": "1h"
+  },
+  {
+   "name": "Act 12: Maya schedules a new post: Scheduler's picker leaves out #teachers, which its bot cannot see",
+   "method": "GET",
+   "path": "/api/guilds/{g}/channels",
+   "status": 200,
+   "headers": {
+    "authorization": "Bot {ptok}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "notContains": "\"teachers\""
+    },
+    {
+     "path": "",
+     "contains": "\"classes\""
+    },
+    {
+     "path": "",
+     "contains": "\"announcements\""
+    }
+   ]
+  }
+ ]
+}

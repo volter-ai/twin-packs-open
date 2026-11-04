@@ -1,0 +1,230 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "open-autonomy-org/open-autonomy (Open Autonomy, the Hermes kit)",
+      "commit": "0841076bed91",
+      "client": "setup: fetch with Bot DISCORD_BOT_TOKEN at https://discord.com/api/v10 (packages/kit-hermes/src/setup.ts); the agent: Hermes (hermes-agent v2026.8.31, its Discord adapter on discord.py 2.7.1; rows marked hermes-agent: and discord.py:, or hermes-agent@v2026.8.31: and discord.py@2.7.1:, are those packages' paths at those versions), started by the kit as `hermes gateway run` with the token setup saves",
+      "backend": [
+        {
+          "call": "setup checks the bot's application against the project's branding (name, id)",
+          "operation": "get_my_oauth2_application",
+          "evidence": "packages/kit-hermes/src/setup.ts:328"
+        },
+        {
+          "call": "setup checks the home channel is a server channel (id, guild_id)",
+          "operation": "get_channel",
+          "evidence": "packages/kit-hermes/src/setup.ts:331"
+        },
+        {
+          "call": "the kit starts Hermes's gateway with the saved token and home channel",
+          "operation": "socket:gateway",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/start.ts:358"
+        },
+        {
+          "call": "Hermes logs in: discord.py reads the bot's own user",
+          "operation": "get_my_user",
+          "evidence": "discord.py:discord/http.py:844"
+        },
+        {
+          "call": "...and its application (owner, flags)",
+          "operation": "get_my_oauth2_application",
+          "evidence": "discord.py:discord/client.py:681"
+        },
+        {
+          "call": "Hermes opens the Gateway at Discord's own host, wss://gateway.discord.gg/",
+          "operation": "socket:gateway",
+          "evidence": "discord.py:discord/gateway.py:314"
+        },
+        {
+          "call": "once READY, Hermes reconciles its slash commands (on every start; DISCORD_COMMAND_SYNC_POLICY \"safe\" by default): it lists the application's global commands",
+          "operation": "list_application_commands",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/start.ts:358; hermes-agent@29112bef099274229cadff79cdff7bf7b99c4b77:plugins/platforms/discord/adapter.py:3260; discord.py@2.7.1:discord/app_commands/tree.py:237; discord.py@2.7.1:discord/http.py:2224"
+        },
+        {
+          "call": "...deletes the ones it no longer has, first",
+          "operation": "delete_application_command",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:3295; discord.py@2.7.1:discord/http.py:2261"
+        },
+        {
+          "call": "...creates each one the application lacks, 4.5 seconds apart",
+          "operation": "create_application_command",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:3301; discord.py@2.7.1:discord/http.py:2235"
+        },
+        {
+          "call": "...and edits one whose name, description or options differ (name, description and options sent)",
+          "operation": "update_application_command",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:3318; discord.py@2.7.1:discord/http.py:2241"
+        },
+        {
+          "call": "a message that names the bot is marked \ud83d\udc40 while Hermes works",
+          "operation": "add_my_message_reaction",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:3361"
+        },
+        {
+          "call": "Hermes shows it is typing, every 12 seconds while it works",
+          "operation": "trigger_typing_indicator",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:5612"
+        },
+        {
+          "call": "a mention opens a thread on the message (auto-thread, on by default)",
+          "operation": "create_thread_from_message",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:7275"
+        },
+        {
+          "call": "the answer, and its progress message, posted in the thread",
+          "operation": "create_message",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:3530"
+        },
+        {
+          "call": "the progress message edited in place as the agent works",
+          "operation": "update_message",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:3800"
+        },
+        {
+          "call": "the \ud83d\udc40 taken back when the turn ends",
+          "operation": "delete_my_message_reaction",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:3379"
+        },
+        {
+          "call": "...and \u2705 (or \u274c when the turn failed) put in its place",
+          "operation": "add_my_message_reaction",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:3381"
+        },
+        {
+          "call": "a scheduled job's report to the home channel: the channel read when not cached, then the post",
+          "operation": "get_channel",
+          "evidence": "hermes-agent:plugins/platforms/discord/adapter.py:3498"
+        },
+        {
+          "call": "a person invokes a registered command or clicks a confirmation's button; the Gateway delivers INTERACTION_CREATE",
+          "operation": "socket:gateway",
+          "evidence": "packages/kit-hermes/base/.open-autonomy/start.ts:358; hermes-agent@29112bef099274229cadff79cdff7bf7b99c4b77:plugins/platforms/discord/adapter.py:1465"
+        },
+        {
+          "call": "Hermes acknowledges a slash command with an ephemeral deferred response, or refuses an unauthorized invoker privately; a confirmation's button click edits the prompt (its embed and its buttons disabled)",
+          "operation": "create_interaction_response",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:5822; hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:5313; hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:9045; discord.py@2.7.1:discord/webhook/async_.py:451"
+        },
+        {
+          "call": "a slash command that needs confirming (/reload-mcp) posts its prompt: the text, an embed and Approve Once, Always Approve and Cancel",
+          "operation": "create_message",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:7630"
+        },
+        {
+          "call": "the command acknowledgement replaces the deferred response",
+          "operation": "update_original_webhook_message",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:5838; discord.py@2.7.1:discord/interactions.py:603"
+        },
+        {
+          "call": "commands without acknowledgement text delete the deferred response",
+          "operation": "delete_original_webhook_message",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:5840; discord.py@2.7.1:discord/interactions.py:640"
+        },
+        {
+          "call": "a confirmation's result sent as a followup after the button resolves it",
+          "operation": "execute_webhook",
+          "evidence": "hermes-agent@v2026.8.31:plugins/platforms/discord/adapter.py:9055"
+        }
+      ]
+    },
+    {
+      "name": "volter-ai/supercode (Volter Harness)",
+      "commit": "62620578c014",
+      "client": "the Chat SDK's Discord adapter (@chat-adapter/discord 4.39.0, discord.js on the Gateway, fetch at https://discord.com/api/v10; rows marked @chat-adapter/discord: are its published dist), Bot DISCORD_BOT_TOKEN from Hermes's .env; configuration read at sdk/orchestrator/adapters/chat-sdk.mjs:10,81,209",
+      "backend": [
+        {
+          "call": "the application's id and verify_key, which Hermes's env does not carry",
+          "operation": "get_my_application",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:217"
+        },
+        {
+          "call": "the Gateway listener (discord.js) finds the Gateway",
+          "operation": "get_bot_gateway",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:359",
+          "setting": "Demand in full: Volter Harness ships the Gateway listener. Its SDK follows the returned Gateway URL; the REST host discord.com must advertise the separate gateway.discord.gg socket host (@chat-adapter/discord 4.39.0, discord.js WebSocketShard.internalConnect)."
+        },
+        {
+          "call": "the Gateway: Guilds, GuildMessages, MessageContent, DirectMessages and both reactions; MESSAGE_CREATE is a message in, MESSAGE_REACTION_ADD a reaction heard",
+          "operation": "socket:gateway",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:254,262,359; @chat-adapter/discord@4.39.0:dist/index.js:2430"
+        },
+        {
+          "call": "a mention opens a thread on the message (the adapter's handleGatewayMessage)",
+          "operation": "create_thread_from_message",
+          "evidence": "@chat-adapter/discord:dist/index.js:2634"
+        },
+        {
+          "call": "a reply posted in the thread, or in the channel (in parts of 2000 characters)",
+          "operation": "create_message",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:449"
+        },
+        {
+          "call": "a message to the home channel by its bare id",
+          "operation": "create_message",
+          "evidence": "sdk/orchestrator/adapters/chat-sdk.mjs:453"
+        }
+      ]
+    },
+    {
+      "name": "calcom/cal.diy (Cal.com)",
+      "commit": "54343aa685ae",
+      "client": "its webhook sender: a subscriber URL on https://discord.com/api/webhooks/ gets the Discord template (content, embeds of fields) as JSON",
+      "backend": [
+        {
+          "call": "the Discord template chosen for a discord.com/api/webhooks/ subscriber URL",
+          "operation": "execute_webhook",
+          "evidence": "apps/web/modules/webhooks/components/WebhookForm.tsx:375"
+        },
+        {
+          "call": "a booking posted to the webhook",
+          "operation": "execute_webhook",
+          "evidence": "packages/features/webhooks/lib/sendPayload.ts:312"
+        }
+      ]
+    },
+    {
+      "name": "Twin (twin-world's own callers)",
+      "commit": "96ca4478bb39",
+      "client": "the architecture's sockets (a client finds the vendor's socket where its API says it is: Discord's GET /gateway/bot) and a World's socket steps (packages/twin-standard/src/walk/journey-kit.ts)",
+      "backend": [
+        {
+          "call": "a World finds the twin's Gateway where the API says it is (the architecture's sockets: \"Discord's GET /gateway/bot answers the twin's own ws:// base\")",
+          "operation": "get_bot_gateway",
+          "evidence": "docs/contributing/architecture.md:1788"
+        },
+        {
+          "call": "a life's socket steps open the vendor's socket and speak on it (Discord's Gateway, the kit's own example)",
+          "operation": "socket:gateway",
+          "evidence": "scripts/journey-kit.ts:218"
+        }
+      ]
+    },
+    {
+      "name": "Twenty",
+      "commit": "1d561b8c73c9",
+      "client": "fetch (website public community counts without credentials)",
+      "backend": [
+        {
+          "call": "GET /api/v9/invites/cx5n4Jzs57?with_counts=true",
+          "operation": "invite_resolve",
+          "evidence": "packages/twenty-website/src/platform/community/get-community-stats.ts:16-17,44-46"
+        }
+      ]
+    }
+  ],
+  "optional": [
+    {
+      "application": "twentyhq/twenty",
+      "what": "the Discord app's workflow tools (list the bot's servers and channels, post, edit, delete, react)",
+      "setting": "Install (2): add the Discord app from Settings > Applications; it is not installed as shipped (packages/twenty-apps/public/discord/README.md:27-31). Workspace creation installs only the standard application (packages/twenty-server/src/engine/workspace-manager/workspace-manager.service.ts:64-68).",
+      "evidence": "packages/twenty-apps/public/discord/README.md:30"
+    },
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "sign in with Discord (passport-discord: the authorize page, the token URL, users/@me)",
+      "setting": "Configuration (1): ALLOW_SOCIAL_LOGIN=true replaces false; credentials alone do not enable social login (api/server/index.js:393-394; .env.example:891).",
+      "evidence": "api/server/socialLogins.js:103"
+    }
+  ]
+}

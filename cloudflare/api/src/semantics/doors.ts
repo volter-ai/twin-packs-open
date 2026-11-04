@@ -6,7 +6,9 @@ import { accountRow, sameAccount, API_TOKEN, makeApiToken, apiTokenValue, tokenL
 
 // source: https://developers.cloudflare.com/fundamentals/account/create-account/ "Create an account"
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  const body = (ctx.body ?? {}) as Row; const name = typeof body.account === 'string' ? body.account : 'world';
+  const body = (ctx.body ?? {}) as Row;
+  if (body.world_account !== undefined || body.deployment !== undefined) return deploymentCredentials(ctx).catch((error) => { if (error instanceof Response) return error; throw error; });
+  const name = typeof body.account === 'string' ? body.account : 'world';
   const owner = typeof body.owner === 'string' ? body.owner.toLowerCase() : 'owner@world.test'; const accountId = ctx.crypto.sha256(`world-account:${name}`).slice(0, 32);
   if (!accountRow(ctx, accountId)) {
     const existingUser = ctx.rowsRaw('cf_user').find(user => user.email === owner);
@@ -20,12 +22,7 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
     await ctx.write('account_member', memberId, { id: memberId, account_id: accountId, account: { id: accountId, name }, user_id: userId,
       email: owner, status: 'accepted', roles: ['Super Administrator - All Privileges'], permissions: {} }, 'world.signup');
   }
-  const policies = [r2Policy(accountId, 'admin-rw', '*'), { effect: 'allow', resources: { [`com.cloudflare.api.account.${accountId}`]: '*' },
-    permission_groups: ['Account Settings Read', 'Account Settings Write', 'Account API Tokens Read', 'Account API Tokens Write', 'Workers Scripts Read', 'Workers Scripts Write', 'Workers Tail Read', 'Turnstile Read', 'Turnstile Write', 'Zone Read', 'Zone Write'].map(groupRef) },
-  // every zone of the account: its custom hostnames' certificates (Cloudflare for SaaS) and its DNS
-  // source: https://developers.cloudflare.com/fundamentals/api/how-to/create-via-api/ "resources"
-  { effect: 'allow', resources: { [`com.cloudflare.api.account.${accountId}`]: { 'com.cloudflare.api.account.zone.*': '*' } },
-    permission_groups: ['SSL and Certificates Read', 'SSL and Certificates Write', 'DNS Read', 'DNS Write', 'Zone Read', 'Zone Write', 'Workers Routes Read', 'Workers Routes Write'].map(groupRef) }];
+  const policies = accountPolicies(accountId);
   const held = ctx.rowsRaw(API_TOKEN).find(token => token._kind === 'account' && sameAccount(ctx, token._account, accountId) && token.name === 'world' && tokenLive(token, ctx.occurredAt));
   const again = held ? await apiTokenValue(ctx, String(held.id)) : undefined;
   const made = held && again && held._sha256 === ctx.crypto.sha256(again) ? { token: held, value: again }
@@ -77,4 +74,40 @@ export async function deliveries(ctx: HandlerContext): Promise<Response> {
     .filter((d) => (q.get('to') === null || d.url === q.get('to')) && (q.get('type') === null || d.event_type === q.get('type')))
     .sort((a, b) => Number(a.sent_at) - Number(b.sent_at));
   return Response.json({ data: rows.map((d) => ({ url: d.url, type: d.event_type, sent_at: d.sent_at, headers: d.headers, body: JSON.parse(String(d.body)) })) });
+}
+
+function accountPolicies(accountId: string): Row[] {
+  return [r2Policy(accountId, 'admin-rw', '*'), { effect: 'allow', resources: { [`com.cloudflare.api.account.${accountId}`]: '*' },
+    permission_groups: ['Account Settings Read', 'Account Settings Write', 'Account API Tokens Read', 'Account API Tokens Write', 'Workers Scripts Read', 'Workers Scripts Write', 'Workers Tail Read', 'Turnstile Read', 'Turnstile Write', 'Zone Read', 'Zone Write'].map(groupRef) },
+  // every zone of the account: its custom hostnames' certificates (Cloudflare for SaaS) and its DNS
+  // source: https://developers.cloudflare.com/fundamentals/api/how-to/create-via-api/ "resources"
+  { effect: 'allow', resources: { [`com.cloudflare.api.account.${accountId}`]: { 'com.cloudflare.api.account.zone.*': '*' } },
+    permission_groups: ['SSL and Certificates Read', 'SSL and Certificates Write', 'DNS Read', 'DNS Write', 'Zone Read', 'Zone Write', 'Workers Routes Read', 'Workers Routes Write'].map(groupRef) }];
+}
+
+async function deploymentCredentials(ctx: HandlerContext): Promise<Response> {
+  const organization = await ctx.organization();
+  const account = await ctx.tenant('iam_account', async (organization) => {
+    const owner = organization.members[0]!.toLowerCase();
+    const made = await ctx.create('iam_account', { name: organization.label, type: 'standard', settings: { enforce_twofactor: false }, created_on: ctx.occurredAt }, 'world.signup');
+    const accountId = String(made.id);
+    const existing = ctx.rowsRaw('cf_user').find((row) => row.email === owner);
+    const user = existing ?? await ctx.create('iam_single_user_response', (id) => ({ id, email: owner, first_name: null, last_name: null, username: id, two_factor_authentication_enabled: false, created_on: ctx.occurredAt, modified_on: ctx.occurredAt, suspended: false }), 'world.signup');
+    const membership = await ctx.create('iam_membership-with-policies', (id) => ({ id, account_id: accountId, account: { id: accountId, name: organization.label }, user_id: user.id, email: owner, status: 'pending', roles: ['Super Administrator - All Privileges'], permissions: {} }), 'world.signup');
+    const refusal = ctx.legal('iam_membership-with-policies', 'status', 'appCredentials', 'pending', 'accepted', String(membership.id), 'external');
+    if (refusal) throw ctx.refuse(refusal);
+    await ctx.write('account_member', String(membership.id), { status: 'accepted' }, 'world.signup');
+    return accountId;
+  });
+  const accountId = String(account.id);
+  const owner = organization.members[0]!.toLowerCase();
+  const issue = async (name: string, policies: Row[]): Promise<string> => String((await makeApiToken(ctx, { name, kind: 'account', owner, account: accountId, policies })).token.id);
+  const read = async (row: Row): Promise<string | undefined> => {
+    if (row._kind !== 'account' || !sameAccount(ctx, row._account, accountId) || !tokenLive(row, ctx.occurredAt)) return undefined;
+    const value = await apiTokenValue(ctx, String(row.id));
+    return value && row._sha256 === ctx.crypto.sha256(value) ? value : undefined;
+  };
+  const token = await ctx.accountKey('api-token', 'ApiToken', { make: () => issue(ctx.deployment() || 'world', accountPolicies(accountId)), read });
+  const r2 = await ctx.accountKey('r2-access-key', 'ApiToken', { make: () => issue(`${ctx.deployment() || 'world'} R2`, [r2Policy(accountId, 'admin-rw', '*')]), read });
+  return Response.json({ api_token: token.secret, account_id: accountId, r2_access_key_id: r2.id, r2_secret_access_key: ctx.crypto.sha256(r2.secret), r2_endpoint: `https://${accountId}.r2.cloudflarestorage.com` }, { status: 201 });
 }

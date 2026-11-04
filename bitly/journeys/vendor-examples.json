@@ -1,0 +1,394 @@
+{
+  "vendor": "bitly",
+  "author": "Bitly contributor (Codex)",
+  "host": "api-ssl.bitly.com",
+  "about": "Bitly reference samples transcribed with their complete published requests. Setup creates only the account and the example link.",
+  "steps": [
+    {
+      "name": "Publisher opens an account and registers the Dub callback",
+      "method": "POST",
+      "path": "/_twin/signup",
+      "status": 200,
+      "body": {
+        "email": "publisher@example.test",
+        "password": "throwaway-bitly-password",
+        "login": "publisher",
+        "redirect_uri": "https://app.dub.test/api/callback/bitly"
+      },
+      "capture": {
+        "generic": "access_token",
+        "group": "group_guid",
+        "client": "client_id",
+        "secret": "client_secret",
+        "redirect": "redirect_uri",
+        "organization": "organization_guid"
+      },
+      "expect": [
+        {
+          "path": "login",
+          "equals": "publisher"
+        }
+      ]
+    },
+    {
+      "name": "Create the documentation example link",
+      "example": "createFullBitlink#doc Create a Bitlink",
+      "method": "POST",
+      "path": "/v4/bitlinks",
+      "headers": {
+        "authorization": "Bearer {generic}"
+      },
+      "body": {
+        "long_url": "https://dev.bitly.com",
+        "domain": "bit.ly",
+        "group_guid": "{group}",
+        "title": "Bitly API Documentation",
+        "tags": [
+          "bitly",
+          "api"
+        ]
+      },
+      "capture": {
+        "example_link": "id",
+        "created_at": "created_at"
+      },
+      "expect": [
+        {
+          "path": "long_url",
+          "equals": "https://dev.bitly.com"
+        },
+        {
+          "path": "title",
+          "equals": "Bitly API Documentation"
+        },
+        {
+          "path": "tags",
+          "equals": [
+            "bitly",
+            "api"
+          ]
+        },
+        {
+          "path": "created_by",
+          "equals": "publisher"
+        },
+        {
+          "path": "created_at",
+          "matches": "^2026-01-01T00:00:00(?:\\.0+)?(?:Z|\\+00:?00)$"
+        }
+      ],
+      "exampleDiffers": {
+        "deeplinks": "The reference renders one illustrative deeplink object. This published request creates no deeplink; the served schema imposes no minItems and its empty array is valid. Deeplink creation is an explicit variant gap outside Dub demand."
+      },
+      "undecided": {
+        "archived": "The create request does not set archived; the reference gives only an unsupplied boolean representation."
+      }
+    },
+    {
+      "name": "Read the example link for its reader",
+      "example": "getBitlink#doc Retrieve a Bitlink",
+      "method": "GET",
+      "path": "/v4/bitlinks/{example_link}",
+      "headers": {
+        "authorization": "Bearer {generic}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{example_link}"
+        },
+        {
+          "path": "long_url",
+          "equals": "https://dev.bitly.com"
+        },
+        {
+          "path": "title",
+          "equals": "Bitly API Documentation"
+        },
+        {
+          "path": "tags",
+          "equals": [
+            "bitly",
+            "api"
+          ]
+        },
+        {
+          "path": "created_by",
+          "equals": "publisher"
+        },
+        {
+          "path": "created_at",
+          "matches": "^2026-01-01T00:00:00(?:\\.0+)?(?:Z|\\+00:?00)$"
+        },
+        {
+          "path": "created_at",
+          "equals": "{created_at}"
+        }
+      ],
+      "exampleDiffers": {
+        "deeplinks": "The reference renders one illustrative deeplink object. This published request creates no deeplink; the served schema imposes no minItems and its empty array is valid. Deeplink creation is an explicit variant gap outside Dub demand."
+      },
+      "undecided": {
+        "archived": "The create request does not set archived; the reference gives only an unsupplied boolean representation."
+      }
+    },
+    {
+      "name": "Read the organization groups as published",
+      "example": "getGroups#doc Retrieve Groups",
+      "method": "GET",
+      "path": "/v4/groups?organization_guid={organization}",
+      "headers": {
+        "authorization": "Bearer {generic}"
+      },
+      "expect": [
+        {
+          "path": "groups.0",
+          "exists": true
+        },
+        {
+          "path": "groups.1",
+          "exists": false
+        },
+        {
+          "path": "groups.0.guid",
+          "equals": "{group}"
+        },
+        {
+          "path": "groups.0.organization_guid",
+          "equals": "{organization}"
+        },
+        {
+          "path": "groups.0.name",
+          "equals": "Publisher"
+        },
+        {
+          "path": "groups.0.role",
+          "equals": "org_admin"
+        },
+        {
+          "path": "groups.0.is_active",
+          "equals": true
+        },
+        {
+          "path": "groups.0.bsds",
+          "equals": [
+            "chauncey.ly"
+          ]
+        },
+        {
+          "path": "groups.0.created",
+          "matches": "^2026-01-01T00:00:00(?:\\.0+)?(?:Z|\\+00:?00)$"
+        }
+      ]
+    },
+    {
+      "name": "Read the published endpoint limit sample",
+      "example": "getPlatformLimits#doc Get Platform Limits",
+      "method": "GET",
+      "path": "/v4/user/platform_limits?path=%2Forganizations%2F%7Borganization_guid%7D",
+      "headers": {
+        "authorization": "Bearer {generic}"
+      },
+      "expect": [
+        {
+          "path": "platform_limits.0",
+          "exists": true
+        },
+        {
+          "path": "platform_limits.1",
+          "exists": false
+        },
+        {
+          "path": "platform_limits.0.endpoint",
+          "matches": "^/organizations/\\{organization_guid\\}$"
+        },
+        {
+          "path": "platform_limits.0.methods",
+          "equals": [
+            {
+              "name": "GET",
+              "limit": 30,
+              "count": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Read the root identity example as its account",
+      "example": "getUser#doc Retrieve a User",
+      "method": "GET",
+      "path": "/v4/user",
+      "headers": {
+        "authorization": "Bearer {generic}"
+      },
+      "expect": [
+        {
+          "path": "emails.0.email",
+          "equals": "publisher@example.test"
+        },
+        {
+          "path": "login",
+          "equals": "publisher"
+        },
+        {
+          "path": "name",
+          "equals": "publisher"
+        },
+        {
+          "path": "default_group_guid",
+          "equals": "{group}"
+        },
+        {
+          "path": "created",
+          "matches": "^2026-01-01T00:00:00(?:\\.0+)?(?:Z|\\+00:?00)$"
+        },
+        {
+          "path": "modified",
+          "matches": "^2026-01-01T00:00:00(?:\\.0+)?(?:Z|\\+00:?00)$"
+        },
+        {
+          "path": "emails.1",
+          "exists": false
+        },
+        {
+          "path": "is_active",
+          "equals": true
+        },
+        {
+          "path": "is_sso_user",
+          "equals": false
+        },
+        {
+          "path": "is_2fa_enabled",
+          "equals": false
+        },
+        {
+          "path": "emails.0.is_primary",
+          "equals": true
+        },
+        {
+          "path": "emails.0.is_verified",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Dub opens Bitly authorization for the registered app",
+      "method": "GET",
+      "path": "https://bitly.com/oauth/authorize?client_id={client}&redirect_uri={encoded:redirect}&response_type=code&state=dub-migration",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to Bitly"
+        }
+      ]
+    },
+    {
+      "name": "Publisher signs in to the Bitly account",
+      "method": "POST",
+      "path": "https://bitly.com/oauth/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={encoded:client}&redirect_uri={encoded:redirect}&state=dub-migration&email=publisher%40example.test&password=throwaway-bitly-password",
+      "capture": {
+        "cookie": "header:set-cookie:(bitly_session=[^;]+)",
+        "consent": "header:location"
+      }
+    },
+    {
+      "name": "Publisher reads the Dub consent page",
+      "method": "GET",
+      "path": "{consent}",
+      "status": 200,
+      "headers": {
+        "cookie": "{cookie}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "Authorize Dub"
+        }
+      ]
+    },
+    {
+      "name": "Publisher grants Dub access to the account archive",
+      "method": "POST",
+      "path": "https://bitly.com/oauth/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded",
+        "cookie": "{cookie}"
+      },
+      "body": "client_id={encoded:client}&redirect_uri={encoded:redirect}&state=dub-migration&decision=allow",
+      "capture": {
+        "code": "header:location:[?&]code=([^&]+)"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "contains": "state=dub-migration"
+        }
+      ]
+    },
+    {
+      "name": "Exchange the fresh code using the published four-field form",
+      "example": "exchangeAccessToken#doc OAuth web flow",
+      "method": "POST",
+      "path": "/oauth/access_token",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "client_id={encoded:client}&client_secret={encoded:secret}&code={encoded:code}&redirect_uri={encoded:redirect}",
+      "capture": {
+        "published_oauth": "text:access_token=([^&]+)"
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "application/x-www-form-urlencoded"
+        },
+        {
+          "path": "",
+          "matches": "^access_token=[^&]+&login=publisher$"
+        }
+      ],
+      "exampleBindings": {
+        "BITLY_LOGIN": "publisher"
+      }
+    },
+    {
+      "name": "The published OAuth token lets its consumer read the account groups",
+      "method": "GET",
+      "path": "/v4/groups",
+      "headers": {
+        "authorization": "Bearer {published_oauth}"
+      },
+      "expect": [
+        {
+          "path": "groups.0.guid",
+          "equals": "{group}"
+        },
+        {
+          "path": "groups.1",
+          "exists": false
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "getBitlinksByGroup#doc Retrieve Bitlinks by Group": "The reference sends campaign_guid, channel_guid and launchpad_ids together, plus unsupported QR/expiration filters. Those explicit variants are gaps outside Dub import demand. No supported API can create their prerequisites; retain the complete example rather than removing its parameters.",
+    "getGroupTags#doc Retrieve Tags by Group": "The rendered curl sends type= with an empty string, whereas the published enum only admits bitlink or qr_code. This exact published request is not a valid request under its own schema; the life exercises the documented omitted-parameter default.",
+    "updateBitlink#doc Update a Bitlink": "The complete default request supplies an Android deeplink with app_guid, app_uri_path, install_url and promote_install. Deeplinks are a declared variant gap outside the import/archive demand; no modeled mobile-app/deeplink flow can meet those prerequisites.",
+    "createFullBitlink#doc Customized Keyword": "The complete published request asks for keyword customization, an explicit variant gap outside Dub import demand.",
+    "createFullBitlink#doc Add Keyword to Existing Bitlink": "The complete published request asks for keyword customization, an explicit variant gap outside Dub import demand.",
+    "createFullBitlink#doc With Expiration": "The complete published request sets expiration_at, an explicit variant gap outside Dub import demand. Its retained July 2025 sample date also precedes this January 2026 World; it is not rewritten.",
+    "updateBitlink#doc Redirect Bitlink Destination": "The complete published request changes the destination URL, an explicit variant gap outside Dub archive updates.",
+    "updateBitlink#doc With Expiration": "The complete published request sets expiration_at, an explicit variant gap outside Dub import demand. Its retained July 2025 sample date also precedes this January 2026 World; it is not rewritten.",
+    "exchangeAccessToken#doc Resource owner credentials grant": "This complete published request uses a username/password token grant, outside Dub web-flow demand. The pack has no Basic/password credential grant and cannot supply its prerequisites; only authorization-code exchange is modeled.",
+    "exchangeAccessToken#doc HTTP Basic authentication flow": "This complete published request uses a username/password token grant, outside Dub web-flow demand. The pack has no Basic/password credential grant and cannot supply its prerequisites; only authorization-code exchange is modeled."
+  }
+}
