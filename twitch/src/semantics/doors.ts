@@ -51,8 +51,7 @@ async function signUp(ctx: HandlerContext, body: Row, door: string): Promise<Row
   return { ...user, id };
 }
 
-/** A login already taken: the account it names when the password is its own (the same door at every boot), else a
- *  refusal. */
+/** A direct sign-up fixture reuses a login when its password matches, else refuses the taken login. */
 function takenLogin(ctx: HandlerContext, taken: Row, password: string): Row | Response {
   const person = personOf(ctx, String(taken.email));
   return person && person.user_id === taken.id && personWith(ctx, String(taken.email), password) ? taken : refuse(409, `${String(taken.login)} is taken`);
