@@ -4,7 +4,6 @@
 // THE TWIN RUNS NO MODEL: an image is the kernel's labeled placeholder PNG (placeholderPng), served at the twin's media
 // URL.
 import type { DerivedManifest } from '@volter/world-core';
-import { states } from './semantics/states.ts';
 
 export const manifest: DerivedManifest = {
   vendor: 'fal',
@@ -27,8 +26,8 @@ export const manifest: DerivedManifest = {
   deleted: {},
   resources: {
     _account: { idPrefix: '', ids: '{uuid}', shared: true },
-    _image: { idPrefix: '', ids: '{letters:21}', ...states._image },
-    _api_key: { idPrefix: 'key_', ids: '{prefix}{n}', ...states._api_key },
+    _image: { idPrefix: '', ids: '{letters:21}' },
+    _api_key: { idPrefix: 'key_', ids: '{prefix}{n}' },
   },
   // Model computation stores only private call artifacts, not vendor records.
   vendorBacked: { none: 'Direct model calls answer generated media; only World-private key hashes and placeholder blobs are retained.' },

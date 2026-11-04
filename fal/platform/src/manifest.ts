@@ -1,5 +1,4 @@
 import type { DerivedManifest } from '@volter/world-core';
-import { states } from './semantics/states.ts';
 
 export const manifest: DerivedManifest = {
   vendor: 'fal', service: 'fal', body: { json: 'always' }, ids: { template: '{uuid}' }, time: 'iso',
@@ -11,7 +10,7 @@ export const manifest: DerivedManifest = {
   notFound: { status: 404, kind: 'not_found', message: 'Resource not found' },
   gap: { status: 404, kind: 'not_found', message: 'Resource not found' },
   list: { style: 'envelope', envelope: { prices: '{data}' }, limit: { param: 'limit', default: 50, max: 50 } },
-  deleted: {}, resources: { _account: { idPrefix: '', ids: '{uuid}', shared: true }, _api_key: { idPrefix: 'key_', ...states._api_key } },
+  deleted: {}, resources: { _account: { idPrefix: '', ids: '{uuid}', shared: true }, _api_key: { idPrefix: 'key_' } },
   // source: https://fal.ai/docs/api-reference/platform-apis/authentication.md "Authorization: Key YOUR_API_KEY"
   auth: { header: 'authorization', scheme: 'Key', gateWhenAbsent: true, beforeRouting: true, invalidKeys: [],
     held: { storedAs: '_api_key', hashField: 'sha256' },
