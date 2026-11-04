@@ -8,7 +8,7 @@ export const manifest: DerivedManifest = {
   // one service with the API lane (../../api/src/manifest.ts), so one store
   service: 'sentry',
   hosts: [{ suffix: '.ingest.sentry.io' }, { suffix: '.ingest.us.sentry.io' }, { suffix: '.ingest.de.sentry.io' }],
-  // source: spec:/servers/0/url
+  // source: spec:/servers/0/url "https://o0.ingest.us.sentry.io"
   remoteHost: { template: 'o0.ingest.us.sentry.io' },
   // an envelope is not JSON: its bytes are kept (./semantics/around.ts) and read by the handler
   body: {},
