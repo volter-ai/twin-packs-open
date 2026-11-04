@@ -8,6 +8,32 @@ import { states } from './states.ts';
 
 export type Row = Record<string, unknown>;
 
+// source: https://platform.openai.com/docs/api-reference/project-api-keys
+export async function nativeOrganization(ctx: HandlerContext): Promise<Row> {
+  return ctx.tenant('_organization', async (world) => String((await ctx.create('_organization', {
+    name: world.label, owner: world.members[0]!.toLowerCase(),
+  }, 'organization.create')).id));
+}
+
+export async function credentialProject(ctx: HandlerContext): Promise<Row> {
+  const organization = await nativeOrganization(ctx);
+  const world = await ctx.account();
+  return ctx.deploymentObject(`project:${organization.id}`, 'Project', async (deployment) => {
+    if (world === 'default' && !deployment) {
+      const existing = ctx.rowsRaw('Project').find((row) => row.name === 'Default project' && row.status !== 'archived' && row._organization_id === undefined);
+      if (existing) {
+        await ctx.write('Project', String(existing.id), { _organization_id: organization.id, _namespace: 'default' }, 'project.assign');
+        return String(existing.id);
+      }
+    }
+    return String((await ctx.create('Project', (id) => ({
+      object: 'organization.project', name: world === 'default' && !deployment ? 'Default project' : deployment || organization.name,
+      created_at: Math.floor(Date.parse(ctx.occurredAt) / 1000), archived_at: null, status: 'active',
+      _organization_id: organization.id, _namespace: world === 'default' && !deployment ? 'default' : id,
+    }), 'project.create')).id);
+  });
+}
+
 /** The request shape the pack's shared helpers take. */
 
 /** An answer a pack helper built, with the headers it carries (a scripted fault's rate-limit family). */

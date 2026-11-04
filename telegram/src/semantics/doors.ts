@@ -68,7 +68,21 @@ async function applicationBot(ctx: HandlerContext): Promise<Response> {
   });
   const key = await ctx.accountKey(`bot-token:${bot.id}`, '_bot', {
     make: async () => {
-      const before = ctx.row('_bot', String(bot.id))!;
+      const id = String(bot.id);
+      const before = ctx.row('_bot', id);
+      if (!before) {
+        const retired = ctx.row('_bot', id, { withDeleted: true });
+        const generation = Number(retired?.generation ?? 0) + 1;
+        const token = await issueToken(ctx, id, generation);
+        await ctx.atomically((rows) => rows('_bot').some((row) => row.id === id) ? { value: undefined } : {
+          value: undefined,
+          write: { resource: '_bot', id, fields: {
+            owner: owner.id, generation, token_sha256: ctx.crypto.sha256(token),
+            update_seq: retired?.update_seq ?? 836_000_000, deleted: false, _pending: false,
+          }, operation: 'bot.token' },
+        });
+        return id;
+      }
       const current = await issueToken(ctx, String(bot.id), Number(before.generation ?? 1));
       if (before.token_sha256 === ctx.crypto.sha256(current)) return String(bot.id);
       await ctx.change('_bot', String(bot.id), (row) => row._pending === true || row.token_sha256 !== before.token_sha256 ? undefined

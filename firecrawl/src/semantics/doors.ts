@@ -3,9 +3,8 @@
 //   POST /_twin/app-credentials                       the application's key (the descriptor's credentialDoor)
 //   POST /_twin/pages { url, html, title? }            a page on the World's web (its markdown is derived from its html);
 //                                                     the same URL again replaces it
-import { accountFor } from './tenant.ts';
 import type { HandlerContext } from '@volter/world-core';
-import { KEY, readKey, makeKey, PAGE } from './shared.ts';
+import { accountFor, KEY, readKey, makeKey, PAGE } from './shared.ts';
 
 type Row = Record<string, unknown>;
 const bodyOf = (ctx: HandlerContext): Row => (ctx.body && typeof ctx.body === 'object' ? ctx.body : {}) as Row;
