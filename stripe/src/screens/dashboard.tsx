@@ -27,10 +27,10 @@ import { flowPage } from '@volter/world-ui';
 import { VL } from '../engine/radar.ts';
 import { nowUnix } from '../engine/stripe.ts';
 import type { Row } from '../engine/common.ts';
-import { platformAccountDefault, platformAccountId } from '../engine/connect.ts';
+import { platformAccountDefault } from '../engine/connect.ts';
 import { publicBusinessName } from '../engine/display.ts';
 import { formOf, money, notFound } from './shared.tsx';
-import { created } from '../semantics/shared.ts';
+import { platformAccountId, created } from '../semantics/shared.ts';
 const redirect = (path: string): Response => new Response(null, { status: 303, headers: { location: path } });
 const invalid = (message: string): Response => flowPage({ css: [], title: 'Stripe', status: 400, body: <main><p role="alert">{message}</p></main> });
 

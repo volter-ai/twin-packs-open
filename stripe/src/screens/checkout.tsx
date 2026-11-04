@@ -15,7 +15,6 @@
 // only sets the card up: setup mode, or a subscription's trial);
 // any other number that passes the Luhn check pays, and a card that asks for authentication pays without
 // the challenge. A subscription session with no customer makes one from the email, as Stripe does.
-import { platformAccountId } from '../engine/connect.ts';
 import type { HandlerContext } from '@volter/world-core';
 import { flowPage, Payment, PAYMENT_CSS, type PaymentField } from '@volter/world-ui';
 import { isOneTime } from '../engine/checkout.ts';
@@ -24,7 +23,7 @@ import type { Row } from '../engine/common.ts';
 import { publicBusinessName } from '../engine/display.ts';
 import { applyCouponDiscount, nowUnix, resolveTrial } from '../engine/stripe.ts';
 import { cardAnswer, COUNTRIES, formOf, money, notFound, parseExpiry } from './shared.tsx';
-import { completeSession, created } from '../semantics/shared.ts';
+import { platformAccountId, completeSession, created } from '../semantics/shared.ts';
 const CS = 'checkout.session';
 const COMPLETE_OPERATION = { id: 'PostCheckoutSessionsSession' };
 

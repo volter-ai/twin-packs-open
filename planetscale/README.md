@@ -36,9 +36,9 @@ world-planetscale serve [--port N] [--root DIR] [--read-only]
 ## Doors
 
 - `POST /_twin/users/{email} {password, organization}`: a person who signed up, and the organization they administer.
-- `POST /_twin/app-credentials {organization?, database?}`: the application's connection strings, which the runtime
-  issues at boot: `PLANETSCALE_DATABASE_URL` for psdb, and `DATABASE_URL` for the native MySQL wire, at the twin's
-  `mysql` side port.
+- `POST /_twin/app-credentials {account?, deployment?}`: the application's connection strings, which the runtime
+  issues for the organization's deployment database: `PLANETSCALE_DATABASE_URL` for psdb, and `DATABASE_URL` for
+  the native MySQL wire at the twin's `mysql` side port.
 
 ## The native MySQL wire
 

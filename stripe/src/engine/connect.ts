@@ -3,10 +3,9 @@
 // sessions. A new connected account is not yet active: charges and payouts are off and its
 // requirements are outstanding, as on Stripe before onboarding. Account retrieve and delete and
 // the person list are the derived core's.
-import { accountRequirements, accountSettings, PLATFORM_ACCOUNT_ID } from './stripe.ts';
+import { accountRequirements, accountSettings } from './stripe.ts';
 import { currentlyDue, kindOf } from './onboarding.ts';
 import { externalList, type Row } from './common.ts';
-import type { HandlerContext } from '@volter/world-core';
 // the platform's own account: stored once it is written, otherwise Stripe's default. It "controls itself" (controller
 // type `account`, docs.stripe.com/api/accounts/object), is fully onboarded with nothing due, and takes card payments
 // and transfers. Where the documentation stops and the twin decides: it was created as the World began (2026-01-01),
@@ -22,10 +21,6 @@ export const platformAccountDefault = (id: string): Row => ({
   external_accounts: externalList(id, []), tos_acceptance: { date: null, ip: null, user_agent: null }, business_profile: {},
   settings: accountSettings(undefined), livemode: false,
 });
-
-/** The merchant's native account projected into the selected sandbox. */
-export const platformAccountId = (ctx: Pick<HandlerContext, 'rowsRaw'>): string =>
-  String(ctx.rowsRaw('account').find((row) => row._platform === true)?.id ?? PLATFORM_ACCOUNT_ID);
 
 /** A new Express account owes what its hosted onboarding will ask for (screens/connect-onboarding.tsx; the US sets
  *  docs.stripe.com/connect/required-verification-information lists), or, where the twin does not model the set, the

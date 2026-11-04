@@ -16,14 +16,13 @@
 // (the account's default) enables cancellation at period end, updating the payment method and invoice history;
 // changing the plan from the portal is not offered yet. A new card is saved without a charge, so a card that
 // declines only when charged (4000000000000341) is saved and declines when the invoice is paid.
-import { platformAccountId } from '../engine/connect.ts';
 import type { HandlerContext } from '@volter/world-core';
 import { flowPage, type PaymentField, Portal, PORTAL_CSS, type PortalItem } from '@volter/world-ui';
 import type { Row } from '../engine/common.ts';
 import { publicBusinessName } from '../engine/display.ts';
 import { declineFor, nowUnix, paymentMethodSubObject } from '../engine/stripe.ts';
 import { cardAnswer, COUNTRIES, formOf, money, notFound } from './shared.tsx';
-import { resourceView, afterSuccessOf, created, payerOf, payOpenInvoice } from '../semantics/shared.ts';
+import { platformAccountId, resourceView, afterSuccessOf, created, payerOf, payOpenInvoice } from '../semantics/shared.ts';
 const SUB = 'subscription';
 const PORTAL_OPERATION = { id: 'PostBillingPortalSessions' };
 
