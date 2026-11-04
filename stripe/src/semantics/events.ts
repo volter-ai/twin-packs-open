@@ -1,6 +1,6 @@
 // Stripe's Events API (the events family: the account's stored events, which the kernel keeps as each is sent), and how
 // Stripe renders the events its writes send (`data` and `values`, bound in the manifest's `events`).
-import { platformAccountId } from '../engine/connect.ts';
+import { platformAccountId } from './shared.ts';
 import type { EventWrite, WriteHookContext } from '@volter/world-core';
 import { isValidApiVersion, TWIN_API_VERSION } from '../engine/stripe.ts';
 import { render } from '../engine/version.ts';
