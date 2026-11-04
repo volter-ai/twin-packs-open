@@ -148,7 +148,7 @@ export const tokenView = (key: string, t: Row, token?: string): Row => ({
 // source: https://raw.githubusercontent.com/npm/registry/main/docs/user/authentication.md "On creation, the `token` attribute will be a valid UUID."
 export async function issueToken(ctx: HandlerContext, user: string, readonly: boolean, cidr: string[] | null, expires?: string): Promise<Row> {
   // drawn from a secret the World holds (ctx.secret), so no one computes a token from its user, count and moment
-  const label = `npm-token:${user}:${await serial(ctx, 'token')}:${ctx.occurredAt}`;
+  const label = `npm-token:${user}:${await serial(ctx)}:${ctx.occurredAt}`;
   const token = ctx.crypto.uuidFrom(await ctx.secret(label));
   const key = tokenKey(ctx, token);
   const fields = { user, readonly, cidr_whitelist: cidr, ...(expires ? { expires } : {}), _secret_label: label, created: ctx.occurredAt, updated: ctx.occurredAt };
@@ -238,5 +238,5 @@ export async function checkProvenance(ctx: HandlerContext, name: string, version
 }
 
 /** The World's next number (a nonce in a secret's label, a numeric id), issued from the tree over `_serial` (ctx.issue),
- *  never a row count; `what` names what it is for where it is called. */
-export const serial = async (ctx: Pick<HandlerContext, 'issue'>, _what: string): Promise<number> => Number(await ctx.issue('_serial'));
+ *  never a row count. */
+const serial = async (ctx: Pick<HandlerContext, 'issue'>): Promise<number> => Number(await ctx.issue('_serial'));
