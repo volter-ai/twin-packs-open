@@ -3,11 +3,13 @@
 import { createPackFetch, type DerivedFetch, type DerivedSurface, type PackFetchOptions } from '@volter/world-core';
 import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
+import { tenant } from './semantics/tenant.ts';
 import { mediaSemantics } from './semantics/index.ts';
 
 export function createMediaLaneFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
     manifest,
+    tenant,
     surface: surface as DerivedSurface,
     handlers: mediaSemantics,
   }, options);

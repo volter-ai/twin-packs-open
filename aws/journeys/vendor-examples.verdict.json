@@ -1,0 +1,44 @@
+{
+  "sha256": "2bd03826c7a1bc912eb90cd7df0fe0c8b4af56f6813f4ba41cfdd2b8d4d80877",
+  "plausible": true,
+  "judge": {
+    "agent": "Contributor 194"
+  },
+  "authors": [
+    "Contributor 195",
+    "Contributor 196",
+    "Contributor 55"
+  ],
+  "rulings": [],
+  "doubts": [
+    "The earlier rulings are resolved at dc2425979. (1) ListSecretVersionIds leaves out VersionStages for a version with no labels, and step 35 asserts {Versions.2.VersionStages exists:false}, matching the vendor example and API sample. SecretVersionsListEntry.VersionStages is 'Minimum number of 1 item'. (2) The padding CancelRotateSecret step is gone. Step 21's AWSPENDING removal still stands as the precondition for step 22, per API_CancelRotateSecret.html: 'Failing to clean up a cancelled rotation can block you from starting future rotations'. (3) Step 19 now asserts VersionId equals {pending}, the version CancelRotateSecret documents as 'created during the rotation'.",
+    "The author's wider change is correct. GetSecretValue, BatchGetSecretValue and PutSecretValue now also leave out VersionStages when a version has no labels. Each page's response VersionStages is 'Array Members: Minimum number of 1 item': API_GetSecretValue.html, API_SecretValueEntry.html (BatchGetSecretValue's entries), and API_PutSecretValue.html's Response Elements. No step in the file asserts a label-less VersionStages, so the change is tested by no example. I read it in the diff (stagesOf in src/semantics/secrets.ts).",
+    "Step 4's exampleDiffers now quotes API_GetSecretValue.html word for word. The RotateSecret step names no longer claim the page advises RotateImmediately=false. The page only warns that with rate() or AutomaticallyAfterDays 'the previously scheduled rotation might still occur'. The 'might' allows the recomputed rate() NextRotationDate the file asserts.",
+    "doc-examples.json: all 30 'means' quotes match rotate-secrets_schedule.html or API_RotationRulesType.html word for word (apart from whitespace). All 15 NextRotationDate values match their 'means' from the 2026-01-01T00:00Z (Thursday) clock. The convention is the close of the first window: 1h for schedules in hours, end of the UTC day for schedules in days, Duration when set. The one judgment call: cron(0 /8 * * ? *) takes the window opening exactly at the clock (00:00, so 00:59:59) as the first one. The page does not settle whether a window opening at the instant of the call counts.",
+    "GetRandomPassword step: only 'contains \" \"' is asserted. PasswordLength 20 and RequireEachIncludedType are decided by the request, but the journey format has no length or pattern operator (equals/oneOf/exists/contains), so the file cannot assert them. That is a format limit, not an authoring gap.",
+    "The rule steps assert the twin's own error wording, and the twin admits AWS documents no wording. AutomaticallyAfterDays 1001 (a modelled range) and Duration '90m' (a modelled pattern) break model constraints. Real AWS may reject these at its request validator with another code. The Smithy model lists only InvalidParameterException/InvalidRequestException for RotateSecret, so the choice is defensible.",
+    "ListSecretVersionIds order: the twin lists versions newest first, while the vendor's example lists EXAMPLE1, EXAMPLE2, EXAMPLE3. No order is documented.",
+    "The setup force-deletes and at once re-creates the same name. The documented contract allows it, though real AWS can briefly refuse the re-create while the deletion propagates."
+  ],
+  "rounds": [
+    {
+      "rulings": [
+        {
+          "what": "ListSecretVersionIds answers VersionStages [] where AWS leaves it out",
+          "cause": "A"
+        },
+        {
+          "what": "a setup step no example needs",
+          "cause": "E"
+        },
+        {
+          "what": "CancelRotateSecret VersionId the setup decides, unasserted",
+          "cause": "B"
+        }
+      ]
+    },
+    {
+      "rulings": []
+    }
+  ]
+}

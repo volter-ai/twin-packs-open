@@ -1,7 +1,7 @@
 import type { DerivedManifest } from '@volter/world-core';
 export const manifest: DerivedManifest = {
   // the vendor's one store: a generated image's file is minted as the openai unit mints it (../../src/manifest.ts)
-  vendor: 'openai', service: 'openai', ids: { template: '{prefix}-{ksuid:24}' }, time: 'unix',
+  vendor: 'openai', service: 'openai', tenant: { field: '_project_namespace', storage: 'namespaced' }, ids: { template: '{prefix}-{ksuid:24}' }, time: 'unix',
   body: { json: 'always' }, error: { error: { message: '{message}', type: 'invalid_request_error', param: null, code: null } },
   notFound: { status: 404, message: 'No image available at this URL.' },
   gap: { status: 404, message: 'No image available at this URL.' },

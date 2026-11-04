@@ -33,6 +33,24 @@ export const PROJECT_KEY = 'ProjectApiKey';
 
 export const mintProjectKey = async (ctx: Pick<HandlerContext, 'secret'>, id: string): Promise<string> => `sk-proj-${(await ctx.secret(`project-key:${id}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 48)}`;
 
+/** Native project-key creation is shared by the credential door and Dashboard. */
+export async function makeProjectKey(ctx: HandlerContext, project: Row, name: string, owner: Row, permissions: string): Promise<string> {
+  const reserved = await ctx.create(PROJECT_KEY, { object: 'organization.project.api_key', _project_id: project.id }, 'api_key.reserve');
+  const id = String(reserved.id);
+  const secret = await mintProjectKey(ctx, id);
+  await ctx.write(PROJECT_KEY, id, { object: 'organization.project.api_key', name,
+    redacted_value: `sk-proj-****${secret.slice(-4)}`, created_at: epoch(ctx), last_used_at: null,
+    _sha256: sha256(secret), _project_id: project.id, owner, owner_project_access: 'active', _permissions: permissions,
+  }, 'api_key.create');
+  return id;
+}
+
+export async function readProjectKey(ctx: HandlerContext, project: Row, row: Row): Promise<string | undefined> {
+  if (row.deleted === true || row._project_id !== project.id || project.status === 'archived') return undefined;
+  const secret = await mintProjectKey(ctx, String(row.id));
+  return row._sha256 === sha256(secret) ? secret : undefined;
+}
+
 /** A path parameter, by the name the spec gives it. */
 export const at = (ctx: HandlerContext, name: string): string => ctx.call.params[name] ?? '';
 
@@ -2274,28 +2292,49 @@ export async function codexOpaque(ctx: HandlerContext, label: string): Promise<s
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/token_data.rs "chatgpt_account_id"
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/auth/storage.rs "Expected structure for $CODEX_HOME/auth.json."
 export async function codexTokens(ctx: HandlerContext, account: Row, client = CODEX_CLIENT, family?: string): Promise<Row> {
-  const id = ctx.mint('_codex_grant'), refresh = await ctx.secret(`codex:refresh:${id}`), signing = await ctx.signingKey('codex-oauth');
+  const reserved = await ctx.create('_codex_grant', { _account: account.id }, 'codex.grant.reserve');
+  const id = String(reserved.id), refresh = await ctx.secret(`codex:refresh:${id}`), signing = await ctx.signingKey('codex-oauth');
   const claims = { iss: 'https://auth.openai.com', sub: account.id, email: account.email, jti: id, 'https://api.openai.com/auth': { chatgpt_account_id: account.id, chatgpt_user_id: account.id, chatgpt_plan_type: 'plus' }, 'https://api.openai.com/profile': { email: account.email } };
   // Where source stops: signing and one-hour access/thirty-day refresh lifetime are synthetic World policy.
   const access_token = ctx.crypto.jwtSign({ ...claims, aud: 'https://api.openai.com/v1' }, { alg: 'RS256', ...signing }, { now: epoch(ctx), expiresInSeconds: 3600 });
   const id_token = ctx.crypto.jwtSign({ ...claims, aud: client }, { alg: 'RS256', ...signing }, { now: epoch(ctx), expiresInSeconds: 3600 });
-  await ctx.write('_codex_grant', id, { status: 'active', _account: account.id, _client: client, _family: family ?? id, _access: access_token, _id_token: id_token, _refresh: refresh, _refresh_hash: sha256(refresh), _expires: epoch(ctx) + 3600, _refresh_expires: epoch(ctx) + 30 * 86400 }, 'codex.issue');
+  await ctx.write('_codex_grant', id, { status: 'active', _issued_at: ctx.occurredAt, _account: account.id, _client: client, _family: family ?? id, _access: access_token, _id_token: id_token, _refresh: refresh, _refresh_hash: sha256(refresh), _expires: epoch(ctx) + 3600, _refresh_expires: epoch(ctx) + 30 * 86400 }, 'codex.issue');
   return { access_token, id_token, refresh_token: refresh, token_type: 'Bearer', expires_in: 3600 };
 }
-// source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/auth/storage.rs "OPENAI_API_KEY"
-export async function codexCredentials(ctx: HandlerContext): Promise<Row> {
-  let account = ctx.rowsRaw('_codex_account')[0];
-  const password = await ctx.secret('codex:account:password');
-  if (!account) {
-    const email = 'codex@example.test';
-    await codexRecordPerson(ctx, email, password, { name: 'World Codex account' });
-    account = await ctx.create('_codex_account', { email }, 'codex.account');
-  }
-  const held = ctx.rowsRaw('_codex_grant').find(g => g._account === account!.id && g.status === 'active' && Number(g._expires) > epoch(ctx));
-  const tokens = held ? { access_token: held._access, id_token: held._id_token, refresh_token: held._refresh } : await codexTokens(ctx, account);
-  const auth = { auth_mode: 'chatgpt', OPENAI_API_KEY: null, tokens: { access_token: tokens.access_token, id_token: tokens.id_token, refresh_token: tokens.refresh_token, account_id: account.id }, last_refresh: ctx.occurredAt };
-  return { codex_account_id: account.id, codex_email: account.email, codex_password: password, codex_tokens: tokens, codex_home: { 'auth.json': auth, 'config.toml': 'cli_auth_credentials_store = "file"\n' } };
+/** The first member's subscription identity is separate from deployment API projects and has no invented password. */
+// source: https://developers.openai.com/codex/auth
+export async function organizationCodexCredentials(ctx: HandlerContext): Promise<Row> {
+  const world = await ctx.organization();
+  const account = await ctx.createUnique('_codex_account', { email: world.members[0]!.toLowerCase() }, 'codex.account', { input: 'omit' });
+  return subscriptionCredentials(ctx, ctx.row('_codex_account', String(account.row.id))!);
 }
+
+/** A direct user-login request supplies the identity used by browser and device authorization. */
+export async function codexCredentials(ctx: HandlerContext): Promise<Row> {
+  const email = 'codex@example.test';
+  const password = await ctx.secret('codex:account:password');
+  if (!ctx.rowsRaw('_person').some((person) => person.email === email)) await codexRecordPerson(ctx, email, password, { name: 'World Codex account' });
+  const account = await ctx.createUnique('_codex_account', { email }, 'codex.account', { input: 'omit' });
+  return { ...await subscriptionCredentials(ctx, ctx.row('_codex_account', String(account.row.id))!), codex_password: password };
+}
+
+async function subscriptionCredentials(ctx: HandlerContext, account: Row): Promise<Row> {
+  const active = (row: Row): boolean => row._account === account.id && row.status === 'active' && Number(row._expires) > epoch(ctx);
+  if (!ctx.rowsRaw('_codex_grant').some(active)) await codexTokens(ctx, account);
+  const id = await ctx.atomically((rows) => {
+    const native = rows('_codex_account').find((row) => row.id === account.id)!;
+    const held = rows('_codex_grant').find((row) => row.id === native._credential_grant && active(row)) ?? rows('_codex_grant').find(active)!;
+    return native._credential_grant === held.id ? { value: String(held.id) }
+      : { value: String(held.id), write: { resource: '_codex_account', id: String(account.id), fields: { _credential_grant: held.id }, operation: 'codex.account.grant' } };
+  });
+  const grant = ctx.row('_codex_grant', id)!;
+  const tokens = { access_token: grant._access, id_token: grant._id_token, refresh_token: grant._refresh };
+  const auth = { auth_mode: 'chatgpt', OPENAI_API_KEY: null, tokens: { ...tokens, account_id: account.id },
+    last_refresh: grant._issued_at ?? new Date((Number(grant._expires) - 3600) * 1000).toISOString() };
+  return { codex_account_id: account.id, codex_email: account.email, codex_tokens: tokens,
+    codex_home: { 'auth.json': auth, 'config.toml': 'cli_auth_credentials_store = "file"\n' } };
+}
+
 // The client sends Bearer auth plus the account claim; source supplies no exact invalid-token wording.
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/backend-client/src/client.rs "chatgpt_account_id"
 export function codexGrant(ctx: HandlerContext): Row | Response {

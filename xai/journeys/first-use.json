@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://ai-sdk.dev/providers/ai-sdk-providers/xai",
+  "about": "Twenty's xAI provider as it ships (twentyhq/twenty 1d561b8c73c9, sdk-provider-factory.service.ts: createXai({ apiKey }).responses(modelId), ai 7.0.103 and @ai-sdk/xai 4.0.54 as its yarn.lock resolves them): the unchanged AI SDK asks grok-4.7 where a deal stands (generateText) and streams the follow-up (streamText) through the Responses API, with the key the World's credential door issues as XAI_API_KEY. The twin runs no model: each answer is its labelled deterministic stub, asserted as a stub, so the entry proves the wire and the SDK's parse, never an answer's quality.",
+  "files": {
+    "package.json": "{\n  \"name\": \"xai-twenty-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"ai\": \"7.0.103\",\n    \"@ai-sdk/xai\": \"4.0.54\"\n  }\n}\n",
+    ".env.example": "XAI_API_KEY=\n",
+    "agent.mjs": "import assert from 'node:assert/strict';\nimport { generateText, streamText } from 'ai';\nimport { createXai } from '@ai-sdk/xai';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n// Twenty's xAI provider (sdk-provider-factory.service.ts: createXai({ apiKey }).responses(modelId)), its key XAI_API_KEY\nconst xai = createXai({ apiKey: process.env.XAI_API_KEY });\nconst model = xai.responses('grok-4.7');\n// the twin runs no model: an unscripted turn is its labelled stub, asserted as a stub\nconst stub = (said) => '[twin-stub:grok-4.7] This is a deterministic stub from the xAI API twin (no model runs). Your last message: ' + said;\nconst asked = await generateText({ model, prompt: 'Where does the Orbit deal stand?' });\nassert.equal(asked.text, stub('Where does the Orbit deal stand?'));\nassert.equal(asked.finishReason, 'stop');\nassert.equal(asked.response.modelId, 'grok-4.7');\nassert.ok(asked.response.id, 'the response names its id');\nassert.ok(asked.usage.inputTokens > 0 && asked.usage.outputTokens > 0, 'the response counts its tokens: ' + JSON.stringify(asked.usage));\nassert.ok(asked.reasoningText, 'grok-4.7 answers with its reasoning item');\nconst followed = streamText({ model, messages: [\n  { role: 'user', content: 'Where does the Orbit deal stand?' },\n  { role: 'assistant', content: asked.text },\n  { role: 'user', content: 'What should Mira prepare for the pricing call?' },\n] });\nlet streamed = '';\nfor await (const part of followed.textStream) streamed += part;\nassert.equal(streamed, stub('What should Mira prepare for the pricing call?'));\nassert.equal(await followed.finishReason, 'stop');\nconsole.log(JSON.stringify({ model: asked.response.modelId, asked: asked.text, streamed, usage: asked.usage }));\n"
+  },
+  "run": [
+    "node",
+    "agent.mjs"
+  ],
+  "retention": {
+    "none": "A Responses turn stores nothing a client reads back: Twenty neither retrieves a stored response nor continues one (previous_response_id), and the twin answers a continuation as outside its surface (src/semantics/responses.ts); the Console key the credential door issued is the one stored record, and the walk resumes the World on it."
+  }
+}

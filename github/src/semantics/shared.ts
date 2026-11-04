@@ -46,7 +46,7 @@ export const shown = (ctx: Pick<HandlerContext, 'render'>, r: Row, resource?: st
 /** A new account's id: GitHub's people, bots and organizations share one id space; accounts are kept by their login,
  *  so each id is minted from `_account`, one numbered subject per account. */
 export async function accountId(ctx: HandlerContext, login: string): Promise<number> {
-  const n = mint(ctx, '_account');
+  const n = Number(await ctx.issue('_account'));
   await ctx.record('_account', { login }, String(n));
   return n;
 }
@@ -54,7 +54,7 @@ export async function accountId(ctx: HandlerContext, login: string): Promise<num
 /** A fresh number for a credential, a session or a code the World issues: each draw is its own numbered subject of
  *  `_serial`, minted from the tree. */
 export async function serial(ctx: HandlerContext, what: string): Promise<number> {
-  const n = mint(ctx, '_serial');
+  const n = Number(await ctx.issue('_serial'));
   await ctx.record('_serial', { what }, String(n));
   return n;
 }
@@ -65,7 +65,12 @@ export async function ensureUser(ctx: HandlerContext, login: string, fields: Row
   if (login.endsWith('[bot]') && !ctx.row('user', login)) return ensureBot(ctx, login.slice(0, -'[bot]'.length), login === 'github-actions[bot]' ? 41898282 : undefined);
   const held = ctx.row('user', login);
   if (held) return Object.keys(fields).length ? ctx.write('user', login, fields, 'user.edit') : held;
-  return ctx.write('user', login, { ...userShape(login, await accountId(ctx, login), nowIso(ctx)), ...fields }, 'user.create');
+  return (await makeUser(ctx, login, fields)) ?? ctx.row('user', login)!;
+}
+
+export async function makeUser(ctx: HandlerContext, login: string, fields: Row): Promise<Row | undefined> {
+  const made = await ctx.createUnique('private-user', { ...userShape(login, await accountId(ctx, login), nowIso(ctx)), ...fields }, 'user.create', { id: login });
+  return made.created ? ctx.row('user', login)! : undefined;
 }
 
 /** The bot an App or GitHub Actions acts as (`<slug>[bot]`; GitHub Actions' is `github-actions[bot]`, 41898282). */
@@ -175,8 +180,9 @@ export function hasScope(c: Caller, scope: string): boolean {
 // source: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github "Installation access token for a GitHub App ghs_"
 export async function issueToken(ctx: HandlerContext, prefix: string, fields: Row): Promise<string> {
   const n = await serial(ctx, 'token');
-  const token = `${prefix}${ctx.crypto.digest('sha256', await ctx.secret(`${prefix}:${n}:${ctx.occurredAt}:${JSON.stringify(fields)}`), 'hex').slice(0, 36)}`;
-  await ctx.record(TOKENS, { ...fields, created: nowSeconds(ctx) }, tokenKey(token));
+  const label = `${prefix}:${n}:${ctx.occurredAt}:${JSON.stringify(fields)}`;
+  const token = `${prefix}${ctx.crypto.digest('sha256', await ctx.secret(label), 'hex').slice(0, 36)}`;
+  await ctx.record(TOKENS, { ...fields, _secret_label: label, _prefix: prefix, created: nowSeconds(ctx) }, tokenKey(token));
   return token;
 }
 

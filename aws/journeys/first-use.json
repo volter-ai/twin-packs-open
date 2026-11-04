@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://www.npmjs.com/package/@aws-sdk/client-s3/v/3.1081.0",
+  "about": "The Twin platform's backups (twin-world apps/platform/src/backup.ts at 96ca447) with the unchanged @aws-sdk/client-s3 3.1081.0 its package.json pins, on the World-issued AWS keys, path-style through AWS_ENDPOINT_URL: no archive is kept yet, the bucket is made when HeadBucket misses, one archive is put, listed and restored. Readback after resume lists the kept archive (HeadBucket finding the bucket) and restores it without writing.",
+  "files": {
+    "package.json": "{\n  \"name\": \"aws-platform-backups-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@aws-sdk/client-s3\": \"3.1081.0\"\n  }\n}\n",
+    ".env.example": "AWS_ACCESS_KEY_ID=\nAWS_SECRET_ACCESS_KEY=\nAWS_REGION=\nAWS_ENDPOINT_URL=\n",
+    "backups.mjs": "// The Twin platform's backups (apps/platform/src/backup.ts at 96ca447): one JSON archive of the state directory put\n// into a bucket through the unchanged @aws-sdk/client-s3, path-style through AWS_ENDPOINT_URL, the bucket made when\n// missing; the kept archives listed and one restored.\nimport assert from 'node:assert/strict';\nimport { CreateBucketCommand, GetObjectCommand, HeadBucketCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst bucket = 'volter-platform-backups';\nconst prefix = 'platform-state/';\nconst s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-1', ...(process.env.AWS_ENDPOINT_URL ? { endpoint: process.env.AWS_ENDPOINT_URL, forcePathStyle: true } : {}) });\nconst ensureBucket = async () => { try { await s3.send(new HeadBucketCommand({ Bucket: bucket })); } catch { await s3.send(new CreateBucketCommand({ Bucket: bucket })); } };\nconst list = async () => { await ensureBucket(); const r = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix })); return (r.Contents ?? []).map((o) => o.Key).filter(Boolean).sort(); };\nconst restore = async (key) => JSON.parse(await (await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))).Body.transformToString());\nconst files = { 'orgs/orbit-apps.json': Buffer.from(JSON.stringify({ id: 'orbit-apps', name: 'Orbit Apps', members: 3 })).toString('base64'), 'audit/2026-10.log': Buffer.from('org.create orbit-apps\\n').toString('base64') };\n\nif (process.argv[2] === 'readback') {\n  const keys = await list();\n  assert.equal(keys.length, 1, JSON.stringify(keys));\n  const archive = await restore(keys[0]);\n  assert.deepEqual(archive.files, files);\n  console.log(JSON.stringify({ retained: true, key: keys[0], files: Object.keys(archive.files).length, madeAt: archive.madeAt }));\n} else {\n  assert.deepEqual(await list(), []);\n  const archive = { madeAt: new Date().toISOString(), files };\n  const body = JSON.stringify(archive);\n  const key = `${prefix}${archive.madeAt.replace(/[:.]/g, '-')}.json`;\n  await ensureBucket();\n  const put = await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: 'application/json' }));\n  assert.ok(put.ETag);\n  assert.deepEqual(await list(), [key]);\n  const restored = await restore(key);\n  assert.equal(restored.madeAt, archive.madeAt);\n  assert.deepEqual(restored.files, files);\n  console.log(JSON.stringify({ key, files: Object.keys(files).length, bytes: body.length, etag: put.ETag }));\n}\n"
+  },
+  "run": [
+    "node",
+    "backups.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "backups.mjs",
+      "readback"
+    ]
+  }
+}

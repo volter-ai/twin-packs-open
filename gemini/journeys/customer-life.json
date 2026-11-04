@@ -1,0 +1,263 @@
+{
+  "vendor": "gemini",
+  "author": "Contributor 95",
+  "host": "generativelanguage.googleapis.com",
+  "startsAt": "2026-09-28T00:00:00.000Z",
+  "about": "Harbourline prepares an autumn workshop using LibreChat conversations, Google Search and image generation. Calls follow the scanned application and pinned client encodings. World scripts supply judgment; other turns are labeled stubs.",
+  "scenario": "scenario.json",
+  "steps": [
+    {
+      "name": "Monday 28 September: Harbourline connects LibreChat's shipped Google features",
+      "wait": "9h"
+    },
+    {
+      "name": "World boot supplies its Gemini application credential",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "headers": {},
+      "body": {},
+      "capture": {
+        "app": "api_key"
+      }
+    },
+    {
+      "name": "Priya creates a separate LibreChat key in AI Studio",
+      "method": "POST",
+      "path": "/_twin/api-keys",
+      "status": 201,
+      "headers": {},
+      "body": {
+        "name": "librechat"
+      },
+      "capture": {
+        "lc": "key"
+      }
+    },
+    {
+      "name": "Tuesday 29 September: Priya prepares the workshop in LibreChat",
+      "wait": "24h"
+    },
+    {
+      "name": "That afternoon: Priya plans the workshop in LibreChat",
+      "wait": "4h"
+    },
+    {
+      "name": "LibreChat streams a conversation with thinking enabled",
+      "method": "POST",
+      "path": "/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse",
+      "status": 200,
+      "headers": {
+        "x-goog-api-key": "{lc}"
+      },
+      "body": {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Help me plan the workshop agenda."
+              }
+            ]
+          }
+        ],
+        "systemInstruction": {
+          "parts": [
+            {
+              "text": "You are Harbourline's planning assistant."
+            }
+          ]
+        },
+        "generationConfig": {
+          "maxOutputTokens": 8192,
+          "thinkingConfig": {
+            "includeThoughts": true,
+            "thinkingLevel": "LOW"
+          }
+        }
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "text/event-stream"
+        },
+        {
+          "path": "",
+          "contains": "\"thought\":true"
+        },
+        {
+          "path": "",
+          "contains": "\"finishReason\":\"STOP\""
+        }
+      ]
+    },
+    {
+      "name": "Priya asks LibreChat to ground a date lookup with Google Search",
+      "method": "POST",
+      "path": "/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse",
+      "status": 200,
+      "headers": {
+        "x-goog-api-key": "{lc}"
+      },
+      "body": {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Find the announced Tidewater workshop date."
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "googleSearch": {}
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"groundingMetadata\""
+        },
+        {
+          "path": "",
+          "contains": "\"webSearchQueries\""
+        }
+      ]
+    },
+    {
+      "name": "LibreChat's image tool asks its default model for a square workshop illustration",
+      "method": "POST",
+      "path": "/v1beta/models/gemini-2.5-flash-image:generateContent",
+      "status": 200,
+      "headers": {
+        "x-goog-api-key": "{lc}"
+      },
+      "body": {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Create a workshop illustration."
+              }
+            ]
+          }
+        ],
+        "generationConfig": {
+          "responseModalities": [
+            "TEXT",
+            "IMAGE"
+          ],
+          "imageConfig": {
+            "aspectRatio": "1:1"
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "candidates.0.content.parts.1.inlineData.mimeType",
+          "equals": "image/png"
+        },
+        {
+          "path": "candidates.0.content.parts.1.inlineData.width",
+          "equals": 1024
+        },
+        {
+          "path": "candidates.0.content.parts.1.inlineData.height",
+          "equals": 1024
+        },
+        {
+          "path": "candidates.0.content.parts.1.inlineData.labeled",
+          "equals": true
+        }
+      ],
+      "capture": {
+        "picture": "candidates.0.content.parts.1.inlineData.data"
+      },
+      "view": "png"
+    },
+    {
+      "name": "Wednesday 30 September: Priya revises the illustration",
+      "wait": "20h"
+    },
+    {
+      "name": "LibreChat sends the generated picture as inline context for an edit",
+      "method": "POST",
+      "path": "/v1beta/models/gemini-2.5-flash-image:generateContent",
+      "status": 200,
+      "headers": {
+        "x-goog-api-key": "{lc}"
+      },
+      "body": {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Add a workshop heading."
+              },
+              {
+                "inlineData": {
+                  "mimeType": "image/png",
+                  "data": "{picture}"
+                }
+              }
+            ]
+          }
+        ],
+        "generationConfig": {
+          "responseModalities": [
+            "TEXT",
+            "IMAGE"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "candidates.0.content.parts.1.inlineData.data",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Friday 2 October: the saved image tool encounters its model's shutdown",
+      "wait": "48h"
+    },
+    {
+      "name": "LibreChat's default image model is no longer available",
+      "method": "POST",
+      "path": "/v1beta/models/gemini-2.5-flash-image:generateContent",
+      "status": 404,
+      "headers": {
+        "x-goog-api-key": "{lc}"
+      },
+      "body": {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Create a second workshop illustration."
+              }
+            ]
+          }
+        ],
+        "generationConfig": {
+          "responseModalities": [
+            "TEXT",
+            "IMAGE"
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "error.status",
+          "equals": "NOT_FOUND"
+        }
+      ]
+    }
+  ]
+}

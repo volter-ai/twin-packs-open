@@ -9,7 +9,7 @@
 //
 // Where OpenAI's documentation stops and the twin decides: an account is made at the World's door
 // (`POST /_twin/accounts`, standing in for OpenAI's sign-up, which is not modelled), and the World keeps its password's
-// hash, never the password; the World has one organization, whose first account is its owner and whose later ones join
+// hash, never the password; each organization's first account is its owner and its later accounts join
 // as readers unless the door names a role; the log-in is one page (OpenAI's asks for the email and the password on two),
 // served on the dashboard's own host at platform.openai.com/login, the address OpenAI's log-in link opens (OpenAI hands it
 // on to auth.openai.com, which the twin does not model as a host of its own), so its session cookie is the dashboard's;

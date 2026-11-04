@@ -56,7 +56,7 @@ export async function CreateOrganization(ctx: HandlerContext): Promise<Response>
   const id = ctx.mint('Organization');
   const at = instantParam(b.created_at) ?? ms(ctx);
   await ctx.write('Organization', id, {
-    object: 'organization', name: b.name, slug, image_url: defaultImageUrl(id, initialsOf(b.name)), has_image: false,
+    object: 'organization', name: b.name, slug, image_url: defaultImageUrl(ctx, id, initialsOf(b.name)), has_image: false,
     max_allowed_memberships: typeof b.max_allowed_memberships === 'number' ? b.max_allowed_memberships : Number(organizationSettings(ctx).max_allowed_memberships),
     admin_delete_enabled: true, public_metadata: (b.public_metadata as Row | undefined) ?? {}, private_metadata: (b.private_metadata as Row | undefined) ?? {},
     ...(creator ? { created_by: creator } : {}), created_at: at, updated_at: at,

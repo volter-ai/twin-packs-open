@@ -1,0 +1,458 @@
+{
+  "vendor": "e2b",
+  "author": "Contributor 73",
+  "host": "api.e2b.app",
+  "about": "Official quickstart, single-file read/write, and persistence examples, translated through the pinned SDK. HTTP compute output is an explicit fake-pool verification fixture, not an executed Python result.",
+  "steps": [
+    {
+      "name": "Enroll the explicit verification fixtures for the official examples",
+      "method": "POST",
+      "path": "/_twin/machine-pool",
+      "status": 201,
+      "body": {
+        "kind": "fake",
+        "httpReplies": [
+          {
+            "port": 49999,
+            "method": "POST",
+            "path": "/execute",
+            "status": 200,
+            "headers": {
+              "content-type": "application/x-ndjson"
+            },
+            "body": "{\"type\":\"stdout\",\"text\":\"hello world\\n\"}\n{\"type\":\"end_of_execution\"}\n",
+            "requestText": "{\"code\":\"print(\\\"hello world\\\")\"}"
+          },
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/filesystem.Filesystem/ListDir",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"entries\":[{\"name\":\"home\",\"path\":\"/home\",\"type\":\"FILE_TYPE_DIRECTORY\"}]}",
+            "requestText": "{\"path\":\"/\",\"depth\":1}"
+          },
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/files?path=/path/to/file",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "[{\"name\":\"file\",\"path\":\"/path/to/file\",\"type\":\"file\"}]"
+          },
+          {
+            "port": 49983,
+            "method": "GET",
+            "path": "/files?path=/path/to/file",
+            "status": 200,
+            "headers": {
+              "content-type": "application/octet-stream"
+            },
+            "body": "file content"
+          },
+          {
+            "port": 49983,
+            "method": "POST",
+            "path": "/files",
+            "requestText": "--example\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/path/to/a\"\r\nContent-Type: application/octet-stream\r\n\r\nfile content\r\n--example\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/another/path/to/b\"\r\nContent-Type: application/octet-stream\r\n\r\nfile content\r\n--example--\r\n",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "[{\"name\":\"a\",\"path\":\"/path/to/a\",\"type\":\"file\"},{\"name\":\"b\",\"path\":\"/another/path/to/b\",\"type\":\"file\"}]"
+          },
+          {
+            "port": 49983,
+            "method": "GET",
+            "path": "/files?path=/path/to/a",
+            "status": 200,
+            "body": "file content",
+            "headers": {
+              "content-type": "application/octet-stream"
+            }
+          },
+          {
+            "port": 49983,
+            "method": "GET",
+            "path": "/files?path=/another/path/to/b",
+            "status": 200,
+            "body": "file content",
+            "headers": {
+              "content-type": "application/octet-stream"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Account key obtained from the dashboard stand-in",
+      "method": "POST",
+      "path": "/_twin/teams",
+      "status": 201,
+      "body": {
+        "name": "Examples"
+      },
+      "capture": {
+        "key": "api_key"
+      }
+    },
+    {
+      "name": "Prebuilt code interpreter image",
+      "method": "POST",
+      "path": "/_twin/templates",
+      "status": 201,
+      "body": {
+        "team": "Examples",
+        "alias": "code-interpreter-v1",
+        "image": "examples/interpreter:local",
+        "envdVersion": "0.6.2"
+      },
+      "capture": {
+        "tpl": "templateID"
+      }
+    },
+    {
+      "name": "post_sandboxes#doc quickstart create",
+      "example": "post_sandboxes#doc quickstart create",
+      "method": "POST",
+      "path": "/sandboxes",
+      "status": 201,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "body": {
+        "templateID": "code-interpreter-v1",
+        "timeout": 300,
+        "secure": true,
+        "allow_internet_access": true
+      },
+      "capture": {
+        "sb": "sandboxID",
+        "domain": "domain",
+        "access": "envdAccessToken"
+      },
+      "expect": [
+        {
+          "path": "templateID",
+          "equals": "{tpl}"
+        },
+        {
+          "path": "alias",
+          "equals": "code-interpreter-v1"
+        },
+        {
+          "path": "envdVersion",
+          "equals": "0.6.2"
+        }
+      ]
+    },
+    {
+      "name": "execute#doc quickstart hello",
+      "example": "execute#doc quickstart hello",
+      "method": "POST",
+      "path": "https://49999-{sb}.{domain}/execute",
+      "status": 200,
+      "body": {
+        "code": "print(\"hello world\")"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "hello world\\n"
+        },
+        {
+          "path": "",
+          "contains": "end_of_execution"
+        }
+      ],
+      "headers": {
+        "x-access-token": "{access}"
+      }
+    },
+    {
+      "name": "Filesystem.ListDir#doc quickstart root listing",
+      "example": "Filesystem.ListDir#doc quickstart root listing",
+      "method": "POST",
+      "path": "https://49983-{sb}.{domain}/filesystem.Filesystem/ListDir",
+      "status": 200,
+      "body": {
+        "path": "/",
+        "depth": 1
+      },
+      "expect": [
+        {
+          "path": "entries.0.path",
+          "equals": "/home"
+        },
+        {
+          "path": "entries.0.type",
+          "equals": "FILE_TYPE_DIRECTORY"
+        }
+      ],
+      "headers": {
+        "x-access-token": "{access}"
+      }
+    },
+    {
+      "name": "post_files#doc write single file",
+      "example": "post_files#doc write single file",
+      "method": "POST",
+      "path": "https://49983-{sb}.{domain}/files?path=/path/to/file",
+      "status": 200,
+      "headers": {
+        "content-type": "multipart/form-data; boundary=example",
+        "x-access-token": "{access}"
+      },
+      "body": "--example\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/path/to/file\"\r\nContent-Type: application/octet-stream\r\n\r\nfile content\r\n--example--\r\n",
+      "expect": [
+        {
+          "path": "0.path",
+          "equals": "/path/to/file"
+        },
+        {
+          "path": "0.name",
+          "equals": "file"
+        },
+        {
+          "path": "0.type",
+          "equals": "file"
+        }
+      ]
+    },
+    {
+      "name": "post_files#doc write multiple files",
+      "example": "post_files#doc write multiple files",
+      "method": "POST",
+      "path": "https://49983-{sb}.{domain}/files",
+      "status": 200,
+      "headers": {
+        "x-access-token": "{access}",
+        "content-type": "multipart/form-data; boundary=example"
+      },
+      "body": "--example\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/path/to/a\"\r\nContent-Type: application/octet-stream\r\n\r\nfile content\r\n--example\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/another/path/to/b\"\r\nContent-Type: application/octet-stream\r\n\r\nfile content\r\n--example--\r\n",
+      "expect": [
+        {
+          "path": "0.name",
+          "equals": "a"
+        },
+        {
+          "path": "0.path",
+          "equals": "/path/to/a"
+        },
+        {
+          "path": "0.type",
+          "equals": "file"
+        },
+        {
+          "path": "1.name",
+          "equals": "b"
+        },
+        {
+          "path": "1.path",
+          "equals": "/another/path/to/b"
+        },
+        {
+          "path": "1.type",
+          "equals": "file"
+        }
+      ]
+    },
+    {
+      "name": "Read back published multi-file upload /path/to/a",
+      "method": "GET",
+      "path": "https://49983-{sb}.{domain}/files?path=/path/to/a",
+      "status": 200,
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": "file content"
+        }
+      ]
+    },
+    {
+      "name": "Read back published multi-file upload /another/path/to/b",
+      "method": "GET",
+      "path": "https://49983-{sb}.{domain}/files?path=/another/path/to/b",
+      "status": 200,
+      "headers": {
+        "x-access-token": "{access}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": "file content"
+        }
+      ]
+    },
+    {
+      "name": "get_files#doc read file",
+      "example": "get_files#doc read file",
+      "method": "GET",
+      "path": "https://49983-{sb}.{domain}/files?path=/path/to/file",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "equals": "file content"
+        }
+      ],
+      "headers": {
+        "x-access-token": "{access}"
+      }
+    },
+    {
+      "name": "The running sandbox is observed by the API refresh list",
+      "method": "GET",
+      "path": "/v2/sandboxes",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "0.sandboxID",
+          "equals": "{sb}"
+        },
+        {
+          "path": "0.templateID",
+          "equals": "{tpl}"
+        }
+      ]
+    },
+    {
+      "name": "Allow the nonpersistent quickstart example to finish",
+      "method": "DELETE",
+      "path": "/sandboxes/{sb}",
+      "status": 204,
+      "headers": {
+        "x-api-key": "{key}"
+      }
+    },
+    {
+      "name": "Create the persistence example precondition",
+      "method": "POST",
+      "path": "/sandboxes",
+      "status": 201,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "body": {
+        "templateID": "code-interpreter-v1",
+        "timeout": 30,
+        "autoPause": true,
+        "secure": true,
+        "allow_internet_access": true
+      },
+      "capture": {
+        "paused": "sandboxID"
+      }
+    },
+    {
+      "name": "The auto-pause timeout passes",
+      "wait": "45s"
+    },
+    {
+      "name": "get_v2_sandboxes#doc paused inventory",
+      "example": "get_v2_sandboxes#doc paused inventory",
+      "method": "GET",
+      "path": "/v2/sandboxes?state=paused",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "0.sandboxID",
+          "equals": "{paused}"
+        },
+        {
+          "path": "0.state",
+          "equals": "paused"
+        },
+        {
+          "path": "1",
+          "exists": false
+        },
+        {
+          "path": "0.templateID",
+          "equals": "{tpl}"
+        },
+        {
+          "path": "0.alias",
+          "equals": "code-interpreter-v1"
+        },
+        {
+          "path": "0.envdVersion",
+          "equals": "0.6.2"
+        }
+      ]
+    },
+    {
+      "name": "post_sandboxes_sandboxid_connect#doc persistence connect",
+      "example": "post_sandboxes_sandboxid_connect#doc persistence connect",
+      "method": "POST",
+      "path": "/sandboxes/{paused}/connect",
+      "status": 201,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "body": {
+        "timeout": 60
+      },
+      "expect": [
+        {
+          "path": "sandboxID",
+          "equals": "{paused}"
+        },
+        {
+          "path": "templateID",
+          "equals": "{tpl}"
+        },
+        {
+          "path": "alias",
+          "equals": "code-interpreter-v1"
+        },
+        {
+          "path": "domain",
+          "equals": "{domain}"
+        },
+        {
+          "path": "envdVersion",
+          "equals": "0.6.2"
+        }
+      ]
+    },
+    {
+      "name": "delete_sandboxes_sandboxid#doc remove sandbox",
+      "example": "delete_sandboxes_sandboxid#doc remove sandbox",
+      "method": "DELETE",
+      "path": "/sandboxes/{paused}",
+      "status": 204,
+      "headers": {
+        "x-api-key": "{key}"
+      }
+    },
+    {
+      "name": "The API confirms that removal left no sandboxes",
+      "method": "GET",
+      "path": "/v2/sandboxes",
+      "status": 200,
+      "headers": {
+        "x-api-key": "{key}"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": []
+        }
+      ]
+    }
+  ]
+}

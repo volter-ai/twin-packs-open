@@ -6,7 +6,7 @@
 import type { HandlerContext } from '@volter/world-core';
 import { nodeId, simpleOrg } from '../engine/objects.ts';
 import { base32Encode, totp as codeAt } from '../engine/totp.ts';
-import { account, accountId, bodyOf, ensureUser, issueToken, tokenKey, TOKENS, makeApp, mint, nowIso, nowSeconds, passwordOf, repoNamed, serial, sha256, shown, signedIn, str, type Row } from './shared.ts';
+import { account, accountId, bodyOf, callerOf, ensureUser, issueToken, makeUser, tokenKey, TOKENS, makeApp, mint, nowIso, nowSeconds, passwordOf, repoNamed, serial, sha256, shown, signedIn, str, type Row } from './shared.ts';
 
 const answer = (body: unknown, status = 200): Response => Response.json(body, { status });
 const refused = (message: string, status = 400): Response => Response.json({ error: message }, { status });
@@ -206,14 +206,39 @@ export async function runComplete(ctx: HandlerContext): Promise<Response> {
   });
 }
 
-/** POST /_twin/app-credentials: the token the World's application holds as GITHUB_TOKEN (the descriptor's
- *  credentialDoor): a personal access token of the World's own account, `world`, with the classic scopes an
- *  application's automation takes (repo, workflow, read:org, user), as its owner makes it on the settings page; made the
- *  first time the runtime asks and the same at every boot after. */
+/** A deployment's personal access token, owned by the organization's first member. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  const login = 'world';
-  await ensureUser(ctx, login);
-  const token = `ghp_${ctx.crypto.digest('sha256', await ctx.secret('github-app-credentials'), 'hex').slice(0, 36)}`;
-  if (!ctx.row(TOKENS, tokenKey(token))) await ctx.record(TOKENS, { kind: 'pat', login, scopes: ['repo', 'workflow', 'read:org', 'user'], note: 'world', created: nowSeconds(ctx) }, tokenKey(token));
-  return answer({ token }, 201);
+  try {
+    const user = await ctx.tenant('private-user', async (organization) => {
+      const email = organization.members[0]!.toLowerCase();
+      const existing = ctx.rowsRaw('user').find((row) => typeof row.email === 'string' && row.email.toLowerCase() === email);
+      if (existing) return String(existing.login);
+      const label = organization.id;
+      const rule = { max: 39, lower: true, allowed: /[a-z0-9-]/, first: /[a-z0-9]/ };
+      const login = (suffixed: boolean): string => ctx.vendorName(label, rule, { suffixed: suffixed || !/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(label), identity: organization.id }).replace(/-+/g, '-');
+      const create = (name: string) => ctx.row('org', name) ? Promise.resolve(undefined) : makeUser(ctx, name, { email });
+      let made = await create(login(false));
+      if (!made) {
+        const concurrent = ctx.rowsRaw('user').find((row) => typeof row.email === 'string' && row.email.toLowerCase() === email);
+        if (concurrent) return String(concurrent.login);
+        made = await create(login(true));
+      }
+      if (!made) throw refused(`login is taken (${organization.id})`, 409);
+      return String(made.login);
+    });
+    const login = String(user.login);
+    const issued = await ctx.accountKey('personal-access-token', TOKENS, {
+      make: async () => tokenKey(await issueToken(ctx, 'ghp_', { kind: 'pat', login, scopes: ['repo', 'workflow', 'read:org', 'user'], note: ctx.deployment() || 'world' })),
+      read: async (row) => {
+        if (row.kind !== 'pat' || row.login !== login || typeof row._secret_label !== 'string' || row._prefix !== 'ghp_') return undefined;
+        const token = `ghp_${ctx.crypto.digest('sha256', await ctx.secret(row._secret_label), 'hex').slice(0, 36)}`;
+        const caller = callerOf(ctx, token);
+        return caller && caller !== 'bad' && caller.kind === 'user' && caller.login === login && tokenKey(token) === row.id ? token : undefined;
+      },
+    });
+    return answer({ token: issued.secret }, 201);
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
+  }
 }

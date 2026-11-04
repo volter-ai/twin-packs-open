@@ -1,0 +1,364 @@
+{
+  "patches": [
+    {
+      "op": "replace",
+      "path": "/calls/8/url",
+      "value": "/{spec.escapedName}/-/{tarball}/-rev/{_rev}",
+      "why": "Unpublishing a package's last version removes its tarball at the tarball URL's path (getPathname(dist.tarball)), which the package metadata gives as /<name>/-/<name>-<version>.tgz.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/registry/main/docs/responses/package-metadata.md",
+        "quote": "\"tarball\": \"https://registry.npmjs.org/tiny-tarball/-/tiny-tarball-1.0.0.tgz\""
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/18/url",
+      "value": "/-/v1/done",
+      "why": "A web login's done URL is the one POST /-/v1/login answers (doneUrl); npm-profile's own test gives its path.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/npm-profile/v11.0.1/test/index.js",
+        "quote": "doneUrl: 'https://registry.npmjs.org:443/-/v1/done?sessionId=123'"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/23/url",
+      "value": "/-/npm/v1/tokens",
+      "why": "paginate is called with the token list's path, then each page's urls.next.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/npm-profile/v11.0.1/lib/index.js",
+        "quote": "const listTokens = (opts = {}) => paginate('/-/npm/v1/tokens', opts)"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/1/url",
+      "value": "/-/npm/v1/attestations/{spec}",
+      "why": "A version's attestations are fetched at dist.attestations.url's path, which the registry gives as /-/npm/v1/attestations/<name>@<version>.",
+      "source": {
+        "url": "https://registry.npmjs.org/sigstore/2.0.0",
+        "quote": "\"url\":\"https://registry.npmjs.org/-/npm/v1/attestations/sigstore@2.0.0\""
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/2/url",
+      "value": "/{name}/-/{tarball}",
+      "why": "A tarball is fetched from the version's dist.tarball, /<name>/-/<name>-<version>.tgz.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/registry/main/docs/responses/package-metadata.md",
+        "quote": "\"tarball\": \"https://registry.npmjs.org/tiny-tarball/-/tiny-tarball-1.0.0.tgz\""
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/-",
+      "value": {
+        "client": "registry.version",
+        "line": 0,
+        "method": "GET",
+        "url": "/{name}/{version}"
+      },
+      "why": "The registry answers one version of a package, by its number or a dist-tag, at /{package}/{version}; npm's client reads the whole document instead, so its calls do not name the route.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/registry/main/docs/REGISTRY-API.md",
+        "quote": "| version | String | **Path** | \u2705         | a version number or `latest`        |"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/calls/19/url",
+      "value": "/-/user/org.couchdb.user:{username}",
+      "why": "npm's login and adduser put the user document at the user's own path, with nothing after it (putCouch's path is empty for both).",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/npm-profile/v11.0.1/lib/index.js",
+        "quote": "return putCouch('', username, body, opts)"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/resources",
+      "value": [
+        {
+          "name": "package",
+          "schema": "package",
+          "fields": [
+            {
+              "name": "_id",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "_rev",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "_attachments",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "dist-tags",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "time",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "versions",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "maintainers",
+              "type": "array",
+              "nullable": false
+            },
+            {
+              "name": "readme",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "author",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "bugs",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "contributors",
+              "type": "array",
+              "nullable": false
+            },
+            {
+              "name": "homepage",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "keywords",
+              "type": "array",
+              "nullable": false
+            },
+            {
+              "name": "license",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "readmeFilename",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "repository",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "modified",
+              "type": "string",
+              "nullable": false
+            }
+          ],
+          "stateCandidates": [],
+          "expandable": []
+        },
+        {
+          "name": "version",
+          "schema": "version",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "version",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "dist",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "_id",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "_nodeVersion",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "_npmUser",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "_npmVersion",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "_from",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "_shasum",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "_hasShrinkwrap",
+              "type": "boolean",
+              "nullable": false
+            },
+            {
+              "name": "maintainers",
+              "type": "array",
+              "nullable": false
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "dependencies",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "optionalDependencies",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "devDependencies",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "peerDependencies",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "peerDependenciesMeta",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "bundleDependencies",
+              "type": "array",
+              "nullable": false
+            },
+            {
+              "name": "bin",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "directories",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "engines",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "scripts",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "main",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "author",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "keywords",
+              "type": "array",
+              "nullable": false
+            },
+            {
+              "name": "homepage",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "repository",
+              "type": "object",
+              "nullable": false
+            },
+            {
+              "name": "license",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "readme",
+              "type": "string",
+              "nullable": false
+            },
+            {
+              "name": "deprecated",
+              "type": "string",
+              "nullable": false
+            }
+          ],
+          "stateCandidates": [],
+          "expandable": []
+        }
+      ],
+      "why": "The extracted client describes requests only. The registry reference supplies package and embedded version response fields, including vendor underscore fields, and the abbreviated view.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/registry/main/docs/responses/package-metadata.md",
+        "quote": "The full version object will also contain any other fields the package publisher chose to include in their package.json file for that version."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/calls/0/answers",
+      "value": {
+        "resource": "package",
+        "list": false
+      },
+      "why": "The document read answers the package shape; abbreviated responses are a field subset of that shape.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/npm/registry/main/docs/responses/package-metadata.md",
+        "quote": "The registry responds with a JSON-formatted string containing metadata for the package named"
+      }
+    }
+  ]
+}

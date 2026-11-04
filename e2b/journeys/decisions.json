@@ -1,0 +1,101 @@
+{
+  "about": "RH2 Task machines and Twenty code-interpreter sessions. API lifecycle resources are stored; filesystem and execution traffic reaches the template image through the kernel machine pool.",
+  "decisions": [
+    {
+      "operation": "post_sandboxes",
+      "demand": "RH2 starts a Task's machine (bots/runhuman-model/machine.ts:20)",
+      "mechanism": "handler",
+      "why": "an action: the sandbox made from the team's template by id or alias, stored as the list answers it (running, its end at its timeout, E2B's default 15 seconds), its image run by the World's machine pool; a missing key 401, a template not the team's 404, a machine that does not start 500 sandbox_create_failed; unsupported light-pool template commands answer the manifest's gap before storing a sandbox (twin-world docs/contributing/architecture.md, Other wires: lanes, headers, line protocols, sockets and machines)"
+    },
+    {
+      "operation": "delete_sandboxes_sandboxid",
+      "demand": "RH2 kills the machine when the run ends (bots/runhuman-model/machine.ts:53)",
+      "mechanism": "handler",
+      "why": "a killed sandbox is gone: the subject deleted and its machine removed (204); one already gone, or another team's, 404"
+    },
+    {
+      "operation": "get_v2_sandboxes",
+      "demand": "the vendor-backed refresh of sandbox (api/src/manifest.ts, refresh list)",
+      "mechanism": "handler",
+      "why": "the team's sandboxes as ListedSandbox (no domain), filtered by state, metadata, template and startedAfter, newest first unless order=asc, paged by limit and X-Next-Token: the core keeps no team scope"
+    },
+    {
+      "operation": "get_v2_templates",
+      "demand": "the vendor-backed refresh of template (api/src/manifest.ts, refresh list)",
+      "mechanism": "handler",
+      "why": "the team's templates as the Template schema, paged by limit and X-Next-Token: the core keeps no team scope"
+    },
+    {
+      "operation": "Process.Start",
+      "demand": "RH2 starts the Task agent host in the machine (bots/runhuman-model/machine.ts:32)",
+      "mechanism": "handler",
+      "why": "an action: the process started by the pool in the sandbox's machine, answered as a Connect stream of its start (pid), output and end; a sandbox not running, or a machine the pool cannot reach, 502 unavailable; a body that is not one enveloped JSON message 400 invalid_argument; with a light pool, SDK command execution beyond node plus a folder-owned JS entry is unserved (shells, eval/flags, PTYs and other programs): the manifest's gap answers command admission before any machine state is created or process launched, as twin-world docs/contributing/architecture.md, Other wires: lanes, headers, line protocols, sockets and machines prescribes"
+    },
+    {
+      "operation": "door:teams",
+      "demand": "every application's E2B_API_KEY (the descriptor's credentialDoor)",
+      "mechanism": "door",
+      "why": "a team is made on E2B's dashboard, and the API's key operations (post_api_keys) need a signed-in member's token, not an API key"
+    },
+    {
+      "operation": "door:templates",
+      "demand": "RH2's runhuman-task-agent template, which apps/rhh/bin/rhh-machine.js builds at release",
+      "mechanism": "door",
+      "why": "a template is an image the e2b CLI builds (post_v3_templates and its build steps); the World runs no build, so the door names the image its machine pool runs for the template"
+    },
+    {
+      "operation": "post_sandboxes_sandboxid_connect",
+      "demand": "Twenty: Sandbox.connect reuses or resumes a session (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/utils/get-or-create-session-sandbox.util.ts:53)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "post_sandboxes_sandboxid_timeout",
+      "demand": "Twenty: sandbox.setTimeout refreshes idle timeout (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/utils/get-or-create-session-sandbox.util.ts:61)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "post_files",
+      "demand": "Twenty: sandbox.files.write scripts and input bytes (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:49)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "get_files",
+      "demand": "Twenty: sandbox.files.read output bytes (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:153)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "Filesystem.ListDir",
+      "demand": "Twenty: sandbox.files.list output directory (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:149)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "Filesystem.Stat",
+      "demand": "Twenty: sandbox.files.exists output directory (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:190)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "Filesystem.Remove",
+      "demand": "Twenty: sandbox.files.remove stale output directory (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:191)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "Filesystem.MakeDir",
+      "demand": "Twenty: sandbox.files.makeDir clean output directory (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:194)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    },
+    {
+      "operation": "execute",
+      "demand": "Twenty: sandbox.runCode with streaming callbacks and persistent context (packages/twenty-server/src/engine/core-modules/code-interpreter/drivers/e2b.driver.ts:131)",
+      "mechanism": "handler",
+      "why": "Sandbox lifecycle changes preserve the session and declared state; compute and filesystem calls forward their original bytes to the sandbox service, with no fabricated stored result."
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "about": "What the aws pack serves, decided from the re-read demand (journeys/demand.json: the twin platform\u2019s S3 backups; third-party S3 opt-ins recorded), the vendor-backed refresh of each stored resource, AWS's published examples of both lanes (journeys/vendor-examples.json) and the life (journeys/customer-life.outline.md). Every other operation answers each lane\u2019s gap; none answers a declared resource, so no literal unmodeled entry is needed.",
+  "decisions": [
+    {
+      "operation": "CreateBucket",
+      "demand": "the twin platform's backups make their bucket when missing (twin-world apps/platform/src/backup.ts:51)",
+      "mechanism": "handler",
+      "why": "A bucket by its name, S3's naming rules refused (InvalidBucketName); a name the account already holds answered as us-east-1 answers it (success)."
+    },
+    {
+      "operation": "HeadBucket",
+      "demand": "the twin platform's backups check their bucket (twin-world apps/platform/src/backup.ts:51)",
+      "mechanism": "handler",
+      "why": "Whether the bucket stands: 200 with its region, else 404 with no body (a HEAD)."
+    },
+    {
+      "operation": "ListBuckets",
+      "demand": "the vendor-backed refresh of buckets (src/manifest.ts Bucket.refresh)",
+      "mechanism": "handler",
+      "why": "The account's buckets by name, under a prefix, max-buckets at a time after the continuation token; the refresh reads a root's buckets through it, page by page."
+    },
+    {
+      "operation": "PutBucketCors",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; Twenty's and Rallly's browsers PUT to presigned upload URLs from the app's origin (journeys/demand.json frontend), which the bucket's CORS admits",
+      "mechanism": "handler",
+      "why": "The bucket's CORS rules, replacing any it had; the preflight and each cross-origin answer are matched against them (semantics/around.ts)."
+    },
+    {
+      "operation": "PutObject",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat, Twenty, Rallly and the twin platform's backups store files (journeys/demand.json), Twenty's and Rallly's browsers through presigned URLs",
+      "mechanism": "handler",
+      "why": "The bytes in the World's blob store (`_blob`), the object stored as ListObjectsV2 answers it, the headers GetObject answers with it kept (`_headers`: system headers, x-amz-meta-*, tag count, encryption, checksums); Content-MD5 and x-amz-checksum-* checked against the bytes (BadDigest); an ACL other than the owner's full control refused (AccessControlListNotSupported); aws-chunked framing answered NotImplemented."
+    },
+    {
+      "operation": "GetObject",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat, Twenty, Rallly and the twin platform's restores read files (journeys/demand.json), LibreChat's and Twenty's browsers through presigned URLs with response-* overrides",
+      "mechanism": "handler",
+      "why": "The bytes and the object's headers, the response-* overrides of a presigned link applied, one byte range (206, InvalidRange), the checksums when x-amz-checksum-mode is ENABLED; the refresh reads an object's bytes and headers through it."
+    },
+    {
+      "operation": "HeadObject",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat and Twenty read a file's metadata (journeys/demand.json)",
+      "mechanism": "handler",
+      "why": "The object's headers without its bytes; 404 with no body when absent."
+    },
+    {
+      "operation": "DeleteObject",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat, Twenty and Rallly delete files (journeys/demand.json)",
+      "mechanism": "handler",
+      "why": "The object gone; 204 whether or not it stood."
+    },
+    {
+      "operation": "DeleteObjects",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; Twenty empties a folder in one request (journeys/demand.json, s3.driver.ts:658)",
+      "mechanism": "handler",
+      "why": "Each named key deleted after the body's Content-MD5 or checksum holds; the Deleted list unless Quiet."
+    },
+    {
+      "operation": "CopyObject",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; Twenty moves and copies files (journeys/demand.json, s3.driver.ts:404)",
+      "mechanism": "handler",
+      "why": "The source's bytes and kept headers copied (replaced under REPLACE, its checksums kept); NoSuchKey for a missing source."
+    },
+    {
+      "operation": "ListObjectsV2",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; Twenty lists a folder, the twin platform its backups (journeys/demand.json); the vendor-backed refresh of objects (src/manifest.ts Object.refresh)",
+      "mechanism": "handler",
+      "why": "Keys under a prefix after start-after or the continuation token, rolled up at the delimiter, max-keys at a time."
+    },
+    {
+      "operation": "CreateMultipartUpload",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat's large files and Twenty's lib-storage Upload (journeys/demand.json)",
+      "mechanism": "handler",
+      "why": "An upload in progress (`s3_upload`, as ListMultipartUploads answers it), its id drawn from a World secret; a vendor-backed World performs it and adopts the vendor's UploadId."
+    },
+    {
+      "operation": "UploadPart",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat's large files and Twenty's lib-storage Upload (journeys/demand.json)",
+      "mechanism": "handler",
+      "why": "A part (`s3_part`, as ListParts answers it), its bytes kept and its ETag answered; a part number outside 1 to 10,000 refused; NoSuchUpload; its checksums checked."
+    },
+    {
+      "operation": "CompleteMultipartUpload",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat's large files and Twenty's lib-storage Upload (journeys/demand.json)",
+      "mechanism": "handler",
+      "why": "The object made of the named parts: ascending order, matching ETags and 5 MiB for every part but the last, each refused as S3 refuses it; the upload and its parts then gone."
+    },
+    {
+      "operation": "AbortMultipartUpload",
+      "demand": "The configured S3 acts of Larkspur\u2019s customer life (outline acts 5\u20138), with the third-party opt-in call sites in journeys/demand.json optional; LibreChat and Twenty's lib-storage abort an upload whose part failed (journeys/demand.json)",
+      "mechanism": "handler",
+      "why": "The upload and its parts gone; NoSuchUpload after."
+    },
+    {
+      "operation": "ListMultipartUploads",
+      "demand": "the vendor-backed refresh of uploads in progress (s3/src/manifest.ts Upload.refresh); AWS's published examples 'To list in-progress multipart uploads on a bucket' and 'List next set of multipart uploads when previous result is truncated' (the lane's Smithy model)",
+      "mechanism": "handler",
+      "why": "The bucket's uploads in progress by key, then by initiation, after key-marker and upload-id-marker, under a prefix, rolled up at the delimiter, max-uploads at a time with NextKeyMarker and NextUploadIdMarker while truncated."
+    },
+    {
+      "operation": "ListParts",
+      "demand": "The customer life: Dana inspects the failed recording upload a page at a time (outline act 7); the vendor-backed Part.refresh also reads it.",
+      "mechanism": "handler",
+      "why": "An upload's parts by number after part-number-marker, max-parts at a time with NextPartNumberMarker while truncated; NoSuchUpload."
+    },
+    {
+      "operation": "BatchGetSecretValue",
+      "demand": "AWS's published example 'To retrieve the secret values for a group of secrets listed by name' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "Each named (or filtered) secret's AWSCURRENT value, the ones it cannot find in Errors."
+    },
+    {
+      "operation": "CancelRotateSecret",
+      "demand": "AWS's published example 'To cancel scheduled rotation for a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "Rotation turned off (RotationEnabled false), the pending rotation left as AWS leaves it."
+    },
+    {
+      "operation": "CreateSecret",
+      "demand": "AWS's published example 'To create a basic secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's every secret",
+      "mechanism": "handler",
+      "why": "A secret and its first version under AWSCURRENT; a retried ClientRequestToken answered as the same request."
+    },
+    {
+      "operation": "DeleteResourcePolicy",
+      "demand": "AWS's published example 'To delete the resource-based policy attached to a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "The secret's resource policy removed."
+    },
+    {
+      "operation": "DeleteSecret",
+      "demand": "the life (journeys/customer-life.outline.md: the old Stripe key scheduled for deletion, the drill copy and every secret deleted at the end); the published examples' setup of RestoreSecret's",
+      "mechanism": "handler",
+      "why": "Scheduled for deletion with its recovery window, or at once with ForceDeleteWithoutRecovery; refused when already scheduled."
+    },
+    {
+      "operation": "DescribeSecret",
+      "demand": "refresh (ListSecrets returns summaries, DescribeSecret reads the stored metadata shape for each ARN); the life (Dana reads the rotation schedule, the replica's status); the published examples read each example's effect back through it",
+      "mechanism": "handler",
+      "why": "The secret's details in DescribeSecret's shape, scheduled rotation brought up to the World clock."
+    },
+    {
+      "operation": "GetRandomPassword",
+      "demand": "AWS's published example 'To generate a random password' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's manual rotation",
+      "mechanism": "handler",
+      "why": "A password of the asked length and character classes, drawn from the World."
+    },
+    {
+      "operation": "GetResourcePolicy",
+      "demand": "AWS's published example 'To retrieve the resource-based policy attached to a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "The secret's resource policy, absent when none."
+    },
+    {
+      "operation": "GetSecretValue",
+      "demand": "AWS's published example 'To retrieve the encrypted secret value of a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's services read their secrets",
+      "mechanism": "handler",
+      "why": "The version a VersionId or VersionStage names (AWSCURRENT by default); refused for a secret scheduled for deletion."
+    },
+    {
+      "operation": "ListSecretVersionIds",
+      "demand": "AWS's published example 'To list all of the secret versions associated with a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "The secret's versions with their labels, a label-less one only with IncludeDeprecated."
+    },
+    {
+      "operation": "ListSecrets",
+      "demand": "AWS's published example 'To list the secrets in your account' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's quarterly audits; the vendor-backed refresh of secrets (secretsmanager/src/manifest.ts Secret.refresh)",
+      "mechanism": "handler",
+      "why": "The Region's secrets, filtered, sorted and paged by NextToken; refresh includes scheduled deletions before reading each ARN's metadata."
+    },
+    {
+      "operation": "PutResourcePolicy",
+      "demand": "AWS's published example 'To add a resource-based policy to a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "The policy attached; one that does not parse or names an unsupported principal refused (MalformedPolicyDocumentException)."
+    },
+    {
+      "operation": "PutSecretValue",
+      "demand": "AWS's published example 'To store a secret value in a new version of a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's manual and Lambda rotations",
+      "mechanism": "handler",
+      "why": "A new version under the asked labels (AWSCURRENT by default, the old moving to AWSPREVIOUS); refused for a secret scheduled for deletion."
+    },
+    {
+      "operation": "RemoveRegionsFromReplication",
+      "demand": "the life (journeys/customer-life.outline.md: the us-west-2 replica removed before the secrets are deleted)",
+      "mechanism": "handler",
+      "why": "The named Regions' replicas removed from the primary's replication."
+    },
+    {
+      "operation": "ReplicateSecretToRegions",
+      "demand": "AWS's published example 'Example' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's disaster recovery",
+      "mechanism": "handler",
+      "why": "A replica in each Region, with the primary's versions and policy; a Region where a secret of the name stands answered Failed."
+    },
+    {
+      "operation": "RestoreSecret",
+      "demand": "AWS's published example 'To restore a previously deleted secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's forgotten report script",
+      "mechanism": "handler",
+      "why": "The scheduled deletion cancelled (DeletedDate removed)."
+    },
+    {
+      "operation": "RotateSecret",
+      "demand": "AWS's published example 'To configure rotation for a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager, and 'To request an immediate rotation for a secret'",
+      "mechanism": "handler",
+      "why": "Rotation configured from RotationRules (days, rate() or cron(), a window Duration), the rotation function's invocations kept for the World's door; the next window on the World clock."
+    },
+    {
+      "operation": "StopReplicationToReplica",
+      "demand": "the life (journeys/customer-life.outline.md: the DR drill promotes the us-west-2 replica)",
+      "mechanism": "handler",
+      "why": "The replica made a standalone secret in its Region."
+    },
+    {
+      "operation": "TagResource",
+      "demand": "AWS's published example 'To add tags to a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "The tags merged by key."
+    },
+    {
+      "operation": "UntagResource",
+      "demand": "AWS's published example 'To remove tags from a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager",
+      "mechanism": "handler",
+      "why": "The named tag keys removed."
+    },
+    {
+      "operation": "UpdateSecret",
+      "demand": "AWS's published example 'To create a new version of the encrypted secret value' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager, 'To update the description of a secret', 'To update the KMS key associated with a secret'",
+      "mechanism": "handler",
+      "why": "A new value as a new AWSCURRENT version, or the description or KMS key changed; refused for a secret scheduled for deletion."
+    },
+    {
+      "operation": "UpdateSecretVersionStage",
+      "demand": "AWS's published example 'To add a staging label attached to a version of a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager, and the move and removal examples; the life's manual rotation",
+      "mechanism": "handler",
+      "why": "A staging label added, moved or removed; moving AWSCURRENT gives the old version AWSPREVIOUS."
+    },
+    {
+      "operation": "ValidateResourcePolicy",
+      "demand": "AWS's published example 'To validate a resource-based policy to a secret' (the lane's Smithy model, journeys/vendor-examples.json); no application here calls Secrets Manager; the life's malformed first draft",
+      "mechanism": "handler",
+      "why": "The policy checked: a syntax error answered in ValidationErrors, an unsupported principal refused (MalformedPolicyDocumentException)."
+    },
+    {
+      "operation": "door:appCredentials",
+      "demand": "the World application's access key (descriptor.credentialDoor), which every application's SDK signs with",
+      "mechanism": "door",
+      "why": "An IAM user's access key, made once, which no S3 or Secrets Manager call issues (IAM's console)."
+    },
+    {
+      "operation": "door:rotationInvocations",
+      "demand": "the life's rotation function reads each invocation Secrets Manager sent it",
+      "mechanism": "door",
+      "why": "No World runs a Lambda: the invocations a rotation would send its function are read here."
+    }
+  ]
+}
