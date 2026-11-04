@@ -164,4 +164,3 @@ export const gateway: SocketEngine<HandlerContext> = {
   },
   write,
 };
-
