@@ -7,11 +7,9 @@
 // A page reached at a World's place (a served or hosted World's /<org>/<world>/reddit/…) writes its links, its forms,
 // its API calls and its media onto the twin's base: the media hosts as `<base>/@<host>/…`, which the kernel answers as
 // a request from that host.
-import { personOf, twinVendorUrl, type HandlerContext } from '@volter/world-core';
-import { flowPage, signedIn } from '@volter/world-ui';
-import { accountOfPerson, membership, modhashFor, nowSeconds, sessionCookie, SUBREDDIT, subredditNamed, subscribersOf, type Row } from '../semantics/shared.ts';
-
-export const SESSION_COOKIE = 'reddit_session';
+import { twinVendorUrl, type HandlerContext } from '@volter/world-core';
+import { cookieOf, flowPage, signedIn } from '@volter/world-ui';
+import { accountOfPerson, membership, modhashFor, nowSeconds, SESSION_COOKIE, SUBREDDIT, subredditNamed, subscribersOf, type Row } from '../semantics/shared.ts';
 
 /** What a page holds: the markup world-ui's flowPage renders. */
 type ReactNode = Parameters<typeof flowPage>[0]['body'];
@@ -20,11 +18,11 @@ type ReactNode = Parameters<typeof flowPage>[0]['body'];
 export type Viewer = { account: Row; modhash: string } | undefined;
 
 export async function viewerOf(ctx: HandlerContext): Promise<Viewer> {
+  const cookie = cookieOf(ctx.call.request, SESSION_COOKIE);
   const person = signedIn(ctx, SESSION_COOKIE);
-  if (!person || !personOf(ctx, person.email)) return undefined;
+  if (!cookie || !person) return undefined;
   const account = accountOfPerson(ctx, person.email);
   if (!account) return undefined;
-  const cookie = sessionCookie(ctx);
   return { account, modhash: await modhashFor(ctx, cookie) };
 }
 

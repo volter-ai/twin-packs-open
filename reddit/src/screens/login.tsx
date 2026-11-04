@@ -4,8 +4,7 @@
 // person already signed in goes straight on.
 import { personWith, type HandlerContext } from '@volter/world-core';
 import { formOf, SIGN_IN_CSS, SignIn, startSession, flowPage } from '@volter/world-ui';
-import { personByLogin } from '../semantics/shared.ts';
-import { SESSION_COOKIE } from './shared.tsx';
+import { hostOf, personByLogin, SESSION_COOKIE } from '../semantics/shared.ts';
 import { baseOf, REDDIT_CSS, SNOO, viewerOf, seeOther } from './shared.tsx';
 
 const LOGIN_CSS = `.sign-in-mark{display:none}.sign-in{max-width:400px;padding-top:48px}.sign-in-heading{font-weight:700;font-size:24px}
@@ -48,7 +47,7 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
  *  source: https://raw.githubusercontent.com/reddit-archive/reddit/master/r2/r2/lib/cookies.py "self.domain = g.domain" */
 function onRedditDomain(ctx: HandlerContext, answer: Response): Response {
   const request = ctx.call.request;
-  const host = (request.headers.get('x-volter-twin-original-host') ?? request.headers.get('host') ?? new URL(request.url).host).replace(/:\d+$/, '').toLowerCase();
+  const host = hostOf(request);
   if (baseOf(ctx) !== undefined || !(host === 'reddit.com' || host.endsWith('.reddit.com'))) return answer;
   const headers = new Headers();
   for (const [name, value] of answer.headers) if (name !== 'set-cookie') headers.append(name, value);

@@ -1,6 +1,6 @@
 // What LinkedIn's families share: the stored shapes, who a token is and what it may do, the API version a request
 // names, the daily limits an application meets, the uploads' tokens and bytes, and the media a file holds.
-import { isReadOnlyRequest, recordPerson, personOf, type HandlerContext } from '@volter/world-core';
+import { readImageHeader, readMp4Header, isReadOnlyRequest, recordPerson, personOf, type HandlerContext } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
 export type { HandlerContext };
@@ -399,97 +399,32 @@ export function assetOf(field: string, value: unknown, kind: 'image' | 'video'):
 
 // ── what a file is ───────────────────────────────────────────────────────────────────────────
 
-/** An image's format and size, for the formats LinkedIn takes ("JPG, GIF, and PNG formats"), or undefined. */
-function sniffImage(b: Uint8Array): { type: string; width: number; height: number } | undefined {
-  if (b.length >= 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {
-    const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
-    return { type: 'image/png', width: v.getUint32(16), height: v.getUint32(20) };
-  }
-  if (b.length >= 10 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return { type: 'image/gif', width: b[6]! | (b[7]! << 8), height: b[8]! | (b[9]! << 8) };
-  if (b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) return jpegSize(b);
-  return undefined;
+/** LinkedIn's Images API takes JPG, GIF and PNG; its desktop share box also takes WebP. */
+function acceptedImage(bytes: Uint8Array, via: 'api' | 'share-box'): ReturnType<typeof readImageHeader> {
+  const image = readImageHeader(bytes);
+  if (!image || (image.type === 'image/webp' && via !== 'share-box')) return undefined;
+  if (image.jpeg && (image.jpeg.frameEnd >= bytes.length || image.jpeg.standaloneMarkers || image.jpeg.fillBytes)) return undefined;
+  return image;
 }
 
-/** What a file a person attaches in linkedin.com's share box on a desktop is, by its bytes, or undefined for one the
- *  share box does not take: a video (MP4, and MOV, an MP4's QuickTime kin, which the twin reads alike), or an image (JPEG,
- *  GIF, PNG, WEBP), as LinkedIn Help's table of files a person can post ticks them for Desktop. Where the documentation
- *  stops: HEIF/HEIC is ticked for iOS alone, so a desktop's is not taken; WEBM and MKV are ticked for Desktop, and the
- *  twin, which reads no Matroska file, does not take them (a gap); that a file not taken is refused before anything is
- *  posted, and in what words, is the twin's. */
+/** What LinkedIn's desktop share box takes: MP4/MOV, JPG, GIF, PNG or WebP. It does not decode Matroska or HEIF. */
 // source: https://www.linkedin.com/help/linkedin/answer/a564109 "WEBP"
 export function shareBoxKind(bytes: Uint8Array): 'video' | 'image' | undefined {
   if (sniffMp4(bytes)) return 'video';
-  return sniffImage(bytes) ?? sniffWebp(bytes) ? 'image' : undefined;
+  return acceptedImage(bytes, 'share-box') ? 'image' : undefined;
 }
 
-/** A WebP's size, from its first chunk: VP8X's canvas, VP8L's header or VP8's frame. */
-function sniffWebp(b: Uint8Array): { type: string; width: number; height: number } | undefined {
-  const tag = (at: number): string => String.fromCharCode(b[at]!, b[at + 1]!, b[at + 2]!, b[at + 3]!);
-  if (b.length < 30 || tag(0) !== 'RIFF' || tag(8) !== 'WEBP') return undefined;
-  const chunk = tag(12);
-  const u24 = (at: number): number => b[at]! | (b[at + 1]! << 8) | (b[at + 2]! << 16);
-  if (chunk === 'VP8X') return { type: 'image/webp', width: 1 + u24(24), height: 1 + u24(27) };
-  if (chunk === 'VP8L') {
-    const bits = b[21]! | (b[22]! << 8) | (b[23]! << 16) | (b[24]! << 24);
-    return { type: 'image/webp', width: 1 + (bits & 0x3fff), height: 1 + ((bits >>> 14) & 0x3fff) };
-  }
-  if (chunk === 'VP8 ') return { type: 'image/webp', width: (b[26]! | (b[27]! << 8)) & 0x3fff, height: (b[28]! | (b[29]! << 8)) & 0x3fff };
-  return undefined;
-}
-
-/** A JPEG's size, from its first start-of-frame marker (SOF0 to SOF15, but DHT, JPG and DAC). */
-function jpegSize(b: Uint8Array): { type: string; width: number; height: number } | undefined {
-  let at = 2;
-  let found: number | undefined;
-  while (found === undefined && at + 9 < b.length) {
-    const marker = b[at + 1]!;
-    if (b[at] === 0xff && marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) found = at;
-    else at += b[at] === 0xff ? 2 + ((b[at + 2]! << 8) | b[at + 3]!) : 1;
-  }
-  return found === undefined ? undefined : { type: 'image/jpeg', height: (b[found + 5]! << 8) | b[found + 6]!, width: (b[found + 7]! << 8) | b[found + 8]! };
-}
-
-/** An MP4's length and picture size, read from its boxes (ftyp, then moov's mvhd and the video track's tkhd), or
- *  undefined when the bytes are not an MP4. */
-function sniffMp4(b: Uint8Array): { durationMs: number; width: number; height: number } | undefined {
-  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  const type = (at: number): string => String.fromCharCode(b[at + 4]!, b[at + 5]!, b[at + 6]!, b[at + 7]!);
-  if (b.length < 16 || type(0) !== 'ftyp') return undefined;
-  let durationMs = -1;
-  let width = 0;
-  let height = 0;
-  const walk = (from: number, to: number): void => {
-    let at = from;
-    while (at + 8 <= to) {
-      let size = v.getUint32(at);
-      const name = type(at);
-      let header = 8;
-      if (size === 1 && at + 16 <= to) { size = Number(v.getBigUint64(at + 8)); header = 16; }
-      if (size < header || at + size > to) return;
-      if (name === 'moov' || name === 'trak') walk(at + header, at + size);
-      if (name === 'mvhd') durationMs = mvhdMs(v, at + header);
-      if (name === 'tkhd') {
-        const tk = tkhdSize(v, at + header, size - header);
-        if (tk.width > 0 && tk.height > 0) { width = tk.width; height = tk.height; }
-      }
-      at += size;
-    }
+/** LinkedIn keeps milliseconds and the last positive video track's whole-pixel dimensions. */
+function sniffMp4(bytes: Uint8Array): { durationMs: number; width: number; height: number } | undefined {
+  const file = readMp4Header(bytes);
+  const header = file.movies.flatMap((movie) => movie.headers).at(-1);
+  if (bytes.length < 16 || !file.fileType || !header) return undefined;
+  const track = file.movies.flatMap((movie) => movie.tracks).filter((size) => Math.floor(size.width) > 0 && Math.floor(size.height) > 0).at(-1);
+  return {
+    durationMs: header.timescale > 0 ? Math.round(header.duration * 1000 / header.timescale) : 0,
+    width: Math.floor(track?.width ?? 0),
+    height: Math.floor(track?.height ?? 0),
   };
-  walk(0, b.length);
-  return durationMs < 0 ? undefined : { durationMs, width, height };
-}
-
-/** A movie header's length in milliseconds. */
-function mvhdMs(v: DataView, at: number): number {
-  const version = v.getUint8(at);
-  const scale = version === 1 ? v.getUint32(at + 20) : v.getUint32(at + 12);
-  const duration = version === 1 ? Number(v.getBigUint64(at + 24)) : v.getUint32(at + 16);
-  return scale > 0 ? Math.round((duration * 1000) / scale) : 0;
-}
-
-/** A track header's picture size (16.16 fixed point at its end). */
-function tkhdSize(v: DataView, at: number, length: number): { width: number; height: number } {
-  return length >= 8 ? { width: v.getUint32(at + length - 8) >>> 16, height: v.getUint32(at + length - 4) >>> 16 } : { width: 0, height: 0 };
 }
 
 /** The smallest whole ratio of a picture's sides (1920×1080 is 16:9). */
@@ -575,7 +510,7 @@ function videoVerdict(bytes: Uint8Array): Row {
 // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api?view=li-lms-2026-09 "Images with less than 36,152,320 pixels."
 export function imageVerdict(bytes: Uint8Array, via: 'api' | 'share-box' = 'api'): Row {
   // source: https://www.linkedin.com/help/linkedin/answer/a564109 "WEBP"
-  const image = sniffImage(bytes) ?? (via === 'share-box' ? sniffWebp(bytes) : undefined);
+  const image = acceptedImage(bytes, via);
   // source: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api?view=li-lms-2026-09 "JPG, GIF, and PNG formats"
   if (!image) return { _outcome: 'PROCESSING_FAILED', _reason: 'Unsupported file format: the uploaded file is not a JPG, GIF or PNG image' };
   if (image.width * image.height >= 36_152_320) return { _outcome: 'PROCESSING_FAILED', _reason: 'The image has more than 36,152,320 pixels' };
