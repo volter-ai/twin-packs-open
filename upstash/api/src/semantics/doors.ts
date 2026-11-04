@@ -23,16 +23,15 @@ export async function users(ctx: HandlerContext): Promise<Response> {
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const customer = await ctx.tenant('_customer', async (organization) => {
     const email = organization.members[0]!.toLowerCase();
-    return ctx.record('_customer', { email }, email);
+    return ctx.record('_customer', { email, label: organization.label, members: organization.members.map((member) => member.toLowerCase()) }, await ctx.issue('_identity'));
   });
-  const owner = String(customer.email);
   const d = await ctx.deploymentObject(`redis-database:${String(customer.id)}`, DATABASE, async (deployment) =>
-    String((await makeDatabase(ctx, { owner, name: deployment || 'world', region: 'us-east-1' })).id));
+    String((await makeDatabase(ctx, { customer, name: deployment || 'world', region: 'us-east-1' })).id));
   const redis = await ctx.accountKey('redis-rest', DATABASE, {
     make: async () => String(d.id),
-    read: async (row) => row.id === d.id && row.customer_id === owner && row.state === 'active' && typeof row.rest_token === 'string' ? row.rest_token : undefined,
+    read: async (row) => row.id === d.id && row.customer_id === customer.id && row.state === 'active' && typeof row.rest_token === 'string' ? row.rest_token : undefined,
   });
-  const q = await openQStash(ctx, { owner, region: 'eu-central-1' });
+  const q = await openQStash(ctx, { customer, region: 'eu-central-1' });
   return Response.json({
     redis_url: `https://${String(d.endpoint)}.upstash.io`, redis_token: redis.secret,
     qstash_url: q._url, qstash_token: q.token, qstash_current_signing_key: q._current_signing_key, qstash_next_signing_key: q._next_signing_key,
