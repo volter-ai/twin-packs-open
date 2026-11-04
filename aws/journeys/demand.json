@@ -1,0 +1,240 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/twin-world apps/platform (backups)",
+      "commit": "96ca4478bb39",
+      "client": "@aws-sdk/client-s3@3.1081.0 (apps/platform/package.json), path-style through AWS_ENDPOINT_URL",
+      "backend": [
+        {
+          "call": "HeadBucket, CreateBucket: the backup bucket made when missing",
+          "operation": "HeadBucket; CreateBucket",
+          "evidence": "apps/platform/src/backup.ts:51"
+        },
+        {
+          "call": "PutObject: a backup archive",
+          "operation": "PutObject",
+          "evidence": "apps/platform/src/backup.ts:58"
+        },
+        {
+          "call": "ListObjectsV2: the backups kept",
+          "operation": "ListObjectsV2",
+          "evidence": "apps/platform/src/backup.ts:63"
+        },
+        {
+          "call": "GetObject: an archive restored",
+          "operation": "GetObject",
+          "evidence": "apps/platform/src/backup.ts:68"
+        }
+      ]
+    },
+    {
+      "name": "LibreChat-AI/LibreChat",
+      "client": "Bedrock models",
+      "backend": [
+        {
+          "call": "ChatBedrockConverse streaming conversation and tool results",
+          "operation": "ConverseStream",
+          "evidence": "packages/api/src/endpoints/bedrock/initialize.ts:94,101-102,308-312"
+        }
+      ],
+      "commit": "f10b1d91f1ee",
+      "gate": "Bedrock is a built-in endpoint, including user-provided credentials, rather than an installed endpoint (api/server/services/Config/EndpointService.js:21-26,47-54; packages/api/src/endpoints/bedrock/initialize.ts).",
+      "evidence": "api/server/services/Config/EndpointService.js:22"
+    },
+    {
+      "commit": "3e63239dbdec",
+      "client": "@aws-sdk/client-s3@3.984.0; @aws-sdk/s3-request-presigner@3.984.0 (pnpm-lock.yaml); path-style through S3_ENDPOINT",
+      "backend": [
+        {
+          "call": "GetObject: an uploaded image served through /api/storage",
+          "operation": "GetObject",
+          "evidence": "apps/web/src/app/api/storage/[...key]/route.ts:21"
+        },
+        {
+          "call": "PutObject: an image uploaded through the self-hosted upload route",
+          "operation": "PutObject",
+          "evidence": "apps/web/src/app/api/storage/[...key]/route.ts:147"
+        },
+        {
+          "call": "DeleteObject: a replaced image deleted",
+          "operation": "DeleteObject",
+          "evidence": "apps/web/src/lib/storage/asset-upload.ts:136"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "The browser PUTs an image to its presigned upload URL from the app's origin, a CORS preflight first",
+          "operation": "PutObject",
+          "evidence": "apps/web/src/lib/storage/asset-upload.ts:101"
+        }
+      ],
+      "name": "lukevella/rallly",
+      "gate": "Shipped asset upload and proxy routes use the S3-compatible client with supplied storage credentials; no alternative driver switch (apps/web/src/lib/storage/asset-upload.ts:54-59; apps/web/src/app/api/storage/[...key]/route.ts:15,129; apps/web/.env.sample:30-34)."
+    }
+  ],
+  "excluded": [
+    {
+      "what": "Dub's storage",
+      "why": "Its endpoint is Cloudflare R2 (<account>.r2.cloudflarestorage.com): the cloudflare pack's r2 lane."
+    },
+    {
+      "what": "Cal.com's https://s3.amazonaws.com/intercom-sheets.com/messenger-sheet-library.latest.js (packages/app-store/intercom/api/get.ts:47)",
+      "why": "A script Intercom keeps in its own bucket, which the Intercom messenger's page loads: no call to an account of the customer's."
+    },
+    {
+      "what": "Twenty's createBucket and checkBucketExists (s3.driver.ts:602, 616)",
+      "why": "Nothing calls them at 1d561b8c73c9."
+    },
+    {
+      "what": "Runhuman 1, inbox-zero, ponder and any application outside the current scanned set",
+      "why": "Outside the current scanned application set."
+    }
+  ],
+  "optional": [
+    {
+      "application": "twentyhq/twenty",
+      "what": "Lambda logic functions (@aws-sdk/client-lambda, client-sts, a layer's PutObject)",
+      "setting": "Configuration (1): LOGIC_FUNCTION_TYPE=LAMBDA replaces LOCAL in development or DISABLED otherwise (packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:732-735).",
+      "evidence": "packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:732"
+    },
+    {
+      "application": "twentyhq/twenty",
+      "what": "SES emailing domains (@aws-sdk/client-sesv2)",
+      "setting": "Configuration (1): EMAILING_DOMAIN_DRIVER=AWS_SES replaces LOG (packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:2364).",
+      "evidence": "packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:2364"
+    },
+    {
+      "application": "lukevella/rallly",
+      "what": "SES email (@aws-sdk/client-sesv2 SendEmail)",
+      "setting": "Configuration (1): EMAIL_PROVIDER=ses replaces smtp (packages/emails/src/transport.ts:91; apps/web/src/env.ts:42).",
+      "evidence": "packages/emails/src/transport.ts:91"
+    },
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "CloudFront file delivery",
+      "setting": "Configuration (1): fileStrategy or a fileStrategies entry selects cloudfront over local (packages/data-provider/src/config.ts:3203-3204; packages/api/src/app/cdn.ts:16-20).",
+      "evidence": "packages/api/src/app/cdn.ts:18"
+    },
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "S3 file storage (opt-in); the customer life deliberately configures it",
+      "setting": "Configuration (1): fileStrategy or a fileStrategies entry selects s3 over local (packages/data-provider/src/config.ts:3203-3204; packages/api/src/app/cdn.ts:16-20).",
+      "evidence": "packages/data-provider/src/config.ts:3203",
+      "commit": "f10b1d91f1ee",
+      "client": "@aws-sdk/client-s3@3.980.0 (package-lock.json:1765-1767); @aws-sdk/s3-request-presigner@3.758.0 (package-lock.json:2585-2587); Dockerfile:30,46 installs this lockfile with npm ci; path-style through AWS_ENDPOINT_URL",
+      "backend": [
+        {
+          "call": "PutObject: an attachment stored",
+          "operation": "PutObject",
+          "evidence": "packages/api/src/storage/s3/crud.ts:372"
+        },
+        {
+          "call": "CreateMultipartUpload, UploadPart, CompleteMultipartUpload: a large file in parts",
+          "operation": "CreateMultipartUpload; UploadPart; CompleteMultipartUpload",
+          "evidence": "packages/api/src/storage/s3/crud.ts:466"
+        },
+        {
+          "call": "AbortMultipartUpload: a part upload that failed",
+          "operation": "AbortMultipartUpload",
+          "evidence": "packages/api/src/storage/s3/crud.ts:538"
+        },
+        {
+          "call": "HeadObject: whether a file is there before it is deleted",
+          "operation": "HeadObject",
+          "evidence": "packages/api/src/storage/s3/crud.ts:751"
+        },
+        {
+          "call": "DeleteObject: a file deleted",
+          "operation": "DeleteObject",
+          "evidence": "packages/api/src/storage/s3/crud.ts:763"
+        },
+        {
+          "call": "GetObject: a file streamed back through the server",
+          "operation": "GetObject",
+          "evidence": "packages/api/src/storage/s3/crud.ts:866"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "The browser opens a file's presigned download link (getSignedUrl over GetObject, with ResponseContentType and ResponseContentDisposition)",
+          "operation": "GetObject",
+          "evidence": "packages/api/src/storage/s3/crud.ts:314"
+        }
+      ]
+    },
+    {
+      "application": "twentyhq/twenty",
+      "what": "S3 file storage (opt-in); the customer life deliberately configures it",
+      "setting": "Configuration (1): STORAGE_TYPE=S3 replaces LOCAL (packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:602).",
+      "evidence": "packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:602",
+      "commit": "1d561b8c73c9",
+      "client": "@aws-sdk/client-s3@3.1001.0; @aws-sdk/lib-storage@3.1001.0; @aws-sdk/s3-request-presigner@3.1001.0 (packages/twenty-server/package.json)",
+      "backend": [
+        {
+          "call": "GetObject: a file read",
+          "operation": "GetObject",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:118"
+        },
+        {
+          "call": "PutObject: a file written",
+          "operation": "PutObject",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:197"
+        },
+        {
+          "call": "Upload (lib-storage): a streamed file, one PutObject when it is under a part, else CreateMultipartUpload, UploadPart and CompleteMultipartUpload, AbortMultipartUpload when a part fails",
+          "operation": "PutObject; CreateMultipartUpload; UploadPart; CompleteMultipartUpload; AbortMultipartUpload",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:214"
+        },
+        {
+          "call": "HeadObject: a file's metadata",
+          "operation": "HeadObject",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:235"
+        },
+        {
+          "call": "DeleteObject: a file deleted",
+          "operation": "DeleteObject",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:304"
+        },
+        {
+          "call": "CopyObject: a file moved or copied (then the source deleted)",
+          "operation": "CopyObject",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:404"
+        },
+        {
+          "call": "ListObjectsV2: a folder's files",
+          "operation": "ListObjectsV2",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:479"
+        },
+        {
+          "call": "DeleteObjects: a folder emptied in one request",
+          "operation": "DeleteObjects",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file-storage/drivers/s3.driver.ts:658"
+        },
+        {
+          "call": "GetObject, DeleteObject: an inbound email SES stored, read and removed",
+          "operation": "GetObject; DeleteObject",
+          "evidence": "packages/twenty-server/src/modules/messaging/message-import-manager/drivers/inbound-email/services/inbound-email-storage.service.ts:20"
+        }
+      ],
+      "frontend": [
+        {
+          "call": "The browser opens a file through its presigned URL (getSignedUrl over GetObject, with ResponseContentType, ResponseContentDisposition and ResponseCacheControl)",
+          "operation": "GetObject",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file/services/file.service.ts:222"
+        },
+        {
+          "call": "The browser PUTs a file to its presigned upload URL (content-type and content-length signed) from the app's origin, a CORS preflight first",
+          "operation": "PutObject",
+          "evidence": "packages/twenty-server/src/engine/core-modules/file/file-upload/services/file-upload-target.service.ts:90"
+        }
+      ]
+    }
+  ],
+  "notCallers": [
+    {
+      "application": "calcom/cal.diy",
+      "why": "Browser loads keyless Intercom script from public S3 URL (packages/app-store/intercom/api/get.ts:47); no application S3 client or account-state call"
+    }
+  ]
+}

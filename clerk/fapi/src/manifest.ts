@@ -25,6 +25,7 @@ import { states } from './semantics/states.ts';
 export const manifest: DerivedManifest = {
   vendor: 'clerk',
   service: 'clerk',
+  tenant: { field: '_application_scope', storage: 'namespaced' },
   // "This is a Form Based API and all the data must be sent and formatted according to the
   // `application/x-www-form-urlencoded` content type." (spec:/info/description)
   body: { form: { coerce: true } },
@@ -67,6 +68,9 @@ export const manifest: DerivedManifest = {
   // a PATCH of the environment writes nothing (clerk-js reports its origin there in development)
   reads: ['updateEnvironment'],
   resources: {
+    _workspace: { idPrefix: 'ws', shared: true },
+    _application: { idPrefix: 'app', ids: '{prefix}_{letters:27}', shared: true },
+
     // source: spec:getOAuthToken "Authorization code**: 10 minutes"
     _oauth_code: { idPrefix: 'clk_code', ...states._oauth_code },
     // source: spec:/components/schemas/OAuth.Token "The access token issued by the authorization server."

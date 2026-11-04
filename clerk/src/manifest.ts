@@ -20,7 +20,7 @@
 // EVENTS: the writes Clerk reports to the instance's webhook endpoints (`events`: ./semantics/shared.ts `CLERK_EVENTS`,
 // rendered by ./semantics/events.ts), which the kernel signs (Svix) and delivers.
 import type { DerivedManifest } from '@volter/world-core';
-import { data } from './semantics/events.ts';
+import { data, values } from './semantics/events.ts';
 import { BACKEND_GAP, CLERK_EVENTS } from './semantics/shared.ts';
 import { states } from './semantics/states.ts';
 
@@ -31,6 +31,7 @@ const ORDER_BY_INVALID = { status: 422, code: 'form_param_format_invalid', kind:
 export const manifest: DerivedManifest = {
   vendor: 'clerk',
   service: 'clerk',
+  tenant: { field: '_application_scope', storage: 'namespaced' },
   body: {},
   // Clerk's ids are a type prefix and an opaque suffix (`user_…`, `org_…`, `orginv_…`: the spec's examples)
   // Clerk's ids are a type prefix and a KSUID (`user_2…`, 27 characters: the spec's ^ins_\w{27}$)
@@ -125,7 +126,7 @@ export const manifest: DerivedManifest = {
   // (the versions Clerk has, the versioning page's "## API versions"; the query form and both at once: ../src/fetch.ts)
   version: { header: 'clerk-api-version', pattern: '^(2021-02-05|2024-10-01|2025-04-10|2025-11-10|2026-05-12)$', error: { status: 400, code: 'api_version_invalid', kind: 'invalid API version', message: 'Invalid Clerk API version: {value}' } },
   // Clerk reports its writes to the instance's webhook endpoints, Svix-signed
-  events: { ...CLERK_EVENTS, render: data },
+  events: { ...CLERK_EVENTS, render: data, values },
   // The same Svix-signed user.deleted envelope the instance delivers; the deleted object's id is data.id.
   // This declares that event only, not unimplemented user lifecycle events.
   ingest: {
@@ -165,7 +166,12 @@ export const manifest: DerivedManifest = {
     source: 'https://clerk.com/docs/references/javascript/user (hasImage)',
   }],
   resources: {
+    _workspace: { idPrefix: 'ws', shared: true },
+    _application: { idPrefix: 'app', ids: '{prefix}_{letters:27}', shared: true },
+
+    _webhook_signing_key: { idPrefix: 'whkey', ids: '{prefix}_{n}', unique: [{ fields: ['_instance'], refusal: { status: 409, message: 'The instance already has a webhook signing key' } }] },
     _secret_key: { idPrefix: '_sk_', ids: '{prefix}{n}' },
+    _credential_serial: { idPrefix: '', ids: '{n}' },
     _native_application: { idPrefix: '_native_app_', ids: '{prefix}{n}' },
     // a webhook endpoint is Svix's (Clerk sends its webhooks through Svix), its id `ep_` and 27 letters and digits
     // source: https://raw.githubusercontent.com/svix/svix-webhooks/v2.6.1/javascript/src/mockttp.test.ts "ep_1srOrx2ZWZBpBUvZwXKQmoEYga2"
@@ -206,7 +212,7 @@ export const manifest: DerivedManifest = {
     // GET /instance/organization_settings returns this singleton's fields, not the deployment metadata GET /instance returns.
     OrganizationSettings: { storedAs: 'organization_settings', idPrefix: '', key: 'organization_settings', refresh: { get: 'GetInstanceOrganizationSettings' } },
     // The Dashboard door's private sign-in configuration has no Backend API resource representation.
-    _instance: { idPrefix: 'ins' },
+    _instance: { idPrefix: 'ins', unique: [{ fields: ['_application'], refusal: { status: 409, message: 'The application already has an instance' } }] },
   },
   // the descriptor, as data (twin-world's architecture, "The descriptor"): the pack registers packOf(manifest)
   descriptor: {
@@ -237,7 +243,7 @@ export const manifest: DerivedManifest = {
     // the application's keys, issued once the twin is up (./semantics/doors.ts appCredentials), under the names Clerk's
     // SDKs read (runhuman's among them: CLERK_SECRET_KEY, CLERK_JWT_KEY, CLERK_WEBHOOK_SIGNING_SECRET and the framework
     // prefixes of the publishable key)
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: {
+    credentialDoor: { account: { field: 'account', tenancy: 'Dashboard workspace', source: 'https://clerk.com/docs/guides/dashboard/overview.md' }, deployment: { field: 'deployment', object: 'application instance', source: 'https://clerk.com/docs/guides/development/managing-environments.md' }, path: '/_twin/app-credentials', body: {}, fill: {
       CLERK_SECRET_KEY: 'secret_key', CLERK_API_KEY: 'secret_key',
       CLERK_PUBLISHABLE_KEY: 'publishable_key', NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'publishable_key', VITE_CLERK_PUBLISHABLE_KEY: 'publishable_key',
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'publishable_key', PUBLIC_CLERK_PUBLISHABLE_KEY: 'publishable_key',

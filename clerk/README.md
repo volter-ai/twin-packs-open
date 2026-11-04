@@ -14,7 +14,7 @@ Use Node 22.6 or newer.
 Install the exact twin release and World CLI in your app's folder:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.165 @volter/twin-clerk@1.0.4
+npm install --save-dev --save-exact @volter/world@3.0.186 @volter/twin-clerk@1.0.5
 ./node_modules/.bin/volter world init --name my-app --twins clerk --source clerk=@volter/twin-clerk
 ```
 

@@ -246,7 +246,7 @@ export async function createUser(root: HandlerContext, u: { email: string; verif
   const id = root.mint('User');
   const at = ms(root);
   const email = emailAddress(id, u.email, at, { status: 'verified', strategy: u.verifiedBy, attempts: u.verifiedBy === 'email_code' ? 1 : null, expire_at: null });
-  await root.write('User', id, { ...newUserFields(id, at, { emails: [email], firstName: u.firstName, lastName: u.lastName, username: u.username, unsafeMetadata: u.unsafeMetadata, legalAcceptedAt: u.legalAcceptedAt ?? null, ...(u.passwordDigest !== undefined ? { passwordDigest: u.passwordDigest } : {}) }), last_active_at: at }, 'user.create');
+  await root.write('User', id, { ...newUserFields(root, id, at, { emails: [email], firstName: u.firstName, lastName: u.lastName, username: u.username, unsafeMetadata: u.unsafeMetadata, legalAcceptedAt: u.legalAcceptedAt ?? null, ...(u.passwordDigest !== undefined ? { passwordDigest: u.passwordDigest } : {}) }), last_active_at: at }, 'user.create');
   return root.row('User', id)!;
 }
 
