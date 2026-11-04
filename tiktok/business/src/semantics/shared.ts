@@ -22,7 +22,7 @@ export const PARAM = 40002;
 export const NO_PERMISSION = 40001;
 
 /** Who a request is: the business access token its Access-Token header bears, live, with its app and its person. */
-export type Caller = { token: Row; app: Row; person: Row; scopes: string[]; openId: string };
+type Caller = { token: Row; app: Row; person: Row; scopes: string[]; openId: string };
 // source: https://business-api.tiktok.com/gateway/api/doc/client/node/get/v2/?identify_key=c0138ffadd90a955c1f0670a56fe348d1d40680b3c89461e09f78ed26785164b&doc_id=1737172488964097&language=ENGLISH "Invalid or incorrect access token."
 export function authorized(ctx: HandlerContext, scope?: string): Caller | Response {
   const value = ctx.call.request.headers.get('access-token') ?? '';

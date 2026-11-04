@@ -9,8 +9,6 @@ import {
   type Row,
 } from './shared.ts';
 
-export type { HandlerContext };
-
 const bad = (error: string, status = 400): Response => Response.json({ error }, { status });
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : typeof v === 'string' && /^-?\d+$/.test(v) ? Number(v) : undefined);
@@ -180,13 +178,13 @@ async function moveMember(ctx: HandlerContext, chat: Row, by: number, user: numb
   const after = ctx.row('chat_member', key)!;
   if (ctx.row('user', String(user))?.is_bot === true && user !== by) {
     // source: https://core.telegram.org/bots/api#update "Optional. The bot's chat member status was updated in a chat."
-    await queueUpdate(ctx, user, 'my_chat_member', { chat: chatViewOf(ctx, chat), from: userView(ctx, by), date: unixOf(ctx.occurredAt), old_chat_member: before, new_chat_member: memberView(ctx, after, user) }, operation);
+    await queueUpdate(ctx, user, 'my_chat_member', { chat: chatViewOf(chat), from: userView(ctx, by), date: unixOf(ctx.occurredAt), old_chat_member: before, new_chat_member: memberView(ctx, after, user) }, operation);
   }
   return after;
 }
 
-const chatViewOf = (ctx: HandlerContext, chat: Row): Row =>
-  Object.fromEntries(Object.entries(chatFullView(ctx, chat)).filter(([k]) => ['id', 'type', 'title', 'username', 'first_name', 'last_name'].includes(k)));
+const chatViewOf = (chat: Row): Row =>
+  Object.fromEntries(Object.entries(chatFullView(chat)).filter(([k]) => ['id', 'type', 'title', 'username', 'first_name', 'last_name'].includes(k)));
 
 /** A message a person (or the app, for a service message) writes in a chat, kept and delivered to the bots it reaches. */
 async function post(ctx: HandlerContext, chat: Row, fields: Row, from: number | undefined, operation: string, extra: Row = {}): Promise<Row> {
@@ -258,7 +256,7 @@ export async function chats(ctx: HandlerContext): Promise<Response> {
   // source: https://core.telegram.org/bots/api#message "Optional. Service message: the group has been created"
   const created = type === 'group' ? { group_chat_created: true } : type === 'supergroup' ? { supergroup_chat_created: true } : { channel_chat_created: true };
   await post(ctx, chat(), created, creator, operation);
-  return Response.json(chatFullView(ctx, chat()));
+  return Response.json(chatFullView(chat()));
 }
 
 /** A person adds a member to a chat, promotes one, or removes one (kicked); a group is told by a service message who

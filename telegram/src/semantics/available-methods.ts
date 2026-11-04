@@ -205,7 +205,7 @@ export async function getChat(ctx: HandlerContext): Promise<Response> {
   const { id: botId } = botOf(ctx);
   const access = chatFor(ctx, botId, param(ctx, 'chat_id'), 'read');
   if ('refusal' in access) return access.refusal;
-  return answer(chatFullView(ctx, access.chat));
+  return answer(chatFullView(access.chat));
 }
 
 // source: https://core.telegram.org/bots/api#getchatmember "Use this method to get information about a member of a chat."

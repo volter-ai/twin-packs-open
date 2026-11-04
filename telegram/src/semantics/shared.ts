@@ -8,7 +8,6 @@ import type { HandlerContext } from '@volter/world-core';
 import { finish, parseHtml, parseMarkdown, parseMarkdownV2, type Entity, type Formatted } from '../engine/text.ts';
 
 export type Row = Record<string, unknown>;
-export type { HandlerContext };
 
 // ── answers ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -141,7 +140,7 @@ export function messageView(ctx: HandlerContext, row: Row, nested = false): Row 
 }
 
 /** A ChatFullInfo as getChat answers it, from a chat as chatOf reads it (its own id and type already restored). */
-export function chatFullView(_ctx: HandlerContext, chat: Row): Row {
+export function chatFullView(chat: Row): Row {
   return Object.fromEntries(Object.entries(chat).filter(([k]) => !k.startsWith('_') && k !== 'deleted'));
 }
 
