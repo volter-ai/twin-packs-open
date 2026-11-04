@@ -1,0 +1,1195 @@
+{
+  "vendor": "jira",
+  "author": "Contributor 75",
+  "host": "api.atlassian.com",
+  "about": "Tidewater's account-token users and an OAuth tracking integration triage reports, ship a fix and reopen a real regression. A stale raw-HTTP script sends an invalid plain-JSON description; the cookbook sends an explicit ADF document through its SDK.",
+  "steps": [
+    {
+      "name": "Chapter 1: Maya signs Tidewater up for Jira Cloud",
+      "method": "POST",
+      "path": "/_twin/sites",
+      "status": 201,
+      "body": {
+        "name": "tidewater",
+        "admin": {
+          "name": "Maya Chen",
+          "email": "maya@tidewater.yoga",
+          "password": "savasana-2026"
+        }
+      },
+      "capture": {
+        "cloud": "cloudid",
+        "maya": "admin"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://tidewater.atlassian.net"
+        }
+      ]
+    },
+    {
+      "name": "Jonah is given access",
+      "method": "POST",
+      "path": "/_twin/sites/tidewater/people",
+      "status": 201,
+      "body": {
+        "name": "Jonah",
+        "email": "jonah@tidewater.yoga",
+        "password": "warrior-two-22"
+      },
+      "capture": {
+        "jonah": "accountId"
+      }
+    },
+    {
+      "name": "Jonah creates his own account API token",
+      "method": "POST",
+      "path": "/_twin/api-token",
+      "status": 201,
+      "body": {
+        "site": "tidewater",
+        "email": "jonah@tidewater.yoga",
+        "password": "warrior-two-22"
+      },
+      "capture": {
+        "jbasic": "authorization"
+      }
+    },
+    {
+      "name": "Maya creates an account API token for the on-call agent",
+      "method": "POST",
+      "path": "/_twin/api-token",
+      "status": 201,
+      "body": {
+        "site": "tidewater",
+        "email": "maya@tidewater.yoga",
+        "password": "savasana-2026"
+      },
+      "capture": {
+        "basic": "authorization",
+        "apitoken": "apiToken"
+      }
+    },
+    {
+      "name": "An unauthenticated current-user read is refused",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/myself",
+      "status": 401
+    },
+    {
+      "name": "Maya reads her own account through the Basic API token",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/myself",
+      "status": 200,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "capture": {
+        "projectLead": "accountId"
+      },
+      "expect": [
+        {
+          "path": "accountId",
+          "equals": "{maya}"
+        },
+        {
+          "path": "emailAddress",
+          "equals": "maya@tidewater.yoga"
+        }
+      ]
+    },
+    {
+      "name": "the integration's OAuth 2.0 (3LO) app",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "name": "Runhuman",
+        "callback_urls": [
+          "https://runhuman.com/api/integrations/jira/callback"
+        ]
+      },
+      "capture": {
+        "cid": "client_id",
+        "csec": "client_secret"
+      }
+    },
+    {
+      "name": "Tidewater's own admin app (to set the site up)",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {
+        "name": "Tidewater admin",
+        "callback_urls": [
+          "https://admin.tidewater.yoga/jira/callback"
+        ]
+      },
+      "capture": {
+        "aid": "client_id",
+        "asec": "client_secret"
+      }
+    },
+    {
+      "name": "Chapter 2: Maya connects her admin app: the authorize page",
+      "method": "GET",
+      "path": "https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id={aid}&scope=read%3Ajira-work%20write%3Ajira-work%20manage%3Ajira-project%20read%3Ajira-user&redirect_uri=https%3A%2F%2Fadmin.tidewater.yoga%2Fjira%2Fcallback&state=adm1&response_type=code&prompt=consent",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to continue"
+        }
+      ]
+    },
+    {
+      "name": "…she logs in and sees the request",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/authorize",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "audience=api.atlassian.com&client_id={aid}&scope=read%3Ajira-work%20write%3Ajira-work%20manage%3Ajira-project%20read%3Ajira-user&redirect_uri=https%3A%2F%2Fadmin.tidewater.yoga%2Fjira%2Fcallback&state=adm1&response_type=code&prompt=consent&email=maya@tidewater.yoga&password=savasana-2026",
+      "expect": [
+        {
+          "path": "",
+          "contains": "is requesting access to your Atlassian account."
+        },
+        {
+          "path": "",
+          "contains": "tidewater.atlassian.net"
+        }
+      ]
+    },
+    {
+      "name": "…and accepts for the site",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "audience=api.atlassian.com&client_id={aid}&scope=read%3Ajira-work%20write%3Ajira-work%20manage%3Ajira-project%20read%3Ajira-user&redirect_uri=https%3A%2F%2Fadmin.tidewater.yoga%2Fjira%2Fcallback&state=adm1&response_type=code&prompt=consent&email=maya@tidewater.yoga&password=savasana-2026&decision=accept&site={cloud}",
+      "capture": {
+        "admcode": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "adm1"
+        }
+      ]
+    },
+    {
+      "name": "The code traded",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/oauth/token",
+      "status": 200,
+      "body": {
+        "grant_type": "authorization_code",
+        "client_id": "{aid}",
+        "client_secret": "{asec}",
+        "code": "{admcode}",
+        "redirect_uri": "https://admin.tidewater.yoga/jira/callback"
+      },
+      "capture": {
+        "adm": "access_token"
+      },
+      "expect": [
+        {
+          "path": "expires_in",
+          "equals": 3600
+        },
+        {
+          "path": "scope",
+          "equals": "read:jira-work write:jira-work manage:jira-project read:jira-user"
+        }
+      ]
+    },
+    {
+      "name": "The OAuth admin grant reads the same current account",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/myself",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {adm}"
+      },
+      "expect": [
+        {
+          "path": "accountId",
+          "equals": "{projectLead}"
+        }
+      ]
+    },
+    {
+      "name": "With it, the project BOOK (createProject)",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/project",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {adm}"
+      },
+      "body": {
+        "key": "BOOK",
+        "name": "Booking App",
+        "projectTypeKey": "software",
+        "leadAccountId": "{projectLead}"
+      },
+      "capture": {
+        "proj": "id"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "equals": "BOOK"
+        }
+      ]
+    },
+    {
+      "name": "Its component Checkout, led by Jonah, who owns the booking checkout (createComponent)",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/component",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {adm}"
+      },
+      "body": {
+        "name": "Checkout",
+        "project": "BOOK",
+        "leadAccountId": "{jonah}"
+      },
+      "capture": {
+        "comp": "id"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "BOOK"
+        },
+        {
+          "path": "lead.accountId",
+          "equals": "{jonah}"
+        }
+      ]
+    },
+    {
+      "name": "…and Schedule",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/component",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {adm}"
+      },
+      "body": {
+        "name": "Schedule",
+        "project": "BOOK"
+      }
+    },
+    {
+      "name": "Chapter 3: Maya connects the integration: the authorize page",
+      "method": "GET",
+      "path": "https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id={cid}&scope=read%3Ajira-work%20write%3Ajira-work%20read%3Ajira-user%20offline_access&redirect_uri=https%3A%2F%2Frunhuman.com%2Fapi%2Fintegrations%2Fjira%2Fcallback&state=rhs&response_type=code&prompt=consent",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Log in to continue"
+        }
+      ]
+    },
+    {
+      "name": "…she logs in and sees the request",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/authorize",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "audience=api.atlassian.com&client_id={cid}&scope=read%3Ajira-work%20write%3Ajira-work%20read%3Ajira-user%20offline_access&redirect_uri=https%3A%2F%2Frunhuman.com%2Fapi%2Fintegrations%2Fjira%2Fcallback&state=rhs&response_type=code&prompt=consent&email=maya@tidewater.yoga&password=savasana-2026",
+      "expect": [
+        {
+          "path": "",
+          "contains": "is requesting access to your Atlassian account."
+        },
+        {
+          "path": "",
+          "contains": "tidewater.atlassian.net"
+        }
+      ]
+    },
+    {
+      "name": "…and accepts for the site",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/authorize",
+      "status": 302,
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "audience=api.atlassian.com&client_id={cid}&scope=read%3Ajira-work%20write%3Ajira-work%20read%3Ajira-user%20offline_access&redirect_uri=https%3A%2F%2Frunhuman.com%2Fapi%2Fintegrations%2Fjira%2Fcallback&state=rhs&response_type=code&prompt=consent&email=maya@tidewater.yoga&password=savasana-2026&decision=accept&site={cloud}",
+      "capture": {
+        "rhcode": "redirect.code"
+      },
+      "expect": [
+        {
+          "path": "redirect.state",
+          "equals": "rhs"
+        }
+      ]
+    },
+    {
+      "name": "The code traded",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/oauth/token",
+      "status": 200,
+      "body": {
+        "grant_type": "authorization_code",
+        "client_id": "{cid}",
+        "client_secret": "{csec}",
+        "code": "{rhcode}",
+        "redirect_uri": "https://runhuman.com/api/integrations/jira/callback"
+      },
+      "capture": {
+        "rh": "access_token",
+        "rhrt": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "expires_in",
+          "equals": 3600
+        },
+        {
+          "path": "scope",
+          "equals": "read:jira-work write:jira-work read:jira-user offline_access"
+        }
+      ]
+    },
+    {
+      "name": "The site's cloudid",
+      "method": "GET",
+      "path": "https://api.atlassian.com/oauth/token/accessible-resources",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{cloud}"
+        },
+        {
+          "path": "0.url",
+          "equals": "https://tidewater.atlassian.net"
+        },
+        {
+          "path": "0.scopes",
+          "equals": [
+            "read:jira-work",
+            "write:jira-work",
+            "read:jira-user"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chapter 4: the site's projects",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/project/search?maxResults=50",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "values.0.key",
+          "equals": "BOOK"
+        },
+        {
+          "path": "isLast",
+          "equals": true
+        },
+        {
+          "path": "total",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "name": "BOOK's issue types",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/project/BOOK?expand=issueTypes",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "issueTypes.1.name",
+          "equals": "Bug"
+        },
+        {
+          "path": "lead.accountId",
+          "equals": "{maya}"
+        }
+      ]
+    },
+    {
+      "name": "The labels: none yet",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/label?startAt=0",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "values",
+          "equals": []
+        },
+        {
+          "path": "isLast",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "BOOK's components",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/project/BOOK/components",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "0.name",
+          "equals": "Checkout"
+        },
+        {
+          "path": "1.name",
+          "equals": "Schedule"
+        }
+      ]
+    },
+    {
+      "name": "The picker searches for assignable Jonah",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/user/assignable/search?project=BOOK&maxResults=1000&query=Jonah",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "0.accountId",
+          "equals": "{jonah}"
+        },
+        {
+          "path": "1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Twelve hours later, a Safari checkout report arrives",
+      "wait": "12h"
+    },
+    {
+      "name": "The integration rotates its token before filing the overnight reports",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/oauth/token",
+      "status": 200,
+      "body": {
+        "grant_type": "refresh_token",
+        "client_id": "{cid}",
+        "client_secret": "{csec}",
+        "refresh_token": "{rhrt}"
+      },
+      "capture": {
+        "rh": "access_token",
+        "rhrt": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "refresh_token",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "A stale raw-HTTP script sends an invalid plain-JSON description",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue",
+      "status": 400,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "body": {
+        "fields": {
+          "project": {
+            "key": "BOOK"
+          },
+          "issuetype": {
+            "name": "Bug"
+          },
+          "summary": "Checkout button does nothing on Safari",
+          "description": "SEVERITY: high — Checkout fails in Safari",
+          "labels": [
+            "runhuman",
+            "checkout"
+          ],
+          "priority": {
+            "name": "High"
+          },
+          "components": [
+            {
+              "name": "Checkout"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "path": "errors.description",
+          "contains": "Atlassian Document"
+        }
+      ]
+    },
+    {
+      "name": "Chapter 5: a finding filed as a Bug",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/issue",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "fields": {
+          "project": {
+            "key": "BOOK"
+          },
+          "issuetype": {
+            "name": "Bug"
+          },
+          "summary": "Checkout button does nothing on Safari",
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Steps: open /book, pick a class, press Checkout."
+                  }
+                ]
+              }
+            ]
+          },
+          "labels": [
+            "runhuman",
+            "checkout"
+          ],
+          "priority": {
+            "name": "High"
+          },
+          "components": [
+            {
+              "name": "Checkout"
+            }
+          ]
+        }
+      },
+      "capture": {
+        "i1": "id",
+        "k1": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "BOOK-"
+        },
+        {
+          "path": "self",
+          "contains": "/rest/api/3/issue/"
+        }
+      ]
+    },
+    {
+      "name": "Twenty minutes later, the independent Firefox report arrives",
+      "wait": "20m"
+    },
+    {
+      "name": "A separate Firefox report is filed",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/issue",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "fields": {
+          "project": {
+            "key": "BOOK"
+          },
+          "issuetype": {
+            "name": "Bug"
+          },
+          "summary": "Checkout loses the selected class on Firefox",
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Steps: open /book in Firefox, pick a class, return from checkout; the class is lost."
+                  }
+                ]
+              }
+            ]
+          },
+          "labels": [
+            "runhuman",
+            "checkout"
+          ],
+          "priority": {
+            "name": "High"
+          },
+          "components": [
+            {
+              "name": "Checkout"
+            }
+          ]
+        }
+      },
+      "capture": {
+        "i2": "id",
+        "k2": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "BOOK-"
+        },
+        {
+          "path": "self",
+          "contains": "/rest/api/3/issue/"
+        }
+      ]
+    },
+    {
+      "name": "The triager searches open reports to identify the Safari duplicate",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/search/jql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "jql": "project = \"BOOK\" AND statusCategory != Done ORDER BY updated DESC",
+        "fields": [
+          "summary",
+          "description",
+          "labels",
+          "status"
+        ],
+        "maxResults": 50
+      },
+      "expect": [
+        {
+          "path": "issues.0.key",
+          "equals": "{k2}"
+        },
+        {
+          "path": "issues.1.key",
+          "equals": "{k1}"
+        },
+        {
+          "path": "issues.0.fields.status.statusCategory.key",
+          "equals": "new"
+        },
+        {
+          "path": "isLast",
+          "equals": true
+        },
+        {
+          "path": "issues.0.fields.priority",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "A duplicate Safari report is attached to {k1}",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/issue/{k1}/comment",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "body": {
+          "type": "doc",
+          "version": 1,
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Second tester reproduces the same Safari checkout failure."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "capture": {
+        "cm": "id"
+      },
+      "expect": [
+        {
+          "path": "author.accountId",
+          "equals": "{maya}"
+        }
+      ]
+    },
+    {
+      "name": "Maya reads the available transition into In Progress",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{k1}/transitions",
+      "status": 200,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "capture": {
+        "startTransition": "transitions.0.id"
+      },
+      "expect": [
+        {
+          "path": "transitions.0.to.name",
+          "equals": "In Progress"
+        }
+      ]
+    },
+    {
+      "name": "Maya starts fixing the Safari checkout issue",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{k1}/transitions",
+      "status": 204,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "body": {
+        "transition": {
+          "id": "{startTransition}"
+        }
+      }
+    },
+    {
+      "name": "A day later, Maya ships the Safari fix",
+      "wait": "24h"
+    },
+    {
+      "name": "Maya discovers the close transition after shipping",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{k1}/transitions",
+      "status": 200,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "capture": {
+        "closeTransition": "transitions.1.id"
+      },
+      "expect": [
+        {
+          "path": "transitions.1.to.name",
+          "equals": "Done"
+        }
+      ]
+    },
+    {
+      "name": "Maya closes {k1} after verifying the fix",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{k1}/transitions",
+      "status": 204,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "body": {
+        "transition": {
+          "id": "{closeTransition}"
+        }
+      }
+    },
+    {
+      "name": "Jonah shipped the Schedule page's time-zone label fix with Maya's release; to log it as done, his script first reads which BOOK transition leads into Done, from the open Firefox report's transitions",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{k2}/transitions",
+      "status": 200,
+      "headers": {
+        "authorization": "{jbasic}"
+      },
+      "capture": {
+        "jonahDone": "transitions.1.id"
+      },
+      "expect": [
+        {
+          "path": "transitions.1.to.name",
+          "equals": "Done"
+        }
+      ]
+    },
+    {
+      "name": "He files the fix in BOOK under Schedule, already done, so the release's done list shows it (createIssue with that transition)",
+      "method": "POST",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue",
+      "status": 201,
+      "headers": {
+        "authorization": "{jbasic}"
+      },
+      "body": {
+        "fields": {
+          "project": {
+            "key": "BOOK"
+          },
+          "issuetype": {
+            "name": "Task"
+          },
+          "summary": "Schedule shows class times in UTC instead of the studio's time zone",
+          "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Fixed in today's release: the schedule now labels times in the studio's time zone."
+                  }
+                ]
+              }
+            ]
+          },
+          "components": [
+            {
+              "name": "Schedule"
+            }
+          ]
+        },
+        "transition": {
+          "id": "{jonahDone}"
+        }
+      },
+      "capture": {
+        "k3": "key"
+      },
+      "expect": [
+        {
+          "path": "key",
+          "contains": "BOOK-"
+        },
+        {
+          "path": "transition.status",
+          "equals": 200
+        }
+      ]
+    },
+    {
+      "name": "The next day, Safari checkout fails again after a deployment",
+      "wait": "24h"
+    },
+    {
+      "name": "The integration refreshes before checking the regression",
+      "method": "POST",
+      "path": "https://auth.atlassian.com/oauth/token",
+      "status": 200,
+      "body": {
+        "grant_type": "refresh_token",
+        "client_id": "{cid}",
+        "client_secret": "{csec}",
+        "refresh_token": "{rhrt}"
+      },
+      "capture": {
+        "rh": "access_token",
+        "rhrt": "refresh_token"
+      },
+      "expect": [
+        {
+          "path": "refresh_token",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "It recurs: the integration reads its status",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/issue/{k1}?fields=status",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "fields.status.name",
+          "equals": "Done"
+        },
+        {
+          "path": "fields.status.statusCategory.key",
+          "equals": "done"
+        },
+        {
+          "path": "fields.summary",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "…its transitions",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/issue/{k1}/transitions",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "transitions.0.to.name",
+          "equals": "To Do"
+        },
+        {
+          "path": "transitions.1.to.name",
+          "equals": "In Progress"
+        },
+        {
+          "path": "transitions.2",
+          "exists": false
+        }
+      ],
+      "capture": {
+        "reopenTransition": "transitions.0.id"
+      }
+    },
+    {
+      "name": "…takes the first out of Done",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/issue/{k1}/transitions",
+      "status": 204,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "transition": {
+          "id": "{reopenTransition}"
+        }
+      }
+    },
+    {
+      "name": "Chapter 8: the project's open issues",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/search/jql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "jql": "project = \"BOOK\" AND statusCategory in (\"To Do\", \"In Progress\") ORDER BY updated DESC",
+        "fields": [
+          "summary",
+          "status",
+          "labels",
+          "priority"
+        ],
+        "maxResults": 1
+      },
+      "capture": {
+        "next": "nextPageToken"
+      },
+      "expect": [
+        {
+          "path": "issues.0.key",
+          "equals": "{k1}"
+        },
+        {
+          "path": "isLast",
+          "equals": false
+        },
+        {
+          "path": "issues.0.fields.priority.name",
+          "equals": "High"
+        }
+      ]
+    },
+    {
+      "name": "…the next page",
+      "method": "POST",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/search/jql",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "jql": "project = \"BOOK\" AND statusCategory in (\"To Do\", \"In Progress\") ORDER BY updated DESC",
+        "fields": [
+          "summary"
+        ],
+        "maxResults": 1,
+        "nextPageToken": "{next}"
+      },
+      "expect": [
+        {
+          "path": "issues.0.key",
+          "equals": "{k2}"
+        },
+        {
+          "path": "isLast",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Chapter 8: Jonah lists BOOK's open reports from his laptop with his own token",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/search/jql?jql=project%20%3D%20BOOK%20AND%20statusCategory%20!%3D%20Done&fields=summary",
+      "status": 200,
+      "headers": {
+        "authorization": "{jbasic}"
+      },
+      "expect": [
+        {
+          "path": "issues.0.key",
+          "equals": "{k2}"
+        },
+        {
+          "path": "issues.1.key",
+          "equals": "{k1}"
+        },
+        {
+          "path": "issues.2",
+          "exists": false
+        },
+        {
+          "path": "isLast",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Jonah reviews the Firefox issue before labeling it",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{k2}?fields=summary,labels,components,reporter",
+      "status": 200,
+      "headers": {
+        "authorization": "{jbasic}"
+      },
+      "expect": [
+        {
+          "path": "fields.labels",
+          "equals": [
+            "runhuman",
+            "checkout"
+          ]
+        },
+        {
+          "path": "fields.components.0.name",
+          "equals": "Checkout"
+        },
+        {
+          "path": "fields.reporter.accountId",
+          "equals": "{maya}"
+        }
+      ]
+    },
+    {
+      "name": "The triager's assignee picker lists who can take the Firefox report: Jonah, who reviewed it",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/user/assignable/search?issueKey={k2}&query=Jonah",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "0.accountId",
+          "equals": "{jonah}"
+        },
+        {
+          "path": "1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "The triager labels the Firefox finding for follow-up, raises it to Highest (Jonah found that it loses every Firefox booking) and assigns it to him",
+      "method": "PUT",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/issue/{k2}",
+      "status": 204,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "body": {
+        "fields": {
+          "priority": {
+            "name": "Highest"
+          },
+          "assignee": {
+            "accountId": "{jonah}"
+          }
+        },
+        "update": {
+          "labels": [
+            {
+              "add": "follow-up"
+            },
+            {
+              "remove": "checkout"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Maya reads the Safari comments to understand the regression",
+      "method": "GET",
+      "path": "https://tidewater.atlassian.net/rest/api/3/issue/{k1}/comment",
+      "status": 200,
+      "headers": {
+        "authorization": "{basic}"
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": 1
+        },
+        {
+          "path": "comments.0.body.content.0.content.0.text",
+          "contains": "Second tester"
+        }
+      ]
+    },
+    {
+      "name": "The taxonomy picker loads the labels for the next report",
+      "method": "GET",
+      "path": "https://api.atlassian.com/ex/jira/{cloud}/rest/api/3/label",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rh}"
+      },
+      "expect": [
+        {
+          "path": "values",
+          "equals": [
+            "checkout",
+            "follow-up",
+            "runhuman"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,471 @@
+{
+  "vendor": "huggingface",
+  "author": "Contributor 78",
+  "host": "huggingface.co",
+  "about": "HTTP requests underlying the Hub documentation’s model repository creation and single-file downloads. Fixture content is transport-only, not an inference model. Each redirect is followed from its captured location.",
+  "steps": [
+    {
+      "name": "Create fixture owner lysandre",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "name": "lysandre"
+      },
+      "capture": {
+        "owner": "token"
+      }
+    },
+    {
+      "name": "Create fixture owner julien-c",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "name": "julien-c"
+      },
+      "capture": {
+        "julien": "token"
+      }
+    },
+    {
+      "name": "The documented default model repository",
+      "method": "POST",
+      "path": "/api/repos/create",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {owner}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "test-model",
+        "organization": "lysandre"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://huggingface.co/lysandre/test-model"
+        },
+        {
+          "path": "name",
+          "equals": "lysandre/test-model"
+        }
+      ],
+      "example": "post_api_repos_create#doc create_repo model"
+    },
+    {
+      "name": "Publish the documented download fixture at lysandre/test-model refs/heads/main",
+      "git": "push",
+      "repo": "lysandre/test-model",
+      "ref": "refs/heads/main",
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "files": {
+        "README.md": "The example model repository exists."
+      },
+      "message": "Documentation fixture",
+      "author": "Fixture <fixture@example.com>",
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "The documented region option repeats the existing repository name",
+      "method": "POST",
+      "path": "/api/repos/create",
+      "status": 409,
+      "headers": {
+        "Authorization": "Bearer {owner}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "test-model",
+        "organization": "lysandre",
+        "region": "us"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://huggingface.co/lysandre/test-model"
+        },
+        {
+          "path": "error",
+          "matches": "already"
+        }
+      ],
+      "example": "post_api_repos_create#doc create_repo region",
+      "exampleDiffers": {
+        "status": "The preceding documented creation already made lysandre/test-model; repeating its name returns the create-repository specification’s documented 409 conflict."
+      }
+    },
+    {
+      "name": "The documented private model repository",
+      "method": "POST",
+      "path": "/api/repos/create",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {owner}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "test-private",
+        "organization": "lysandre",
+        "visibility": "private"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://huggingface.co/lysandre/test-private"
+        },
+        {
+          "path": "name",
+          "equals": "lysandre/test-private"
+        }
+      ],
+      "example": "post_api_repos_create#doc create_repo private"
+    },
+    {
+      "name": "Publish the documented download fixture at lysandre/test-private refs/heads/main",
+      "git": "push",
+      "repo": "lysandre/test-private",
+      "ref": "refs/heads/main",
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "files": {
+        "config.json": "{\"private_fixture\":true}"
+      },
+      "message": "Documentation fixture",
+      "author": "Fixture <fixture@example.com>",
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Private repository is hidden from anonymous readers",
+      "method": "GET",
+      "path": "/lysandre/test-private/resolve/main/config.json",
+      "status": 401
+    },
+    {
+      "name": "The private owner resolves the file",
+      "method": "GET",
+      "path": "/lysandre/test-private/resolve/main/config.json",
+      "status": 307,
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "capture": {
+        "privateURL": "header:location"
+      }
+    },
+    {
+      "name": "The owner reads back the private upload",
+      "method": "GET",
+      "path": "{privateURL}",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "expect": [
+        {
+          "path": "private_fixture",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Prepare the guide’s public model download fixtures",
+      "method": "POST",
+      "path": "/api/repos/create",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {owner}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "arxiv-nlp",
+        "organization": "lysandre"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://huggingface.co/lysandre/arxiv-nlp"
+        },
+        {
+          "path": "name",
+          "equals": "lysandre/arxiv-nlp"
+        }
+      ]
+    },
+    {
+      "name": "Publish the documented download fixture at lysandre/arxiv-nlp refs/heads/main",
+      "git": "push",
+      "repo": "lysandre/arxiv-nlp",
+      "ref": "refs/heads/main",
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "files": {
+        "config.json": "{\"fixture\":\"published-download\"}"
+      },
+      "message": "Documentation fixture",
+      "author": "Fixture <fixture@example.com>",
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Publish the documented download fixture at lysandre/arxiv-nlp refs/tags/v1.0",
+      "git": "push",
+      "repo": "lysandre/arxiv-nlp",
+      "ref": "refs/tags/v1.0",
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "files": {
+        "config.json": "{\"fixture\":\"published-download\"}"
+      },
+      "message": "Documentation fixture",
+      "author": "Fixture <fixture@example.com>",
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Publish the documented download fixture at lysandre/arxiv-nlp refs/heads/test-branch",
+      "git": "push",
+      "repo": "lysandre/arxiv-nlp",
+      "ref": "refs/heads/test-branch",
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "files": {
+        "config.json": "{\"fixture\":\"published-download\"}"
+      },
+      "message": "Documentation fixture",
+      "author": "Fixture <fixture@example.com>",
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "Publish the documented download fixture at lysandre/arxiv-nlp refs/pr/3",
+      "git": "push",
+      "repo": "lysandre/arxiv-nlp",
+      "ref": "refs/pr/3",
+      "headers": {
+        "Authorization": "Bearer {owner}"
+      },
+      "files": {
+        "config.json": "{\"fixture\":\"published-download\"}"
+      },
+      "message": "Documentation fixture",
+      "author": "Fixture <fixture@example.com>",
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "get_namespace_repo_resolve_rev_path#doc latest main",
+      "example": "get_namespace_repo_resolve_rev_path#doc latest main",
+      "method": "GET",
+      "path": "https://huggingface.co/lysandre/arxiv-nlp/resolve/main/config.json",
+      "status": 307,
+      "capture": {
+        "url0": "header:location"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Read the file reached by latest main",
+      "method": "GET",
+      "path": "{url0}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "fixture",
+          "equals": "published-download"
+        }
+      ]
+    },
+    {
+      "name": "get_namespace_repo_resolve_rev_path#doc v1.0 tag",
+      "example": "get_namespace_repo_resolve_rev_path#doc v1.0 tag",
+      "method": "GET",
+      "path": "https://huggingface.co/lysandre/arxiv-nlp/resolve/v1.0/config.json",
+      "status": 307,
+      "capture": {
+        "url1": "header:location"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Read the file reached by v1.0 tag",
+      "method": "GET",
+      "path": "{url1}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "fixture",
+          "equals": "published-download"
+        }
+      ]
+    },
+    {
+      "name": "get_namespace_repo_resolve_rev_path#doc test-branch",
+      "example": "get_namespace_repo_resolve_rev_path#doc test-branch",
+      "method": "GET",
+      "path": "https://huggingface.co/lysandre/arxiv-nlp/resolve/test-branch/config.json",
+      "status": 307,
+      "capture": {
+        "url2": "header:location"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Read the file reached by test-branch",
+      "method": "GET",
+      "path": "{url2}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "fixture",
+          "equals": "published-download"
+        }
+      ]
+    },
+    {
+      "name": "get_namespace_repo_resolve_rev_path#doc Pull Request 3",
+      "example": "get_namespace_repo_resolve_rev_path#doc Pull Request 3",
+      "method": "GET",
+      "path": "https://huggingface.co/lysandre/arxiv-nlp/resolve/refs%2Fpr%2F3/config.json",
+      "status": 307,
+      "capture": {
+        "url3": "header:location"
+      },
+      "expect": [
+        {
+          "header": "location",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Read the file reached by Pull Request 3",
+      "method": "GET",
+      "path": "{url3}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "fixture",
+          "equals": "published-download"
+        }
+      ]
+    },
+    {
+      "name": "Prepare the hf_hub_url model fixture",
+      "method": "POST",
+      "path": "/api/repos/create",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {julien}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "EsperBERTo-small",
+        "organization": "julien-c"
+      },
+      "expect": [
+        {
+          "path": "url",
+          "equals": "https://huggingface.co/julien-c/EsperBERTo-small"
+        },
+        {
+          "path": "name",
+          "equals": "julien-c/EsperBERTo-small"
+        }
+      ]
+    },
+    {
+      "name": "Publish the documented download fixture at julien-c/EsperBERTo-small refs/heads/main",
+      "git": "push",
+      "repo": "julien-c/EsperBERTo-small",
+      "ref": "refs/heads/main",
+      "headers": {
+        "Authorization": "Bearer {julien}"
+      },
+      "files": {
+        "pytorch_model.bin": "published URL transport fixture"
+      },
+      "message": "Documentation fixture",
+      "author": "Fixture <fixture@example.com>",
+      "expect": [
+        {
+          "path": "result",
+          "equals": "ok"
+        }
+      ]
+    },
+    {
+      "name": "get_namespace_repo_resolve_rev_path#doc hf_hub_url model URL",
+      "example": "get_namespace_repo_resolve_rev_path#doc hf_hub_url model URL",
+      "method": "GET",
+      "path": "https://huggingface.co/julien-c/EsperBERTo-small/resolve/main/pytorch_model.bin",
+      "status": 307,
+      "capture": {
+        "urlModel": "header:location"
+      }
+    },
+    {
+      "name": "Read the file at the documented URL",
+      "method": "GET",
+      "path": "{urlModel}",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "equals": "published URL transport fixture"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "post_api_repos_create#doc create_repo dataset": "The measured demand and this pack’s explicit scope are model repositories; dataset creation is answered with the gap, not a fabricated model (repository guide documents repo_type=\"dataset\").",
+    "get_namespace_repo_resolve_rev_path#doc specific commit": "The example pins 877b84a8f93f2d619faa2a6e514a32beef88ab0a from the vendor’s repository history. A synthetic World cannot mint that exact Git commit without those original bytes; the life instead captures and resolves its real pushed commit, without forging the vendor’s hash."
+  }
+}

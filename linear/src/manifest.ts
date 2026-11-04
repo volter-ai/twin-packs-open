@@ -22,8 +22,8 @@ export const manifest: DerivedManifest = {
   // source: https://linear.app/developers/graphql "https://api.linear.app/graphql"
   graphql: { paths: ['/graphql'], unmodeled: { message: 'Cannot query field "{field}" on type "{type}".', type: 'graphql error' } },
   resources: {
-    organization: { idPrefix: '', counts: { createdIssueCount: { of: 'issue', by: '_org' } }, refresh: {"get": "query.organization", "graphql": {"query": `query { organization { ${ORGANIZATION_SELECTION} } }`, "items": "data.organization"}} },
-    user: { idPrefix: '', counts: { createdIssueCount: { of: 'issue', by: 'creator.id' } }, refresh: {"list": "query.users", "graphql": {"query": `query($after: String) { users(first: 250, after: $after) { nodes { ${USER_SELECTION} } pageInfo { hasNextPage endCursor } } }`, "items": "data.users.nodes", "pageInfo": "data.users.pageInfo"}}, parent: {"resource": "organization", "field": "_org", "param": "id"} },
+    organization: { idPrefix: '', unique: [{ fields: ['urlKey'], refusal: { status: 409, message: 'that workspace URL is taken' } }], counts: { createdIssueCount: { of: 'issue', by: '_org' } }, refresh: {"get": "query.organization", "graphql": {"query": `query { organization { ${ORGANIZATION_SELECTION} } }`, "items": "data.organization"}} },
+    user: { idPrefix: '', unique: [{ fields: ['_org', 'email'], refusal: { status: 409, message: 'that email already has an account' } }], counts: { createdIssueCount: { of: 'issue', by: 'creator.id' } }, refresh: {"list": "query.users", "graphql": {"query": `query($after: String) { users(first: 250, after: $after) { nodes { ${USER_SELECTION} } pageInfo { hasNextPage endCursor } } }`, "items": "data.users.nodes", "pageInfo": "data.users.pageInfo"}}, parent: {"resource": "organization", "field": "_org", "param": "id"} },
     team: { idPrefix: '', counts: { issueCount: { of: 'issue', by: 'team.id', absent: 'archivedAt' }, _totalIssueCount: { of: 'issue', by: 'team.id' } }, refresh: {"list": "query.teams", "graphql": {"query": `query($after: String) { teams(first: 250, after: $after) { nodes { ${TEAM_SELECTION} } pageInfo { hasNextPage endCursor } } }`, "items": "data.teams.nodes", "pageInfo": "data.teams.pageInfo"}}, parent: {"resource": "organization", "field": "_org", "param": "id"} },
     workflow_state: { embeds: { _team: 'team' }, idPrefix: '', refresh: {"list": "query.workflowStates", "graphql": {"query": `query($id: ID!, $after: String) { workflowStates(first: 250, after: $after, filter: {team: {id: {eq: $id}}}) { nodes { ${WORKFLOW_STATE_SELECTION} } pageInfo { hasNextPage endCursor } } }`, "variables": {"id": "{id}"}, "items": "data.workflowStates.nodes", "pageInfo": "data.workflowStates.pageInfo"}}, parent: {"resource": "team", "field": "_team", "param": "id"}, ...states.workflow_state },
     project: { embeds: { _lead: 'user' }, ...states.project, idPrefix: '', refresh: {"list": "query.projects", "graphql": {"query": "query($after: String) { projects(first: 250, after: $after) { nodes { id name description state lead { id } createdAt updatedAt teams { nodes { id } } } pageInfo { hasNextPage endCursor } } }", "items": "data.projects.nodes", "pageInfo": "data.projects.pageInfo"}}, parent: {"resource": "organization", "field": "_org", "param": "id"} },
@@ -31,6 +31,7 @@ export const manifest: DerivedManifest = {
     comment: { embeds: { _user: 'user' }, idPrefix: '', refresh: {"list": "query.issue", "graphql": {"query": "query($id: String!, $after: String) { issue(id: $id) { comments(first: 250, after: $after) { nodes { id body createdAt updatedAt user { id } } pageInfo { hasNextPage endCursor } } } }", "variables": {"id": "{id}"}, "items": "data.issue.comments.nodes", "pageInfo": "data.issue.comments.pageInfo"}}, parent: {"resource": "issue", "field": "_issue", "param": "id"} },
     issue_label: { embeds: { _team: 'team' }, idPrefix: '', refresh: {"list": "query.issueLabels", "graphql": {"query": "query($after: String) { issueLabels(first: 250, after: $after) { nodes { id name color description createdAt team { id } } pageInfo { hasNextPage endCursor } } }", "items": "data.issueLabels.nodes", "pageInfo": "data.issueLabels.pageInfo"}}, parent: {"resource": "organization", "field": "_org", "param": "id"} },
     _browser_session: { idPrefix: 'bs_', ids: '{prefix}{n}' },
+    _credential_serial: { idPrefix: '', ids: '{n}' },
     _app: { idPrefix: '' },
     _code: { idPrefix: 'code_', ids: '{prefix}{n}' },
     _access_token: { idPrefix: 'at_', ids: '{prefix}{n}' },
@@ -56,7 +57,7 @@ export const manifest: DerivedManifest = {
     { id: 'workspaces', method: 'POST', path: '/_twin/workspaces', note: '{ name, urlKey, owner: { name, email, password } }: a workspace made in Linear\'s app, its first person its admin' },
     { id: 'people', method: 'POST', path: '/_twin/workspaces/{urlKey}/people', note: '{ name, email, password }: a person joins the workspace' },
     { id: 'apiKeys', method: 'POST', path: '/_twin/api-keys', note: "{ email, label? }: a person's personal API key, made in Linear's settings (answered once)" },
-    { id: 'localCredentials', method: 'POST', path: '/_twin/local-credentials', note: "{}: an idempotent synthetic starter workspace/owner, its retained personal key, and a World OAuth client; uses the same workspace and key settings actions" },
+    { id: 'localCredentials', method: 'POST', path: '/_twin/local-credentials', note: "{ account?, deployment?, redirect_uris? }: the organization workspace and first owner, with a deployment OAuth application and independent personal API key" },
   ],
   discovery: {
     twinOf: "Linear's GraphQL API as the customer’s filing integration uses it (teams, workflow states, projects, issues, comments, labels), its signed-in issue workspace and its OAuth app install",
@@ -74,6 +75,6 @@ export const manifest: DerivedManifest = {
     adoption: { sdks: ['@linear/sdk'], envStems: ['LINEAR'] },
     hosts: [{ host: 'api.linear.app' }, { host: 'linear.app' }],
     endpointEnvNone: 'Linear uses api.linear.app/graphql and linear.app for its workspace and OAuth authorize page; the World claims those hosts',
-    credentialDoor: { path: '/_twin/local-credentials', body: {}, fill: { LINEAR_CLIENT_ID: 'client_id', LINEAR_CLIENT_SECRET: 'client_secret', LINEAR_API_KEY: 'api_key' } },
+    credentialDoor: { path: '/_twin/local-credentials', body: {}, account: { field: 'account', tenancy: 'Workspace with its first member as owner', source: 'https://linear.app/developers/oauth-2-0-authentication' }, deployment: { field: 'deployment', object: 'OAuth application and independent personal API key', source: 'https://linear.app/developers/oauth-2-0-authentication' }, fill: { LINEAR_CLIENT_ID: 'client_id', LINEAR_CLIENT_SECRET: 'client_secret', LINEAR_API_KEY: 'api_key' } },
   },
 };

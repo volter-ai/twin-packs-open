@@ -15,18 +15,18 @@ The executor budget stays below the documented API-key request quota.
 The World’s doors represent settings/UI actions Linear’s API does not expose:
 `POST /_twin/workspaces`, `POST /_twin/workspaces/{urlKey}/people`,
 `POST /_twin/app-credentials` and `POST /_twin/api-keys`. The local credential door
-`POST /_twin/local-credentials` uses those same settings actions to make an idempotent synthetic
-starter workspace/owner, issue its personal key and register a World OAuth client. It supplies
-`LINEAR_API_KEY`, `LINEAR_CLIENT_ID` and `LINEAR_CLIENT_SECRET`; the personal key names a stored
-owner and is retained across stop/resume. Teams and projects are created through the
-vendor API. The authorize screen uses the registered callback and carries its state back.
+`POST /_twin/local-credentials` binds the World organization to a workspace and makes its
+first member the owner, using the organization's label and that member's email. Each deployment
+gets its own OAuth application and independent personal API key for that owner. The door supplies
+`LINEAR_API_KEY`, `LINEAR_CLIENT_ID` and `LINEAR_CLIENT_SECRET`, reusing valid stored credentials
+across repeated calls and stop/resume. Teams and projects are created through the vendor API.
+The authorize screen uses the registered callback and carries its state back.
 
 The browser workspace at `linear.app/` uses the same stored person and `linear_session`
-cookie as OAuth consent. Sign in with the synthetic email/password supplied to the workspace
-or people door. The local credential starter uses `owner@linear-world.invalid` and
-`world-linear-local-password`; these are the existing synthetic settings inputs, not vendor
-credentials. After sign-in the browser opens the first stored team by name. Workspace and
-issue addresses use the stored organization `urlKey`, team `key` and issue `identifier`.
+cookie as OAuth consent. For browser access, create a person through the workspace or people
+door and sign in with the email and password supplied there. After sign-in the browser opens
+the first stored team by name. Workspace and issue addresses use the stored organization
+`urlKey`, team `key` and issue `identifier`.
 
 The team view (`/{urlKey}/team/{key}/all`) lists that team's actual nonarchived issues,
 grouped by their stored workflow states. Filter by title or identifier and open a row at
@@ -62,11 +62,11 @@ there is no invented webhook delivery. Release assessments are retained by
 [the independent catalog](https://github.com/volter-ai/twin-catalog-open).
 
 The SDK's unchanged default Organization selection also reads the stored workspace settings,
-including native nested ProjectStatus/PaidSubscription fields when present. The synthetic
-starter has no configured project-status records, paid subscription, Slack project integration,
+including native nested ProjectStatus/PaidSubscription fields when present. A new workspace
+has no configured project-status records, paid subscription, Slack project integration,
 customer feature or AI/reminder service. Its inactive settings are explicitly synthetic; empty
-or nullable state does not implement those features' mutations. The existing local credential
-door fills only previously absent starter settings on resume and preserves stored values.
+or nullable state does not implement those features' mutations. Workspace settings are initialized
+when the workspace is created; later credential requests reuse its stored state.
 The kernel maintains the workspace's created issue count from actual issue ownership.
 
 The SDK's normal `issue.state` lookup reads the existing workflow-state resource by id,
@@ -86,7 +86,7 @@ Use Node 22.6 or newer.
 Install the exact twin release and World CLI in your app's folder:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.165 @volter/twin-linear@3.0.6
+npm install --save-dev --save-exact @volter/world@3.0.186 @volter/twin-linear@3.0.7
 ./node_modules/.bin/volter world init --name my-app --twins linear --source linear=@volter/twin-linear
 ```
 
@@ -117,7 +117,7 @@ Profiles, public-team settings, empty optional-feature state, issue relations an
 in their vendor response shapes and preserved by the declared refresh queries. `isMe` is resolved
 for the current caller. Creator counts include archived issues; team counts exclude them unless
 `includeArchived: true` is requested. The kernel maintains these counters on recorded writes.
-The starter leaves cycles, triage, integrations, sharing and automation unconfigured. Its inactive
+New workspaces leave cycles, triage, integrations, sharing and automation unconfigured. Their inactive
 numeric settings, avatar colors, invitation hashes, app actor email addresses and branch naming are
 explicitly synthetic choices where upstream documentation does not declare production defaults.
 Mutations for those additional features remain outside scope; absent feature state does not claim

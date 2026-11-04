@@ -1,0 +1,2546 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Instagram API with Instagram Login (Instagram Platform)",
+    "version": "v26.0",
+    "description": "Composed for the twin from Meta's Instagram Platform reference (pages listed in spec/SOURCE.md), as Meta offers no OpenAPI file for it: Business Login's token calls, the professional account and its media edges, containers and their publishing, media insights and comments, and comment replies."
+  },
+  "servers": [
+    {
+      "url": "https://graph.instagram.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "oauth",
+      "description": "Business Login's token calls: trading the code, then lengthening and renewing the token"
+    },
+    {
+      "name": "user",
+      "description": "The professional account's edges for its media, publishing and publishing quota"
+    },
+    {
+      "name": "node",
+      "description": "Any node (account, container, media, comment) addressed by its ID alone"
+    },
+    {
+      "name": "media",
+      "description": "Edges under a media: metrics and comments"
+    },
+    {
+      "name": "comment",
+      "description": "The replies edge under a comment"
+    }
+  ],
+  "paths": {
+    "/oauth/access_token": {
+      "servers": [
+        {
+          "url": "https://api.instagram.com"
+        }
+      ],
+      "post": {
+        "operationId": "oauthAccessToken",
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Trade an authorization code for a token",
+        "description": "Posted to api.instagram.com with the app credentials, the code and the redirect URI; answers a one-hour token, the user ID scoped to the app, and the granted permissions.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "client_id": {
+                    "type": "string",
+                    "description": "The app ID shown for Instagram login on the dashboard"
+                  },
+                  "client_secret": {
+                    "type": "string",
+                    "description": "The app secret shown for Instagram login on the dashboard"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "The code the authorization window put on the redirect back to the app"
+                  },
+                  "grant_type": {
+                    "type": "string",
+                    "description": "Always authorization_code"
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "description": "The same redirect URI the authorization window was opened with; any other is refused"
+                  }
+                },
+                "required": [
+                  "client_id",
+                  "client_secret",
+                  "code",
+                  "grant_type",
+                  "redirect_uri"
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "client_id": {
+                    "type": "string",
+                    "description": "The app ID shown for Instagram login on the dashboard"
+                  },
+                  "client_secret": {
+                    "type": "string",
+                    "description": "The app secret shown for Instagram login on the dashboard"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "The code the authorization window put on the redirect back to the app"
+                  },
+                  "grant_type": {
+                    "type": "string",
+                    "description": "Always authorization_code"
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "description": "The same redirect URI the authorization window was opened with; any other is refused"
+                  }
+                },
+                "required": [
+                  "client_id",
+                  "client_secret",
+                  "code",
+                  "grant_type",
+                  "redirect_uri"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLivedToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refused exchange, in the token endpoint's own error body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/access_token": {
+      "get": {
+        "operationId": "accessToken",
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Lengthen a token",
+        "description": "Turns a one-hour user token into one that lasts 60 days, given the app secret.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/reference/access_token"
+        },
+        "parameters": [
+          {
+            "name": "grant_type",
+            "in": "query",
+            "required": true,
+            "description": "Always ig_exchange_token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "required": true,
+            "description": "The app secret",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": true,
+            "description": "The one-hour token, still unexpired",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LongLivedToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refresh_access_token": {
+      "get": {
+        "operationId": "refreshAccessToken",
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Renew a 60-day token",
+        "description": "Renews a 60-day token once it is a day old and before it lapses; the renewed token runs 60 days from the renewal.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/reference/refresh_access_token"
+        },
+        "parameters": [
+          {
+            "name": "grant_type",
+            "in": "query",
+            "required": true,
+            "description": "Always ig_refresh_token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": true,
+            "description": "The 60-day token, still unexpired",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LongLivedToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "tags": [
+          "user"
+        ],
+        "summary": "Read the token's own account",
+        "description": "Shorthand for reading the account the request's token belongs to, as GET on that account's ID would.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/reference/me"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "description": "Fields to answer, comma separated",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IGUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{ig-user-id}/media": {
+      "get": {
+        "operationId": "getUserMedia",
+        "tags": [
+          "user"
+        ],
+        "summary": "List the account's media",
+        "description": "Lists the account's media, newest first, up to the latest ten thousand; since and until bound it in time.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-user-id",
+            "in": "path",
+            "required": true,
+            "description": "The account, by its app-scoped ID, its account ID or me",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "description": "Fields to answer, comma separated",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "description": "Earliest creation time to include (Unix seconds or a date)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "description": "Latest creation time to include (Unix seconds or a date)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "description": "Continue after this cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "description": "Continue before this cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/IGMedia"
+                      }
+                    },
+                    "paging": {
+                      "$ref": "#/components/schemas/Paging"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createUserMedia",
+        "tags": [
+          "user"
+        ],
+        "summary": "Make a publishing container",
+        "description": "Makes the container a post is published from (image, reel, carousel or story). A container lapses after a day; a video is processed after the ID is answered, so its status must be read.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-user-id",
+            "in": "path",
+            "required": true,
+            "description": "The account, by its app-scoped ID, its account ID or me",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "image_url",
+            "in": "query",
+            "required": false,
+            "description": "Image posts: a public URL Instagram downloads the image from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "video_url",
+            "in": "query",
+            "required": false,
+            "description": "Reels and videos: a public URL Instagram downloads the video from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "media_type",
+            "in": "query",
+            "required": false,
+            "description": "Which kind of container: needed for carousels, stories and reels",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CAROUSEL",
+                "REELS",
+                "STORIES",
+                "VIDEO"
+              ]
+            }
+          },
+          {
+            "name": "caption",
+            "in": "query",
+            "required": false,
+            "description": "Post text, bounded at 2200 characters with at most 30 hashtags and 20 mentions",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "alt_text",
+            "in": "query",
+            "required": false,
+            "description": "Accessibility text for a single image, at most 1000 characters",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "share_to_feed",
+            "in": "query",
+            "required": false,
+            "description": "Reels: whether the reel may also show in the feed",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "cover_url",
+            "in": "query",
+            "required": false,
+            "description": "Reels: a public URL of the cover picture",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "thumb_offset",
+            "in": "query",
+            "required": false,
+            "description": "Videos and reels: the frame, in milliseconds, used as the thumbnail",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "is_ai_generated",
+            "in": "query",
+            "required": false,
+            "description": "Marks the post as made with AI",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_carousel_item",
+            "in": "query",
+            "required": false,
+            "description": "Marks an image or video as a carousel item",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "children",
+            "in": "query",
+            "required": false,
+            "description": "Carousels: the item containers, up to 20",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upload_type",
+            "in": "query",
+            "required": false,
+            "description": "resumable, to upload the video in a separate session",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_tags",
+            "in": "query",
+            "required": false,
+            "description": "People tagged, with their position",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "product_tags",
+            "in": "query",
+            "required": false,
+            "description": "Products tagged",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collaborators",
+            "in": "query",
+            "required": false,
+            "description": "Up to three collaborating accounts",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "location_id",
+            "in": "query",
+            "required": false,
+            "description": "A location, by the ID of its Page",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "audio_name",
+            "in": "query",
+            "required": false,
+            "description": "Reels: the audio's name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trial_params",
+            "in": "query",
+            "required": false,
+            "description": "Settings for a trial reel",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branded_content_sponsor_ids",
+            "in": "query",
+            "required": false,
+            "description": "Brand partners, by account ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_paid_partnership",
+            "in": "query",
+            "required": false,
+            "description": "Shows the paid partnership label",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "poll_attachment",
+            "in": "query",
+            "required": false,
+            "description": "A poll added to the caption",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_poll_duration_extended",
+            "in": "query",
+            "required": false,
+            "description": "Keeps the poll open with no end",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_comment_prompt_used",
+            "in": "query",
+            "required": false,
+            "description": "A comment prompt added to the caption",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image_url": {
+                    "type": "string",
+                    "description": "Image posts: a public URL Instagram downloads the image from"
+                  },
+                  "video_url": {
+                    "type": "string",
+                    "description": "Reels and videos: a public URL Instagram downloads the video from"
+                  },
+                  "media_type": {
+                    "type": "string",
+                    "enum": [
+                      "CAROUSEL",
+                      "REELS",
+                      "STORIES",
+                      "VIDEO"
+                    ],
+                    "description": "Which kind of container: needed for carousels, stories and reels"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "description": "Post text, bounded at 2200 characters with at most 30 hashtags and 20 mentions"
+                  },
+                  "alt_text": {
+                    "type": "string",
+                    "description": "Accessibility text for a single image, at most 1000 characters"
+                  },
+                  "share_to_feed": {
+                    "type": "boolean",
+                    "description": "Reels: whether the reel may also show in the feed"
+                  },
+                  "cover_url": {
+                    "type": "string",
+                    "description": "Reels: a public URL of the cover picture"
+                  },
+                  "thumb_offset": {
+                    "type": "integer",
+                    "description": "Videos and reels: the frame, in milliseconds, used as the thumbnail"
+                  },
+                  "is_ai_generated": {
+                    "type": "boolean",
+                    "description": "Marks the post as made with AI"
+                  },
+                  "is_carousel_item": {
+                    "type": "boolean",
+                    "description": "Marks an image or video as a carousel item"
+                  },
+                  "children": {
+                    "type": "string",
+                    "description": "Carousels: the item containers, up to 20"
+                  },
+                  "upload_type": {
+                    "type": "string",
+                    "description": "resumable, to upload the video in a separate session"
+                  },
+                  "user_tags": {
+                    "type": "string",
+                    "description": "People tagged, with their position"
+                  },
+                  "product_tags": {
+                    "type": "string",
+                    "description": "Products tagged"
+                  },
+                  "collaborators": {
+                    "type": "string",
+                    "description": "Up to three collaborating accounts"
+                  },
+                  "location_id": {
+                    "type": "string",
+                    "description": "A location, by the ID of its Page"
+                  },
+                  "audio_name": {
+                    "type": "string",
+                    "description": "Reels: the audio's name"
+                  },
+                  "trial_params": {
+                    "type": "string",
+                    "description": "Settings for a trial reel"
+                  },
+                  "branded_content_sponsor_ids": {
+                    "type": "string",
+                    "description": "Brand partners, by account ID"
+                  },
+                  "is_paid_partnership": {
+                    "type": "boolean",
+                    "description": "Shows the paid partnership label"
+                  },
+                  "poll_attachment": {
+                    "type": "string",
+                    "description": "A poll added to the caption"
+                  },
+                  "is_poll_duration_extended": {
+                    "type": "boolean",
+                    "description": "Keeps the poll open with no end"
+                  },
+                  "is_comment_prompt_used": {
+                    "type": "boolean",
+                    "description": "A comment prompt added to the caption"
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image_url": {
+                    "type": "string",
+                    "description": "Image posts: a public URL Instagram downloads the image from"
+                  },
+                  "video_url": {
+                    "type": "string",
+                    "description": "Reels and videos: a public URL Instagram downloads the video from"
+                  },
+                  "media_type": {
+                    "type": "string",
+                    "enum": [
+                      "CAROUSEL",
+                      "REELS",
+                      "STORIES",
+                      "VIDEO"
+                    ],
+                    "description": "Which kind of container: needed for carousels, stories and reels"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "description": "Post text, bounded at 2200 characters with at most 30 hashtags and 20 mentions"
+                  },
+                  "alt_text": {
+                    "type": "string",
+                    "description": "Accessibility text for a single image, at most 1000 characters"
+                  },
+                  "share_to_feed": {
+                    "type": "boolean",
+                    "description": "Reels: whether the reel may also show in the feed"
+                  },
+                  "cover_url": {
+                    "type": "string",
+                    "description": "Reels: a public URL of the cover picture"
+                  },
+                  "thumb_offset": {
+                    "type": "integer",
+                    "description": "Videos and reels: the frame, in milliseconds, used as the thumbnail"
+                  },
+                  "is_ai_generated": {
+                    "type": "boolean",
+                    "description": "Marks the post as made with AI"
+                  },
+                  "is_carousel_item": {
+                    "type": "boolean",
+                    "description": "Marks an image or video as a carousel item"
+                  },
+                  "children": {
+                    "type": "string",
+                    "description": "Carousels: the item containers, up to 20"
+                  },
+                  "upload_type": {
+                    "type": "string",
+                    "description": "resumable, to upload the video in a separate session"
+                  },
+                  "user_tags": {
+                    "type": "string",
+                    "description": "People tagged, with their position"
+                  },
+                  "product_tags": {
+                    "type": "string",
+                    "description": "Products tagged"
+                  },
+                  "collaborators": {
+                    "type": "string",
+                    "description": "Up to three collaborating accounts"
+                  },
+                  "location_id": {
+                    "type": "string",
+                    "description": "A location, by the ID of its Page"
+                  },
+                  "audio_name": {
+                    "type": "string",
+                    "description": "Reels: the audio's name"
+                  },
+                  "trial_params": {
+                    "type": "string",
+                    "description": "Settings for a trial reel"
+                  },
+                  "branded_content_sponsor_ids": {
+                    "type": "string",
+                    "description": "Brand partners, by account ID"
+                  },
+                  "is_paid_partnership": {
+                    "type": "boolean",
+                    "description": "Shows the paid partnership label"
+                  },
+                  "poll_attachment": {
+                    "type": "string",
+                    "description": "A poll added to the caption"
+                  },
+                  "is_poll_duration_extended": {
+                    "type": "boolean",
+                    "description": "Keeps the poll open with no end"
+                  },
+                  "is_comment_prompt_used": {
+                    "type": "boolean",
+                    "description": "A comment prompt added to the caption"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{ig-user-id}/media_publish": {
+      "post": {
+        "operationId": "publishUserMedia",
+        "tags": [
+          "user"
+        ],
+        "summary": "Publish a container",
+        "description": "Turns a finished container into a post on the account, within the account's quota of 50 posts a rolling day.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media_publish"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-user-id",
+            "in": "path",
+            "required": true,
+            "description": "The account, by its app-scoped ID, its account ID or me",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "creation_id",
+            "in": "query",
+            "required": false,
+            "description": "The container to publish",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "creation_id": {
+                    "type": "string",
+                    "description": "The container to publish"
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "creation_id": {
+                    "type": "string",
+                    "description": "The container to publish"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The new post's media ID"
+                    },
+                    "config_issue": {
+                      "type": "string",
+                      "enum": [
+                        "CAPTION_NOT_ATTACHED",
+                        "USER_TAGGING_FAILURE"
+                      ]
+                    },
+                    "caption_add_on_attachment_status": {
+                      "type": "string",
+                      "enum": [
+                        "POLL_CREATION_FAILURE",
+                        "PROMPT_CREATION_FAILURE"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{ig-user-id}/content_publishing_limit": {
+      "get": {
+        "operationId": "getContentPublishingLimit",
+        "tags": [
+          "user"
+        ],
+        "summary": "Read the publishing quota",
+        "description": "How many posts the account published in a window, and the quota; usage alone unless other fields are asked.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/content_publishing_limit"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-user-id",
+            "in": "path",
+            "required": true,
+            "description": "The account",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "description": "Fields to answer, comma separated",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "description": "Window start, in Unix seconds, within the last day",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublishingLimit"
+                      }
+                    },
+                    "paging": {
+                      "$ref": "#/components/schemas/Paging"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{id}": {
+      "get": {
+        "operationId": "getNode",
+        "tags": [
+          "node"
+        ],
+        "summary": "Read a node",
+        "description": "Reads the requested fields of whatever the ID names: the account, a container, a media or a comment, all at the same path shape.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "An account, container, media or comment ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "description": "Fields to answer, comma separated",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/IGUser"
+                    },
+                    {
+                      "$ref": "#/components/schemas/IGContainer"
+                    },
+                    {
+                      "$ref": "#/components/schemas/IGMedia"
+                    },
+                    {
+                      "$ref": "#/components/schemas/IGComment"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "updateNode",
+        "tags": [
+          "node"
+        ],
+        "summary": "Change a node",
+        "description": "Switches a media's comments on or off, or hides or shows a comment.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-comment"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "A media or comment ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "comment_enabled",
+            "in": "query",
+            "required": false,
+            "description": "Media: true turns comments on, false off",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "hide",
+            "in": "query",
+            "required": false,
+            "description": "Comment: true hides it, false shows it",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment_enabled": {
+                    "type": "boolean"
+                  },
+                  "hide": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment_enabled": {
+                    "type": "boolean"
+                  },
+                  "hide": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteNode",
+        "tags": [
+          "node"
+        ],
+        "summary": "Remove a node",
+        "description": "Removes a comment. Removing a media belongs to the Facebook Login variant of the API.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-comment"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "A comment ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "deleted_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{ig-media-id}/insights": {
+      "get": {
+        "operationId": "getMediaInsights",
+        "tags": [
+          "media"
+        ],
+        "summary": "Read a media's metrics",
+        "description": "Answers the requested metrics of one media.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media/insights"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-media-id",
+            "in": "path",
+            "required": true,
+            "description": "The media",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "metric",
+            "in": "query",
+            "required": true,
+            "description": "Metrics to answer, comma separated (required)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "description": "Periods asked (answers are lifetime)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "breakdown",
+            "in": "query",
+            "required": false,
+            "description": "A dimension to split the results by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InsightsMetric"
+                      }
+                    },
+                    "paging": {
+                      "$ref": "#/components/schemas/Paging"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{ig-media-id}/comments": {
+      "get": {
+        "operationId": "getMediaComments",
+        "tags": [
+          "media"
+        ],
+        "summary": "List a media's comments",
+        "description": "Lists the top-level comments of a media, newest first, at most 50 a page.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-media/comments"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-media-id",
+            "in": "path",
+            "required": true,
+            "description": "The media",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "description": "Fields to answer, comma separated",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "description": "Continue after this cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/IGComment"
+                      }
+                    },
+                    "paging": {
+                      "$ref": "#/components/schemas/Paging"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createMediaComment",
+        "tags": [
+          "media"
+        ],
+        "summary": "Comment on a media",
+        "description": "Adds a comment, its text in message, to a media.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-media/comments"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-media-id",
+            "in": "path",
+            "required": true,
+            "description": "The media",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message",
+            "in": "query",
+            "required": false,
+            "description": "The comment's text",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "The comment's text"
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "The comment's text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{ig-comment-id}/replies": {
+      "get": {
+        "operationId": "getCommentReplies",
+        "tags": [
+          "comment"
+        ],
+        "summary": "List a comment's replies",
+        "description": "Lists the replies under a comment that still exists.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-comment/replies"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-comment-id",
+            "in": "path",
+            "required": true,
+            "description": "The comment",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "description": "Fields to answer, comma separated",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/IGComment"
+                      }
+                    },
+                    "paging": {
+                      "$ref": "#/components/schemas/Paging"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCommentReply",
+        "tags": [
+          "comment"
+        ],
+        "summary": "Reply to a comment",
+        "description": "Adds a reply under a comment; a reply aimed at a reply joins its top-level comment, and a hidden comment takes none.",
+        "externalDocs": {
+          "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-comment/replies"
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ig-comment-id",
+            "in": "path",
+            "required": true,
+            "description": "The comment",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message",
+            "in": "query",
+            "required": false,
+            "description": "The comment's text",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "description": "The account's user token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "The comment's text"
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "The comment's text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal in the Graph error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused for a permission the token was not granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessToken": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "access_token",
+        "description": "A user token, as the access_token parameter or a Bearer authorization header"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "What went wrong, in words"
+              },
+              "type": {
+                "type": "string",
+                "description": "The error type (OAuthException)"
+              },
+              "code": {
+                "type": "integer",
+                "description": "The numeric error code"
+              },
+              "error_subcode": {
+                "type": "integer",
+                "description": "A finer numeric code"
+              },
+              "is_transient": {
+                "type": "boolean"
+              },
+              "error_user_title": {
+                "type": "string",
+                "description": "A title to show a person"
+              },
+              "error_user_msg": {
+                "type": "string",
+                "description": "A message to show a person"
+              },
+              "fbtrace_id": {
+                "type": "string",
+                "description": "An identifier for support"
+              }
+            }
+          }
+        }
+      },
+      "OAuthError": {
+        "type": "object",
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "description": "The error type (OAuthException)"
+          },
+          "code": {
+            "type": "integer"
+          },
+          "error_message": {
+            "type": "string"
+          }
+        }
+      },
+      "ShortLivedToken": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "access_token": {
+                  "type": "string",
+                  "description": "The one-hour token"
+                },
+                "user_id": {
+                  "type": "string",
+                  "description": "The user, by the ID scoped to this app"
+                },
+                "permissions": {
+                  "type": "string",
+                  "description": "Granted permissions, comma separated"
+                }
+              }
+            }
+          }
+        }
+      },
+      "LongLivedToken": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "The 60-day token"
+          },
+          "token_type": {
+            "type": "string",
+            "description": "Always bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Seconds until it lapses"
+          }
+        }
+      },
+      "Paging": {
+        "type": "object",
+        "properties": {
+          "cursors": {
+            "type": "object",
+            "properties": {
+              "before": {
+                "type": "string"
+              },
+              "after": {
+                "type": "string"
+              }
+            }
+          },
+          "next": {
+            "type": "string"
+          },
+          "previous": {
+            "type": "string"
+          }
+        }
+      },
+      "IGUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The account, by the ID scoped to this app"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The professional account's own ID"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "account_type": {
+            "type": "string",
+            "description": "Business or Media_Creator",
+            "enum": [
+              "Business",
+              "Media_Creator"
+            ]
+          },
+          "profile_picture_url": {
+            "type": "string",
+            "description": "Profile picture URL"
+          },
+          "followers_count": {
+            "type": "integer",
+            "description": "Followers"
+          },
+          "follows_count": {
+            "type": "integer",
+            "description": "Accounts followed"
+          },
+          "media_count": {
+            "type": "integer",
+            "description": "How many media the account has"
+          },
+          "biography": {
+            "type": "string",
+            "description": "Bio"
+          },
+          "website": {
+            "type": "string",
+            "description": "Website"
+          }
+        }
+      },
+      "IGContainer": {
+        "x-resourceId": "container",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Container ID"
+          },
+          "status": {
+            "type": "string",
+            "description": "A status text; for a failed container, the failure's subcode"
+          },
+          "status_code": {
+            "type": "string",
+            "enum": [
+              "EXPIRED",
+              "ERROR",
+              "FINISHED",
+              "IN_PROGRESS",
+              "PUBLISHED"
+            ],
+            "description": "Where the container stands in publishing"
+          },
+          "copyright_check_status": {
+            "type": "object",
+            "properties": {
+              "matches_found": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "error",
+                  "in_progress",
+                  "not_started"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "IGMedia": {
+        "x-resourceId": "media",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Media ID"
+          },
+          "alt_text": {
+            "type": "string",
+            "description": "Accessibility text"
+          },
+          "caption": {
+            "type": "string",
+            "description": "Post text"
+          },
+          "comments_count": {
+            "type": "integer",
+            "description": "Comments on the media, replies counted"
+          },
+          "is_ai_generated": {
+            "type": "boolean",
+            "description": "Whether it carries the AI label"
+          },
+          "is_comment_enabled": {
+            "type": "boolean",
+            "description": "Whether comments are on"
+          },
+          "is_shared_to_feed": {
+            "type": "boolean",
+            "description": "Reels: whether the reel may also show in the feed"
+          },
+          "like_count": {
+            "type": "integer",
+            "description": "Likes"
+          },
+          "media_product_type": {
+            "type": "string",
+            "enum": [
+              "AD",
+              "FEED",
+              "STORY",
+              "REELS"
+            ],
+            "description": "Where the post appears (feed, reels, ...)"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "CAROUSEL_ALBUM",
+              "IMAGE",
+              "VIDEO"
+            ],
+            "description": "IMAGE, VIDEO or CAROUSEL_ALBUM"
+          },
+          "media_url": {
+            "type": "string",
+            "description": "The file's URL"
+          },
+          "owner": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "description": "The posting account"
+          },
+          "permalink": {
+            "type": "string",
+            "description": "The post's page"
+          },
+          "shortcode": {
+            "type": "string",
+            "description": "The post's short code"
+          },
+          "thumbnail_url": {
+            "type": "string",
+            "description": "Thumbnail URL, for video only"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "When it was posted (ISO 8601, UTC)"
+          },
+          "username": {
+            "type": "string",
+            "description": "The poster's username"
+          }
+        }
+      },
+      "IGComment": {
+        "x-resourceId": "comment",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Comment ID"
+          },
+          "from": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "The commenter, by an ID scoped to this account, and their username"
+              },
+              "username": {
+                "type": "string"
+              }
+            }
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "Whether it is hidden"
+          },
+          "like_count": {
+            "type": "integer",
+            "description": "Likes on the comment"
+          },
+          "media": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "media_product_type": {
+                "type": "string"
+              }
+            }
+          },
+          "parent_id": {
+            "type": "string",
+            "description": "For a reply, the comment it answers"
+          },
+          "replies": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "text": {
+            "type": "string",
+            "description": "Text"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "When it was written (ISO 8601)"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            }
+          },
+          "username": {
+            "type": "string",
+            "description": "The commenter's username"
+          }
+        }
+      },
+      "PublishingLimit": {
+        "type": "object",
+        "properties": {
+          "quota_usage": {
+            "type": "integer",
+            "description": "Posts published in the window"
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "quota_total": {
+                "type": "integer"
+              },
+              "quota_duration": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "InsightsMetric": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Metric"
+          },
+          "period": {
+            "type": "string",
+            "description": "Period (lifetime)"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "title": {
+            "type": "string",
+            "description": "Title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description"
+          },
+          "id": {
+            "type": "string",
+            "description": "The metric's own path: media, insights, name, period"
+          },
+          "total_value": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
