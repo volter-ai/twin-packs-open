@@ -62,32 +62,13 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
 export async function apiToken(ctx: HandlerContext): Promise<Response> {
   const b = obj(ctx.body);
   if (b.account !== undefined || b.deployment !== undefined || (b.site === undefined && b.email === undefined && b.password === undefined)) return deploymentToken(ctx);
-  let site = siteNamed(ctx, b.site);
-  if (!site) site = await defaultAccount(ctx, b);
+  const site = siteNamed(ctx, b.site);
   const held = ctx.rowsRaw(PERSON).find((p) => p.email === b.email && p.deleted !== true);
   if (!site || !held || !(held.sites as string[]).includes(String(site.id)) || held.password_sha256 !== sha256(ctx, String(held.id) + ':' + String(b.password))) return bad('Invalid account or site', 401);
-  const runtime = runtimeDefault(b);
-  const kept = runtime ? ctx.rowsRaw(API_TOKEN).find((t) => t.deleted !== true && t._worldCredential === true && t.person === held.id && t.site === site!.id) : undefined;
-  if (kept) return keptToken(ctx, kept, String(b.email));
   const id = await ctx.issue(API_TOKEN);
   const value = await tokenValue(ctx, 'jira-api:' + id);
-  await ctx.record(API_TOKEN, { person: held.id, site: site.id, email: b.email, sha256: sha256(ctx, value), ...(runtime ? { _worldCredential: true } : {}) }, id);
+  await ctx.record(API_TOKEN, { person: held.id, site: site.id, email: b.email, sha256: sha256(ctx, value) }, id);
   return Response.json({ apiToken: value, authorization: 'Basic ' + Buffer.from(String(b.email) + ':' + value).toString('base64'), site: site.id, email: held.email, url: site.url }, { status: 201 });
-}
-
-const runtimeDefault = (b: Record<string, unknown>): boolean => b.site === 'acme' && b.email === 'agent@acme.example' && b.password === 'world-password';
-
-async function keptToken(ctx: HandlerContext, kept: Record<string, unknown>, email: string): Promise<Response> {
-  const value = await tokenValue(ctx, 'jira-api:' + String(kept.id));
-  return Response.json({ apiToken: value, authorization: 'Basic ' + Buffer.from(email + ':' + value).toString('base64'), site: kept.site, email, url: ctx.row(SITE, String(kept.site))!.url }, { status: 201 });
-}
-
-async function defaultAccount(ctx: HandlerContext, b: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
-  if (!runtimeDefault(b)) return undefined;
-  const sid = ctx.mint(SITE);
-  await ctx.record(SITE, { name: 'acme', url: 'https://acme.atlassian.net' }, sid);
-  await person(ctx, sid, { name: 'On-call agent', email: b.email, password: b.password }, true);
-  return ctx.row(SITE, sid);
 }
 
 async function deploymentToken(ctx: HandlerContext): Promise<Response> {
