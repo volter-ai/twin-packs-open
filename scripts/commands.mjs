@@ -39,6 +39,8 @@ export async function runOwnedCommand(command, args, options) {
   const interrupt = (signal) => {
     if (interrupted) return;
     interrupted = signal === 'SIGINT' ? 130 : 143;
+    // A stopped supervisor must resume before it can forward cancellation and finish cleanup.
+    if (grouped) endGroup('SIGCONT');
     endGroup(signal);
     // Installs have a forced cancellation bound; their supervising steps wait for that cleanup.
     if (terminationGraceMs !== undefined) cancellation = setTimeout(() => endGroup('SIGKILL'), terminationGraceMs);
