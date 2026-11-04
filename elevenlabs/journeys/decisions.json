@@ -1,0 +1,89 @@
+{
+ "about": "elevenlabs's decision table (the P3 procedure: demand, then this table, then the code): each operation the pack serves, the demand it answers and the mechanism that serves it; every other operation is unmodeled in the manifest. The agent's conversation (Volter Harness's socket:conversation) is the manifest's socket, spoken by semantics/sockets.ts, as is text to speech from streamed text (Raiku's socket:streamInput). create-pack --index checks this table against the dispatch and journeys/demand.json.",
+ "decisions": [
+  {
+   "operation": "text_to_speech_full",
+   "demand": "Raiku's voice server: pcm_24000 in eleven_flash_v2_5, read as raw samples",
+   "mechanism": "handler",
+   "why": "an action: audio for a text in a voice, MP3 (labeled) or PCM silence of the text's length (no model runs), refused for a voice the account lacks, no text, a model it lacks, a text past the model's limit, or a codec the twin does not write; the customer entry's Raiku line (first-use.json workflow.mjs) asserts audio/pcm, its character cost and PCM samples of the line's length"
+  },
+  {
+   "operation": "text_to_speech_stream",
+   "demand": "LibreChat: a message read aloud as it streams",
+   "mechanism": "handler",
+   "why": "the same action as text_to_speech_full, its audio streamed in chunks"
+  },
+  {
+   "operation": "get_user_voices_v2",
+   "demand": "No scanned application calls it; the customer life walks it.",
+   "mechanism": "handler",
+   "why": "a computed answer: the default voices beside the account's own, searched, filtered by category and paged by next_page_token, which the core's list does not make"
+  },
+  {
+   "operation": "add_voice",
+   "demand": "the life: the World adds the voice LibreChat's speech config names through the vendor's API (the seeding rule)",
+   "mechanism": "handler",
+   "why": "an action: a voice cloned from samples, trained on nothing; its answer is the new voice's id, not the voice"
+  },
+  {
+   "operation": "create_agent_route",
+   "demand": "Volter Harness: setup-elevenlabs provisions the voice agent",
+   "mechanism": "handler",
+   "why": "the spec answers no resource ({agent_id} alone), so the core does not serve it: the handler stores the agent as GET /v1/convai/agents/{agent_id} answers it, after the validation its config meets; the customer entry sends setup-elevenlabs' body (first-use.json workflow.mjs) and its readback asserts the stored configuration"
+  },
+  {
+   "operation": "get_conversation_signed_link",
+   "demand": "Volter Harness: a voice joining a call asks a signed URL for the agent",
+   "mechanism": "handler",
+   "why": "an action: a signature issued for the agent (kept by its hash) and the conversation socket's URL with it; the customer entry (first-use.json workflow.mjs) asserts the signed socket URL names its agent and a signature"
+  },
+  {
+   "operation": "get_conversation_history_route",
+   "demand": "Volter Harness: the conversation's receipt once it is done or failed",
+   "mechanism": "handler",
+   "why": "the spec classes it computed: the conversation the socket stored, answered in GetConversationResponseModel's shape"
+  },
+  {
+   "operation": "get_agents_route",
+   "demand": "the vendor-backed refresh reads agent back (the manifest's refresh of agent)",
+   "mechanism": "handler",
+   "why": "a computed read: each agent's summary (its voice from its config, its last call from its conversations), newest first, by name, tag or archived, cursor-paged"
+  },
+  {
+   "operation": "get_conversation_histories_route",
+   "demand": "the vendor-backed refresh reads conversation back (the manifest's refresh of conversation)",
+   "mechanism": "handler",
+   "why": "a computed read: each conversation's summary (its duration, its messages counted from its transcript), newest first, by agent, user, status or start, cursor-paged"
+  },
+  {
+   "operation": "door:appCredentials",
+   "demand": "every application's key (ELEVENLABS_API_KEY)",
+   "mechanism": "door",
+   "why": "a key is made in the console (Developers > API Keys), not through the API"
+  },
+  {
+   "operation": "get_agent_route",
+   "demand": "vendor-backed refresh of full agent configuration",
+   "mechanism": "handler",
+   "why": "return the stored vendor detail; the list is a summary and cannot supply configuration; the customer entry's readback (first-use.json workflow.mjs) asserts the agent's TTS, custom LLM secret, tools and auth as provisioned"
+  },
+  {
+   "operation": "create_secret_route",
+   "demand": "Volter Harness customLlm.api_key.secret_id: seed a synthetic workspace secret through the API",
+   "mechanism": "handler",
+   "why": "store the vendor metadata separately from its private value; answer the new locator; the customer entry (first-use.json workflow.mjs) stores the voice server's credential and its readback asserts the secret's metadata without its value"
+  },
+  {
+   "operation": "get_secret_route",
+   "demand": "read the metadata of the API-created credential, without revealing its value",
+   "mechanism": "handler",
+   "why": "the stored secret metadata as the vendor returns it"
+  },
+  {
+   "operation": "get_secrets_route",
+   "demand": "vendor-backed refresh of workspace secret metadata",
+   "mechanism": "handler",
+   "why": "enumerate stored secret metadata, searched by name and cursor-paged; the customer entry's readback (first-use.json workflow.mjs) asserts the secret names the agent that uses it"
+  }
+ ]
+}

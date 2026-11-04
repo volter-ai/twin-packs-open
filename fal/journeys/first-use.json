@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://fal.ai/docs/api-reference/platform-apis/openapi-schema",
+  "about": "Volter Editor's fal credential check (packages/editor-core/server/provider-credentials.ts:22-30 at b86dde8c), which uses fetch with Authorization: Key rather than @fal-ai/client (the descriptor's clientCasesNone): a mistyped key is refused with fal's authorization error, the World-issued FAL_KEY reads flux/dev's Platform pricing.",
+  "files": {
+    "package.json": "{\n  \"name\": \"fal-editor-credential-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {}\n}\n",
+    ".env.example": "FAL_KEY=\n",
+    "check-key.mjs": "// Volter Editor's provider credential check (packages/editor-core/server/provider-credentials.ts:22-30 at b86dde8c):\n// the entered fal key, sent as Authorization: Key, asks Platform pricing for flux/dev; a mistyped key is refused.\nimport assert from 'node:assert/strict';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst test = (key, signal) => fetch('https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/flux/dev', { headers: { Authorization: `Key ${key}` }, signal });\nconst mistyped = await test(`${process.env.FAL_KEY}x`, AbortSignal.timeout(15_000));\nassert.equal(mistyped.status, 401);\nconst refusal = await mistyped.json();\nassert.equal(refusal.error?.type, 'authorization_error', JSON.stringify(refusal));\nconst saved = await test(process.env.FAL_KEY, AbortSignal.timeout(15_000));\nassert.equal(saved.status, 200);\nconst pricing = await saved.json();\nassert.equal(pricing.prices?.[0]?.endpoint_id, 'fal-ai/flux/dev', JSON.stringify(pricing));\nassert.equal(typeof pricing.prices[0].unit_price, 'number');\nassert.ok(pricing.prices[0].unit);\nassert.equal(pricing.has_more, false);\nconsole.log(JSON.stringify({ refused: refusal.error.type, valid: true, price: pricing.prices[0] }));\n"
+  },
+  "run": [
+    "node",
+    "check-key.mjs"
+  ],
+  "retention": {
+    "none": "Editor's credential check reads Platform pricing and stores nothing; the demanded application makes no other fal call whose result a client reads back (journeys/demand.json)."
+  }
+}

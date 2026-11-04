@@ -1,0 +1,774 @@
+{
+  "vendor": "fly",
+  "author": "Contributor 63",
+  "host": "api.machines.dev",
+  "about": "The Machines resource, apps and volumes reference endpoint examples. Setup only supplies their preconditions; thin mutations are read back.",
+  "steps": [
+    {
+      "name": "Setup: deterministic fake machine pool",
+      "method": "POST",
+      "path": "/_twin/machine-pool",
+      "status": 201,
+      "headers": {},
+      "body": {
+        "kind": "fake"
+      }
+    },
+    {
+      "name": "Setup: personal organization token",
+      "method": "POST",
+      "path": "/_twin/tokens",
+      "status": 201,
+      "headers": {},
+      "body": {
+        "org": "personal"
+      },
+      "capture": {
+        "token": "token"
+      }
+    },
+    {
+      "name": "Create the example app",
+      "method": "POST",
+      "path": "/v1/apps",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "app_name": "my-app-name",
+        "org_slug": "personal",
+        "network": "my-optional-network"
+      },
+      "capture": {
+        "app": "id"
+      },
+      "example": "Apps_create#doc Create a Fly App"
+    },
+    {
+      "name": "Read the app creation effect",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{app}"
+        },
+        {
+          "path": "name",
+          "equals": "my-app-name"
+        },
+        {
+          "path": "organization.slug",
+          "equals": "personal"
+        },
+        {
+          "path": "network",
+          "equals": "my-optional-network"
+        },
+        {
+          "path": "machine_count",
+          "equals": 0
+        },
+        {
+          "path": "volume_count",
+          "equals": 0
+        }
+      ],
+      "example": "Apps_show#doc Get app details",
+      "undecided": {
+        "organization.name": "The fixture supplies the organization slug only. App creation does not determine its display name, which the vendor models separately from the slug."
+      }
+    },
+    {
+      "name": "List the app in its organization",
+      "method": "GET",
+      "path": "/v1/apps?org_slug=personal",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "apps.0.id",
+          "equals": "{app}"
+        },
+        {
+          "path": "apps.0.name",
+          "equals": "my-app-name"
+        },
+        {
+          "path": "apps.0.network",
+          "equals": "my-optional-network"
+        },
+        {
+          "path": "apps.0.machine_count",
+          "equals": 0
+        },
+        {
+          "path": "apps.0.volume_count",
+          "equals": 0
+        },
+        {
+          "path": "total_apps",
+          "equals": 1
+        },
+        {
+          "path": "apps.0.organization.slug",
+          "equals": "personal"
+        }
+      ],
+      "example": "Apps_list#doc List apps in an organization",
+      "undecided": {
+        "apps.0.organization.name": "The fixture supplies the organization slug only. App creation does not determine its display name, which the vendor models separately from the slug."
+      }
+    },
+    {
+      "name": "Create the published volume configuration",
+      "method": "POST",
+      "path": "/v1/apps/my-app-name/volumes",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "name": "my_app_vol",
+        "region": "ord",
+        "size_gb": 10
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "my_app_vol"
+        },
+        {
+          "path": "region",
+          "equals": "ord"
+        },
+        {
+          "path": "size_gb",
+          "equals": 10
+        },
+        {
+          "path": "state",
+          "equals": "created"
+        }
+      ],
+      "capture": {
+        "volume": "id"
+      },
+      "example": "Volumes_create#doc Create a volume"
+    },
+    {
+      "name": "Setup: second volume so the two-volume list sample has its precondition",
+      "method": "POST",
+      "path": "/v1/apps/my-app-name/volumes",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "name": "disk",
+        "region": "iad",
+        "size_gb": 3
+      },
+      "capture": {
+        "volume2": "id"
+      }
+    },
+    {
+      "name": "Setup: attach the first disk as shown in the published volume list",
+      "method": "POST",
+      "path": "/v1/apps/my-app-name/machines",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "config": {
+          "image": "rebelthor/sleep:latest",
+          "mounts": [
+            {
+              "volume": "{volume}",
+              "path": "/data"
+            }
+          ]
+        }
+      },
+      "capture": {
+        "disk_machine": "id"
+      }
+    },
+    {
+      "name": "Read the created disks as the published list does",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/volumes",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{volume}"
+        },
+        {
+          "path": "0.name",
+          "equals": "my_app_vol"
+        },
+        {
+          "path": "0.region",
+          "equals": "ord"
+        },
+        {
+          "path": "0.size_gb",
+          "equals": 10
+        },
+        {
+          "path": "1.id",
+          "equals": "{volume2}"
+        },
+        {
+          "path": "1.name",
+          "equals": "disk"
+        },
+        {
+          "path": "1.region",
+          "equals": "iad"
+        },
+        {
+          "path": "1.size_gb",
+          "equals": 3
+        },
+        {
+          "path": "0.attached_machine_id",
+          "equals": "{disk_machine}"
+        },
+        {
+          "path": "2",
+          "exists": false
+        },
+        {
+          "path": "0.state",
+          "equals": "created"
+        },
+        {
+          "path": "1.state",
+          "equals": "created"
+        },
+        {
+          "path": "1.attached_machine_id",
+          "equals": null
+        }
+      ],
+      "example": "Volumes_list#doc List all the volumes in an app"
+    },
+    {
+      "name": "Create the published sleeping Machine",
+      "method": "POST",
+      "path": "/v1/apps/my-app-name/machines",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "config": {
+          "init": {
+            "exec": [
+              "/bin/sleep",
+              "inf"
+            ]
+          },
+          "image": "registry-1.docker.io/library/ubuntu:latest",
+          "auto_destroy": true,
+          "restart": {
+            "policy": "always"
+          },
+          "guest": {
+            "cpu_kind": "shared",
+            "cpus": 1,
+            "memory_mb": 256
+          },
+          "dns": {},
+          "metadata": {
+            "example": "sleep"
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "config.init",
+          "equals": {
+            "exec": [
+              "/bin/sleep",
+              "inf"
+            ]
+          }
+        },
+        {
+          "path": "config.image",
+          "equals": "registry-1.docker.io/library/ubuntu:latest"
+        },
+        {
+          "path": "config.auto_destroy",
+          "equals": true
+        },
+        {
+          "path": "config.restart",
+          "equals": {
+            "policy": "always"
+          }
+        },
+        {
+          "path": "config.guest",
+          "equals": {
+            "cpu_kind": "shared",
+            "cpus": 1,
+            "memory_mb": 256
+          }
+        },
+        {
+          "path": "state",
+          "equals": "created"
+        },
+        {
+          "path": "config.dns",
+          "equals": {}
+        },
+        {
+          "path": "config.metadata",
+          "equals": {
+            "example": "sleep"
+          }
+        },
+        {
+          "path": "image_ref.registry",
+          "equals": "registry-1.docker.io"
+        },
+        {
+          "path": "image_ref.repository",
+          "equals": "library/ubuntu"
+        },
+        {
+          "path": "image_ref.tag",
+          "equals": "latest"
+        }
+      ],
+      "capture": {
+        "machine": "id"
+      },
+      "example": "Machines_create#doc Create a Machine",
+      "exampleDiffers": {
+        "image_ref.labels.org.opencontainers.image.ref.name": "The sample is registry metadata for one resolved Ubuntu image; this World does not pull registry metadata and answers no synthetic image labels.",
+        "image_ref.labels.org.opencontainers.image.version": "The sample resolved Ubuntu 22.04; latest is a mutable registry tag. The World does not claim that a local image is that version."
+      },
+      "undecided": {
+        "region": "The request omitted region; a vendor placement default can coincide with an earlier disk region. It was not decided by that disk."
+      }
+    },
+    {
+      "name": "Read back the started sleeping Machine",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/machines/{machine}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{machine}"
+        },
+        {
+          "path": "state",
+          "equals": "started"
+        },
+        {
+          "path": "config",
+          "equals": {
+            "init": {
+              "exec": [
+                "/bin/sleep",
+                "inf"
+              ]
+            },
+            "image": "registry-1.docker.io/library/ubuntu:latest",
+            "auto_destroy": true,
+            "restart": {
+              "policy": "always"
+            },
+            "guest": {
+              "cpu_kind": "shared",
+              "cpus": 1,
+              "memory_mb": 256
+            },
+            "dns": {},
+            "metadata": {
+              "example": "sleep"
+            }
+          }
+        },
+        {
+          "path": "image_ref.registry",
+          "equals": "registry-1.docker.io"
+        },
+        {
+          "path": "image_ref.repository",
+          "equals": "library/ubuntu"
+        },
+        {
+          "path": "image_ref.tag",
+          "equals": "latest"
+        }
+      ],
+      "capture": {
+        "instance": "instance_id",
+        "machine_name": "name",
+        "machine_region": "region"
+      },
+      "example": "Machines_show#doc Get a Machine",
+      "undecided": {
+        "region": "The request omitted region; a vendor placement default can coincide with an earlier disk region. It was not decided by that disk.",
+        "name": "The request omitted the name; the World generator currently uses the minted ID. That coincidence is not a name chosen by the actor."
+      }
+    },
+    {
+      "name": "Setup: the second running Machine in the published list",
+      "method": "POST",
+      "path": "/v1/apps/my-app-name/machines",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "name": "second-sleeper",
+        "region": "ord",
+        "config": {
+          "image": "rebelthor/sleep:latest",
+          "metadata": {
+            "example": "sleep"
+          }
+        }
+      },
+      "capture": {
+        "second": "id"
+      }
+    },
+    {
+      "name": "List both running Machines",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/machines?metadata.example=sleep",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{machine}"
+        },
+        {
+          "path": "0.state",
+          "equals": "started"
+        },
+        {
+          "path": "0.config",
+          "equals": {
+            "init": {
+              "exec": [
+                "/bin/sleep",
+                "inf"
+              ]
+            },
+            "image": "registry-1.docker.io/library/ubuntu:latest",
+            "auto_destroy": true,
+            "restart": {
+              "policy": "always"
+            },
+            "guest": {
+              "cpu_kind": "shared",
+              "cpus": 1,
+              "memory_mb": 256
+            },
+            "dns": {},
+            "metadata": {
+              "example": "sleep"
+            }
+          }
+        },
+        {
+          "path": "1.id",
+          "equals": "{second}"
+        },
+        {
+          "path": "1.name",
+          "equals": "second-sleeper"
+        },
+        {
+          "path": "1.region",
+          "equals": "ord"
+        },
+        {
+          "path": "1.config.image",
+          "equals": "rebelthor/sleep:latest"
+        },
+        {
+          "path": "1.state",
+          "equals": "started"
+        },
+        {
+          "path": "0.name",
+          "equals": "{machine_name}"
+        },
+        {
+          "path": "0.region",
+          "equals": "{machine_region}"
+        },
+        {
+          "path": "0.instance_id",
+          "equals": "{instance}"
+        },
+        {
+          "path": "0.version",
+          "equals": "{instance}"
+        },
+        {
+          "path": "1.config.metadata",
+          "equals": {
+            "example": "sleep"
+          }
+        },
+        {
+          "path": "2",
+          "exists": false
+        },
+        {
+          "path": "0.image_ref.registry",
+          "equals": "registry-1.docker.io"
+        },
+        {
+          "path": "0.image_ref.repository",
+          "equals": "library/ubuntu"
+        },
+        {
+          "path": "0.image_ref.tag",
+          "equals": "latest"
+        },
+        {
+          "path": "1.image_ref.registry",
+          "equals": "registry-1.docker.io"
+        },
+        {
+          "path": "1.image_ref.repository",
+          "equals": "rebelthor/sleep"
+        },
+        {
+          "path": "1.image_ref.tag",
+          "equals": "latest"
+        }
+      ],
+      "example": "Machines_list#doc List Machines",
+      "undecided": {}
+    },
+    {
+      "name": "Stop the first Machine",
+      "method": "POST",
+      "path": "/v1/apps/my-app-name/machines/{machine}/stop",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "Machines_stop#doc Stop a Machine"
+    },
+    {
+      "name": "Wait for the published stopped instance",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/machines/{machine}/wait?state=stopped&instance_id={instance}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "Machines_wait#doc Wait for a Machine to reach a specified state"
+    },
+    {
+      "name": "Start the stopped Machine",
+      "method": "POST",
+      "path": "/v1/apps/my-app-name/machines/{machine}/start",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "previous_state",
+          "equals": "stopped"
+        }
+      ],
+      "example": "Machines_start#doc Start a Machine"
+    },
+    {
+      "name": "Read back the start effect",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/machines/{machine}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "started"
+        },
+        {
+          "path": "id",
+          "equals": "{machine}"
+        }
+      ]
+    },
+    {
+      "name": "Destroy the example Machine with force",
+      "method": "DELETE",
+      "path": "/v1/apps/my-app-name/machines/{machine}?force=true",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ],
+      "example": "Machines_delete#doc Delete a Machine permanently"
+    },
+    {
+      "name": "Read back the deletion through the live list",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/machines?metadata.example=sleep",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{second}"
+        },
+        {
+          "path": "1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "Setup: release the first disk before its delete example",
+      "method": "DELETE",
+      "path": "/v1/apps/my-app-name/machines/{disk_machine}?force=true",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      }
+    },
+    {
+      "name": "Read back disk-machine destruction",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/machines/{disk_machine}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "state",
+          "equals": "destroyed"
+        }
+      ]
+    },
+    {
+      "name": "Delete the first example disk",
+      "method": "DELETE",
+      "path": "/v1/apps/my-app-name/volumes/{volume}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{volume}"
+        },
+        {
+          "path": "name",
+          "equals": "my_app_vol"
+        },
+        {
+          "path": "size_gb",
+          "equals": 10
+        },
+        {
+          "path": "region",
+          "equals": "ord"
+        },
+        {
+          "path": "state",
+          "equals": "pending_destroy"
+        },
+        {
+          "path": "attached_machine_id",
+          "equals": null
+        }
+      ],
+      "example": "Volume_delete#doc Delete a volume permanently",
+      "exampleDiffers": {
+        "state": "The page sample answers destroyed. Fly engineer MatthewIngwersen explains that deletion initially soft-deletes volumes and the Machines API includes pending_destroy volumes: https://community.fly.io/t/volume-stuck-in-pending-destroy-for-11-hours/14743 (2023-08-16). This World simulates that intermediate state with its disclosed removal delay; the delay is not a vendor guarantee."
+      }
+    },
+    {
+      "name": "Read back the pending deletion",
+      "method": "GET",
+      "path": "/v1/apps/my-app-name/volumes",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{volume}"
+        },
+        {
+          "path": "0.state",
+          "equals": "pending_destroy"
+        },
+        {
+          "path": "1.id",
+          "equals": "{volume2}"
+        },
+        {
+          "path": "2",
+          "exists": false
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "Machines_create#doc Create a Machine with services": "The published shell body is malformed JSON: the APP_ENV env object is not closed before services. Its response also shows the Ubuntu sleep config from the previous example rather than the fastify request. This pack replays the valid Create a Machine example and the Substrate life exercises services; it does not invent corrected vendor example bytes.",
+    "Volumes_create#doc Create a volume from a snapshot": "The literal published shell request has a trailing comma after snapshot_id and is malformed JSON. Snapshot-backed restoration requires an existing snapshot outside this workflow. The documented restoring response is vendored; this pack does not invent corrected example bytes or claim to replay restoration by ignoring snapshot_id."
+  }
+}

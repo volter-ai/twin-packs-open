@@ -1,0 +1,69 @@
+{
+  "code": [
+    {
+      "file": "semantics/doors.ts",
+      "declarations": [
+        "exit"
+      ],
+      "world": "door",
+      "why": "The World's process-exit door: a machine's process ending by itself (a worker that drained its queue), outside the Machines API. Substrate's workspace is paused and destroyed through the API, so only that door makes the move. https://docs.fly.io/machines/machine-states/"
+    },
+    {
+      "file": "server.ts",
+      "declarations": [
+        "createFlyTwinServer"
+      ],
+      "world": "host-process",
+      "why": "The coverage walk calls the pack fetch inside its World. The standalone HTTP host process is exercised separately by conform and cannot be reached through that fetch walk."
+    },
+    {
+      "file": "semantics/shared.ts",
+      "declarations": [
+        "exitedMachine",
+        "observeMachine"
+      ],
+      "world": "host-process",
+      "why": "The World's machine pool around the fetch: a guest it runs exiting by itself, a run it cannot start (the launch failing), a run it does not admit; this story's World enrolls the fake pool, whose guests start when asked and run until stopped."
+    },
+    {
+      "file": "semantics/apps.ts",
+      "declarations": [
+        "admit",
+        "run",
+        "failedLaunch"
+      ],
+      "world": "host-process",
+      "why": "The World's machine pool around the fetch: a guest it runs exiting by itself, a run it cannot start (the launch failing), a run it does not admit; this story's World enrolls the fake pool, whose guests start when asked and run until stopped."
+    },
+    {
+      "file": "semantics/apps.ts",
+      "declarations": [
+        "Machines_wait"
+      ],
+      "world": "host-process",
+      "why": "The wait's loop over a light or docker pool's guests (watching a guest the host runs reach the state asked): the host's pool around the fetch, which this story's fake pool answers at once."
+    }
+  ],
+  "state": [
+    {
+      "item": "move Machine.state: external started → stopped",
+      "world": "door",
+      "why": "The World's process-exit door (semantics/doors.ts exit): a machine's process ending by itself, outside the Machines API. https://docs.fly.io/machines/machine-states/"
+    },
+    {
+      "item": "refusal Machine.state: external created|stopped|failed|destroyed → (stays)",
+      "world": "door",
+      "why": "The World's process-exit door (semantics/doors.ts exit) asked for a machine that is not running. https://docs.fly.io/machines/machine-states/"
+    },
+    {
+      "item": "move Machine.state: vendor stopped → destroyed",
+      "world": "door",
+      "why": "auto_destroy after the World's process-exit door stops a machine (semantics/doors.ts exit): only that door makes a machine's process end by itself. https://docs.fly.io/machines/machine-states/"
+    },
+    {
+      "item": "move Machine.state: vendor created|stopped → failed",
+      "world": "host-process",
+      "why": "The World's machine pool around the fetch: a guest it runs exiting by itself, a run it cannot start (the launch failing), a run it does not admit; this story's World enrolls the fake pool, whose guests start when asked and run until stopped."
+    }
+  ]
+}

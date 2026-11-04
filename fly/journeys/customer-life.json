@@ -1,0 +1,556 @@
+{
+ "vendor": "fly",
+ "author": "Contributor 63",
+ "host": "api.machines.dev",
+ "about": "Substrate allocates a developer workspace, pauses overnight, resumes and retires it. The fake World pool verifies the API contract; it runs no image.",
+ "steps": [
+  {
+   "name": "Chapter 1: operator enrolls the fake World pool",
+   "method": "POST",
+   "path": "/_twin/machine-pool",
+   "status": 201,
+   "body": {
+    "kind": "fake"
+   }
+  },
+  {
+   "name": "Operator receives the organization token",
+   "method": "POST",
+   "path": "/_twin/tokens",
+   "status": 201,
+   "body": {
+    "org": "personal"
+   },
+   "capture": {
+    "token": "token"
+   }
+  },
+  {
+   "name": "Operator confirms its token organization before configuring Substrate",
+   "method": "GET",
+   "path": "/v1/tokens/current",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "tokens.0.org_slug",
+     "equals": "personal"
+    }
+   ]
+  },
+  {
+   "name": "Operator inventories existing apps before provisioning",
+   "method": "GET",
+   "path": "/v1/apps?org_slug=personal",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "apps",
+     "equals": []
+    },
+    {
+     "path": "total_apps",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Substrate probes the configured sandbox app",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes",
+   "status": 404,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "equals": "app not found"
+    }
+   ]
+  },
+  {
+   "name": "Substrate creates its sandbox app",
+   "method": "POST",
+   "path": "/v1/apps",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "app_name": "substrate-sandboxes",
+    "org_slug": "personal"
+   },
+   "capture": {
+    "app": "id"
+   }
+  },
+  {
+   "name": "A monitor discovers the new app",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{app}"
+    },
+    {
+     "path": "name",
+     "equals": "substrate-sandboxes"
+    },
+    {
+     "path": "organization.slug",
+     "equals": "personal"
+    },
+    {
+     "path": "machine_count",
+     "equals": 0
+    },
+    {
+     "path": "volume_count",
+     "equals": 0
+    }
+   ]
+  },
+  {
+   "name": "Substrate looks for the developer workspace disk",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/volumes",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "Substrate allocates its persistent workspace",
+   "method": "POST",
+   "path": "/v1/apps/substrate-sandboxes/volumes",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "ws_abc123",
+    "region": "iad",
+    "size_gb": 1
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "created"
+    },
+    {
+     "path": "size_gb",
+     "equals": 1
+    },
+    {
+     "path": "name",
+     "equals": "ws_abc123"
+    },
+    {
+     "path": "region",
+     "equals": "iad"
+    }
+   ],
+   "capture": {
+    "volume": "id"
+   }
+  },
+  {
+   "name": "Substrate launches the developer workspace",
+   "method": "POST",
+   "path": "/v1/apps/substrate-sandboxes/machines",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "body": {
+    "name": "sandbox-abc123",
+    "region": "iad",
+    "config": {
+     "image": "substrate-node-host:local",
+     "env": {
+      "SUBSTRATE_ROOT": "/",
+      "SUBSTRATE_TOKEN": "workspace-token",
+      "PORT": "8787",
+      "HOST": "::"
+     },
+     "services": [
+      {
+       "protocol": "tcp",
+       "internal_port": 8787,
+       "ports": [
+        {
+         "port": 8787
+        }
+       ]
+      }
+     ],
+     "guest": {
+      "cpu_kind": "shared",
+      "cpus": 1,
+      "memory_mb": 512
+     },
+     "metadata": {
+      "volter.substrate.sandbox": "abc123"
+     },
+     "mounts": [
+      {
+       "volume": "{volume}",
+       "path": "/workspace"
+      }
+     ]
+    }
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "created"
+    },
+    {
+     "path": "name",
+     "equals": "sandbox-abc123"
+    },
+    {
+     "path": "region",
+     "equals": "iad"
+    },
+    {
+     "path": "config",
+     "equals": {
+      "image": "substrate-node-host:local",
+      "env": {
+       "SUBSTRATE_ROOT": "/",
+       "SUBSTRATE_TOKEN": "workspace-token",
+       "PORT": "8787",
+       "HOST": "::"
+      },
+      "services": [
+       {
+        "protocol": "tcp",
+        "internal_port": 8787,
+        "ports": [
+         {
+          "port": 8787
+         }
+        ]
+       }
+      ],
+      "guest": {
+       "cpu_kind": "shared",
+       "cpus": 1,
+       "memory_mb": 512
+      },
+      "metadata": {
+       "volter.substrate.sandbox": "abc123"
+      },
+      "mounts": [
+       {
+        "volume": "{volume}",
+        "path": "/workspace"
+       }
+      ]
+     }
+    }
+   ],
+   "capture": {
+    "machine": "id"
+   }
+  },
+  {
+   "name": "Substrate waits for the sandbox to start",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}/wait?state=started&timeout=60",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "ok",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Substrate reads the address to connect to the workspace",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "started"
+    },
+    {
+     "path": "config.mounts.0.volume",
+     "equals": "{volume}"
+    },
+    {
+     "path": "twin_local_ports.0.internal",
+     "equals": 8787
+    }
+   ],
+   "capture": {
+    "instance": "instance_id",
+    "private_ip": "private_ip",
+    "port": "twin_local_ports.0.host"
+   }
+  },
+  {
+   "name": "End of the first working day",
+   "wait": "8h"
+  },
+  {
+   "name": "Chapter 2: the developer pauses their workspace",
+   "method": "POST",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}/stop",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "ok",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Substrate waits for the sandbox process to stop",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}/wait?state=stopped&timeout=60&instance_id={instance}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "ok",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The monitor confirms the paused sandbox",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "stopped"
+    },
+    {
+     "path": "twin_local_ports",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "The developer returns after the overnight pause",
+   "wait": "16h"
+  },
+  {
+   "name": "When the laptop wakes, a pause the developer's other tab queued overnight is sent: the workspace is already stopped",
+   "method": "POST",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}/stop",
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "status": 412
+  },
+  {
+   "name": "Substrate resumes the workspace for another working day",
+   "method": "POST",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}/start",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "previous_state",
+     "equals": "stopped"
+    }
+   ]
+  },
+  {
+   "name": "Substrate waits for the resumed workspace",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}/wait?state=started",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "ok",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Substrate reconnects using the current address",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "started"
+    },
+    {
+     "path": "config.mounts.0.volume",
+     "equals": "{volume}"
+    }
+   ],
+   "capture": {
+    "resumed_instance": "instance_id"
+   }
+  },
+  {
+   "name": "The workspace is retired the following day",
+   "wait": "24h"
+  },
+  {
+   "name": "The next day the developer clicks an old resume bookmark: the workspace is already running",
+   "method": "POST",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}/start",
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "status": 412
+  },
+  {
+   "name": "Chapter 3: operator attempts disk cleanup before releasing its machine",
+   "method": "DELETE",
+   "path": "/v1/apps/substrate-sandboxes/volumes/{volume}",
+   "status": 412,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "error",
+     "equals": "failed_precondition: volume is attached to a machine"
+    }
+   ]
+  },
+  {
+   "name": "Substrate destroys the sandbox with force",
+   "method": "DELETE",
+   "path": "/v1/apps/substrate-sandboxes/machines/{machine}?force=true",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "ok",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Substrate reconciles its running sandboxes",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/machines",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "Substrate removes the detached workspace disk",
+   "method": "DELETE",
+   "path": "/v1/apps/substrate-sandboxes/volumes/{volume}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "state",
+     "equals": "pending_destroy"
+    },
+    {
+     "path": "attached_machine_id",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "A later allocation checks for reusable volumes",
+   "wait": "12h"
+  },
+  {
+   "name": "Substrate skips the pending_destroy disk",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/volumes",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "0.id",
+     "equals": "{volume}"
+    },
+    {
+     "path": "0.state",
+     "equals": "pending_destroy"
+    }
+   ]
+  },
+  {
+   "name": "Another day passes with no workspace using the disk",
+   "wait": "24h"
+  },
+  {
+   "name": "The reconciliation no longer finds the retired volume",
+   "method": "GET",
+   "path": "/v1/apps/substrate-sandboxes/volumes",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {token}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "equals": []
+    }
+   ]
+  }
+ ]
+}

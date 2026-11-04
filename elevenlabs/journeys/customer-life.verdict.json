@@ -1,0 +1,153 @@
+{
+  "judge": {
+    "agent": "Claude journey judge (Opus)",
+    "name": "Independent journey judge"
+  },
+  "authors": [
+    "yueranyuan",
+    "Aaron (A-001)",
+    "Claude Opus 5.5",
+    "Codex"
+  ],
+  "sha256": "cdedb4c105f0caab9630be59d61798902f19fe8668884b088f5e380fdeddb030",
+  "judgedAt": "2026-10-15",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "voice-id-before-made",
+      "steps": [
+        4
+      ],
+      "barItem": "the wrong actor or credential for an act, a date that contradicts the wait steps, a name or id used before it is made or after it is gone",
+      "reason": "Step 4 says LibreChat's speech config names Maya's voice (pNInz6obpgDQGcFmaJgB) before the studio has cloned it. A cloned voice's id is issued by ElevenLabs in the answer to Instant Voice Cloning (POST /v1/voices/add answers voice_id; https://elevenlabs.io/docs/api-reference/voices/ivc/create), so no config can hold Maya's voice id before step 5 makes it. Step 22 then uses a different id ({v}), which shows that step 4's id was never Maya's voice.",
+      "correction": "Remove step 4. LibreChat's config is set to the voice id step 5 returns ({v}), as step 22 already uses it."
+    },
+    {
+      "id": "stream-input-refusal-run",
+      "steps": [
+        13,
+        14,
+        15,
+        16
+      ],
+      "barItem": "a refusal without a cause the story shows, or the same cause drawn twice; a run of refusals",
+      "reason": "Steps 13, 14-15 and 16 are three refused stream-input connections in a row (each closed 1008), and no actor or reason in the story leads to any of them. Raiku's stream opens on Rachel with the World's key in pcm_24000 (journeys/demand.json, streamer/speech.js:341). Step 13's cause, a voice the account does not have, is also the cause already drawn at step 4 (voice_not_found on text-to-speech).",
+      "correction": "Remove steps 13, 15 and 16, and remove step 14, which opens the stranger socket that step 15 sends on. The stream then opens only on Rachel (steps 17-20)."
+    },
+    {
+      "id": "ulaw-is-a-vendor-format",
+      "steps": [
+        16
+      ],
+      "barItem": "vendor behaviour the vendor's documentation contradicts",
+      "reason": "Step 16 has ElevenLabs close the stream-input connection because output_format=ulaw_8000 is 'a codec the twin does not write'. ElevenLabs documents ulaw_8000 as an output format of its text-to-speech API, 'commonly used for Twilio audio inputs' (the output_format enum in the vendored openapi.json; https://elevenlabs.io/docs/api-reference/text-to-speech/convert). The stream-input page takes the same output_format query (https://elevenlabs.io/docs/api-reference/text-to-speech/v-1-text-to-speech-voice-id-stream-input). The vendor serves μ-law, so a refusal presents a twin limitation as vendor behaviour.",
+      "correction": "Remove step 16. No application in demand.json asks for μ-law."
+    },
+    {
+      "id": "uncaused-refusals",
+      "steps": [
+        2,
+        10,
+        21,
+        25,
+        28,
+        29,
+        47,
+        48,
+        55
+      ],
+      "barItem": "a refusal without a cause the story shows, or the same cause drawn twice; a run of refusals",
+      "reason": "Each of these refusals happens with no actor and no reason in the story. Step 2: a request with no key, sent just after step 1 issued the key. Step 10: Scheduler asks for a model named gpt-voice. Step 21: a read-aloud request with no text, although LibreChat always sends the message text. Step 25: setup-elevenlabs sends eleven_multilingual_v1, while the demand records eleven_flash_v2 (sdk/voice/providers/setup.mjs:55). Step 28: a signed URL for agent_0000…. Step 29: an unsigned connection by nobody named. Step 47: a German language override by nobody named. Step 48: conversation conv_0000…. Step 55: the refresh consumer asks for page_size=101 on /v1/convai/agents (page_size maximum 100; https://elevenlabs.io/docs/eleven-agents/api-reference/agents/list). Steps 28-29 and 47-48 are pairs of adjacent refusals. Steps 28 and 48 are the same cause, an id the account does not have, drawn twice.",
+      "correction": "Remove steps 2, 10, 21, 25, 28, 29, 47, 48 and 55. Any refusal that is kept needs a named actor and a reason earlier in the story that leads to the bad request, and no two kept refusals may share a cause."
+    },
+    {
+      "id": "receipt-job-asks-signed-url",
+      "steps": [
+        38
+      ],
+      "barItem": "content that does not bear out the step's name",
+      "reason": "Step 38 says Harness's receipt job asks for a signed URL naming no agent. The receipt Harness collects is GET /v1/convai/conversations/{conversation_id} (demand.json: get_conversation_history_route, sdk/voice/providers/elevenlabs.mjs:19; https://elevenlabs.io/docs/eleven-agents/api-reference/conversations/get), as steps 41 and 46 show. A receipt job never requests a signed URL (https://elevenlabs.io/docs/eleven-agents/api-reference/conversations/get-signed-url), so the call does not do what the step's name says, and 'misconfigured' is asserted rather than shown.",
+      "correction": "Remove step 38."
+    },
+    {
+      "id": "secret-readback",
+      "steps": [
+        52
+      ],
+      "barItem": "a read-back with no need: a list or get of what the story already holds, unless someone who does not hold it reads it",
+      "reason": "Step 52 reads GET /v1/convai/secrets/{secret_id} right after step 51's list gave the same refresh consumer that secret. Both answer the same ConvAIWorkspaceStoredSecretConfig (https://elevenlabs.io/docs/eleven-agents/api-reference/workspace/secrets/get and .../secrets/list), and step 52 checks only fields step 51 already checked (secret_id, type, name, used_by.agents, no value).",
+      "correction": "Remove step 52."
+    }
+  ],
+  "applied": {
+    "from": "a30ebe0bde265ea887e8798185babe6aab1897c54beb306bfd1d0698dadf6f7d",
+    "wasPlausible": false,
+    "steps": [
+      "10",
+      "13",
+      "14",
+      "15",
+      "16",
+      "2",
+      "21",
+      "25",
+      "28",
+      "29",
+      "38",
+      "4",
+      "47",
+      "48",
+      "52",
+      "55"
+    ],
+    "rulings": [
+      {
+        "steps": [
+          4
+        ],
+        "why": "Remove step 4. LibreChat's config is set to the voice id step 5 returns ({v}), as step 22 already uses it."
+      },
+      {
+        "steps": [
+          13,
+          14,
+          15,
+          16
+        ],
+        "why": "Remove steps 13, 15 and 16, and remove step 14, which opens the stranger socket that step 15 sends on. The stream then opens only on Rachel (steps 17-20)."
+      },
+      {
+        "steps": [
+          16
+        ],
+        "why": "Remove step 16. No application in demand.json asks for μ-law."
+      },
+      {
+        "steps": [
+          2,
+          10,
+          21,
+          25,
+          28,
+          29,
+          47,
+          48,
+          55
+        ],
+        "why": "Remove steps 2, 10, 21, 25, 28, 29, 47, 48 and 55. Any refusal that is kept needs a named actor and a reason earlier in the story that leads to the bad request, and no two kept refusals may share a cause."
+      },
+      {
+        "steps": [
+          38
+        ],
+        "why": "Remove step 38."
+      },
+      {
+        "steps": [
+          52
+        ],
+        "why": "Remove step 52."
+      }
+    ]
+  }
+}

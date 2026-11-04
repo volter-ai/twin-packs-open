@@ -1,0 +1,186 @@
+{
+  "vendor": "fal",
+  "author": "Contributor 69",
+  "host": "fal.run",
+  "about": "Published Platform pricing responses and the model page's complete Ideogram schema example. Queue and SDK storage snippets are counted with their wire scope recorded. Generated media is a labeled placeholder.",
+  "scenario": "examples-scenario.json",
+  "steps": [
+    {
+      "name": "Create the API key assumed by authenticated examples",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      }
+    },
+    {
+      "name": "Published pricing 200",
+      "method": "GET",
+      "path": "https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/flux/dev",
+      "status": 200,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "example": "getPricing#200 application/json",
+      "expect": [
+        {
+          "path": "prices.0.endpoint_id",
+          "equals": "fal-ai/flux/dev"
+        },
+        {
+          "path": "next_cursor",
+          "equals": null
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "prices.1",
+          "exists": false
+        }
+      ],
+      "undecided": {
+        "prices.0.unit_price": "The page says custom pricing or discounts may be applied based on account status; the published 0.025 is an example.",
+        "prices.0.currency": "The vendor supplies the billing currency; USD in the sample is not selected by the request.",
+        "prices.0.unit": "The endpoint selects a billing unit; the sample is not a general contract for that value."
+      }
+    },
+    {
+      "name": "Published pricing 400",
+      "method": "GET",
+      "path": "https://api.fal.ai/v1/models/pricing",
+      "status": 400,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "example": "getPricing#400 application/json",
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "validation_error"
+        },
+        {
+          "path": "error.message",
+          "equals": "Invalid request parameters"
+        }
+      ]
+    },
+    {
+      "name": "Published pricing 401",
+      "method": "GET",
+      "path": "https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/flux/dev",
+      "status": 401,
+      "headers": {},
+      "example": "getPricing#401 application/json",
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "authorization_error"
+        },
+        {
+          "path": "error.message",
+          "equals": "Authentication required"
+        }
+      ]
+    },
+    {
+      "name": "Published pricing 404",
+      "method": "GET",
+      "path": "https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/unknown-model",
+      "status": 404,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "example": "getPricing#404 application/json",
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "not_found"
+        },
+        {
+          "path": "error.message",
+          "equals": "Resource not found"
+        }
+      ]
+    },
+    {
+      "name": "Published pricing 429",
+      "method": "GET",
+      "path": "https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/flux/dev",
+      "status": 429,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "example": "getPricing#429 application/json",
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "rate_limited"
+        },
+        {
+          "path": "error.message",
+          "equals": "Rate limit exceeded"
+        }
+      ]
+    },
+    {
+      "name": "Published Ideogram Input and Output schema example",
+      "method": "POST",
+      "path": "https://fal.run/fal-ai/ideogram/v2",
+      "status": 200,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "body": {
+        "prompt": "A comic style illustration of a skeleton sitting on a toilet in a bathroom. The bathroom has a Halloween decoration with a pumpkin jack-o-lantern and bats flying around. There is a text above the skeleton that says \"Just Waiting for Halloween with Ideogram 2.0 at fal.ai\"",
+        "aspect_ratio": "1:1",
+        "expand_prompt": true,
+        "style": "auto"
+      },
+      "example": "post_fal_ai_ideogram_v2#doc Ideogram schema Input and Output",
+      "capture": {
+        "exampleImage": "images.0.url"
+      },
+      "expect": [
+        {
+          "path": "images.0.url",
+          "exists": true
+        },
+        {
+          "path": "seed",
+          "exists": true
+        },
+        {
+          "path": "images.1",
+          "exists": false
+        }
+      ],
+      "undecided": {
+        "seed": "The model chooses its seed when the request provides none; 123456 is a sample, not an input-decided value.",
+        "images.0.url": "The output URL is generated, captured and fetched in the next step."
+      }
+    },
+    {
+      "name": "Download the returned placeholder to consume the example's output",
+      "method": "GET",
+      "path": "{exampleImage}",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "image/png"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "post_fal_ai_ideogram_v2#doc subscribe example": "The published SDK code uses the queue or storage wire; this pack serves the direct fal.run model operation and Platform pricing only. Queue submit/poll/result and storage upload have no demanded caller and are unmodeled.",
+    "post_fal_ai_ideogram_v2#doc queue submit example": "The published SDK code uses the queue or storage wire; this pack serves the direct fal.run model operation and Platform pricing only. Queue submit/poll/result and storage upload have no demanded caller and are unmodeled.",
+    "get_fal_ai_ideogram_v2_requests_request_id_status#doc queue status example": "The published SDK code uses the queue or storage wire; this pack serves the direct fal.run model operation and Platform pricing only. Queue submit/poll/result and storage upload have no demanded caller and are unmodeled.",
+    "get_fal_ai_ideogram_v2_requests_request_id#doc queue result example": "The published SDK code uses the queue or storage wire; this pack serves the direct fal.run model operation and Platform pricing only. Queue submit/poll/result and storage upload have no demanded caller and are unmodeled.",
+    "storageUpload#doc storage upload example": "The published SDK code uses the queue or storage wire; this pack serves the direct fal.run model operation and Platform pricing only. Queue submit/poll/result and storage upload have no demanded caller and are unmodeled."
+  }
+}
