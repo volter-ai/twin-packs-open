@@ -11,6 +11,6 @@
 - **Its hosts:** accounts.google.com, oauth2.googleapis.com, www.googleapis.com, openidconnect.googleapis.com (each path's
   `servers`), as Google's discovery document names them (`recordings/2026-09-29-openid-configuration.json`, read live).
 - **Grouping:** by tag (`grouping.json`).
-- **Corrections:** none.
+- **POST token inspection:** the bodyless bearer-authenticated `/tokeninfo` request is the official google-auth-library 10.9.1 `OAuth2Client.getTokenInfo` call (`https://unpkg.com/google-auth-library@10.9.1/build/src/auth/oauth2client.js:552`), used by the installed customer workflow. Its response is read from the retained access-token audience, scope and expiry.
 - **Read by:** the twin orchestrator, 2026-09-29.
-- **Vendored bytes (sha256):** `openapi.json` `407991d07f277614db10e6b086603faa8b072ab7d52732d4569568be0efb596d`; `grouping.json` `b643b964451fa5780111f92a2130dd4a11bdcb5ae0dd0f363f75de48edf3bf1b`.
+- **Vendored bytes (sha256):** `openapi.json` `8a27f967d86c2cf6b9bd9c6a7741ae84abe3f0dcc465f1a6dc441eb0f677337f`; `grouping.json` `b643b964451fa5780111f92a2130dd4a11bdcb5ae0dd0f363f75de48edf3bf1b`.
