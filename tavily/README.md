@@ -35,7 +35,8 @@ Authentication accepts the World-issued key in `Authorization: Bearer` or `api_k
 
 The doors are:
 
-- `POST /_twin/app-credentials {}`: the dashboard's first key, returned identically on subsequent boots and wired to `TAVILY_API_KEY`.
+- `POST /_twin/app-credentials { account?, deployment? }`: a named Development key in the selected dashboard account,
+  returned identically on repeated calls for that deployment and wired to `TAVILY_API_KEY`.
 - `POST /_twin/pages {url, title, content, ...}`: a synthetic source page; the same URL replaces its record. Optional fields are `raw_content`, `text_content`, `advanced_content`, `summary`, `images` (URLs or `{url, description}` objects), `favicon`, `topic`, `published_date`, `country`, `language` (an ISO code), `unsafe` and `fetch_seconds`. These supply facts about a source that Tavily's API cannot create.
 
 The World scenario supports `operationEquals` and `queryEquals`, status faults in Tavily's envelope, and search judgment `{parameters: {topic?, search_depth?}, answer?}`. Explicit input overrides automatic judgment; size options stay explicit. Source pages and their metadata are supplied through the door.

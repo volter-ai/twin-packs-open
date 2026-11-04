@@ -1,8 +1,7 @@
-import { mp4Facts } from '../engine/mp4.ts';
 // What every family of the open lane shares beyond the vendor's (../../../src/semantics/shared.ts): the open platform's
 // envelope, the scopes its apps are granted, and who a request is.
 import type { HandlerContext } from '@volter/world-core';
-import { ACCESS, ACCESS_TTL, APP, CHUNK, CODE, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, appByKey, bySha, clientSecret, credential, mediaUrl, next, openIdOf, privacyOptions, seconds, sha256, type Row, unionIdOf, videoMoment, videoPage } from '../../../src/semantics/shared.ts';
+import { ACCESS, ACCESS_TTL, APP, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, bySha, credential, next, openIdOf, privacyOptions, seconds, sha256, type Row } from '../../../src/semantics/shared.ts';
 
 export * from '../../../src/semantics/shared.ts';
 export type { HandlerContext };
@@ -16,7 +15,7 @@ export const BUSINESS_SCOPES = ['user.info.basic', 'user.info.username', 'user.i
 // ── the envelope ───────────────────────────────────────────────────────────────────────────────
 // source: https://developers.tiktok.com/doc/content-posting-api-reference-query-creator-info "Any code other than"
 /** An answer: `{data, error: {code: 'ok', message: '', log_id}}`. */
-export const logId = (ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, what: string): string =>
+const logId = (ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, what: string): string =>
   `${ctx.occurredAt.replace(/\D/g, '').slice(0, 14)}${ctx.crypto.digest('sha256', `${ctx.occurredAt}:${what}`, 'hex').slice(0, 20).toUpperCase()}`;
 export const ok = (ctx: Pick<HandlerContext, 'crypto' | 'occurredAt'>, data: unknown): Response =>
   Response.json({ data, error: { code: 'ok', message: '', log_id: logId(ctx, JSON.stringify(data)) } });
@@ -77,7 +76,7 @@ export const FIELD_SCOPE: Record<string, string> = {
 export const videosObj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 
 // source: https://developers.tiktok.com/doc/tiktok-api-v2-video-query "choose from"
-export const FIELDS = ['id', 'create_time', 'cover_image_url', 'share_url', 'video_description', 'duration', 'height', 'width', 'title', 'embed_html', 'embed_link', 'like_count', 'comment_count', 'share_count', 'view_count', 'is_aigc'];
+const FIELDS = ['id', 'create_time', 'cover_image_url', 'share_url', 'video_description', 'duration', 'height', 'width', 'title', 'embed_html', 'embed_link', 'like_count', 'comment_count', 'share_count', 'view_count', 'is_aigc'];
 
 export function fieldsOf(ctx: HandlerContext): string[] | Response {
   const fields = String(new URL(ctx.call.request.url).searchParams.get('fields') ?? '').split(',').map((f) => f.trim()).filter(Boolean);
@@ -92,16 +91,16 @@ export const project = (ctx: HandlerContext, v: Row, fields: string[]): Row => {
 
 export const publishObj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 
-export const MB = 1024 * 1024;
+const MB = 1024 * 1024;
 
-export const UPLOAD_HOST = 'https://open-upload.tiktokapis.com';
+const UPLOAD_HOST = 'https://open-upload.tiktokapis.com';
 
 export const invalid = (ctx: HandlerContext, message: string): Response => refuse(ctx, 400, 'invalid_param', message);
 
 // source: https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide "Each chunk must be at least 5 MB but no greater than 64 MB, except for the final chunk, which can be greater than"
 /** The chunk plan's refusal, or undefined when it holds: whole below 5 MB, chunks of 5–64 MB, floor(size/chunk) of
  *  them, 1–1000, at most 4 GB in all, and the final chunk (the whole of a one-chunk plan) at most 128 MB. */
-export function chunkRefusal(size: number, chunk: number, count: number): string | undefined {
+function chunkRefusal(size: number, chunk: number, count: number): string | undefined {
   if (!Number.isInteger(size) || size <= 0) return 'video_size must be a positive integer';
   // source: https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide "Maximum of 4GB"
   if (size > 4 * 1024 * MB) return 'video_size is over 4GB';
