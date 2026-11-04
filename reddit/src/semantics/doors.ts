@@ -9,11 +9,9 @@
 //   POST /_twin/subreddits {name, title, owner, public_description?, type?, link_type?, created?}
 //         a community as reddit.com's Create a community page makes it, for a seed: a seed call carries no token, so it
 //         cannot call POST /api/site_admin, which a life calls
-//   POST /_twin/app-credentials {username}
-//         the World application's bearer token for the World's account (the descriptor's credentialDoor), the same at
-//         every boot: it stands in for the token the World's operator mints with the script app's password grant before
-//         a send, holds every scope, and is not held to a token's day of life, since the World's application keeps it
-//         across the days a dry run spans
+//   POST /_twin/app-credentials {account?, deployment?} or {username}
+//         a retained script app and bearer grant for the deployment, using the account's first member or the selected
+//         username; the token holds every scope and has no expiry across the days a dry run spans
 import type { HandlerContext } from '@volter/world-core';
 import { recordPerson } from '@volter/world-core';
 import { accountNamed, ACCOUNT, APP, CLIENT_SECRET, httpError, MEMBERSHIP, nowSeconds, SUBREDDIT, subredditNamed, TOKEN, type Row } from './shared.ts';
