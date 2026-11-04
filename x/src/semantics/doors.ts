@@ -77,7 +77,7 @@ async function clientsAnswer(ctx: HandlerContext): Promise<XResponse> {
   const b = jsonOf(ctx);
   if (!b) return oauthError('invalid_request', 'A JSON body is required.', 400);
   if (typeof b['client_id'] === 'string' && b['client_id'].includes(':')) return oauthError('invalid_request', 'client_id must not contain ":".', 400);
-  const clientId = typeof b['client_id'] === 'string' && b['client_id'] ? b['client_id'] : mintClientId(rowsFor(ctx), ctx.occurredAt);
+  const clientId = typeof b['client_id'] === 'string' && b['client_id'] ? b['client_id'] : mintClientId(`oauth_client:${ctx.occurredAt}:${rowsFor(ctx)('oauth_client').length}`);
   const clientType = b['client_type'] === 'public' ? 'public' : 'confidential';
   const secret = clientType === 'public' ? null : typeof b['client_secret'] === 'string' ? b['client_secret'] : alnum(`${await credentialSalt(ctx)}:client_secret:${clientId}`, 50);
   const row = await save(ctx, 'oauth_client', clientId, {
@@ -185,7 +185,7 @@ async function accountsAnswer(ctx: HandlerContext): Promise<XResponse> {
   const held = typeof email === 'string' && password !== undefined ? personOf(ctx, email) : undefined;
   if (held && typeof held.account_id === 'string' && held.account_id !== id) return seedRefused('email', '(withheld)', "A seeded account's `email` is its own person's: another account's person signs in with it.");
   // posted again, an account keeps when it was made, and its person is the one it now names: an earlier email's goes
-  await ctx.write('account', id, { username, name, created_at: named?.created_at ?? ctx.occurredAt, ...profile, ...limit }, 'x.twin.seed_account');
+  await ctx.write('account', id, { username, _username: username.toLowerCase(), name, created_at: named?.created_at ?? ctx.occurredAt, ...profile, ...limit }, 'x.twin.seed_account');
   if (typeof password === 'string' && typeof email === 'string') {
     // a retired person's sessions end with them: world-ui finds a session's person by email, so one left open would
     // sign its browser in to whichever account that email names next
@@ -303,13 +303,10 @@ async function appCredentialsAnswer(ctx: HandlerContext): Promise<XResponse> {
     const label = typeof body.username === 'string' ? body.username : world.id === 'default' ? 'world_developer' : world.id;
     for (const suffixed of [false, true]) {
       const username = ctx.vendorName(label, rule, { suffixed, identity: world.id });
-      const id = await ctx.atomically((rows) => {
-        if (rows('User').some((row) => String(row.username).toLowerCase() === username.toLowerCase())) return { value: undefined };
-        const id = mintSnowflakeId(ctx, 'User');
-        return { value: id, write: { resource: 'User', id, fields: { username, name: typeof body.name === 'string' ? body.name : world.label,
-          confirmed_email: email, _owner_email: email, created_at: ctx.occurredAt }, operation: 'x.twin.seed_account' } };
-      });
-      if (id) return id;
+      if (ofAccounts(ctx).some((row) => String(row.username).toLowerCase() === username)) continue;
+      const made = await ctx.createUnique('User', { username, _username: username, name: typeof body.name === 'string' ? body.name : world.label,
+        confirmed_email: email, _owner_email: email, created_at: ctx.occurredAt }, 'x.twin.seed_account');
+      if (made.created || ctx.row('User', String(made.row.id))?._owner_email === email) return String(made.row.id);
     }
     throw send(oauthError('invalid_request', `A username already exists for ${world.id}.`, 400));
   });
@@ -346,11 +343,12 @@ async function appCredentialsAnswer(ctx: HandlerContext): Promise<XResponse> {
     read: async (row) => row.revoked !== true && row.consumerKey === app.id && row.userId === userId && typeof row.secret === 'string'
       && (row._secret_sha256 === undefined || row._secret_sha256 === sha256(row.secret)) ? row.secret : undefined,
   });
-  const client = await ctx.deploymentObject(`oauth-client:${app.id}`, 'oauth_client', async () => ctx.atomically((rows) => {
-    const id = mintClientId(rows, ctx.occurredAt);
-    return { value: id, write: { resource: 'oauth_client', id, fields: { name: app.name, owner: userId, app_id: app.id,
-      clientType: 'confidential', plan: 'self-serve', redirectUris: defaultRedirectUris(originOf(ctx)) }, operation: 'oauth_client.create' } };
-  }));
+  const client = await ctx.deploymentObject(`oauth-client:${app.id}`, 'oauth_client', async () => {
+    const id = mintClientId(`oauth_client:${await ctx.issue('_credential_issue')}`);
+    const made = await ctx.createUnique('oauth_client', { name: app.name, owner: userId, app_id: app.id,
+      clientType: 'confidential', plan: 'self-serve', redirectUris: defaultRedirectUris(originOf(ctx)) }, 'oauth_client.create', { id });
+    return String(made.row.id);
+  });
   const clientSecret = await ctx.accountKey(`oauth2-client-secret:${client.id}`, CLIENT_SECRET, {
     make: async () => {
       const before = ctx.row(CLIENT_SECRET, String(client.id));
@@ -359,12 +357,11 @@ async function appCredentialsAnswer(ctx: HandlerContext): Promise<XResponse> {
         if (before.sha256 === sha256(value)) return String(client.id);
       }
       const issued = await ctx.issue('_credential_issue');
-      await ctx.atomically((rows) => {
-        const row = rows(CLIENT_SECRET).find((row) => row.id === client.id);
-        if (row?._pending === true || row?.label !== before?.label || row?.sha256 !== before?.sha256) return { value: undefined };
-        return { value: undefined, write: { resource: CLIENT_SECRET, id: String(client.id),
-          fields: { _client: client.id, label: `x-client-secret:${client.id}:${issued}`, _pending: true, deleted: false }, operation: 'client_secret.reserve' } };
-      });
+      const fields = { _client: client.id, label: `x-client-secret:${client.id}:${issued}`, _pending: true, deleted: false };
+      const made = await ctx.createUnique(CLIENT_SECRET, fields, 'client_secret.reserve', { id: String(client.id), input: 'omit' });
+      if (!made.created) await ctx.change(CLIENT_SECRET, String(client.id), (row) =>
+        row._pending === true || row.label !== before?.label || row.sha256 !== before?.sha256 ? undefined : fields,
+      'client_secret.reserve', { input: 'omit' });
       const row = ctx.row(CLIENT_SECRET, String(client.id))!;
       const value = alnum(await ctx.secret(String(row.label)), 50);
       await ctx.change(CLIENT_SECRET, String(client.id), (current) => current.label === row.label

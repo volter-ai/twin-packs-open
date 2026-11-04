@@ -402,8 +402,7 @@ function credentialSeed(label: string, count: number, instant: string | number, 
 }
 
 /** An X OAuth 2.0 client id: base64url of `<opaque>:1:ci`. */
-export const mintClientId = (rows: Rows, instant: string): string =>
-  b64url(`${stableHex(`oauth_client:${instant}:${rows('oauth_client').length}`, 21)}:1:ci`);
+export const mintClientId = (seed: string): string => b64url(`${stableHex(seed, 21)}:1:ci`);
 /** An X OAuth 2.0 authorization code (`…:ac:1`). `subject` is the authorize screen it settles. */
 export const mintAuthorizationCode = (rows: Rows, at: number, subject: string, salt: string): string =>
   b64url(`${stableHex(credentialSeed('authorization_code', heldCount(rows, 'code'), at, subject, salt), 45)}:${at}:1:1:ac:1`);

@@ -368,13 +368,13 @@ export const manifest: DerivedManifest = {
     },
   ],
   resources: {
-    oauth1_app: { idPrefix: '', ids: '{letters:25}' },
-    oauth_client: { idPrefix: '', ids: '{letters:21}' },
-    _client_secret: { idPrefix: '', ids: '{uuid}' },
+    oauth1_app: { idPrefix: '', ids: '{letters:25}', refresh: { none: 'Developer console registrations have no public X API reader.' } },
+    oauth_client: { idPrefix: '', ids: '{letters:21}', unique: [{ fields: ['app_id'], refusal: { status: 409, code: 'invalid_request', message: 'An OAuth client already exists for this App.' } }], refresh: { none: 'Developer console registrations and secrets have no public X API reader.' } },
+    _client_secret: { idPrefix: '', ids: '{uuid}', unique: [{ fields: ['_client'], refusal: { status: 409, code: 'invalid_request', message: 'A secret already exists for this client.' } }] },
     _credential_issue: { idPrefix: '', ids: '{uuid}' },
     CreatePostsResponseData: { idPrefix: '', storedAs: 'post', refresh: { none: 'The create response is a thin view of Post; Post refresh reads the user timeline.' } },
     // source: spec:getUsersMe "Get Users Me"
-    User: { idPrefix: '', ...states.User, storedAs: 'account', refresh: { get: 'getUsersMe', query: { 'user.fields': 'created_at,description,location,url,profile_image_url,protected,verified,verified_type' } } },
+    User: { idPrefix: '', ...states.User, storedAs: 'account', unique: [{ fields: ['_username'], refusal: { status: 400, code: 'invalid_request', message: 'A username already exists.' } }], refresh: { get: 'getUsersMe', query: { 'user.fields': 'created_at,description,location,url,profile_image_url,protected,verified,verified_type' } } },
     // source: spec:getUsersPosts "Get Users Posts"
     Post: { idPrefix: '', storedAs: 'post', embeds: { conversation_id: 'Post', in_reply_to_user_id: 'User', article_id: 'article' }, parent: { resource: 'User', field: 'author_id', param: 'id' }, refresh: { list: 'getUsersPosts', items: 'data', next: 'meta.next_token', cursor: 'pagination_token', query: { 'tweet.fields': 'author_id,created_at,conversation_id,in_reply_to_user_id,referenced_tweets,public_metrics,attachments' } } },
 
