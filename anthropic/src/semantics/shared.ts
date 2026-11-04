@@ -76,6 +76,15 @@ export function liveKey(ctx: Pick<HandlerContext, 'rowsRaw' | 'crypto' | 'occurr
 export const keyValue = async (ctx: Pick<HandlerContext, 'secret'>, id: string): Promise<string> =>
   `sk-ant-api03-${await ctx.secret(`anthropic-key:${id}`)}${await ctx.secret(`anthropic-key-2:${id}`)}`.slice(0, 108) + 'AA';
 
+/** Allocate the native key before drawing its secret; no credential authenticates until its digest is stored. */
+export async function issueKey(ctx: HandlerContext, organization: string, workspace: string, email: string, name: string, expiresAt: string | null): Promise<{ id: string; key: string }> {
+  const row = await ctx.create(KEY, { name, workspace, _organization: organization, created_by: email, created_at: ctx.occurredAt, expires_at: expiresAt, status: 'active', deleted: false }, 'api_key.create');
+  const id = String(row.id);
+  const value = await keyValue(ctx, id);
+  await ctx.write(KEY, id, { hint: `${value.slice(0, 14)}...${value.slice(-4)}`, _sha256: ctx.crypto.sha256(value) }, 'api_key.create');
+  return { id, key: value };
+}
+
 // ── models ────────────────────────────────────────────────────────────────────────────────────────────────────────
 /** The models the API answers: the spec's `Model` values. Where the documentation stops: any other id is refused as a
  *  resource that does not exist (`not_found_error`, "model: <id>"), as the API answers a retired or mistyped model. */

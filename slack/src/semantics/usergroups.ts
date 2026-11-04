@@ -2,7 +2,7 @@
 // groups, their members and default channels.
 import type { HandlerContext } from '@volter/world-core';
 import { listArg } from '../engine/wire.ts';
-import { arg, fail, groupMembers, groupsIn, groupView, now, ok, setGroupSet, who } from './shared.ts';
+import { arg, fail, groupMembers, groupsIn, groupView, now, ok, setGroupSet, teamsOf, who } from './shared.ts';
 
 type Row = Record<string, unknown>;
 
@@ -80,7 +80,7 @@ export async function usergroups_users_update(ctx: HandlerContext): Promise<Resp
   if (!g) return fail(ctx, 'no_such_subteam');
   if (g.is_external === true) return fail(ctx, 'permission_denied');
   const users = listArg(ctx.params.users);
-  for (const u of users) if (!ctx.get('user', u)) return fail(ctx, 'invalid_users');
+  for (const u of users) if (!ctx.get('user', u) || !teamsOf(ctx, u).includes(team)) return fail(ctx, 'invalid_users');
   await setGroupSet(ctx, 'usergroup_member', String(g.id), users, 'usergroup.users');
   await ctx.write('usergroup', String(g.id), { date_update: now(ctx), updated_by: by.user }, 'usergroup.update');
   return ok(ctx, { usergroup: groupView(ctx, ctx.row('usergroup', String(g.id))!, team, true) });

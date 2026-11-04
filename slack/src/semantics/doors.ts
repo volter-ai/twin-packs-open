@@ -3,7 +3,7 @@ import type { HandlerContext } from '@volter/world-core';
 import { commandsOf } from '../engine/app-manifest.ts';
 import { allScopes } from '../engine/methods.ts';
 import { HOME_TEAM } from '../engine/wire.ts';
-import { caller, channelMembers, channelNamed, DELIVERIES, EVENT_DELIVERIES, MAIL, botFor, keepToken, makeApp, SLACK_EVENTS, messageId, tokenKey, now, replyAsApp, RESPONSE_URLS, askApp, askAppSocket, serial, socketMode, shareLinks, shown, TOKENS, type Caller } from './shared.ts';
+import { caller, channelMembers, channelNamed, DELIVERIES, EVENT_DELIVERIES, MAIL, botFor, keepToken, makeApp, makeWorkspace, SLACK_EVENTS, messageId, tokenKey, now, replyAsApp, RESPONSE_URLS, askApp, askAppSocket, sees, serial, socketMode, shareLinks, shown, TOKENS, type Caller } from './shared.ts';
 
 type Row = Record<string, unknown>;
 
@@ -26,7 +26,7 @@ export async function command(ctx: HandlerContext): Promise<Response> {
   const name = String(ctx.params.command ?? '');
   const text = String(ctx.params.text ?? '');
   const channel = channelNamed(ctx, String(ctx.params.channel ?? ''), by.team);
-  if (!channel) return Response.json({ ok: false, error: 'channel_not_found' }, { status: 404 });
+  if (!channel || !sees(ctx, channel, by)) return Response.json({ ok: false, error: 'channel_not_found' }, { status: 404 });
   const installed = new Set(ctx.rowsRaw(TOKENS).filter((t) => t.kind === 'bot' && t.revoked !== true && t.team === by.team).map((t) => t.app));
   const app = ctx.rowsRaw('app').find((a) => installed.has(a.id) && commandsOf(a.manifest as Row).some((c) => c.command === name));
   if (!app) return Response.json({ ok: false, error: 'command_not_found' }, { status: 404 });
@@ -78,8 +78,8 @@ export async function home(ctx: HandlerContext): Promise<Response> {
   const by = person(ctx);
   if (by instanceof Response) return by;
   const app = ctx.row('app', String(ctx.params.app ?? ''));
-  if (!app) return Response.json({ ok: false, error: 'app_not_found' }, { status: 404 });
-  const bot = ctx.rowsRaw('user').find((u) => u.is_bot === true && u.app_id === app.id);
+  if (!app || !ctx.row('app_install', `${String(app.id)}::${by.team}`)) return Response.json({ ok: false, error: 'app_not_found' }, { status: 404 });
+  const bot = ctx.rowsRaw('user').find((u) => u.is_bot === true && u.app_id === app.id && u.install_team === by.team);
   const dm = bot ? ctx.rowsRaw('channel').find((c) => c.is_im === true && channelMembers(ctx, String(c.id)).includes(by.user) && channelMembers(ctx, String(c.id)).includes(String(bot.id))) : undefined;
   const id = ctx.mint('home_open');
   await ctx.write('home_open', id, { user: by.user, app: app.id, channel: dm?.id ?? `D${String(app.id)}`, team: by.team, at: now(ctx) }, 'home.open');
@@ -94,7 +94,7 @@ export async function link(ctx: HandlerContext): Promise<Response> {
   const channel = channelNamed(ctx, String(ctx.params.channel ?? ''), by.team);
   const ts = String(ctx.params.ts ?? '');
   const m = channel ? ctx.row('message', messageId(String(channel.id), ts)) : undefined;
-  if (!channel || !m) return Response.json({ ok: false, error: 'message_not_found' }, { status: 404 });
+  if (!channel || !sees(ctx, channel, by) || !m) return Response.json({ ok: false, error: 'message_not_found' }, { status: 404 });
   const share = await shareLinks(ctx, m);
   if (!share) return Response.json({ ok: false, error: 'no_links' }, { status: 400 });
   return Response.json({ ok: true, unfurl_id: share.id }, { status: 201 });
@@ -109,7 +109,7 @@ export async function action(ctx: HandlerContext): Promise<Response> {
   const channel = channelNamed(ctx, String(ctx.params.channel ?? ''), by.team);
   const ts = String(ctx.params.ts ?? '');
   const m = channel ? ctx.row('message', messageId(String(channel.id), ts)) : undefined;
-  if (!channel || !m) return Response.json({ ok: false, error: 'message_not_found' }, { status: 404 });
+  if (!channel || !sees(ctx, channel, by) || !m) return Response.json({ ok: false, error: 'message_not_found' }, { status: 404 });
   const actionId = String(ctx.params.action_id ?? '');
   const element = ((m.blocks as Row[] | undefined) ?? []).flatMap((b) => ((b.elements as Row[] | undefined) ?? []).map((e) => ({ block: b, e }))).find((x) => x.e.action_id === actionId);
   const app = m.app_id ? ctx.row('app', String(m.app_id)) : undefined;
@@ -159,37 +159,63 @@ const WORLD_APP_EVENTS = [...new Set(Object.values(SLACK_EVENTS.types).flat().fl
  *  install step where an app asks for its own. */
 const worldAppScopes = (): string[] => [...new Set([...allScopes(), 'channels:history', 'groups:history', 'im:history', 'mpim:history', 'app_mentions:read', 'links:read', 'chat:write.public'])].sort();
 
-/** POST /_twin/app-credentials: the credentials the World's application holds (the descriptor's credentialDoor). The
- *  World's own app, made the first time the runtime asks: installed in the World's workspace with its bot, in Socket
- *  Mode and subscribed to every bot event. It answers the bot token (`xoxb-`), an app-level token with
- *  `connections:write` (`xapp-`) and the app's signing secret and client credentials, the same at every boot (each
- *  drawn from the World's secret). An app a person removed, or whose tokens they revoked, is made again. */
+/** A retained token's native wire value; its issue number, never its secret, is stored on the token row. */
+async function appTokenValue(ctx: HandlerContext, kind: 'bot' | 'app', app: string, issuance: string): Promise<string> {
+  const d = ctx.crypto.digest('sha256', await ctx.secret(`world-app:${kind}:${app}:${issuance}`), 'hex');
+  return kind === 'bot'
+    ? `xoxb-${String(BigInt(`0x${d.slice(0, 10)}`))}-${String(BigInt(`0x${d.slice(10, 20)}`))}-${d.slice(20, 44)}`
+    : `xapp-1-${app}-${String(BigInt(`0x${d.slice(0, 10)}`))}-${d.slice(10, 74)}`;
+}
+
+/** A deployment's developer app and installation, with the workspace's grants and app-specific Socket Mode tokens. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  const draw = async (label: string, app: string): Promise<string> => ctx.crypto.digest('sha256', await ctx.secret(`world-app:${label}:${app}`), 'hex');
-  const tokensOf = async (app: string): Promise<{ bot: string; app: string }> => {
-    const b = await draw('bot', app);
-    const a = await draw('app', app);
-    return { bot: `xoxb-${String(BigInt(`0x${b.slice(0, 10)}`))}-${String(BigInt(`0x${b.slice(10, 20)}`))}-${b.slice(20, 44)}`, app: `xapp-1-${app}-${String(BigInt(`0x${a.slice(0, 10)}`))}-${a.slice(10, 74)}` };
-  };
-  // the World's app still standing: not removed, installed, its tokens not revoked
-  let held: Row | undefined;
-  for (const a of ctx.rowsRaw('app').filter((x) => x._world_app === true && x.deleted !== true)) {
-    const t = await tokensOf(String(a.id));
-    const install = ctx.row('app_install', `${String(a.id)}::${HOME_TEAM}`);
-    if (install?.deleted === true || [t.bot, t.app].some((k) => ctx.row(TOKENS, tokenKey(k))?.revoked === true)) continue;
-    held = a;
+  try {
+    const workspace = await ctx.tenant('team', async org => {
+      if (org.id === 'default' && ctx.row('team', HOME_TEAM)) return HOME_TEAM;
+      const email = org.members[0]!.toLowerCase();
+      const label = org.id === 'default' ? 'world' : org.label;
+      const rule = { max: 21, lower: true, allowed: /[a-z0-9-]/ };
+      const create = (suffixed: boolean) => makeWorkspace(ctx, org.id === 'default' ? HOME_TEAM : undefined, { email, name: email.split('@')[0]! }, {
+        name: org.label, domain: ctx.vendorName(label, rule, { suffixed, identity: org.id }),
+      });
+      const made = await create(false) ?? await create(true);
+      if (!made) throw Response.json({ ok: false, error: 'url_taken', response_metadata: { messages: [`This workspace URL is already in use (${org.id}).`] } });
+      return made.team;
+    });
+    const team = String(workspace.id);
+    const app = await ctx.deploymentObject(`app:${team}`, 'app', async deployment => String((await makeApp(ctx, {
+      display_information: { name: deployment || 'World app' },
+      features: { bot_user: { display_name: 'world', always_online: true } },
+      settings: { socket_mode_enabled: true, event_subscriptions: { bot_events: WORLD_APP_EVENTS } },
+    }, { team, creator: String(workspace.created_by) })).id));
+    await ctx.deploymentObject(`installation:${String(app.id)}`, 'app_install', async () => {
+      const id = `${String(app.id)}::${team}`;
+      await ctx.write('app_install', id, { team, app: app.id, installed_by: workspace.created_by, at: now(ctx), deleted: false }, 'app.install');
+      return id;
+    });
+    const { user, bot } = await botFor(ctx, app, team);
+    const token = async (kind: 'bot' | 'app'): Promise<string> => (await ctx.accountKey(`${kind}-token`, TOKENS, {
+      make: async () => {
+        const issuance = await serial(ctx, `${kind}_token`);
+        const value = await appTokenValue(ctx, kind, String(app.id), issuance);
+        await keepToken(ctx, value, {
+          app: app.id, team, _world_issue: issuance,
+          ...(kind === 'bot' ? { user, bot, scopes: worldAppScopes() } : { scopes: ['connections:write'], name: 'world' }),
+        });
+        return tokenKey(value);
+      },
+      read: async row => {
+        if (row.app !== app.id || row.team !== team || row.kind !== kind || typeof row._world_issue !== 'string' || !ctx.row('app_install', `${String(app.id)}::${team}`)) return undefined;
+        const value = await appTokenValue(ctx, kind, String(app.id), row._world_issue);
+        return tokenKey(value) === row.id && !('error' in caller(ctx, value)) ? value : undefined;
+      },
+    })).secret;
+    const botToken = await token('bot');
+    const appToken = await token('app');
+    const credentials = app.credentials as Row;
+    return Response.json({ ok: true, app_id: app.id, bot_user_id: user, bot_token: botToken, app_token: appToken, signing_secret: credentials.signing_secret, client_id: credentials.client_id, client_secret: credentials.client_secret }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
   }
-  const app = held ?? await makeApp(ctx, {
-    display_information: { name: 'World app' },
-    features: { bot_user: { display_name: 'world', always_online: true } },
-    settings: { socket_mode_enabled: true, event_subscriptions: { bot_events: WORLD_APP_EVENTS } },
-  }, { team: HOME_TEAM });
-  if (!held) await ctx.write('app', String(app.id), { _world_app: true }, 'app.update');
-  const { user, bot } = await botFor(ctx, app, HOME_TEAM);
-  const tokens = await tokensOf(String(app.id));
-  if (!ctx.row(TOKENS, tokenKey(tokens.bot))) await keepToken(ctx, tokens.bot, { user, bot, app: app.id, scopes: worldAppScopes(), team: HOME_TEAM });
-  if (!ctx.row(TOKENS, tokenKey(tokens.app))) await keepToken(ctx, tokens.app, { app: app.id, scopes: ['connections:write'], team: HOME_TEAM, name: 'world' });
-  if (!ctx.row('app_install', `${String(app.id)}::${HOME_TEAM}`)) await ctx.write('app_install', `${String(app.id)}::${HOME_TEAM}`, { team: HOME_TEAM, app: app.id, installed_by: null, at: now(ctx), deleted: false }, 'app.install');
-  const credentials = app.credentials as Row;
-  return Response.json({ ok: true, app_id: app.id, bot_user_id: user, bot_token: tokens.bot, app_token: tokens.app, signing_secret: credentials.signing_secret, client_id: credentials.client_id, client_secret: credentials.client_secret }, { status: 201 });
 }

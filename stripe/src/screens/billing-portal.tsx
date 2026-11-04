@@ -20,9 +20,9 @@ import type { HandlerContext } from '@volter/world-core';
 import { flowPage, type PaymentField, Portal, PORTAL_CSS, type PortalItem } from '@volter/world-ui';
 import type { Row } from '../engine/common.ts';
 import { publicBusinessName } from '../engine/display.ts';
-import { declineFor, nowUnix, paymentMethodSubObject, PLATFORM_ACCOUNT_ID } from '../engine/stripe.ts';
+import { declineFor, nowUnix, paymentMethodSubObject } from '../engine/stripe.ts';
 import { cardAnswer, COUNTRIES, formOf, money, notFound } from './shared.tsx';
-import { resourceView, afterSuccessOf, created, payerOf, payOpenInvoice } from '../semantics/shared.ts';
+import { platformAccountId, resourceView, afterSuccessOf, created, payerOf, payOpenInvoice } from '../semantics/shared.ts';
 const SUB = 'subscription';
 const PORTAL_OPERATION = { id: 'PostBillingPortalSessions' };
 
@@ -106,7 +106,7 @@ function page(ctx: HandlerContext, id: string, session: Row, problem?: { error: 
   // docs.stripe.com/api/customer_portal/sessions/object), else of the account it was made on (Stripe-Account), else the
   // platform's
   const owner = session.on_behalf_of ?? ctx.row('billing_portal.session', String(session.id))?._brand_account;
-  const merchant = publicBusinessName(ctx.get('account', typeof owner === 'string' ? owner : PLATFORM_ACCOUNT_ID));
+  const merchant = publicBusinessName(ctx.get('account', typeof owner === 'string' ? owner : platformAccountId(ctx)));
   const v = problem?.values ?? {};
   const cardFields: PaymentField[] = [
     { id: 'cardNumber', label: 'Card number', autoComplete: 'cc-number', placeholder: '1234 1234 1234 1234', value: v.cardNumber ?? '' },

@@ -139,6 +139,31 @@ export async function addToTeam(ctx: HandlerContext, team: string, user: string,
   await ctx.write('team_member', `${team}::${user}`, { _team: team, _user: user, date_joined: now(ctx), deleted: false }, operation);
 }
 
+/** A new workspace, its primary owner, and the general channel every workspace starts with. */
+// source: https://slack.com/help/articles/206845317-Create-a-Slack-workspace
+export async function makeWorkspace(ctx: HandlerContext, team: string | undefined, owner: { id?: string; email: string; name: string }, workspace: { name: string; domain: string }): Promise<{ team: string; general: string } | undefined> {
+  const at = now(ctx);
+  const fields = { name: workspace.name, domain: workspace.domain, email_domain: owner.email.split('@')[1], created: at };
+  const reserved = await ctx.createUnique('team', fields, 'team.create', { id: team });
+  if (!reserved.created) return undefined;
+  const teamId = String(reserved.row.id);
+  const [first, ...rest] = owner.name.split(/\s+/);
+  const profile = {
+    name: owner.email.split('@')[0], team_id: teamId, deleted: false, is_primary_owner: true, is_owner: true, is_admin: true, created: at, updated: at,
+    profile: { real_name: owner.name, display_name: '', email: owner.email, first_name: first, last_name: rest.join(' '), title: '' },
+  };
+  const user = owner.id ? await ctx.write('user', owner.id, profile, 'user.join') : await ctx.create('user', profile, 'user.join');
+  const ownerId = String(user.id);
+  await ctx.write('team', teamId, { ...fields, created_by: ownerId }, 'team.create');
+  await addToTeam(ctx, teamId, ownerId);
+  const general = await ctx.create('channel', {
+    name: 'general', context_team_id: teamId, is_private: false, is_general: true, created: at, updated: at * 1000, creator: ownerId, is_archived: false,
+    topic: { value: '', creator: '', last_set: 0 }, purpose: { value: 'This is the one channel that will always include everyone.', creator: '', last_set: 0 },
+  }, 'channel.create');
+  await addMember(ctx, String(general.id), ownerId);
+  return { team: teamId, general: String(general.id) };
+}
+
 /** A person as users.info answers them (https://docs.slack.dev/reference/objects/user-object); `has_2fa` only to a
  *  viewer who administers the workspace ("Only visible if the user executing the call is an admin"). */
 // source: https://docs.slack.dev/reference/objects/user-object "has_2fa"
@@ -378,12 +403,13 @@ export async function credentialsFor(ctx: HandlerContext, app: string): Promise<
 /** Make an app from its manifest in a workspace (`team`; `made_in` names another workspace it was made in, whose
  *  app the World's people install when it is distributed). Answers the app with its credentials. */
 export async function makeApp(ctx: HandlerContext, manifest: Row, fields: { team: string; creator?: string; made_in?: string; distributed?: boolean }): Promise<Row> {
-  const id = ctx.mint('app');
-  const credentials = await credentialsFor(ctx, id);
-  const app = await ctx.write('app', id, {
-    manifest, credentials, team_id: fields.team, creator: fields.creator ?? null, ...(fields.made_in ? { made_in: fields.made_in } : {}),
+  const reserved = await ctx.create('app', {
+    manifest, team_id: fields.team, creator: fields.creator ?? null, ...(fields.made_in ? { made_in: fields.made_in } : {}),
     distributed: fields.distributed === true, date_created: now(ctx),
   }, 'app.create');
+  const id = String(reserved.id);
+  const credentials = await credentialsFor(ctx, id);
+  const app = await ctx.write('app', id, { credentials }, 'app.update');
   await verifyRequestUrl(ctx, app);
   return app;
 }
@@ -394,9 +420,7 @@ export const appOfClient = (ctx: HandlerContext, clientId: string | undefined): 
 
 /** A fresh number for a code the World issues: each draw its own numbered subject of `_serial`, minted from the tree. */
 export async function serial(ctx: HandlerContext, what: string): Promise<string> {
-  const n = ctx.mint('_serial');
-  await ctx.record('_serial', { what }, n);
-  return n;
+  return ctx.record('_serial', { what });
 }
 
 /** A token, as the twin mints one: its prefix, then letters derived from what it is for. */
@@ -721,16 +745,12 @@ export function values(ctx: WriteHookContext, write: EventWrite, type: string): 
 /** The bot user an app has where it is installed (a workspace, or the whole org), made at its first install there: its
  *  name the manifest's bot display name. */
 export async function botFor(ctx: HandlerContext, app: Row, team: string): Promise<{ user: string; bot: string }> {
-  const held = ctx.rowsRaw('user').find((u) => u.is_bot === true && u.app_id === app.id && (u.install_team ?? null) === team);
-  if (held) return { user: String(held.id), bot: String(held.bot_id) };
   const manifest = app.manifest as Row;
   const display = String(((manifest.features as Row | undefined)?.bot_user as Row | undefined)?.display_name ?? appName(manifest).toLowerCase().replace(/\s+/g, '_'));
-  const bot = ctx.mint('bot');
-  const user = ctx.mint('user');
-  await ctx.write('user', user, {
-    name: display, is_bot: true, bot_id: bot, app_id: app.id, install_team: team, team_id: team, deleted: false,
-    profile: { real_name: appName(manifest), display_name: display, bot_id: bot }, updated: now(ctx),
-  }, 'user.bot');
-  if (team) await addToTeam(ctx, team, user);
-  return { user, bot };
+  const { row: user } = await ctx.createUnique('user', id => ({
+    name: display, is_bot: true, bot_id: `B${id.slice(1)}`, app_id: app.id, install_team: team, team_id: team, deleted: false,
+    profile: { real_name: appName(manifest), display_name: display, bot_id: `B${id.slice(1)}` }, updated: now(ctx),
+  }), 'user.bot');
+  if (team && !ctx.row('team_member', `${team}::${String(user.id)}`)) await addToTeam(ctx, team, String(user.id));
+  return { user: String(user.id), bot: String(user.bot_id) };
 }

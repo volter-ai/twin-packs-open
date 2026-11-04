@@ -1,7 +1,7 @@
 // Slack's views.* methods an app's Home tab takes (https://docs.slack.dev/surfaces/app-home): the view an app
 // publishes for one person: one `home_view` subject per app and person, its id the view's (`V0…`, minted).
 import type { HandlerContext } from '@volter/world-core';
-import { arg, fail, jsonArg, now, ok, who } from './shared.ts';
+import { arg, fail, jsonArg, now, ok, teamsOf, who } from './shared.ts';
 
 /** A refusal that says which argument was wrong (`response_metadata.messages`), as Slack's invalid_arguments does. */
 async function withMessages(refusal: Response, messages: string[]): Promise<Response> {
@@ -24,7 +24,7 @@ export async function views_publish(ctx: HandlerContext): Promise<Response> {
   const by = who(ctx);
   const user = arg(ctx, 'user_id');
   // source: https://docs.slack.dev/reference/methods/views.publish "invalid_arguments"
-  if (!user || !ctx.get('user', user)) return withMessages(fail(ctx, 'invalid_arguments'), ['invalid `user_id`']);
+  if (!user || !ctx.get('user', user) || !teamsOf(ctx, user).includes(by.team)) return withMessages(fail(ctx, 'invalid_arguments'), ['invalid `user_id`']);
   const view = jsonArg(ctx, 'view') as Record<string, unknown> | undefined;
   if (!view || typeof view !== 'object' || view.type !== 'home' || !Array.isArray(view.blocks)) return fail(ctx, 'invalid_arguments');
   const held = ctx.rowsRaw('home_view').find((v) => v.app_id === by.app && v.user === user);

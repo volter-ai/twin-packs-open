@@ -26,17 +26,16 @@ const FREE = { db_disk_threshold: 268435456, db_request_limit: 500000, db_max_re
  *  tokens derived from it. Where the documentation stops: a token is `A` and base64 of the database and its password (the
  *  shape of the page's examples); the twin draws it from the minted id. */
 // source: https://upstash.com/docs/redis/features/restapi "Upstash by default provides two separate access tokens per database"
-export async function makeDatabase(ctx: HandlerContext, input: { owner: string; name: string; region: string }): Promise<Row> {
-  const id = ctx.mint('Database');
+export async function makeDatabase(ctx: HandlerContext, input: { customer: Row; name: string; region: string }): Promise<Row> {
+  const id = await ctx.issue('_identity');
   // drawn from a secret the World holds (ctx.secret), so no one computes a database's password or tokens from its id
   const password = (await ctx.secret(`upstash-db-password:${id}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 32);
-  // p3: keyed by the password drawn from ctx.secret above
   const token = (kind: string): string => Buffer.from(`${kind}${id.replace(/-/g, '').slice(0, 12)}:${digest('sha256', `${kind}:${password}`).slice(0, 32)}`).toString('base64');
   return ctx.write(DATABASE, id, {
     database_id: id, database_name: input.name, region: 'global', primary_region: input.region, primary_members: [input.region], all_members: [input.region], read_regions: [],
     port: 6379, creation_time: Math.floor(Date.parse(ctx.occurredAt) / 1000), state: 'active', endpoint: endpointFor(id), tls: true, type: 'free', ...FREE,
     eviction: false, auto_upgrade: false, consistent: false, modifying_state: '', db_type: 'pebble', db_resource_size: 'S', db_acl_enabled: 'false', db_acl_default_user_status: 'true',
-    daily_backup_enabled: false, customer_id: input.owner, user_email: input.owner, password, rest_token: `A${token('rw')}`, read_only_rest_token: `Ag${token('ro')}`, deleted: false,
+    daily_backup_enabled: false, customer_id: input.customer.id, user_email: input.customer.email, password, rest_token: `A${token('rw')}`, read_only_rest_token: `Ag${token('ro')}`, deleted: false,
   }, 'database.create');
 }
 
@@ -60,16 +59,16 @@ const signingKey = async (ctx: Pick<HandlerContext, 'secret' | 'crypto'>, id: st
 // source: https://upstash.com/pricing/qstash "Max delay: 1 year"
 // source: spec:/components/schemas/QStashUser "Request timeout in seconds"
 const PAY_AS_YOU_GO = { type: 'paid', max_retries: 999, max_delay: 31536000, timeout: 7200 } as const;
-export async function openQStash(ctx: HandlerContext, input: { owner: string; region: string }): Promise<Row> {
-  const held = ctx.rowsRaw(QSTASH_USER).find((q) => q.customer_id === input.owner && q.deleted !== true);
+export async function openQStash(ctx: HandlerContext, input: { customer: Row; region: string }): Promise<Row> {
+  const held = ctx.rowsRaw(QSTASH_USER).find((q) => q.customer_id === input.customer.id && q.deleted !== true);
   if (held) return held;
-  const id = ctx.mint('QStashUser');
-  await ctx.write(QSTASH_USER, id, {
-    id, customer_id: input.owner, created_by: input.owner, token: await qstashToken(ctx, id, input.owner, 0, 'rw'), read_only_token: await qstashToken(ctx, id, input.owner, 0, 'ro'),
+  const id = await ctx.issue('_identity');
+  const made = await ctx.createUnique('QStashUser', {
+    id, customer_id: input.customer.id, created_by: input.customer.email, token: await qstashToken(ctx, id, String(input.customer.email), 0, 'rw'), read_only_token: await qstashToken(ctx, id, String(input.customer.email), 0, 'ro'),
     active: true, state: 'active', ...PAY_AS_YOU_GO, region: input.region, creation_time: Math.floor(Date.parse(ctx.occurredAt) / 1000),
     _url: qstashUrl(input.region), _current_signing_key: await signingKey(ctx, id, 1), _next_signing_key: await signingKey(ctx, id, 2), deleted: false,
-  }, 'qstash_user.create');
-  return ctx.rowsRaw(QSTASH_USER).find((q) => q.id === id)!;
+  }, 'qstash_user.create', { id });
+  return ctx.row(QSTASH_USER, String(made.row.id))!;
 }
 
 /** How many times an account's QStash has had its token reset, or its keys rolled: its history's writes of each. */
@@ -79,7 +78,7 @@ const times = (ctx: HandlerContext, q: Row, operation: string): number => ctx.hi
 // source: https://upstash.com/docs/qstash/howto/reset-token "Reset token"
 export async function resetQStashToken(ctx: HandlerContext, q: Row): Promise<void> {
   const n = times(ctx, q, 'qstash_user.reset_token') + 1;
-  await ctx.write(QSTASH_USER, String(q.id), { token: await qstashToken(ctx, String(q.id), String(q.customer_id), n, 'rw'), read_only_token: await qstashToken(ctx, String(q.id), String(q.customer_id), n, 'ro') }, 'qstash_user.reset_token');
+  await ctx.write(QSTASH_USER, String(q.id), { token: await qstashToken(ctx, String(q.id), String(q.created_by), n, 'rw'), read_only_token: await qstashToken(ctx, String(q.id), String(q.created_by), n, 'ro') }, 'qstash_user.reset_token');
 }
 
 /** Roll keys: "currentKey = nextKey", and a new next key made (the account's third key on its first roll). */

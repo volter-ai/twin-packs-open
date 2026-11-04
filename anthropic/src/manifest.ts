@@ -58,9 +58,9 @@ export const manifest: DerivedManifest = {
     // a root's credential is an application's workspace API key, and only the Admin API reads an organization and its
     // workspaces back; it accepts an Admin API key, an org:admin token, or a personal or service account key "that isn't
     // scoped to a specific workspace" (https://platform.claude.com/docs/en/build-with-claude/administration-api)
-    organization: { idPrefix: '', ...states.organization, refresh: { none: "the root holds a workspace API key; the organization is read only by the Admin API, which refuses a key scoped to a workspace" } },
-    workspace: { idPrefix: 'wrkspc_', ids: '{letters:24}', ...states.workspace, refresh: { none: "the root holds a workspace API key; workspaces are listed only by the Admin API, which refuses a key scoped to a workspace" } },
-    _api_key: { idPrefix: 'apikey_', ids: '{letters:24}', ...states._api_key },
+    organization: { idPrefix: '', ids: '{uuid}', ...states.organization, refresh: { none: "the root holds a workspace API key; the organization is read only by the Admin API, which refuses a key scoped to a workspace" } },
+    workspace: { idPrefix: 'wrkspc_01', ids: '{prefix}{letters:24}', ...states.workspace, refresh: { none: "the root holds a workspace API key; workspaces are listed only by the Admin API, which refuses a key scoped to a workspace" } },
+    _api_key: { idPrefix: 'apikey_01', ids: '{prefix}{letters:24}', ...states._api_key },
     _mail: { idPrefix: '' },
     _prompt_cache: { idPrefix: '' },
     _message: { idPrefix: 'msg_', ids: '{letters:24}' },
@@ -93,7 +93,11 @@ export const manifest: DerivedManifest = {
     adoption: { sdks: ['@anthropic-ai/sdk', '@ai-sdk/anthropic', '@anthropic-ai/vertex-sdk', '@anthropic-ai/bedrock-sdk', '@anthropic-ai/claude-agent-sdk'], scopes: ['@anthropic-ai/'], pypi: ['anthropic', 'claude-agent-sdk', 'claude-code-sdk'], envStems: ['ANTHROPIC'] },
     hosts: [{ host: 'api.anthropic.com' }, { host: 'platform.claude.com' }, { host: 'console.anthropic.com' }],
     // the World's applications hold a key the Console made (the keys door), never a fixture: the twin refuses any other
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { ANTHROPIC_API_KEY: 'key' } },
+    credentialDoor: {
+      path: '/_twin/app-credentials', body: {}, fill: { ANTHROPIC_API_KEY: 'key' },
+      account: { field: 'account', tenancy: 'Organization', source: 'https://platform.claude.com/docs/en/manage-claude/authentication' },
+      deployment: { field: 'deployment', object: 'Workspace', source: 'https://platform.claude.com/docs/en/manage-claude/workspaces' },
+    },
     endpointEnv: { name: 'ANTHROPIC_BASE_URL', note: "the SDKs' base URL (the TypeScript and Python SDKs and Claude Code read ANTHROPIC_BASE_URL)" },
   },
 };

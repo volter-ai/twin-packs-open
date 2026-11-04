@@ -5,6 +5,7 @@ import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
 import { around } from './semantics/around.ts';
 import { clock } from './semantics/clock.ts';
+import { tenant } from './semantics/tenant.ts';
 import * as doors from './semantics/doors.ts';
 import { stripeSemantics } from './semantics/index.ts';
 import { screen as screen_billing_portal } from './screens/billing-portal.tsx';
@@ -22,6 +23,7 @@ export function createStripeFetch(options: PackFetchOptions = {}): DerivedFetch 
     doors,
     around,
     clock,
+    tenant,
     screens: { "billing-portal": screen_billing_portal, "checkout-js": screen_checkout_js, "checkout": screen_checkout, "connect-onboarding": screen_connect_onboarding, "dashboard": screen_dashboard, "stripe-js": screen_stripe_js },
   }, options);
 }

@@ -29,9 +29,8 @@ import { nowUnix } from '../engine/stripe.ts';
 import type { Row } from '../engine/common.ts';
 import { platformAccountDefault } from '../engine/connect.ts';
 import { publicBusinessName } from '../engine/display.ts';
-import { PLATFORM_ACCOUNT_ID } from '../engine/stripe.ts';
 import { formOf, money, notFound } from './shared.tsx';
-import { created } from '../semantics/shared.ts';
+import { platformAccountId, created } from '../semantics/shared.ts';
 const redirect = (path: string): Response => new Response(null, { status: 303, headers: { location: path } });
 const invalid = (message: string): Response => flowPage({ css: [], title: 'Stripe', status: 400, body: <main><p role="alert">{message}</p></main> });
 
@@ -109,7 +108,7 @@ a { color: #635bff; text-decoration: none; }
 type DashboardPage = { title: string; section: string; path: string; body: Parameters<typeof flowPage>[0]['body']; action?: Parameters<typeof flowPage>[0]['body']; status?: number };
 /** The documented dashboard navigation around only the operator pages this pack already serves. */
 function dashboardPage(ctx: HandlerContext, opts: DashboardPage): Response {
-  const account = ctx.get('account', PLATFORM_ACCOUNT_ID);
+  const account = ctx.get('account', platformAccountId(ctx));
   const links = [['Public details', PUBLIC_DETAILS_PATH], ['Radar lists', '/radar/lists'], ['Issuing balance', '/test/issuing/balance']];
   return flowPage({ title: `${opts.title} – Stripe`, css: [DETAILS_CSS], status: opts.status ?? 200, body: <div className="sd">
     <aside className="sd-side"><div className="sd-account">{publicBusinessName(account)}<span className="sd-mode">Test mode</span></div><nav className="sd-nav" aria-label="Dashboard">
@@ -199,9 +198,9 @@ function detailsPage(ctx: HandlerContext, account: Row | undefined, opts: { valu
 /** Save the business name on the platform's own account: the stored record, made from Stripe's default the first
  *  time anything is saved, and otherwise changed in place (its other public details kept). */
 async function save(ctx: HandlerContext, name: string): Promise<void> {
-  const held = ctx.get('account', PLATFORM_ACCOUNT_ID);
-  const profile = { business_profile: { ...(((held ?? platformAccountDefault()).business_profile as Row | undefined) ?? {}), name } };
-  await (held ? ctx.write('account', PLATFORM_ACCOUNT_ID, profile, 'account.update') : created(ctx, 'account', { ...platformAccountDefault(), ...profile }, {}, { operation: 'account.update' }));
+  const held = ctx.get('account', platformAccountId(ctx));
+  const profile = { business_profile: { ...(((held ?? platformAccountDefault(platformAccountId(ctx))).business_profile as Row | undefined) ?? {}), name } };
+  await (held ? ctx.write('account', platformAccountId(ctx), profile, 'account.update') : created(ctx, 'account', { ...platformAccountDefault(platformAccountId(ctx)), ...profile }, {}, { operation: 'account.update' }));
 }
 
 /** What the page says of a name no browser sends (the field is required and bounded), for a client that sends it. */
@@ -214,10 +213,10 @@ async function publicDetails(ctx: HandlerContext): Promise<Response> {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'POST') return notFound();
   const form = request.method === 'POST' ? await formOf(request.clone()) : {};
-  if (request.method === 'GET') return detailsPage(ctx, ctx.get('account', PLATFORM_ACCOUNT_ID), { saved: url.searchParams.has('saved') });
+  if (request.method === 'GET') return detailsPage(ctx, ctx.get('account', platformAccountId(ctx)), { saved: url.searchParams.has('saved') });
   const name = (form.business_name ?? '').trim();
   const refused = nameRefused(name);
-  if (refused) return detailsPage(ctx, ctx.get('account', PLATFORM_ACCOUNT_ID), { value: form.business_name ?? '', error: refused });
+  if (refused) return detailsPage(ctx, ctx.get('account', platformAccountId(ctx)), { value: form.business_name ?? '', error: refused });
   await save(ctx, name);
   // a query-only reference: the page's own path, wherever it is mounted and with or without its trailing slash
   return new Response(null, { status: 303, headers: { location: '?saved=1' } });

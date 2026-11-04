@@ -3,7 +3,7 @@
 // sessions. A new connected account is not yet active: charges and payouts are off and its
 // requirements are outstanding, as on Stripe before onboarding. Account retrieve and delete and
 // the person list are the derived core's.
-import { accountRequirements, accountSettings, PLATFORM_ACCOUNT_ID } from './stripe.ts';
+import { accountRequirements, accountSettings } from './stripe.ts';
 import { currentlyDue, kindOf } from './onboarding.ts';
 import { externalList, type Row } from './common.ts';
 // the platform's own account: stored once it is written, otherwise Stripe's default. It "controls itself" (controller
@@ -12,13 +12,13 @@ import { externalList, type Row } from './common.ts';
 // and its bank account, which its automatic payouts reach, is not modelled, so it lists none.
 export const PLATFORM_CREATED = 1_767_225_600;
 /** The platform's own account as Stripe's default has it, before anything is written to it. */
-export const platformAccountDefault = (): Row => ({
-  object: 'account', id: PLATFORM_ACCOUNT_ID, type: 'standard', country: 'US', default_currency: 'usd', created: PLATFORM_CREATED,
+export const platformAccountDefault = (id: string): Row => ({
+  object: 'account', id, type: 'standard', country: 'US', default_currency: 'usd', created: PLATFORM_CREATED,
   charges_enabled: true, payouts_enabled: true, details_submitted: true, email: null, metadata: {},
   capabilities: { card_payments: 'active', transfers: 'active' }, controller: { type: 'account' },
   requirements: { alternatives: [], current_deadline: null, currently_due: [], disabled_reason: null, errors: [], eventually_due: [], past_due: [], pending_verification: [] },
   future_requirements: { alternatives: [], current_deadline: null, currently_due: [], disabled_reason: null, errors: [], eventually_due: [], past_due: [], pending_verification: [] },
-  external_accounts: externalList(PLATFORM_ACCOUNT_ID, []), tos_acceptance: { date: null, ip: null, user_agent: null }, business_profile: {},
+  external_accounts: externalList(id, []), tos_acceptance: { date: null, ip: null, user_agent: null }, business_profile: {},
   settings: accountSettings(undefined), livemode: false,
 });
 

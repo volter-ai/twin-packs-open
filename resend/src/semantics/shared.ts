@@ -8,6 +8,7 @@ export type Row = Record<string, unknown>;
 export const EMAIL = 'email';
 export const DOMAIN = 'domain';
 export const KEY = '_api_key';
+export const TEAM = 'team';
 export const RECEIVED = 'GetReceivedEmailResponse';
 export const TEAM_HEADER = 'x-volter-resend-team';
 

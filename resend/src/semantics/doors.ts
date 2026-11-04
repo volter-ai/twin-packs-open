@@ -4,7 +4,7 @@
 // domain), and what the World reads back (an inbox, the webhooks sent).
 import { rawMessage } from '../engine/mime.ts';
 import type { HandlerContext } from '@volter/world-core';
-import { addressOf, DOMAIN, domainOf, EMAIL, KEY, keepAttachments, list, RECEIVED, type Row, stamp } from './shared.ts';
+import { addressOf, DOMAIN, domainOf, EMAIL, KEY, keepAttachments, list, RECEIVED, type Row, stamp, TEAM } from './shared.ts';
 
 const bodyOf = (ctx: HandlerContext): Row => (ctx.body && typeof ctx.body === 'object' && !Array.isArray(ctx.body) ? (ctx.body as Row) : {});
 const bad = (error: string, status = 400): Response => Response.json({ error }, { status });
@@ -17,9 +17,10 @@ const keyToken = async (ctx: HandlerContext, id: string): Promise<string> =>
   `re_${(await ctx.secret(`resend-key:${id}`)).replace(/[-_]/g, '').slice(0, 8)}_${(await ctx.secret(`resend-key-2:${id}`)).replace(/[-_]/g, '').slice(0, 24)}`;
 
 async function makeKey(ctx: HandlerContext, name: string, team: string, owner: string): Promise<{ id: string; token: string }> {
-  const id = ctx.mint(KEY);
+  const row = await ctx.create(KEY, { name, _team: team, _owner: addressOf(owner), created_at: stamp(ctx.occurredAt), status: 'active', deleted: false }, 'api_key.create');
+  const id = String(row.id);
   const token = await keyToken(ctx, id);
-  await ctx.write(KEY, id, { name, _team: team, _owner: addressOf(owner), _sha256: ctx.crypto.sha256(token), created_at: stamp(ctx.occurredAt), status: 'active', deleted: false }, 'api_key.create');
+  await ctx.write(KEY, id, { _sha256: ctx.crypto.sha256(token) }, 'api_key.create');
   return { id, token };
 }
 
@@ -29,14 +30,21 @@ export async function keys(ctx: HandlerContext): Promise<Response> {
   return Response.json(await makeKey(ctx, b.name, b.team, b.owner), { status: 201 });
 }
 
-/** POST /_twin/app-credentials: the key the World's application holds (the descriptor's credentialDoor), of the team
- *  "World": made the first time the runtime asks and the same at every boot after. */
+/** A deployment's named API key, inside the customer's team and its shared mail/domain grants. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
-  // a held key answers again only while its value still matches what is stored (a branch that made its own seed before
-  // the key reached it derives another value, so it issues a new key rather than one that is refused)
-  const held = ctx.rowsRaw(KEY).find((k) => k.name === 'world' && k._team === 'World' && k.status === 'active' && k.deleted !== true);
-  const again = held ? await keyToken(ctx, String(held.id)) : undefined;
-  return Response.json(held && again && held._sha256 === ctx.crypto.sha256(again) ? { id: held.id, token: again } : await makeKey(ctx, 'world', 'World', 'owner@world.test'), { status: 201 });
+  const team = await ctx.tenant(TEAM, async org => {
+    const fields = { name: org.label, owner: addressOf(org.members[0]), members: org.members, deleted: false };
+    return String((org.id === 'default' ? await ctx.write(TEAM, 'World', fields, 'team.create') : await ctx.create(TEAM, fields, 'team.create')).id);
+  });
+  const key = await ctx.accountKey('api-key', KEY, {
+    make: async () => (await makeKey(ctx, ctx.deployment() || 'world', String(team.id), String(team.owner))).id,
+    read: async row => {
+      if (row._team !== team.id || row.status !== 'active' || row.deleted === true) return undefined;
+      const value = await keyToken(ctx, String(row.id));
+      return row._sha256 === ctx.crypto.sha256(value) ? value : undefined;
+    },
+  });
+  return Response.json({ id: key.id, token: key.secret }, { status: 201 });
 }
 
 /** DELETE /_twin/api-keys/{id}: a key deleted on the API Keys page. */
