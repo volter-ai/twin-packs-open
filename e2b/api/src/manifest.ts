@@ -108,8 +108,8 @@ export const manifest: DerivedManifest = {
     _build: { idPrefix: '', ids: '{uuid}' },
   },
   doors: [
-    { id: 'teams', method: 'POST', path: '/_twin/teams', note: '{ name }: an E2B team, and its API key (e2b_ and 40 hex digits), answered again for the same name' },
-    { id: 'templates', method: 'POST', path: '/_twin/templates', note: '{ team?, alias, image, cpuCount?, memoryMB?, diskSizeMB? }: a template the e2b CLI built, as the image the World runs for it' },
+    { id: 'teams', method: 'POST', path: '/_twin/teams', note: '{ account?, deployment?, name? }: the selected organization/deployment project and its API key (e2b_ and 40 hex digits); name is the project label' },
+    { id: 'templates', method: 'POST', path: '/_twin/templates', note: '{ account?, deployment?, team?, alias, image, command?, envdVersion?, cpuCount?, memoryMB?, diskSizeMB? }: a prebuilt template in the live X-API-Key project, or the selected organization/deployment project when no key is supplied; team is its label' },
   ],
   discovery: {
     twinOf: "E2B's REST API as RH2 calls it: sandboxes started from templates, listed and killed, on the World's machine pool; templates listed; light-pool SDK command execution beyond node with a folder-owned JS entry is unserved and answers the declared gap",
