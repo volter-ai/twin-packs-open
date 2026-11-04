@@ -39,8 +39,10 @@ Yuan's own (the campaign's `linkedin-aaron`), made by hand on linkedin.com, and 
 
 **The World's launch account** (`src/semantics/seed.ts`): the member Aaron Yuan, `aaron@example.com` (password
 `videogame-dry-run`), who administers the page videogame.ai (`urn:li:organization:100000001`,
-`linkedin.com/company/videogameai`), and the developer application Volter Media. The credential door issues the
-application's token as `LINKEDIN_ACCESS_TOKEN`.
+`linkedin.com/company/videogameai`), and the developer application Volter Media. The credential door accepts
+`{ email, client_id }` to issue that application's member grant. With `{ account, deployment }`, it retains a separate
+developer application and member grant for that deployment, using the account's first member; the token fills
+`LINKEDIN_ACCESS_TOKEN`.
 
 **Doors** (`/_twin/`, standing in for LinkedIn's own pages): `members` (sign-up), `organizations` (Create a Page),
 `developer-apps` (the Developer Portal's Create app with its products), `tokens` (its Token Generator),

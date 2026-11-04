@@ -1,7 +1,6 @@
 // The kernel scenario grammar, with OpenRouter's operation vocabulary and error envelopes.
 // Successful scripted turns are compute only; account/key/exchange operations accept faults only.
 import { anthropicWire, openaiWire, type PackScenario } from '@volter/world-core';
-import { obj } from './shared.ts';
 
 const turns = ['sendChatCompletionRequest', 'createResponses', 'createMessages'];
 const operations = [...turns, 'exchangeAuthCodeForAPIKey', 'getCurrentKey', 'getModels'];
