@@ -9,7 +9,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.147 @volter/twin-openai@3.0.3
+npm install --save-dev --save-exact @volter/world@3.0.186 @volter/twin-openai@3.0.4
 ./node_modules/.bin/volter world init --name my-app --twins openai --source openai=@volter/twin-openai
 ```
 

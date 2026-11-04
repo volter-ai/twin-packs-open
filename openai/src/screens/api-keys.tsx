@@ -14,8 +14,7 @@
 // dashboard does; any person of the organization may make and revoke a project's keys.
 import type { HandlerContext } from '@volter/world-core';
 import { flowPage, formOf, toSignIn } from '@volter/world-ui';
-import { sha256 } from '@volter/world-core';
-import { epoch, mintProjectKey, PROJECT_KEY } from '../semantics/shared.ts';
+import { makeProjectKey, mintProjectKey, PROJECT_KEY } from '../semantics/shared.ts';
 import { dashboardPath, PORTAL_PAGE_CSS, userOf, type User } from './shared.tsx';
 
 // a key's owner as the spec's ProjectApiKeyOwnerUser gives it: the person's user, created_at being when they joined, and
@@ -24,7 +23,6 @@ import { dashboardPath, PORTAL_PAGE_CSS, userOf, type User } from './shared.tsx'
 // is a member of it.
 const ownerOf = (user: User): Record<string, unknown> => ({ id: user.id, email: user.email, name: user.name, created_at: user.added_at, role: user.role === 'owner' ? 'owner' : 'member' });
 const PERMISSIONS = [{ value: 'all', label: 'All' }, { value: 'restricted', label: 'Restricted' }, { value: 'read_only', label: 'Read only' }];
-const redacted = (secret: string): string => `${secret.slice(0, 11)}...${secret.slice(-4)}`;
 
 function page(ctx: HandlerContext, project: Record<string, unknown>, notice?: string, status = 200, secret?: string): Response {
   const id = String(project.id);
@@ -41,7 +39,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   if (!m || (request.method !== 'GET' && request.method !== 'POST')) return new Response('Not Found', { status: 404 });
   const user = userOf(ctx);
   if (!user) return toSignIn(dashboardPath(ctx, '/login'), dashboardPath(ctx, url.pathname + url.search), 'return_to');
-  const project = ctx.get('Project', m[1]!);
+  const rawProject = ctx.row('Project', m[1]!);
+  const project = rawProject && (user.organizationId === undefined ? rawProject._namespace === 'default' : rawProject._organization_id === user.organizationId) ? ctx.get('Project', m[1]!) : undefined;
   if (!project) return flowPage({ title: 'OpenAI Platform', status: 404, css: PORTAL_PAGE_CSS, body: <main className="portal-main"><h1>Project not found</h1></main> });
   if (request.method === 'GET') return page(ctx, project);
   const form = formOf(ctx);
@@ -52,12 +51,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
     return page(ctx, project, `Revoked ${String(key.name)}. Requests using it will now fail.`);
   }
   const name = (form.name ?? '').trim() || 'Secret key';
-  const id = ctx.mint(PROJECT_KEY);
+  const id = await makeProjectKey(ctx, project, name, { type: 'user', user: ownerOf(user) }, PERMISSIONS.some((p) => p.value === form.permissions) ? form.permissions! : 'all');
   const secret = await mintProjectKey(ctx, id);
-  await ctx.write(PROJECT_KEY, id, {
-    object: 'organization.project.api_key', name, redacted_value: redacted(secret), created_at: epoch(ctx), last_used_at: null, _sha256: sha256(secret),
-    _project_id: project.id, owner: { type: 'user', user: ownerOf(user) }, owner_project_access: 'active', _permissions: PERMISSIONS.some((p) => p.value === form.permissions) ? form.permissions : 'all',
-  }, 'api_key.create');
   return page(ctx, project, undefined, 201, secret);
 }
 

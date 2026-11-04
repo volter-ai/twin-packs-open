@@ -1,0 +1,11 @@
+# A CRM team's Grok integration
+
+Author: Contributor 53. The World starts at 2026-01-01; the first act advances to 2026-10-01, the model catalogue snapshot date.
+
+Mira administers Orbit's CRM workspace in Twenty. Its server acts with a Console API key issued through the World credential door; its grant covers inference. A small legacy chat integration uses the same team's separate Console key. The customer changes no vendor billing or account policy through these keys. The twin runs no model: synthetic outputs are labelled and prove wire/state behavior only.
+
+On 1 October Mira installs Twenty's Grok integration. An accidentally pasted key is refused; she obtains the application's key and the CRM server can ask about a deal. Its streamed follow-up uses the optional web and X search tool configuration; a labelled scenario supplies the turn rather than contacting either search service. The team supplies a labelled synthetic onboarding fixture to verify the CRM's structured stage parser, then offers its update_deal function to the agent. The scenario requests a concrete Won stage; the CRM returns the function's captured call ID with its own success result. No claim is made that the twin performed the CRM update. A malformed empty prompt from a broken form is refused and fixed on the next workday.
+
+On 2 October the runtime restarts and reuses its issued key. The legacy integration receives its own key. It requests a chat summary, streams a follow-up and returns a tool result using the assistant's captured call. A misspelled model setting is refused; the operator corrects it on 3 October. A scripted capacity limit interrupts an end-of-week summary; after a minute the server retries successfully. Mira sends a final goodbye through non-reasoning Responses before ceasing integration use.
+
+Act mapping: Console issuance and restart -> appCredentials; independent legacy key -> apiKeys; legacy text/stream/tool turns -> handle_generic_completion_request; CRM text/stream/structured/function/goodbye turns -> handle_generic_model_request; rate fault -> World scenario. These handlers answer through the kernel wire. Vendor mutations outside inference and stored-context retrieval are outside this measured story.

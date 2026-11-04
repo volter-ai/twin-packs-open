@@ -7,6 +7,7 @@ import { states } from './semantics/states.ts';
 export const manifest: DerivedManifest = {
   vendor: 'openai',
   service: 'openai',
+  tenant: { field: '_project_namespace', storage: 'namespaced' },
   body: {},
   // Resources with real published ids declare their own widths below.
   // Where documentation stops: a placeholder supplies only the prefix; its suffix keeps the kernel's default width.
@@ -411,12 +412,15 @@ export const manifest: DerivedManifest = {
   // only their object's id (spec:/components/schemas/WebhookResponseCompleted: data "required: id"), nothing a refresh
   // could fold
   resources: {
-    _codex_nonce: { storedAs: '_codex_nonce', idPrefix: 'nonce' },
-    _codex_account: { storedAs: '_codex_account', idPrefix: 'acct' },
-    _codex_code: { storedAs: '_codex_code', idPrefix: 'code' },
-    _codex_device: { storedAs: '_codex_device', idPrefix: 'device' },
-    _codex_grant: { storedAs: '_codex_grant', idPrefix: 'grant' },
-    _codex_call: { storedAs: '_codex_call', idPrefix: 'resp' },
+    _organization: { shared: true, idPrefix: 'org', ids: '{prefix}_{ksuid:24}' },
+    _person: { shared: true, idPrefix: 'person' },
+    _web_session: { shared: true, idPrefix: 'session' },
+    _codex_nonce: { shared: true, storedAs: '_codex_nonce', idPrefix: 'nonce' },
+    _codex_account: { shared: true, storedAs: '_codex_account', idPrefix: 'acct', unique: [{ fields: ['email'], refusal: { status: 409, message: 'Subscription account already exists.' } }] },
+    _codex_code: { shared: true, storedAs: '_codex_code', idPrefix: 'code' },
+    _codex_device: { shared: true, storedAs: '_codex_device', idPrefix: 'device' },
+    _codex_grant: { shared: true, storedAs: '_codex_grant', idPrefix: 'grant' },
+    _codex_call: { shared: true, storedAs: '_codex_call', idPrefix: 'resp' },
     // The download URL remains opaque; its filename follows the published 24-base62 example.
     // source: https://raw.githubusercontent.com/openai/openai-cookbook/0eac1447d4e24d06e47c459ca5e98f248b9413cf/examples/dalle/Image_generations_edits_and_variations_with_DALL-E.ipynb "img-ced13hkOk3lXkccQgW1fAQjm.png"
     _generated_image: { storedAs: '_generated_image', idPrefix: 'img', ids: '{prefix}-{ksuid:24}' },
@@ -489,9 +493,10 @@ export const manifest: DerivedManifest = {
     // and the Admin API answers only an admin key, which no other endpoint takes: a root's refresh reads neither
     // source: https://developers.openai.com/api/docs/guides/admin-apis "Admin API keys cannot be used for non-administration endpoints."
     // source: spec:listFineTuningCheckpointPermissions "proj_abGMw1llN8IrBb6SvvY5A1iH"
-    Project: { storedAs: 'project', idPrefix: 'proj', ids: '{prefix}_{ksuid:24}', notFound: 'Project {id} not found', order: { field: 'created_at', direction: 'desc' }, ...states.Project, refresh: { none: "the Admin API answers only an admin key, and the root's key is the API's" } },
+    Project: { shared: true, storedAs: 'project', idPrefix: 'proj', ids: '{prefix}_{ksuid:24}', notFound: 'Project {id} not found', order: { field: 'created_at', direction: 'desc' }, ...states.Project, refresh: { none: "the Admin API answers only an admin key, and the root's key is the API's" } },
     // Where documentation stops: key_abc is a placeholder, not evidence of a suffix length; keep the default 27 characters.
     // source: spec:list-project-api-keys "key_abc"
+    ProjectServiceAccount: { idPrefix: 'svc_acct', ids: '{prefix}_{ksuid:24}', ...states.ProjectServiceAccount, refresh: { none: "the Admin API answers only an admin key, and the root's key is the API's" } },
     ProjectApiKey: { storedAs: 'api_key', idPrefix: 'key', ids: '{prefix}_{ksuid}', notFound: 'API key {id} not found', parent: { param: 'project_id', field: '_project_id', resource: 'Project' }, deleted: { id: '{id}', object: 'organization.project.api_key.deleted', deleted: true }, order: { field: 'created_at', direction: 'desc' }, ...states.ProjectApiKey, refresh: { none: "the Admin API answers only an admin key, and the root's key is the API's" } },
   },
   // the descriptor, as data (twin-world's architecture, "The descriptor"): the pack registers packOf(manifest, surface), the
@@ -519,7 +524,7 @@ export const manifest: DerivedManifest = {
     // The public API, the separately specified subscription wire, and the console each own their paths.
     // a World's applications hold a project key the dashboard made (the credential door); the API refuses any other
     // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/auth/storage.rs "Expected structure for $CODEX_HOME/auth.json."
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { OPENAI_API_KEY: 'api_key', OPENAI_KEY: 'api_key', CODEX_HOME: 'directory:codex_home' } },
+    credentialDoor: { path: '/_twin/app-credentials', body: {}, account: { field: 'account', tenancy: 'Organization', source: 'https://platform.openai.com/docs/api-reference/project-api-keys' }, deployment: { field: 'deployment', object: 'API Project; subscription login remains user-level', source: 'https://developers.openai.com/api/docs/guides/production-best-practices', organizationOutputs: ['CODEX_HOME'] }, fill: { OPENAI_API_KEY: 'api_key', OPENAI_KEY: 'api_key', CODEX_HOME: 'directory:codex_home' } },
     hosts: [{ host: 'chatgpt.com', pathPattern: '^/backend-api/(codex|wham)(/|$)' }, { host: 'auth.openai.com', pathPattern: '^/(oauth/(authorize|token|revoke)|api/accounts/deviceauth/(usercode|token)|codex/device)(/|$)' }, { host: 'api.openai.com' }, { host: 'platform.openai.com', pathPattern: '^/(settings/proj[-_][^/]+/api-keys|login$)' }],
     // The SDK calls the same-origin '/v1/…' and loads from api.openai.com — the dev proxy
     // forwards '/v1/' to the twin and strips the absolute host so calls come back same-origin.

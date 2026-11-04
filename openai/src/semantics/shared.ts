@@ -8,6 +8,32 @@ import { states } from './states.ts';
 
 export type Row = Record<string, unknown>;
 
+// source: https://platform.openai.com/docs/api-reference/project-api-keys
+export async function nativeOrganization(ctx: HandlerContext): Promise<Row> {
+  return ctx.tenant('_organization', async (world) => String((await ctx.create('_organization', {
+    name: world.label, owner: world.members[0]!.toLowerCase(),
+  }, 'organization.create')).id));
+}
+
+export async function credentialProject(ctx: HandlerContext): Promise<Row> {
+  const organization = await nativeOrganization(ctx);
+  const world = await ctx.account();
+  return ctx.deploymentObject(`project:${organization.id}`, 'Project', async (deployment) => {
+    if (world === 'default' && !deployment) {
+      const existing = ctx.rowsRaw('Project').find((row) => row.name === 'Default project' && row.status !== 'archived' && row._organization_id === undefined);
+      if (existing) {
+        await ctx.write('Project', String(existing.id), { _organization_id: organization.id, _namespace: 'default' }, 'project.assign');
+        return String(existing.id);
+      }
+    }
+    return String((await ctx.create('Project', (id) => ({
+      object: 'organization.project', name: world === 'default' && !deployment ? 'Default project' : deployment || organization.name,
+      created_at: Math.floor(Date.parse(ctx.occurredAt) / 1000), archived_at: null, status: 'active',
+      _organization_id: organization.id, _namespace: world === 'default' && !deployment ? 'default' : id,
+    }), 'project.create')).id);
+  });
+}
+
 /** The request shape the pack's shared helpers take. */
 
 /** An answer a pack helper built, with the headers it carries (a scripted fault's rate-limit family). */
@@ -32,6 +58,24 @@ export const INVALID_KEY = { status: 401, code: 'invalid_api_key', message: 'Inc
 export const PROJECT_KEY = 'ProjectApiKey';
 
 export const mintProjectKey = async (ctx: Pick<HandlerContext, 'secret'>, id: string): Promise<string> => `sk-proj-${(await ctx.secret(`project-key:${id}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 48)}`;
+
+/** Native project-key creation is shared by the credential door and Dashboard. */
+export async function makeProjectKey(ctx: HandlerContext, project: Row, name: string, owner: Row, permissions: string): Promise<string> {
+  const reserved = await ctx.create(PROJECT_KEY, { object: 'organization.project.api_key', _project_id: project.id }, 'api_key.reserve');
+  const id = String(reserved.id);
+  const secret = await mintProjectKey(ctx, id);
+  await ctx.write(PROJECT_KEY, id, { object: 'organization.project.api_key', name,
+    redacted_value: `sk-proj-****${secret.slice(-4)}`, created_at: epoch(ctx), last_used_at: null,
+    _sha256: sha256(secret), _project_id: project.id, owner, owner_project_access: 'active', _permissions: permissions,
+  }, 'api_key.create');
+  return id;
+}
+
+export async function readProjectKey(ctx: HandlerContext, project: Row, row: Row): Promise<string | undefined> {
+  if (row.deleted === true || row._project_id !== project.id || project.status === 'archived') return undefined;
+  const secret = await mintProjectKey(ctx, String(row.id));
+  return row._sha256 === sha256(secret) ? secret : undefined;
+}
 
 /** A path parameter, by the name the spec gives it. */
 export const at = (ctx: HandlerContext, name: string): string => ctx.call.params[name] ?? '';
@@ -2274,28 +2318,48 @@ export async function codexOpaque(ctx: HandlerContext, label: string): Promise<s
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/token_data.rs "chatgpt_account_id"
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/auth/storage.rs "Expected structure for $CODEX_HOME/auth.json."
 export async function codexTokens(ctx: HandlerContext, account: Row, client = CODEX_CLIENT, family?: string): Promise<Row> {
-  const id = ctx.mint('_codex_grant'), refresh = await ctx.secret(`codex:refresh:${id}`), signing = await ctx.signingKey('codex-oauth');
+  const reserved = await ctx.create('_codex_grant', { _account: account.id }, 'codex.grant.reserve');
+  const id = String(reserved.id), refresh = await ctx.secret(`codex:refresh:${id}`), signing = await ctx.signingKey('codex-oauth');
   const claims = { iss: 'https://auth.openai.com', sub: account.id, email: account.email, jti: id, 'https://api.openai.com/auth': { chatgpt_account_id: account.id, chatgpt_user_id: account.id, chatgpt_plan_type: 'plus' }, 'https://api.openai.com/profile': { email: account.email } };
   // Where source stops: signing and one-hour access/thirty-day refresh lifetime are synthetic World policy.
   const access_token = ctx.crypto.jwtSign({ ...claims, aud: 'https://api.openai.com/v1' }, { alg: 'RS256', ...signing }, { now: epoch(ctx), expiresInSeconds: 3600 });
   const id_token = ctx.crypto.jwtSign({ ...claims, aud: client }, { alg: 'RS256', ...signing }, { now: epoch(ctx), expiresInSeconds: 3600 });
-  await ctx.write('_codex_grant', id, { status: 'active', _account: account.id, _client: client, _family: family ?? id, _access: access_token, _id_token: id_token, _refresh: refresh, _refresh_hash: sha256(refresh), _expires: epoch(ctx) + 3600, _refresh_expires: epoch(ctx) + 30 * 86400 }, 'codex.issue');
+  await ctx.write('_codex_grant', id, { status: 'active', _issued_at: ctx.occurredAt, _account: account.id, _client: client, _family: family ?? id, _access: access_token, _id_token: id_token, _refresh: refresh, _refresh_hash: sha256(refresh), _expires: epoch(ctx) + 3600, _refresh_expires: epoch(ctx) + 30 * 86400 }, 'codex.issue');
   return { access_token, id_token, refresh_token: refresh, token_type: 'Bearer', expires_in: 3600 };
 }
-// source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/login/src/auth/storage.rs "OPENAI_API_KEY"
-export async function codexCredentials(ctx: HandlerContext): Promise<Row> {
-  let account = ctx.rowsRaw('_codex_account')[0];
-  const password = await ctx.secret('codex:account:password');
-  if (!account) {
-    const email = 'codex@example.test';
-    await codexRecordPerson(ctx, email, password, { name: 'World Codex account' });
-    account = await ctx.create('_codex_account', { email }, 'codex.account');
-  }
-  const held = ctx.rowsRaw('_codex_grant').find(g => g._account === account!.id && g.status === 'active' && Number(g._expires) > epoch(ctx));
-  const tokens = held ? { access_token: held._access, id_token: held._id_token, refresh_token: held._refresh } : await codexTokens(ctx, account);
-  const auth = { auth_mode: 'chatgpt', OPENAI_API_KEY: null, tokens: { access_token: tokens.access_token, id_token: tokens.id_token, refresh_token: tokens.refresh_token, account_id: account.id }, last_refresh: ctx.occurredAt };
-  return { codex_account_id: account.id, codex_email: account.email, codex_password: password, codex_tokens: tokens, codex_home: { 'auth.json': auth, 'config.toml': 'cli_auth_credentials_store = "file"\n' } };
+/** The first member's subscription identity is separate from deployment API projects and has no invented password. */
+// source: https://developers.openai.com/codex/auth
+export async function organizationCodexCredentials(ctx: HandlerContext): Promise<Row> {
+  const world = await ctx.organization();
+  const account = await ctx.createUnique('_codex_account', { email: world.members[0]!.toLowerCase() }, 'codex.account', { input: 'omit' });
+  return subscriptionCredentials(ctx, ctx.row('_codex_account', String(account.row.id))!);
 }
+
+/** A direct user-login request supplies the identity used by browser and device authorization. */
+export async function codexCredentials(ctx: HandlerContext): Promise<Row> {
+  const email = 'codex@example.test';
+  const password = await ctx.secret('codex:account:password');
+  if (!ctx.rowsRaw('_person').some((person) => person.email === email)) await codexRecordPerson(ctx, email, password, { name: 'World Codex account' });
+  const account = await ctx.createUnique('_codex_account', { email }, 'codex.account', { input: 'omit' });
+  return { ...await subscriptionCredentials(ctx, ctx.row('_codex_account', String(account.row.id))!), codex_password: password };
+}
+
+async function subscriptionCredentials(ctx: HandlerContext, account: Row): Promise<Row> {
+  const active = (row: Row): boolean => row._account === account.id && row.status === 'active' && Number(row._expires) > epoch(ctx);
+  if (!ctx.rowsRaw('_codex_grant').some(active)) await codexTokens(ctx, account);
+  let grant!: Row;
+  await ctx.change('_codex_account', String(account.id), (native) => {
+    const grants = ctx.rowsRaw('_codex_grant');
+    grant = grants.find((row) => row.id === native._credential_grant && active(row)) ?? grants.find(active)!;
+    return native._credential_grant === grant.id ? undefined : { _credential_grant: grant.id };
+  }, 'codex.account.grant', { input: 'omit' });
+  const tokens = { access_token: grant._access, id_token: grant._id_token, refresh_token: grant._refresh };
+  const auth = { auth_mode: 'chatgpt', OPENAI_API_KEY: null, tokens: { ...tokens, account_id: account.id },
+    last_refresh: grant._issued_at ?? new Date((Number(grant._expires) - 3600) * 1000).toISOString() };
+  return { codex_account_id: account.id, codex_email: account.email, codex_tokens: tokens,
+    codex_home: { 'auth.json': auth, 'config.toml': 'cli_auth_credentials_store = "file"\n' } };
+}
+
 // The client sends Bearer auth plus the account claim; source supplies no exact invalid-token wording.
 // source: https://raw.githubusercontent.com/openai/codex/78c290807ce710180111df227df3b7a4fe845452/codex-rs/backend-client/src/client.rs "chatgpt_account_id"
 export function codexGrant(ctx: HandlerContext): Row | Response {
@@ -2355,4 +2419,24 @@ export function codexShape(ctx: HandlerContext, body: Row, turn: CodexWire.WireT
   const id = ctx.mint('_codex_call');
   return { id, model: String(body.model), createdAt: epoch(ctx), body: { store: false, ...body }, turn,
     itemId: (kind: string, i: number) => `${kind}_${base62From(`${id}:${kind}:${i}`, 24)}`, defaults: { store: false } };
+}
+
+/** API keys and signed media select a project. Codex grants are shared user-login custody. */
+export async function tenantFor(ctx: HandlerContext): Promise<string> {
+  const request = ctx.call.request, url = new URL(request.url);
+  if (url.pathname === '/_twin/app-credentials') return String((await credentialProject(ctx))._namespace);
+  const offered = (request.headers.get('sec-websocket-protocol') ?? '').split(',').map((part) => part.trim()).find((part) => part.startsWith('openai-insecure-api-key.'));
+  const bearer = /^Bearer\s+(\S+)$/i.exec(request.headers.get('authorization') ?? '')?.[1] ?? offered?.slice('openai-insecure-api-key.'.length);
+  if (bearer) {
+    const key = ctx.rowsRaw('ProjectApiKey', { withDeleted: true }).find((row) => row._sha256 === ctx.crypto.sha256(bearer));
+    return (key?._project_namespace as string | undefined) ?? '__unselected__';
+  }
+  const projectId = /^\/settings\/(proj[-_][A-Za-z0-9_-]+)\/api-keys/.exec(url.pathname)?.[1];
+  if (projectId) return (ctx.row('Project', projectId)?._namespace as string | undefined) ?? 'default';
+  if (url.pathname.includes('/generated-images/')) {
+    const id = url.pathname.split('/').pop()!.replace(/\.png$/, '');
+    const image = ctx.rowsRaw('_generated_image').find((row) => row.id === id && row._sig === url.searchParams.get('sig'));
+    return (image?._project_namespace as string | undefined) ?? '__unselected__';
+  }
+  return 'default';
 }

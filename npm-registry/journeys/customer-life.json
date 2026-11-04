@@ -1,0 +1,1295 @@
+{
+  "vendor": "npm-registry",
+  "author": "Contributor 79",
+  "about": "Volter's releases on npm and the applications that read them (journeys/customer-life.outline.md): the @volter organization and the World application's token, pack-release's npm view and publishes, tabnode's documents, pinned versions and tarballs, Substrate's image build, Volter Harness's update check on both channels, the catalog index's provenance check, a second release, a Twenty app found, resolved and installed through Twenty's marketplace, a private Twenty app its own team installs with its registry token, and the catalog release's move to CI with provenance, refused once for the package.json's missing repository, and the index check reading the attestations.",
+  "steps": [
+    {
+      "name": "Monday 5 January, 09:00: Volter releases its twins and its harness to npm",
+      "wait": "6300m"
+    },
+    {
+      "name": "Dana Ruiz signs up and creates a package-publishing token on npmjs.com, valid through 1 March",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "name": "dana-ruiz",
+        "email": "dana@volter.test",
+        "password": "example",
+        "expires": "2026-03-01T00:00:00.000Z"
+      },
+      "capture": {
+        "dana": "token"
+      },
+      "expect": [
+        {
+          "path": "user",
+          "equals": "dana-ruiz"
+        }
+      ]
+    },
+    {
+      "name": "and creates the volter organization, which owns the @volter scope",
+      "method": "POST",
+      "path": "/_twin/orgs",
+      "status": 201,
+      "body": {
+        "name": "volter",
+        "owner": "dana-ruiz"
+      },
+      "expect": [
+        {
+          "path": "owner",
+          "equals": "dana-ruiz"
+        }
+      ]
+    },
+    {
+      "name": "A World application's token, as the World issues NPM_TOKEN at boot",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "ci": "token"
+      }
+    },
+    {
+      "name": "A second boot issues the same token",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "expect": [
+        {
+          "path": "token",
+          "equals": "{ci}"
+        }
+      ]
+    },
+    {
+      "name": "The World application's user is in no organization: its publish into @volter is refused",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2fworld-core",
+      "status": 403,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {ci}"
+      },
+      "body": {
+        "_id": "@volter/world-core",
+        "name": "@volter/world-core",
+        "description": "The Volter World state kernel",
+        "dist-tags": {
+          "latest": "0.1.0"
+        },
+        "versions": {
+          "0.1.0": {
+            "name": "@volter/world-core",
+            "version": "0.1.0",
+            "description": "The Volter World state kernel",
+            "license": "Apache-2.0",
+            "type": "module",
+            "main": "dist/index.js",
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/volter-ai/twin.git"
+            },
+            "engines": {
+              "node": ">=22.3"
+            },
+            "_id": "@volter/world-core@0.1.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-2ld3P3CyNpWz/kdaMDOpe1PDfkSTd6YdHNuGNRnOj6OP03qHGPNT3NQ6ccTbOYCxvMl1XfNrPLQngkYui/2XVQ==",
+              "shasum": "c7382fdb7307b4a325d3cf0b957bd06422775a1b",
+              "tarball": "http://registry.npmjs.org/@volter/world-core/-/world-core-0.1.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/world-core-0.1.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+3VTU+DMBgHcM58imYedtBBxxgkMzMucUcvxugZ4clWBy1py15i9t0thUWdiV6U+PL8Ll3aPk8H4z/KJF0lC/DLZvQeleDOF6NGFIZ2NI5HGsaxQ0fjiA6HUUTNPjPGkUOo04FK6USar+L8T08uIT2eFNCbkN7lWuQapL8RMs8GqZDQO6vX1yAVE7zeQr2hR5vZDFQqWanbldslkDtbT+7remJurAayAskhbypylgJX9qiZeeCWMAgOzfSutPOFyKq8PbZImO2cMaV9xjPYmsezWZJQCsW0kDuzob6GVy0WTNtNZqqSeTtzutS6VBPfN5+X1YOXisJvrnaQMF9vGPfqOlO2twcAXzAO6qU7F5ntfjENAm9kN7p799f//m3u/Tf3uOP805Ae5T+gNMD8dwG2pZCapIIrTdqckynp25z3z10H/WmH/N/MZ1fXc6/IvuGMT/MfhUf5p9E4xvx34YS8f+m77ofvcvxPQAghhBBCCCGEEEIIIYQQQgihH+gZS3wyiAAoAAA=",
+            "length": 401
+          }
+        }
+      }
+    },
+    {
+      "name": "Tuesday 6 January, 14:00: the first release (scripts/pack-release.ts, with the release account Dana made)",
+      "wait": "1740m"
+    },
+    {
+      "name": "pack-release asks what version @volter/world-core is at (npm view): npm has none",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld-core",
+      "status": 404,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "view",
+        "authorization": "Bearer {dana}"
+      }
+    },
+    {
+      "name": "pack-release publishes @volter/world-core 0.1.0, --access public",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2fworld-core",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {dana}"
+      },
+      "body": {
+        "_id": "@volter/world-core",
+        "name": "@volter/world-core",
+        "description": "The Volter World state kernel",
+        "dist-tags": {
+          "latest": "0.1.0"
+        },
+        "versions": {
+          "0.1.0": {
+            "name": "@volter/world-core",
+            "version": "0.1.0",
+            "description": "The Volter World state kernel",
+            "license": "Apache-2.0",
+            "type": "module",
+            "main": "dist/index.js",
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/volter-ai/twin.git"
+            },
+            "engines": {
+              "node": ">=22.3"
+            },
+            "_id": "@volter/world-core@0.1.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-2ld3P3CyNpWz/kdaMDOpe1PDfkSTd6YdHNuGNRnOj6OP03qHGPNT3NQ6ccTbOYCxvMl1XfNrPLQngkYui/2XVQ==",
+              "shasum": "c7382fdb7307b4a325d3cf0b957bd06422775a1b",
+              "tarball": "http://registry.npmjs.org/@volter/world-core/-/world-core-0.1.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/world-core-0.1.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+3VTU+DMBgHcM58imYedtBBxxgkMzMucUcvxugZ4clWBy1py15i9t0thUWdiV6U+PL8Ll3aPk8H4z/KJF0lC/DLZvQeleDOF6NGFIZ2NI5HGsaxQ0fjiA6HUUTNPjPGkUOo04FK6USar+L8T08uIT2eFNCbkN7lWuQapL8RMs8GqZDQO6vX1yAVE7zeQr2hR5vZDFQqWanbldslkDtbT+7remJurAayAskhbypylgJX9qiZeeCWMAgOzfSutPOFyKq8PbZImO2cMaV9xjPYmsezWZJQCsW0kDuzob6GVy0WTNtNZqqSeTtzutS6VBPfN5+X1YOXisJvrnaQMF9vGPfqOlO2twcAXzAO6qU7F5ntfjENAm9kN7p799f//m3u/Tf3uOP805Ae5T+gNMD8dwG2pZCapIIrTdqckynp25z3z10H/WmH/N/MZ1fXc6/IvuGMT/MfhUf5p9E4xvx34YS8f+m77ofvcvxPQAghhBBCCCGEEEIIIYQQQgihH+gZS3wyiAAoAAA=",
+            "length": 401
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and @volter/world 0.1.0, which depends on it",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2fworld",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {dana}"
+      },
+      "body": {
+        "_id": "@volter/world",
+        "name": "@volter/world",
+        "description": "The Volter World CLI and SDK",
+        "dist-tags": {
+          "latest": "0.1.0"
+        },
+        "versions": {
+          "0.1.0": {
+            "name": "@volter/world",
+            "version": "0.1.0",
+            "description": "The Volter World CLI and SDK",
+            "license": "Apache-2.0",
+            "type": "module",
+            "main": "dist/index.js",
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/volter-ai/twin.git"
+            },
+            "engines": {
+              "node": ">=22.3"
+            },
+            "dependencies": {
+              "@volter/world-core": "0.1.0"
+            },
+            "bin": {
+              "volter": "dist/index.js"
+            },
+            "_id": "@volter/world@0.1.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-u2H43jGrvFZgV28FGmiSoRvLimeBGI42qpMzIT4gh6z8R2ZrrSi0NEQgeF63IxX89Yv0Af4iQ5VyFe8nSIK3gw==",
+              "shasum": "5c840c4ffa18ece83430b545b5a220ebc99f746f",
+              "tarball": "http://registry.npmjs.org/@volter/world/-/world-0.1.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/world-0.1.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+3VO0/DMBAA4Mz5FVYZGKCJG9ogFRVRQQcELIBgTuNTa0jsyHYfCPHfcZyUPpBgoRWC+xZX9p0fqS8pkvQ5GUFYVG3wpKXwfhi14nbbtdZma8cijx51YtpqxTG1cbY9ph6h3g5MtEmU3Yr3P736hDREkkOjSxpnU5kZUOFMqow1DsuhKSjNpShHadAKaNXLQKeKF6YeuR8DeXCp5LFMJefXlyQRjNxdXFUJGU9BaLdI3161MTSjxVzmpXD9uWSTDKq+POFuYsa1CblgMLcXsxpSUEjNjVQvNqDc/coUI25ckO2aqKzuORgbU+huGNrf48kwSGUeVudsJjw0My6CMs+mvbkFQIy4AL2cXUjmZj/tRVFwtAxkUIDdmkj5avTaM2ymUsHy2X2kDt3x6owq4fNxy2j/zd/u/1/Xfbi29I7rn7bpRv1HlEZY/7sA80IqQ1IptCF1sZMe2XcXdv/E99Cftqj/20H/4mYQ5GwLa3xb/514o/6pbbH+d2GPrH2wfP+rbzm+DRBCCCGEEEIIIYQQQgghhBBC6Nd6B4h2chEAKAAA",
+            "length": 429
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and the harness, @volter/supercode 0.4.0",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2fsupercode",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {dana}"
+      },
+      "body": {
+        "_id": "@volter/supercode",
+        "name": "@volter/supercode",
+        "description": "Volter Harness: drive coding agents in terminal panes",
+        "dist-tags": {
+          "latest": "0.4.0"
+        },
+        "versions": {
+          "0.4.0": {
+            "name": "@volter/supercode",
+            "version": "0.4.0",
+            "description": "Volter Harness: drive coding agents in terminal panes",
+            "license": "Apache-2.0",
+            "bin": {
+              "supercode": "bin/supercode.js"
+            },
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/volter-ai/supercode.git"
+            },
+            "engines": {
+              "node": ">=22.3"
+            },
+            "_id": "@volter/supercode@0.4.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-0eT7SmEdMiLob+7ul8xXL8nrmFFqNazxQikw056SMXf9PwO1ocSSVDKsGthYLHf8hdJXkfI0cFkDr3Pt9HfEFw==",
+              "shasum": "6f693ff5b53ec9f3e20aaca0a3cffd8d176e4b0d",
+              "tarball": "http://registry.npmjs.org/@volter/supercode/-/supercode-0.4.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/supercode-0.4.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAACE+2VTW/bMAyGc86vYLODbaSRnW8gQZcNw4Cdd9hddVhHjSMZkpyiKPrfR39maNFbUWwYn4tsiXxJU6JcyPQoM4yLZhT3zujBO5MQq8WiHomXY7KcrwfJfLlKptPVKiE7GtfzASSDD6B0XlpKZfB/8jQEGGl5wtEGRl/OJvdoY1cWaFOzx9F1tXxG65TRlUUiFiJpZvfoUqsK3678ql3hh7QandvA3qozAokonQGdLO0dKA1kc1Ja5lBIsmuUcpWidnUGX+kcHnAy64Lcqkq8SpJeLmlt6pVLnnRsR2TzXPtYLIxT3tjHi6t/LGqvTPlamKZKm7cz44P3hdvEMT0fyluRmlPcVGIi1R9BKuc+CupMVV/Qh9BtYp9vZjMxrw2Hz3/9/rd9H78s53v3/3q5fKv/p8ls1t8F9fx0tpgvuf8/gk9Xcelsvf2oz1Ad4mFqtPOQltZS18JN1/XbobqDsLAmpQYX0mZnoXSal3QRhMFk0t4SQRRBJWByFLnJwlYm2g4xdwhP0KofpNaYk/qbgrn06HwQwQ6CSfeDil/dUfFeOT/xMnMBbCB4vd7qbNvIFl1BD0ih5YNUHu7Qp4cw6C4BixkJ2kehi9O9E8ZmcQDjLuFoC1UVrjoVYY4R+IM1D6DxAb5ba2wY/Gw1oCz2FJ2cMT3CnVQ57ilHkuv96fj50kVddif0klxkn11vWP2Zw9auK27wraluo9nt2BiCa5BniiZvc2zWwk5YNOWA3a6PJdqti0j9eThgGIZhGIZhGIZhGIZhGIZhGIZhGIZhGOYf4zd46f8AACgAAA==",
+            "length": 613
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "A release observer who did not publish checks the public release metadata before enabling downstream installs",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "view"
+      },
+      "expect": [
+        {
+          "path": "dist-tags.latest",
+          "equals": "0.1.0"
+        },
+        {
+          "path": "maintainers.0.name",
+          "equals": "dana-ruiz"
+        },
+        {
+          "path": "",
+          "contains": "\"integrity\":\"sha512-u2H43jGrvFZgV28FGmiSoRvLimeBGI42qpMzIT4gh6z8R2ZrrSi0NEQgeF63IxX89Yv0Af4iQ5VyFe8nSIK3gw==\""
+        },
+        {
+          "path": "",
+          "contains": "\"shasum\":\"5c840c4ffa18ece83430b545b5a220ebc99f746f\""
+        },
+        {
+          "path": "",
+          "contains": "\"_npmUser\":{\"name\":\"dana-ruiz\""
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 7 January, 10:00: Volter's applications install the release: tabnode in a page, Substrate's image build",
+      "wait": "1200m"
+    },
+    {
+      "name": "tabnode asks for @volter/world's abbreviated document",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld",
+      "status": 200,
+      "headers": {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "accept": "application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8"
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "contains": "application/vnd.npm.install-v1+json"
+        },
+        {
+          "path": "dist-tags.latest",
+          "equals": "0.1.0"
+        },
+        {
+          "path": "",
+          "contains": "\"dependencies\":{\"@volter/world-core\":\"0.1.0\"}"
+        },
+        {
+          "path": "readme",
+          "exists": false
+        },
+        {
+          "path": "",
+          "contains": "\"integrity\":\"sha512-u2H43jGrvFZgV28FGmiSoRvLimeBGI42qpMzIT4gh6z8R2ZrrSi0NEQgeF63IxX89Yv0Af4iQ5VyFe8nSIK3gw==\""
+        }
+      ]
+    },
+    {
+      "name": "and its dependency's",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld-core",
+      "status": 200,
+      "headers": {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "accept": "application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8"
+      },
+      "expect": [
+        {
+          "path": "dist-tags.latest",
+          "equals": "0.1.0"
+        },
+        {
+          "path": "",
+          "contains": "\"integrity\":\"sha512-2ld3P3CyNpWz/kdaMDOpe1PDfkSTd6YdHNuGNRnOj6OP03qHGPNT3NQ6ccTbOYCxvMl1XfNrPLQngkYui/2XVQ==\""
+        }
+      ],
+      "capture": {
+        "coreTarball": "/versions/0.1.0/dist/tarball"
+      }
+    },
+    {
+      "name": "An independent tabnode lockfile consumer resolves its pinned @volter/world 0.1.0 without the first installer cache",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld/0.1.0",
+      "status": 200,
+      "headers": {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "accept": "application/json"
+      },
+      "expect": [
+        {
+          "path": "version",
+          "equals": "0.1.0"
+        },
+        {
+          "path": "_id",
+          "equals": "@volter/world@0.1.0"
+        },
+        {
+          "path": "dependencies.@volter/world-core",
+          "equals": "0.1.0"
+        },
+        {
+          "path": "dist.tarball",
+          "contains": "/@volter/world/-/world-0.1.0.tgz"
+        },
+        {
+          "path": "_npmUser.name",
+          "equals": "dana-ruiz"
+        }
+      ],
+      "capture": {
+        "worldTarball": "dist.tarball"
+      }
+    },
+    {
+      "name": "Substrate receives that returned world URL in its dependency plan and fetches the planned tarball",
+      "method": "GET",
+      "path": "{worldTarball}",
+      "status": 200,
+      "headers": {
+        "user-agent": "node"
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "application/octet-stream"
+        }
+      ]
+    },
+    {
+      "name": "The plan also carries the dependency metadata tarball URL, which Substrate fetches",
+      "method": "GET",
+      "path": "{coreTarball}",
+      "status": 200,
+      "headers": {
+        "user-agent": "node"
+      }
+    },
+    {
+      "name": "Thursday 8 January, 09:30: a Volter Harness user's update check",
+      "wait": "1410m"
+    },
+    {
+      "name": "supercode's stable channel reads @volter/supercode's latest version, the scope's slash kept",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter/supercode/latest",
+      "status": 200,
+      "headers": {
+        "user-agent": "supercode-cli/0.4.0",
+        "accept": "application/json"
+      },
+      "expect": [
+        {
+          "path": "version",
+          "equals": "0.4.0"
+        },
+        {
+          "path": "name",
+          "equals": "@volter/supercode"
+        },
+        {
+          "path": "dist.integrity",
+          "equals": "sha512-0eT7SmEdMiLob+7ul8xXL8nrmFFqNazxQikw056SMXf9PwO1ocSSVDKsGthYLHf8hdJXkfI0cFkDr3Pt9HfEFw=="
+        }
+      ]
+    },
+    {
+      "name": "its latest channel reads the package's dist-tags",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/-/package/@volter/supercode/dist-tags",
+      "status": 200,
+      "headers": {
+        "user-agent": "supercode-cli/0.4.0",
+        "accept": "application/json"
+      },
+      "expect": [
+        {
+          "path": "latest",
+          "equals": "0.4.0"
+        }
+      ]
+    },
+    {
+      "name": "Monday 2 February, 10:00: the catalog index's check (scripts/twin-catalog.ts)",
+      "wait": "36030m"
+    },
+    {
+      "name": "The check reads @volter/world: the version names no attestations, since the release published it without provenance",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld",
+      "status": 200,
+      "headers": {
+        "user-agent": "node"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"_npmUser\":{\"name\":\"dana-ruiz\""
+        },
+        {
+          "path": "",
+          "notContains": "\"attestations\""
+        },
+        {
+          "path": "_rev",
+          "matches": "^1-[0-9a-f]{32}$"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 3 February, 14:00: the second release",
+      "wait": "1680m"
+    },
+    {
+      "name": "pack-release: npm view @volter/world version answers 0.1.0",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "view",
+        "authorization": "Bearer {dana}"
+      },
+      "expect": [
+        {
+          "path": "dist-tags.latest",
+          "equals": "0.1.0"
+        }
+      ]
+    },
+    {
+      "name": "pack-release publishes @volter/world 0.2.0 (world-core is unchanged and skipped)",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2fworld",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {dana}"
+      },
+      "body": {
+        "_id": "@volter/world",
+        "name": "@volter/world",
+        "description": "The Volter World CLI and SDK",
+        "dist-tags": {
+          "latest": "0.2.0"
+        },
+        "versions": {
+          "0.2.0": {
+            "name": "@volter/world",
+            "version": "0.2.0",
+            "description": "The Volter World CLI and SDK",
+            "license": "Apache-2.0",
+            "type": "module",
+            "main": "dist/index.js",
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/volter-ai/twin.git"
+            },
+            "engines": {
+              "node": ">=22.3"
+            },
+            "dependencies": {
+              "@volter/world-core": "0.1.0"
+            },
+            "bin": {
+              "volter": "dist/index.js"
+            },
+            "_id": "@volter/world@0.2.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-77N2+r5ElUkfeaVU+S3AigoF/X2OnE4MZE8NzijZ7nLHDf+dWw7r64F1vN8tqrhueYu9vTQ3V0JCSIKu7JW0BQ==",
+              "shasum": "5150d01f8bcca0f7b3afa525c28da36807c07d49",
+              "tarball": "http://registry.npmjs.org/@volter/world/-/world-0.2.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/world-0.2.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+2VTU/CMBjHd96naPDAQdnKhJlgNBLhYNSLGj3P9QlUt3Zpy1sM392umyCY6EWJ0ed3eZbnte32X4skfU5GEBaVDZ60FN43Qy1xp+OsZdvaWOTRw25M2+04pjbP2iPqEertgIk2ibJL8f4nLz4hDZHk0OiRxtlUZgZUOJMqY42DMjQFpbkUZZQGUUArLwOdKl6YOnI3BnLvSslDWUrOry5IIhi5HVxWBRlPQWg3pG8/tTG0Vr3MonD+XLJJBpUvT7hrzLg2IRcM5vbDrEIKCqm5kWphE8rVv2sx4sYlWddEZbVnf2xMoXthaJ/Hk8cglXlY7bOV8NDMuAjKOlu2dANAjLgAve4uJHPdT0+iKDhcJzIowC5NpPx99sYZtlKpoDq7tt3vqvTRba+uqAo+brfM9pf+z77/Wvfhxugd65926Jb+I0oj1P8ugHkhlSGpFNqQWuzkhDSd2JvHvof8ad70fzPsD66HQc5+YMaX+u/GW/qn1qL+d8Ee2biwfP+zuxz/BgiCIAiCIAiCIAiCIAiCIAiCIAiCIL+WV4C+Pa8AKAAA",
+            "length": 429
+          }
+        }
+      }
+    },
+    {
+      "name": "and @volter/supercode 0.5.0",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2fsupercode",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {dana}"
+      },
+      "body": {
+        "_id": "@volter/supercode",
+        "name": "@volter/supercode",
+        "description": "Volter Harness: drive coding agents in terminal panes",
+        "dist-tags": {
+          "latest": "0.5.0"
+        },
+        "versions": {
+          "0.5.0": {
+            "name": "@volter/supercode",
+            "version": "0.5.0",
+            "description": "Volter Harness: drive coding agents in terminal panes",
+            "license": "Apache-2.0",
+            "bin": {
+              "supercode": "bin/supercode.js"
+            },
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/volter-ai/supercode.git"
+            },
+            "engines": {
+              "node": ">=22.3"
+            },
+            "_id": "@volter/supercode@0.5.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-BiP63/Y+RMdoeXi1tIbUhnmMepb93la4Ou/0ikLimTW10DlmBkc+f4nbT4tqPzZa/+/ij/QCPbEqtul0n4a6Rw==",
+              "shasum": "669ea2563ba0e03c31e4b9c278b7ccafe0d6b761",
+              "tarball": "http://registry.npmjs.org/@volter/supercode/-/supercode-0.5.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/supercode-0.5.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAACE+2VTW/bMAyGc86vYLODbaSRnW8gQZcNw4Cdd9hddRhHjSMZkpyiKPrfR392aNFbUWwYn4tsiXxJU6JcyPQkM4yLZhR3zujBO5MQq8WiHomXY7KcrwfJfLlKptPVKiE7GtfzASSDD6B0XlpKZfB/8jgEGGl5xtEGRl8uJvdoY1cWaFOzx9F1tXxB65TRlUUiliJpZvfoUqsK3678ql3hh7QandvA3qoLAokonQGdLO0dKA1kc1Za5lBIsmuUcpWidnUGX+kcHnEy64Lcqkq8SpJentPa1CvPedKxHZHNU+1jsTBOeWMfnl39Q1F7ZcrXwjRV2rydGR+9L9wmjun5WN6K1JzjphITqf4IUjn3UVBnqvqCPoRuE/t8M5uJeW04fPrr97/t+/hlOd+7/9fL5Vv9P01ms/4uqOens8V8yf3/EXy6iktn6+1HfYHqEA9To52HtLSWuhZuuq7fDtUBwsKalBpcSJtdhNJpXtJFEAaTSXtLBFEElYDJUeQmC1uZaDvE3CE8Qqt+lFpjTupvCubSo/NBBDsIJt0PKn51R8V75fzEy8wFsIHg9Xqrs20jW3QFPSCFlvdSeTigT49h0F0CFjMStA9CF+c7J4zN4gDGXcLRFqoqXHUqwpwi8Edr7kHjPXy31tgw+NlqQFnsKTo5Y3qCg1Q57ilHkuv96fj50kVddmf0klxkn11vWP2Zw9auK27wraluo9nt2BiCa5AXiiZvc2zWwk5YNOWA3a6PJdqti0j9aThgGIZhGIZhGIZhGIZhGIZhGIZhGIZhGOYf4zceVTcBACgAAA==",
+            "length": 613
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The harness user's next update check finds 0.5.0 on the stable channel",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter/supercode/latest",
+      "status": 200,
+      "headers": {
+        "user-agent": "supercode-cli/0.4.0",
+        "accept": "application/json"
+      },
+      "expect": [
+        {
+          "path": "version",
+          "equals": "0.5.0"
+        },
+        {
+          "path": "dist.integrity",
+          "equals": "sha512-BiP63/Y+RMdoeXi1tIbUhnmMepb93la4Ou/0ikLimTW10DlmBkc+f4nbT4tqPzZa/+/ij/QCPbEqtul0n4a6Rw=="
+        }
+      ]
+    },
+    {
+      "name": "and on the latest channel",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/-/package/@volter/supercode/dist-tags",
+      "status": 200,
+      "headers": {
+        "user-agent": "supercode-cli/0.4.0",
+        "accept": "application/json"
+      },
+      "expect": [
+        {
+          "path": "latest",
+          "equals": "0.5.0"
+        }
+      ]
+    },
+    {
+      "name": "tabnode reads both versions in the abbreviated document",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2fworld",
+      "status": 200,
+      "headers": {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "accept": "application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8"
+      },
+      "expect": [
+        {
+          "path": "dist-tags.latest",
+          "equals": "0.2.0"
+        },
+        {
+          "path": "",
+          "contains": "\"integrity\":\"sha512-77N2+r5ElUkfeaVU+S3AigoF/X2OnE4MZE8NzijZ7nLHDf+dWw7r64F1vN8tqrhueYu9vTQ3V0JCSIKu7JW0BQ==\""
+        },
+        {
+          "path": "",
+          "contains": "\"integrity\":\"sha512-u2H43jGrvFZgV28FGmiSoRvLimeBGI42qpMzIT4gh6z8R2ZrrSi0NEQgeF63IxX89Yv0Af4iQ5VyFe8nSIK3gw==\""
+        }
+      ],
+      "capture": {
+        "worldNewTarball": "/versions/0.2.0/dist/tarball"
+      }
+    },
+    {
+      "name": "and fetches the new version at the tarball URL the registry returned",
+      "method": "GET",
+      "path": "{worldNewTarball}",
+      "status": 200,
+      "headers": {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+      }
+    },
+    {
+      "name": "Wednesday 11 February, 11:00: a Twenty app developer publishes, and a Twenty workspace's marketplace finds the app",
+      "wait": "11340m"
+    },
+    {
+      "name": "Priya Natarajan signs up and creates a package-publishing token on npmjs.com, valid through 1 March",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "name": "priya-n",
+        "email": "priya@standup.test",
+        "password": "marigold-ferry-5521",
+        "expires": "2026-03-01T00:00:00.000Z"
+      },
+      "capture": {
+        "priya": "token"
+      },
+      "expect": [
+        {
+          "path": "user",
+          "equals": "priya-n"
+        }
+      ]
+    },
+    {
+      "name": "Priya publishes twenty-app-standup 1.0.0, tagged twenty-app, but accidentally omits the required manifest.json",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/twenty-app-standup",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {priya}"
+      },
+      "body": {
+        "_id": "twenty-app-standup",
+        "name": "twenty-app-standup",
+        "description": "Daily stand-up notes on Twenty records",
+        "dist-tags": {
+          "latest": "1.0.0"
+        },
+        "versions": {
+          "1.0.0": {
+            "name": "twenty-app-standup",
+            "version": "1.0.0",
+            "description": "Daily stand-up notes on Twenty records",
+            "license": "MIT",
+            "keywords": [
+              "twenty-app",
+              "standup"
+            ],
+            "author": {
+              "name": "Priya Natarajan",
+              "email": "priya@standup.test"
+            },
+            "homepage": "https://standup.test",
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/priya-n/twenty-app-standup.git"
+            },
+            "_id": "twenty-app-standup@1.0.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-zhAo65xNqA1/ZMJmzmekuYNu+JXpiIYw/G6jRY1bguHm7966jy8He7haGKbV4h0J1yAaoo//w49I8b6I4VJCww==",
+              "shasum": "79fa108fb49b14485ab4a29406a6954774fd8a77",
+              "tarball": "http://registry.npmjs.org/twenty-app-standup/-/twenty-app-standup-1.0.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "twenty-app-standup-1.0.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+3Tu07DMBQG4Mx9Cisr5KaWIHViYGEAMXRDDCa1GreNbdkOVVT13Tl2GnEdEQv/tzjxufgkUQxvdnwjCjOu+dZplfyyktSLRVzJ15Vi86ScX9VlVdV1SXm0XlcJK5M/0DvPLY2S/E/HGWOp4p1Ilyz1B6H8kHFjMnorat2b9DLEX4V1UquQUuVlXo67a+EaK40/R2653A8s1mW9YUp74ZhWbBWbMisabdduLN3LRigXz7y/W417OzEcYsaSPdE9+zhOzKCdaSq6e45FvPettlRyHBOmJ3m0cuDsgdO35VuupnrR0ZAhbkL85twup0l96HmKPVvdCUP/QshrvTduWRSfMmOWFUY76bUd3k/3g4lVG+mnE3u7P+9cTL3ouu1f8kZ3RRwjU8X3F5+HHmGk2SkBAAAAAAAAAAAAAAAAAAAAAAD4yRtTdaayACgAAA==",
+            "length": 343
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "and standup-core 1.2.0, which is no Twenty app",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/standup-core",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {priya}"
+      },
+      "body": {
+        "_id": "standup-core",
+        "name": "standup-core",
+        "description": "Stand-up note parsing",
+        "dist-tags": {
+          "latest": "1.2.0"
+        },
+        "versions": {
+          "1.2.0": {
+            "name": "standup-core",
+            "version": "1.2.0",
+            "description": "Stand-up note parsing",
+            "license": "MIT",
+            "keywords": [
+              "standup"
+            ],
+            "author": {
+              "name": "Priya Natarajan",
+              "email": "priya@standup.test"
+            },
+            "_id": "standup-core@1.2.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-L9NON5JbFcPwkX7tLjcb6SLxigFb3RYk9ns+GUxKGWoWwyL1eNNHdZcN3oSrxhTYEC3tsg+G5CxTD5OzNx70vg==",
+              "shasum": "39eff44ab936540e4f868c0931e50df00a9381fa",
+              "tarball": "http://registry.npmjs.org/standup-core/-/standup-core-1.2.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "standup-core-1.2.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+3RPU/DMBAGYM/9FVZmGpw2pBITKwMICTbEcEqs4n7Ylu2Aqqr/nXNcGJgRA7zPcrLf89lKPPVbWutLX2q9ic6KH6ZY17ZTZd+rWrYroZZXnWqarlPcx3W1EFKJXzDGRIGfIv6n40zKytJeV9ey4k9hh9HPexd0dZGTNx2icTaHTb2oVdkddOyD8emcPOZj89FL65KWnviIXZfOnem1jdPwu9unsrfVh3cXhsibz7yWX/dWvHqZWmhMry5ww7E0fD7wIZgDyXviX0YbstM8jvWezC7nPuc353F10jHlmafZSQAAAAAAAAAAAAAAAAAAAAAAAPw1H7BxubUAKAAA",
+            "length": 264
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "ok",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "Twenty's marketplace searches the registry for keywords:twenty-app",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/-/v1/search?text=keywords:twenty-app&size=250&from=0",
+      "status": 200,
+      "headers": {
+        "user-agent": "Twenty-Marketplace"
+      },
+      "expect": [
+        {
+          "path": "total",
+          "equals": 1
+        },
+        {
+          "path": "objects.0.package.name",
+          "equals": "twenty-app-standup"
+        },
+        {
+          "path": "objects.0.package.version",
+          "equals": "1.0.0"
+        },
+        {
+          "path": "objects.0.package.description",
+          "equals": "Daily stand-up notes on Twenty records"
+        },
+        {
+          "path": "objects.0.package.author.name",
+          "equals": "Priya Natarajan"
+        },
+        {
+          "path": "objects.0.package.links.homepage",
+          "equals": "https://standup.test"
+        },
+        {
+          "path": "objects.0.package.links.npm",
+          "equals": "https://www.npmjs.com/package/twenty-app-standup"
+        },
+        {
+          "path": "objects.0.package.publisher.username",
+          "equals": "priya-n"
+        },
+        {
+          "path": "",
+          "notContains": "standup-core"
+        }
+      ]
+    },
+    {
+      "name": "An admin attempts installing the app: Twenty resolves its latest version, before archive validation will reject its missing manifest.json",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/twenty-app-standup/latest",
+      "status": 200,
+      "headers": {
+        "user-agent": "axios/1.12.2",
+        "accept": "application/json"
+      },
+      "expect": [
+        {
+          "path": "version",
+          "equals": "1.0.0"
+        },
+        {
+          "path": "dist.tarball",
+          "contains": "/twenty-app-standup/-/twenty-app-standup-1.0.0.tgz"
+        },
+        {
+          "path": "dist.shasum",
+          "equals": "79fa108fb49b14485ab4a29406a6954774fd8a77"
+        },
+        {
+          "path": "dist.integrity",
+          "equals": "sha512-zhAo65xNqA1/ZMJmzmekuYNu+JXpiIYw/G6jRY1bguHm7966jy8He7haGKbV4h0J1yAaoo//w49I8b6I4VJCww=="
+        }
+      ],
+      "capture": {
+        "appTarball": "dist.tarball"
+      }
+    },
+    {
+      "name": "Twenty downloads the returned tarball; its subsequent extraction rejects the missing manifest.json",
+      "method": "GET",
+      "path": "{appTarball}",
+      "status": 200,
+      "headers": {
+        "user-agent": "axios/1.12.2"
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "application/octet-stream"
+        }
+      ]
+    },
+    {
+      "name": "Priya claims registration for explicit input version 1.0.0: Twenty requests that version provenance and finds none",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/-/npm/v1/attestations/twenty-app-standup@1.0.0",
+      "status": 404,
+      "headers": {
+        "user-agent": "Twenty-Marketplace"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Thursday 12 February, 09:30: Priya's own team installs its internal stand-up app in its Twenty, whose APP_REGISTRY_TOKEN is her token",
+      "wait": "1350m"
+    },
+    {
+      "name": "Priya publishes @priya-n/standup-internal 0.1.0 with its manifest.json; a scoped package published without --access public is restricted to her",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@priya-n%2fstandup-internal",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {priya}"
+      },
+      "body": {
+        "_id": "@priya-n/standup-internal",
+        "name": "@priya-n/standup-internal",
+        "description": "Stand-up notes for the Standup team's own Twenty workspace",
+        "dist-tags": {
+          "latest": "0.1.0"
+        },
+        "versions": {
+          "0.1.0": {
+            "name": "@priya-n/standup-internal",
+            "version": "0.1.0",
+            "description": "Stand-up notes for the Standup team's own Twenty workspace",
+            "license": "UNLICENSED",
+            "keywords": [
+              "twenty-app"
+            ],
+            "author": {
+              "name": "Priya Natarajan",
+              "email": "priya@standup.test"
+            },
+            "_id": "@priya-n/standup-internal@0.1.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-2R78T3KW3EzE6qj5eCaYOPKz0mT60bzdeKIeq31+Vkj43S3qy3fGxj05G8GjHUV+4EuZ8zisajxql/e/Jv4NNw==",
+              "shasum": "fb12c12477ea7eea83bb5d873ff7d231e0908462",
+              "tarball": "http://registry.npmjs.org/@priya-n/standup-internal/-/standup-internal-0.1.0.tgz"
+            }
+          }
+        },
+        "access": null,
+        "_attachments": {
+          "@priya-n/standup-internal-0.1.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+2WwW6bQBCGffZTrLi4lYK92ICT9BKpySFSZVVye6p6mMDQbIwXtLvUQZbfvbPgRKobqZcWVel8l4WdYbTD8v9LDdkGvuGs7sfpg6306A8jiTSOu5E4HWXsY4sklVGUppKuaVzKkZCjAWisA0NLGf2f7MdCBBq2GFyK4Ko2qoVQz+id6LypQ6UdGg1lcObTvqOxqtI+U06jqexnc7SZUbU7Rtb+0bCpha4cWlFURrh7FOu+onAI24kV1U6LTzvUrhW7ymwsfX7YlytVhtp2y/m8+nD7/ma1vrnuQxtsKTm3FPtC9zTjuhIh1HVAE1+7LGjcfWUoZ9/nPDX30fcmVkDbDQ+gu5IUxi2o0se73q+OnU9p7c7XPIwP49e8/0fdz7agVUE9/w0D+J3+58vkRP/zSCas/8H032jltQ3lbU56UoVCr58gLaJsfneB4SKPIYyzcwwv7pYQzjEpolxmC4jPjx6gbF1CuzpK7dkD3jwZyNsXveKapNcK+7NjVM/OYDDzcj970USCVy7MgfVvTTZTOsdHMoChz3+ZJL+c/4uY9T8E+FhXxokcC2hKJ/bCH5eXYnL6BzARh3esN4ZhGIZhGIZhGIZhGIZhGIZhGIZhmH+XHxOv3IMAKAAA",
+            "length": 486
+          }
+        }
+      }
+    },
+    {
+      "name": "Her team's Twenty resolves the app's version with its registry token (the name percent-encoded, as Twenty encodes it)",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/%40priya-n%2Fstandup-internal/0.1.0",
+      "status": 200,
+      "headers": {
+        "user-agent": "axios/1.12.2",
+        "accept": "application/json",
+        "authorization": "Bearer {priya}"
+      },
+      "expect": [
+        {
+          "path": "name",
+          "equals": "@priya-n/standup-internal"
+        },
+        {
+          "path": "dist.integrity",
+          "equals": "sha512-2R78T3KW3EzE6qj5eCaYOPKz0mT60bzdeKIeq31+Vkj43S3qy3fGxj05G8GjHUV+4EuZ8zisajxql/e/Jv4NNw=="
+        }
+      ],
+      "capture": {
+        "internalTarball": "dist.tarball"
+      }
+    },
+    {
+      "name": "and downloads the returned tarball, the token sent to the registry's own host",
+      "method": "GET",
+      "path": "{internalTarball}",
+      "status": 200,
+      "headers": {
+        "user-agent": "axios/1.12.2",
+        "authorization": "Bearer {priya}"
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "application/octet-stream"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 17 February, 15:02: the catalog release moves to CI and publishes its first pack, @volter/twin-github 0.1.0, with provenance (npm publish --provenance)",
+      "wait": "7532m"
+    },
+    {
+      "name": "The registry checks the job's Sigstore provenance and refuses it: the pack's package.json names no repository to match the workflow's",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2ftwin-github",
+      "status": 422,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {dana}"
+      },
+      "body": {
+        "_id": "@volter/twin-github",
+        "name": "@volter/twin-github",
+        "description": "GitHub twin for Volter Worlds",
+        "dist-tags": {
+          "latest": "0.1.0"
+        },
+        "versions": {
+          "0.1.0": {
+            "name": "@volter/twin-github",
+            "version": "0.1.0",
+            "description": "GitHub twin for Volter Worlds",
+            "type": "module",
+            "main": "src/index.js",
+            "license": "MIT",
+            "_id": "@volter/twin-github@0.1.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-nU0a1nFhPBZd9pXpzMEuIC28KDbt/zZcoL9cqyRjVEfLuJmzrQ6Ew0gzGUiqqYOZN1P8QOS85gdDODHMq/dddg==",
+              "shasum": "f4606261fb32e0f97e0967dfca315e6eca3656dc",
+              "tarball": "http://registry.npmjs.org/@volter/twin-github/-/twin-github-0.1.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/twin-github-0.1.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+3VTWuDMBgHcM/9FA9ebGGrsS8OVga7jG6HnVa2s9W0zWYTSWJfKP3ui1rGXtitCGP/3yXwJI+K5h+LJH1LljwsmrH/apT0zow58WhUj873kQ3GsceG45hFURwzt86NV5FHzGtBaWyi3aN4/9OhQ+TLZM39a/JvNyq3XId2K+TlUthVOfcvqgUbro1QslrD+lGfNdWMm1SLwp5mpsLel3OqmmmhND3XF6MXpfPMNB12X9Q3WquszHlTWyeibjc6DYXM+M7twWYmFymXpm54fJj5nWPHgzM75T78/Pbbzn80+Jn/4RD5bwPfFUpbSpU0ljZcZi64NxQ04Q8mndP8gVLNE8undX3mIv7EtTsV6EgLrdYU9ENTF9z2cV3I1V/M/8cXbDv/1dyX/A/YcID8t5j/RSnT6j/+S8y7PXcC2JVWW5J8S3daK90N7IpTs2dIGJqXIrc031NVThOb5GoZ9CaEvzYAAAAAAAAAAAAAAAAAQBveAYjjezMAKAAA",
+            "length": 390
+          },
+          "@volter/twin-github-0.1.0.sigstore": {
+            "content_type": "application/vnd.dev.sigstore.bundle+json;version=0.1",
+            "data": "{\"mediaType\":\"application/vnd.dev.sigstore.bundle+json;version=0.1\",\"verificationMaterial\":{\"x509CertificateChain\":{\"certificates\":[{\"rawBytes\":\"MIIE/jCCBLCgAwIBAgIQX2gdp3d3DdC1KoJE66QcojAFBgMrZXAwKjEVMBMGA1UECgwMc2lnc3RvcmUuZGV2MREwDwYDVQQDDAhzaWdzdG9yZTAeFw0yNjAyMTcxNTAyMDBaFw0yNjAyMTcxNTEyMDBaMAAwKjAFBgMrZXADIQCKMWXHv67RSqrNSTlh7uJ5qiitRJHLArvofsuR+TW4tKOCBBQwggQQMA4GA1UdDwEB/wQEAwIAgDATBgNVHSUEDDAKBggrBgEFBQcDAzBrBgNVHREBAf8EYTBfhl1odHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4td29ybGQvLmdpdGh1Yi93b3JrZmxvd3MvY2F0YWxvZy1yZWxlYXNlLnltbEByZWZzL2hlYWRzL21haW4wOwYKKwYBBAGDvzABCAQtDCtodHRwczovL3Rva2VuLmFjdGlvbnMuZ2l0aHVidXNlcmNvbnRlbnQuY29tMG0GCisGAQQBg78wAQkEXwxdaHR0cHM6Ly9naXRodWIuY29tL3ZvbHRlci1haS90d2luLXdvcmxkLy5naXRodWIvd29ya2Zsb3dzL2NhdGFsb2ctcmVsZWFzZS55bWxAcmVmcy9oZWFkcy9tYWluMDgGCisGAQQBg78wAQoEKgwoZjY1MjExOWEyZDRmMWUwYzZiM2E3ZDllOGM1YjRhM2YyZTFkMGM5YjAdBgorBgEEAYO/MAELBA8MDWdpdGh1Yi1ob3N0ZWQwNwYKKwYBBAGDvzABDAQpDCdodHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4td29ybGQwOAYKKwYBBAGDvzABDQQqDChmNjUyMTE5YTJkNGYxZTBjNmIzYTdkOWU4YzViNGEzZjJlMWQwYzliMB8GCisGAQQBg78wAQ4EEQwPcmVmcy9oZWFkcy9tYWluMBkGCisGAQQBg78wAQ8ECwwJODczNTQxMjA2MCwGCisGAQQBg78wARAEHgwcaHR0cHM6Ly9naXRodWIuY29tL3ZvbHRlci1haTAZBgorBgEEAYO/MAERBAsMCTE1MTczNTQxMjBtBgorBgEEAYO/MAESBF8MXWh0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbi13b3JsZC8uZ2l0aHViL3dvcmtmbG93cy9jYXRhbG9nLXJlbGVhc2UueW1sQHJlZnMvaGVhZHMvbWFpbjA4BgorBgEEAYO/MAETBCoMKGY2NTIxMTlhMmQ0ZjFlMGM2YjNhN2Q5ZThjNWI0YTNmMmUxZDBjOWIwIQYKKwYBBAGDvzABFAQTDBF3b3JrZmxvd19kaXNwYXRjaDBbBgorBgEEAYO/MAEVBE0MS2h0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbi13b3JsZC9hY3Rpb25zL3J1bnMvMTMzNzE3NDIwMDEvYXR0ZW1wdHMvMTAXBgorBgEEAYO/MAEWBAkMB3ByaXZhdGUwPQYKKwYBBAGDvzABGAQvDC1yZXBvOnZvbHRlci1haS90d2luLXdvcmxkOnJlZjpyZWZzL2hlYWRzL21haW4wBQYDK2VwA0EAFpQqswFNesNq+sxo7syy8Kzyj547MB2aYiExl4zbEiNVqBraZzN9xqfOFSSiY4OkyS0+u8e+ZMUf5UBDpQNCCQ==\"}]},\"tlogEntries\":[{\"logIndex\":\"0\",\"logId\":{\"keyId\":\"3IEJuxI74UD+nU9nj4wYgXTNQT9k7jdb9rkH0n0c37s=\"},\"kindVersion\":{\"kind\":\"dsse\",\"version\":\"0.0.1\"},\"integratedTime\":\"1771340560\",\"inclusionPromise\":{\"signedEntryTimestamp\":\"cnwJL+ufd6kYb73jvvIQmdIjtAHuqh/1whqyM52HSkCRRComgabqj/2B5QS2ZxtRtTAx9en0jyGQEDLeEC/kBA==\"},\"canonicalizedBody\":\"eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiZHNzZSIsInNwZWMiOnsiZW52ZWxvcGVIYXNoIjp7ImFsZ29yaXRobSI6InNoYTI1NiIsInZhbHVlIjoiMmE2MWMzZTdkZWU5ZTg2MWNmODViNTFkZjVmY2VmMTZjZGM2MTZlOGRmNTY0NDEzODVjMDBiZDRjMmNiZDQ2ZiJ9LCJwYXlsb2FkSGFzaCI6eyJhbGdvcml0aG0iOiJzaGEyNTYiLCJ2YWx1ZSI6ImNlNTliNTM1NGNlM2VmNzQ3MzBkZTc1NTIzZWU4YjM1ZGQ3ZjI2Y2FkODRmNzJjYjk3NzBkMzFjOGRiNGUxNTAifSwic2lnbmF0dXJlcyI6W3sic2lnbmF0dXJlIjoiRWNqOHQwb0JmellJWTJxQXR6ODdrSUxoM1VXYnlIeDRsWHlZa3dBUHNiK3cxN2xBZ3RxTnBWWFFoOWRmNmlDdXZBeUh6aDRuY2tWVEJUVEc3a2lnQVE9PSIsInZlcmlmaWVyIjoiTFMwdExTMUNSVWRKVGlCRFJWSlVTVVpKUTBGVVJTMHRMUzB0Q2sxSlNVVXZha05EUWt4RFowRjNTVUpCWjBsUldESm5aSEF6WkRORVpFTXhTMjlLUlRZMlVXTnZha0ZHUW1kTmNscFlRWGRMYWtWV1RVSk5SMEV4VlVVS1EyZDNUV015Ykc1ak0xSjJZMjFWZFZwSFZqSk5Va1YzUkhkWlJGWlJVVVJFUVdoNllWZGtlbVJIT1hsYVZFRmxSbmN3ZVU1cVFYbE5WR040VGxSQmVRcE5SRUpoUm5jd2VVNXFRWGxOVkdONFRsUkZlVTFFUW1GTlFVRjNTMnBCUmtKblRYSmFXRUZFU1ZGRFMwMVhXRWgyTmpkU1UzRnlUbE5VYkdnM2RVbzFDbkZwYVhSU1NraE1RWEoyYjJaemRWSXJWRmMwZEV0UFEwSkNVWGRuWjFGUlRVRTBSMEV4VldSRWQwVkNMM2RSUlVGM1NVRm5SRUZVUW1kT1ZraFRWVVVLUkVSQlMwSm5aM0pDWjBWR1FsRmpSRUY2UW5KQ1owNVdTRkpGUWtGbU9FVlpWRUptYUd3eGIyUklVbmRqZW05MlRESmtjR1JIYURGWmFUVnFZakl3ZGdwa2JUbHpaRWRXZVV4WFJuQk1NMUl6WVZjMGRHUXlPWGxpUjFGMlRHMWtjR1JIYURGWmFUa3pZak5LY2xwdGVIWmtNMDEyV1RKR01GbFhlSFphZVRGNUNscFhlR3haV0U1c1RHNXNkR0pGUW5sYVYxcDZUREpvYkZsWFVucE1NakZvWVZjMGQwOTNXVXRMZDFsQ1FrRkhSSFo2UVVKRFFWRjBSRU4wYjJSSVVuY0tZM3B2ZGt3elVuWmhNbFoxVEcxR2FtUkhiSFppYmsxMVdqSnNNR0ZJVm1sa1dFNXNZMjFPZG1KdVVteGlibEYxV1RJNWRFMUhNRWREYVhOSFFWRlJRZ3BuTnpoM1FWRnJSVmgzZUdSaFNGSXdZMGhOTmt4NU9XNWhXRkp2WkZkSmRWa3lPWFJNTTFwMllraFNiR05wTVdoaFV6a3daREpzZFV4WVpIWmpiWGhyQ2t4NU5XNWhXRkp2WkZkSmRtUXlPWGxoTWxwellqTmtla3d5VG1oa1IwWnpZakpqZEdOdFZuTmFWMFo2V2xNMU5XSlhlRUZqYlZadFkzazViMXBYUm1zS1kzazVkRmxYYkhWTlJHZEhRMmx6UjBGUlVVSm5OemgzUVZGdlJVdG5kMjlhYWxreFRXcEZlRTlYUlhsYVJGSnRUVmRWZDFsNldtbE5Na1V6V2tSc2JBcFBSMDB4V1dwU2FFMHlXWGxhVkVaclRVZE5OVmxxUVdSQ1oyOXlRbWRGUlVGWlR5OU5RVVZNUWtFNFRVUlhaSEJrUjJneFdXa3hiMkl6VGpCYVYxRjNDazUzV1V0TGQxbENRa0ZIUkhaNlFVSkVRVkZ3UkVOa2IyUklVbmRqZW05MlRESmtjR1JIYURGWmFUVnFZakl3ZG1SdE9YTmtSMVo1VEZkR2NFd3pVak1LWVZjMGRHUXlPWGxpUjFGM1QwRlpTMHQzV1VKQ1FVZEVkbnBCUWtSUlVYRkVRMmh0VG1wVmVVMVVSVFZaVkVwclRrZFplRnBVUW1wT2JVbDZXVlJrYXdwUFYxVTBXWHBXYVU1SFJYcGFha3BzVFZkUmQxbDZiR2xOUWpoSFEybHpSMEZSVVVKbk56aDNRVkUwUlVWUmQxQmpiVlp0WTNrNWIxcFhSbXRqZVRsMENsbFhiSFZOUW10SFEybHpSMEZSVVVKbk56aDNRVkU0UlVOM2QwcFBSR042VGxSUmVFMXFRVEpOUTNkSFEybHpSMEZSVVVKbk56aDNRVkpCUlVobmQyTUtZVWhTTUdOSVRUWk1lVGx1WVZoU2IyUlhTWFZaTWpsMFRETmFkbUpJVW14amFURm9ZVlJCV2tKbmIzSkNaMFZGUVZsUEwwMUJSVkpDUVhOTlExUkZNUXBOVkdONlRsUlJlRTFxUW5SQ1oyOXlRbWRGUlVGWlR5OU5RVVZUUWtZNFRWaFhhREJrU0VKNlQyazRkbG95YkRCaFNGWnBURzFPZG1KVE9USmlNbmd3Q2xwWVNYUlpWMnQyWkVoa2NHSnBNVE5pTTBweldrTTRkVm95YkRCaFNGWnBURE5rZG1OdGRHMWlSemt6WTNrNWFsbFlVbWhpUnpsdVRGaEtiR0pIVm1nS1l6SlZkV1ZYTVhOUlNFcHNXbTVOZG1GSFZtaGFTRTEyWWxkR2NHSnFRVFJDWjI5eVFtZEZSVUZaVHk5TlFVVlVRa052VFV0SFdUSk9WRWw0VFZSc2FBcE5iVkV3V21wR2JFMUhUVEpaYWs1b1RqSlJOVnBVYUdwT1Ywa3dXVlJPYlUxdFZYaGFSRUpxVDFkSmQwbFJXVXRMZDFsQ1FrRkhSSFo2UVVKR1FWRlVDa1JDUmpOaU0wcHlXbTE0ZG1ReE9XdGhXRTUzV1ZoU2FtRkVRbUpDWjI5eVFtZEZSVUZaVHk5TlFVVldRa1V3VFZNeWFEQmtTRUo2VDJrNGRsb3liREFLWVVoV2FVeHRUblppVXpreVlqSjRNRnBZU1hSWlYydDJaRWhrY0dKcE1UTmlNMHB6V2tNNWFGa3pVbkJpTWpWNlRETktNV0p1VFhaTlZFMTZUbnBGTXdwT1JFbDNUVVJGZGxsWVVqQmFWekYzWkVoTmRrMVVRVmhDWjI5eVFtZEZSVUZaVHk5TlFVVlhRa0ZyVFVJelFubGhXRnBvWkVkVmQxQlJXVXRMZDFsQ0NrSkJSMFIyZWtGQ1IwRlJka1JETVhsYVdFSjJUMjVhZG1KSVVteGphVEZvWVZNNU1HUXliSFZNV0dSMlkyMTRhMDl1U214YWFuQjVXbGRhZWt3eWFHd0tXVmRTZWt3eU1XaGhWelIzUWxGWlJFc3lWbmRCTUVWQlJuQlJjWE4zUms1bGMwNXhLM040YnpkemVYazRTM3A1YWpVME4wMUNNbUZaYVVWNGJEUjZZZ3BGYVU1V2NVSnlZVnA2VGpsNGNXWlBSbE5UYVZrMFQydDVVekFyZFRobEsxcE5WV1kxVlVKRWNGRk9RME5SUFQwS0xTMHRMUzFGVGtRZ1EwVlNWRWxHU1VOQlZFVXRMUzB0TFFvPSJ9XX19\"}]},\"dsseEnvelope\":{\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoicGtnOm5wbS8lNDB2b2x0ZXIvdHdpbi1naXRodWJAMC4xLjAiLCJkaWdlc3QiOnsic2hhNTEyIjoiOWQ0ZDFhZDY3MTYxM2MxNjVkZjY5NWU5Y2NjMTJlMjAyZGJjMjgzNmVkZmYzNjVjYTBiZjVjYWIyNDYzNTQ0N2NiYjg5OWIzYWQwZTg0YzM0ODMzMTk0OGFhYTk4Mzk5Mzc1M2ZjNDBlNGJjZTYwNzQzMzgzMWNjYWJmNzVkNzYifX1dLCJwcmVkaWNhdGVUeXBlIjoiaHR0cHM6Ly9zbHNhLmRldi9wcm92ZW5hbmNlL3YxIiwicHJlZGljYXRlIjp7ImJ1aWxkRGVmaW5pdGlvbiI6eyJidWlsZFR5cGUiOiJodHRwczovL3Nsc2EtZnJhbWV3b3JrLmdpdGh1Yi5pby9naXRodWItYWN0aW9ucy1idWlsZHR5cGVzL3dvcmtmbG93L3YxIiwiZXh0ZXJuYWxQYXJhbWV0ZXJzIjp7IndvcmtmbG93Ijp7InJlZiI6InJlZnMvaGVhZHMvbWFpbiIsInJlcG9zaXRvcnkiOiJodHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4td29ybGQiLCJwYXRoIjoiLmdpdGh1Yi93b3JrZmxvd3MvY2F0YWxvZy1yZWxlYXNlLnltbCJ9fSwiaW50ZXJuYWxQYXJhbWV0ZXJzIjp7ImdpdGh1YiI6eyJldmVudF9uYW1lIjoid29ya2Zsb3dfZGlzcGF0Y2giLCJyZXBvc2l0b3J5X2lkIjoiODczNTQxMjA2IiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjE1MTczNTQxMiIsInJ1bm5lcl9lbnZpcm9ubWVudCI6ImdpdGh1Yi1ob3N0ZWQifX0sInJlc29sdmVkRGVwZW5kZW5jaWVzIjpbeyJ1cmkiOiJnaXQraHR0cHM6Ly9naXRodWIuY29tL3ZvbHRlci1haS90d2luLXdvcmxkQHJlZnMvaGVhZHMvbWFpbiIsImRpZ2VzdCI6eyJnaXRDb21taXQiOiJmNjUyMTE5YTJkNGYxZTBjNmIzYTdkOWU4YzViNGEzZjJlMWQwYzliIn19XX0sInJ1bkRldGFpbHMiOnsiYnVpbGRlciI6eyJpZCI6Imh0dHBzOi8vZ2l0aHViLmNvbS9hY3Rpb25zL3J1bm5lci9naXRodWItaG9zdGVkIn0sIm1ldGFkYXRhIjp7Imludm9jYXRpb25JZCI6Imh0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbi13b3JsZC9hY3Rpb25zL3J1bnMvMTMzNzE3NDIwMDEvYXR0ZW1wdHMvMSJ9fX19\",\"payloadType\":\"application/vnd.in-toto+json\",\"signatures\":[{\"sig\":\"Ecj8t0oBfzYIY2qAtz87kILh3UWbyHx4lXyYkwAPsb+w17lAgtqNpVXQh9df6iCuvAyHzh4nckVTBTTG7kigAQ==\",\"keyid\":\"\"}]}}",
+            "length": 7589
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "error",
+          "contains": "Failed to validate repository information"
+        },
+        {
+          "path": "error",
+          "contains": "https://github.com/volter-ai/twin-world"
+        }
+      ]
+    },
+    {
+      "name": "Dana adds the repository to the pack's package.json and re-runs the job",
+      "wait": "39m"
+    },
+    {
+      "name": "The re-run publishes @volter/twin-github 0.1.0 with its provenance",
+      "method": "PUT",
+      "path": "https://registry.npmjs.org/@volter%2ftwin-github",
+      "status": 200,
+      "headers": {
+        "user-agent": "npm/10.9.8 node/v22.12.0 linux x64 workspaces/false ci/github-actions",
+        "npm-command": "publish",
+        "authorization": "Bearer {dana}"
+      },
+      "body": {
+        "_id": "@volter/twin-github",
+        "name": "@volter/twin-github",
+        "description": "GitHub twin for Volter Worlds",
+        "dist-tags": {
+          "latest": "0.1.0"
+        },
+        "versions": {
+          "0.1.0": {
+            "name": "@volter/twin-github",
+            "version": "0.1.0",
+            "description": "GitHub twin for Volter Worlds",
+            "type": "module",
+            "main": "src/index.js",
+            "license": "MIT",
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/volter-ai/twin-world.git"
+            },
+            "_id": "@volter/twin-github@0.1.0",
+            "readme": "ERROR: No README data found!",
+            "_nodeVersion": "22.12.0",
+            "_npmVersion": "10.9.8",
+            "dist": {
+              "integrity": "sha512-IVF6uPtv8UviAB0xnuzwmO0XN37HuVV40/3lxyztAgL1+6x7Aqw4IpdHeuMV2YV4cdgvx4H/CK6G7yEzmdjbgQ==",
+              "shasum": "cf35634d0d1a889294e7b1bac604f5c7df5629fa",
+              "tarball": "http://registry.npmjs.org/@volter/twin-github/-/twin-github-0.1.0.tgz"
+            }
+          }
+        },
+        "access": "public",
+        "_attachments": {
+          "@volter/twin-github-0.1.0.tgz": {
+            "content_type": "application/octet-stream",
+            "data": "H4sIAAAAAAAC/+3Vz2vbMBQHcJ/zVzxycctWW/lRD1oKvYxuh51W1rMiK4k2WzJPz0lDyf8+yQqjP9htGEbf5yJ40nOk2F+7k+qX3OiyS2Px0zub/WMiqJbLYQxej2I5v8zE4rISs1lVibAujp8yENkIek8Sw1ay9+lpAjC1stXTK5je7lxDGkvaG3uxMbTtV9OPccFOozfOxjWimBUiVWvtFZqOTjN3hr70K4jNsHYIP4aLwYPDpvapgw7d8EOtq/tGp1orzdDuUZXG1voxPINppjFKWz80fPt6n2qoO+cNOTyEctz8s6uGHQ+LQqnH5lT5sCXq/FVZpvMUyrVlOuaFNOmk+7jDInaH5uPkOHlH9/+U+/L5vz92/mfz6k3+FwvO/xj0Y+eQQDnrCXba1iG4N5CnsOTXk9P8EyjUkvTdUL8PqfmuMbwV4AhrdC3kRemHQnh8QlfG/sP8/7mDY+c/zr3I/1ws5pz/EfO/7q2K3/G/xPzsPLwBaItuD1bv4TOiw7OcthrSMwPGw6o3DcHqALGsJMnGbfLzazjy24AxxhhjjDHGGGOMMcYYY4wxxkbwG7QpZrcAKAAA",
+            "length": 444
+          },
+          "@volter/twin-github-0.1.0.sigstore": {
+            "content_type": "application/vnd.dev.sigstore.bundle+json;version=0.1",
+            "data": "{\"mediaType\":\"application/vnd.dev.sigstore.bundle+json;version=0.1\",\"verificationMaterial\":{\"x509CertificateChain\":{\"certificates\":[{\"rawBytes\":\"MIIE/jCCBLCgAwIBAgIQbfGQ9Lvq8fJ8K1tgAji/YzAFBgMrZXAwKjEVMBMGA1UECgwMc2lnc3RvcmUuZGV2MREwDwYDVQQDDAhzaWdzdG9yZTAeFw0yNjAyMTcxNTQxMDBaFw0yNjAyMTcxNTUxMDBaMAAwKjAFBgMrZXADIQCHzGclzT1Xt48eAiGizX0uvFih4YgHaCcrjm3yVDYA66OCBBQwggQQMA4GA1UdDwEB/wQEAwIAgDATBgNVHSUEDDAKBggrBgEFBQcDAzBrBgNVHREBAf8EYTBfhl1odHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4td29ybGQvLmdpdGh1Yi93b3JrZmxvd3MvY2F0YWxvZy1yZWxlYXNlLnltbEByZWZzL2hlYWRzL21haW4wOwYKKwYBBAGDvzABCAQtDCtodHRwczovL3Rva2VuLmFjdGlvbnMuZ2l0aHVidXNlcmNvbnRlbnQuY29tMG0GCisGAQQBg78wAQkEXwxdaHR0cHM6Ly9naXRodWIuY29tL3ZvbHRlci1haS90d2luLXdvcmxkLy5naXRodWIvd29ya2Zsb3dzL2NhdGFsb2ctcmVsZWFzZS55bWxAcmVmcy9oZWFkcy9tYWluMDgGCisGAQQBg78wAQoEKgwoZjY1MjExOWEyZDRmMWUwYzZiM2E3ZDllOGM1YjRhM2YyZTFkMGM5YjAdBgorBgEEAYO/MAELBA8MDWdpdGh1Yi1ob3N0ZWQwNwYKKwYBBAGDvzABDAQpDCdodHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4td29ybGQwOAYKKwYBBAGDvzABDQQqDChmNjUyMTE5YTJkNGYxZTBjNmIzYTdkOWU4YzViNGEzZjJlMWQwYzliMB8GCisGAQQBg78wAQ4EEQwPcmVmcy9oZWFkcy9tYWluMBkGCisGAQQBg78wAQ8ECwwJODczNTQxMjA2MCwGCisGAQQBg78wARAEHgwcaHR0cHM6Ly9naXRodWIuY29tL3ZvbHRlci1haTAZBgorBgEEAYO/MAERBAsMCTE1MTczNTQxMjBtBgorBgEEAYO/MAESBF8MXWh0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbi13b3JsZC8uZ2l0aHViL3dvcmtmbG93cy9jYXRhbG9nLXJlbGVhc2UueW1sQHJlZnMvaGVhZHMvbWFpbjA4BgorBgEEAYO/MAETBCoMKGY2NTIxMTlhMmQ0ZjFlMGM2YjNhN2Q5ZThjNWI0YTNmMmUxZDBjOWIwIQYKKwYBBAGDvzABFAQTDBF3b3JrZmxvd19kaXNwYXRjaDBbBgorBgEEAYO/MAEVBE0MS2h0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbi13b3JsZC9hY3Rpb25zL3J1bnMvMTMzNzE3NDIwMDEvYXR0ZW1wdHMvMjAXBgorBgEEAYO/MAEWBAkMB3ByaXZhdGUwPQYKKwYBBAGDvzABGAQvDC1yZXBvOnZvbHRlci1haS90d2luLXdvcmxkOnJlZjpyZWZzL2hlYWRzL21haW4wBQYDK2VwA0EAQGPwlJZ+lpdLDaiStagMpV/ZArt6pbQzjLScvxsTM9ZqTDZb4cESFoA+stSUUzQFKQyLNt8OyJsPyOLx3mbEDw==\"}]},\"tlogEntries\":[{\"logIndex\":\"1\",\"logId\":{\"keyId\":\"3IEJuxI74UD+nU9nj4wYgXTNQT9k7jdb9rkH0n0c37s=\"},\"kindVersion\":{\"kind\":\"dsse\",\"version\":\"0.0.1\"},\"integratedTime\":\"1771342900\",\"inclusionPromise\":{\"signedEntryTimestamp\":\"0/2JN58+q1WvTM3msF/4ne6+JHdEacHO771Llvgh+Cxxx7LvBlqERT7+BikwDzxo4Buwa9Dtxr3nHb0bmFc6Aw==\"},\"canonicalizedBody\":\"eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiZHNzZSIsInNwZWMiOnsiZW52ZWxvcGVIYXNoIjp7ImFsZ29yaXRobSI6InNoYTI1NiIsInZhbHVlIjoiYmYzY2E4YzY1OTM2MTRkNGVjODdmZmI1MDdmYzFkNjQyNmEzYmY0MTU2NGI2YjRlYmIyMTlkOWY2MTU2OGU0NSJ9LCJwYXlsb2FkSGFzaCI6eyJhbGdvcml0aG0iOiJzaGEyNTYiLCJ2YWx1ZSI6ImE2ZDEyODA5YjE0MGU5NDE0OTdlYWEwMDNlNjUyYWViOTI1NGQxMzg0YjY2Zjg1ZGRkOTA0NzA1ZjdjM2JlZjQifSwic2lnbmF0dXJlcyI6W3sic2lnbmF0dXJlIjoidWVjdmN1cW1tNmVBTCt0ZXlkTGhFUkdOaXI2SUZMc0l5OHJWZkw4dVc0cTNYQUZINGRwaVFNd0Z6eEVkQXE0dUVYRS9EbDFaQk02VkNTcVB2enJ1Q1E9PSIsInZlcmlmaWVyIjoiTFMwdExTMUNSVWRKVGlCRFJWSlVTVVpKUTBGVVJTMHRMUzB0Q2sxSlNVVXZha05EUWt4RFowRjNTVUpCWjBsUlltWkhVVGxNZG5FNFprbzRTekYwWjBGcWFTOVpla0ZHUW1kTmNscFlRWGRMYWtWV1RVSk5SMEV4VlVVS1EyZDNUV015Ykc1ak0xSjJZMjFWZFZwSFZqSk5Va1YzUkhkWlJGWlJVVVJFUVdoNllWZGtlbVJIT1hsYVZFRmxSbmN3ZVU1cVFYbE5WR040VGxSUmVBcE5SRUpoUm5jd2VVNXFRWGxOVkdONFRsUlZlRTFFUW1GTlFVRjNTMnBCUmtKblRYSmFXRUZFU1ZGRFNIcEhZMng2VkRGWWREUTRaVUZwUjJsNldEQjFDblpHYVdnMFdXZElZVU5qY21wdE0zbFdSRmxCTmpaUFEwSkNVWGRuWjFGUlRVRTBSMEV4VldSRWQwVkNMM2RSUlVGM1NVRm5SRUZVUW1kT1ZraFRWVVVLUkVSQlMwSm5aM0pDWjBWR1FsRmpSRUY2UW5KQ1owNVdTRkpGUWtGbU9FVlpWRUptYUd3eGIyUklVbmRqZW05MlRESmtjR1JIYURGWmFUVnFZakl3ZGdwa2JUbHpaRWRXZVV4WFJuQk1NMUl6WVZjMGRHUXlPWGxpUjFGMlRHMWtjR1JIYURGWmFUa3pZak5LY2xwdGVIWmtNMDEyV1RKR01GbFhlSFphZVRGNUNscFhlR3haV0U1c1RHNXNkR0pGUW5sYVYxcDZUREpvYkZsWFVucE1NakZvWVZjMGQwOTNXVXRMZDFsQ1FrRkhSSFo2UVVKRFFWRjBSRU4wYjJSSVVuY0tZM3B2ZGt3elVuWmhNbFoxVEcxR2FtUkhiSFppYmsxMVdqSnNNR0ZJVm1sa1dFNXNZMjFPZG1KdVVteGlibEYxV1RJNWRFMUhNRWREYVhOSFFWRlJRZ3BuTnpoM1FWRnJSVmgzZUdSaFNGSXdZMGhOTmt4NU9XNWhXRkp2WkZkSmRWa3lPWFJNTTFwMllraFNiR05wTVdoaFV6a3daREpzZFV4WVpIWmpiWGhyQ2t4NU5XNWhXRkp2WkZkSmRtUXlPWGxoTWxwellqTmtla3d5VG1oa1IwWnpZakpqZEdOdFZuTmFWMFo2V2xNMU5XSlhlRUZqYlZadFkzazViMXBYUm1zS1kzazVkRmxYYkhWTlJHZEhRMmx6UjBGUlVVSm5OemgzUVZGdlJVdG5kMjlhYWxreFRXcEZlRTlYUlhsYVJGSnRUVmRWZDFsNldtbE5Na1V6V2tSc2JBcFBSMDB4V1dwU2FFMHlXWGxhVkVaclRVZE5OVmxxUVdSQ1oyOXlRbWRGUlVGWlR5OU5RVVZNUWtFNFRVUlhaSEJrUjJneFdXa3hiMkl6VGpCYVYxRjNDazUzV1V0TGQxbENRa0ZIUkhaNlFVSkVRVkZ3UkVOa2IyUklVbmRqZW05MlRESmtjR1JIYURGWmFUVnFZakl3ZG1SdE9YTmtSMVo1VEZkR2NFd3pVak1LWVZjMGRHUXlPWGxpUjFGM1QwRlpTMHQzV1VKQ1FVZEVkbnBCUWtSUlVYRkVRMmh0VG1wVmVVMVVSVFZaVkVwclRrZFplRnBVUW1wT2JVbDZXVlJrYXdwUFYxVTBXWHBXYVU1SFJYcGFha3BzVFZkUmQxbDZiR2xOUWpoSFEybHpSMEZSVVVKbk56aDNRVkUwUlVWUmQxQmpiVlp0WTNrNWIxcFhSbXRqZVRsMENsbFhiSFZOUW10SFEybHpSMEZSVVVKbk56aDNRVkU0UlVOM2QwcFBSR042VGxSUmVFMXFRVEpOUTNkSFEybHpSMEZSVVVKbk56aDNRVkpCUlVobmQyTUtZVWhTTUdOSVRUWk1lVGx1WVZoU2IyUlhTWFZaTWpsMFRETmFkbUpJVW14amFURm9ZVlJCV2tKbmIzSkNaMFZGUVZsUEwwMUJSVkpDUVhOTlExUkZNUXBOVkdONlRsUlJlRTFxUW5SQ1oyOXlRbWRGUlVGWlR5OU5RVVZUUWtZNFRWaFhhREJrU0VKNlQyazRkbG95YkRCaFNGWnBURzFPZG1KVE9USmlNbmd3Q2xwWVNYUlpWMnQyWkVoa2NHSnBNVE5pTTBweldrTTRkVm95YkRCaFNGWnBURE5rZG1OdGRHMWlSemt6WTNrNWFsbFlVbWhpUnpsdVRGaEtiR0pIVm1nS1l6SlZkV1ZYTVhOUlNFcHNXbTVOZG1GSFZtaGFTRTEyWWxkR2NHSnFRVFJDWjI5eVFtZEZSVUZaVHk5TlFVVlVRa052VFV0SFdUSk9WRWw0VFZSc2FBcE5iVkV3V21wR2JFMUhUVEpaYWs1b1RqSlJOVnBVYUdwT1Ywa3dXVlJPYlUxdFZYaGFSRUpxVDFkSmQwbFJXVXRMZDFsQ1FrRkhSSFo2UVVKR1FWRlVDa1JDUmpOaU0wcHlXbTE0ZG1ReE9XdGhXRTUzV1ZoU2FtRkVRbUpDWjI5eVFtZEZSVUZaVHk5TlFVVldRa1V3VFZNeWFEQmtTRUo2VDJrNGRsb3liREFLWVVoV2FVeHRUblppVXpreVlqSjRNRnBZU1hSWlYydDJaRWhrY0dKcE1UTmlNMHB6V2tNNWFGa3pVbkJpTWpWNlRETktNV0p1VFhaTlZFMTZUbnBGTXdwT1JFbDNUVVJGZGxsWVVqQmFWekYzWkVoTmRrMXFRVmhDWjI5eVFtZEZSVUZaVHk5TlFVVlhRa0ZyVFVJelFubGhXRnBvWkVkVmQxQlJXVXRMZDFsQ0NrSkJSMFIyZWtGQ1IwRlJka1JETVhsYVdFSjJUMjVhZG1KSVVteGphVEZvWVZNNU1HUXliSFZNV0dSMlkyMTRhMDl1U214YWFuQjVXbGRhZWt3eWFHd0tXVmRTZWt3eU1XaGhWelIzUWxGWlJFc3lWbmRCTUVWQlVVZFFkMnhLV2l0c2NHUk1SR0ZwVTNSaFowMXdWaTlhUVhKME5uQmlVWHBxVEZOamRuaHpWQXBOT1ZweFZFUmFZalJqUlZOR2IwRXJjM1JUVlZWNlVVWkxVWGxNVG5RNFQzbEtjMUI1VDB4NE0yMWlSVVIzUFQwS0xTMHRMUzFGVGtRZ1EwVlNWRWxHU1VOQlZFVXRMUzB0TFFvPSJ9XX19\"}]},\"dsseEnvelope\":{\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoicGtnOm5wbS8lNDB2b2x0ZXIvdHdpbi1naXRodWJAMC4xLjAiLCJkaWdlc3QiOnsic2hhNTEyIjoiMjE1MTdhYjhmYjZmZjE0YmUyMDAxZDMxOWVlY2YwOThlZDE3Mzc3ZWM3Yjk1NTc4ZDNmZGU1YzcyY2VkMDIwMmY1ZmJhYzdiMDJhYzM4MjI5NzQ3N2FlMzE1ZDk4NTc4NzFkODJmYzc4MWZmMDhhZTg2ZWYyMTMzOTlkOGRiODEifX1dLCJwcmVkaWNhdGVUeXBlIjoiaHR0cHM6Ly9zbHNhLmRldi9wcm92ZW5hbmNlL3YxIiwicHJlZGljYXRlIjp7ImJ1aWxkRGVmaW5pdGlvbiI6eyJidWlsZFR5cGUiOiJodHRwczovL3Nsc2EtZnJhbWV3b3JrLmdpdGh1Yi5pby9naXRodWItYWN0aW9ucy1idWlsZHR5cGVzL3dvcmtmbG93L3YxIiwiZXh0ZXJuYWxQYXJhbWV0ZXJzIjp7IndvcmtmbG93Ijp7InJlZiI6InJlZnMvaGVhZHMvbWFpbiIsInJlcG9zaXRvcnkiOiJodHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4td29ybGQiLCJwYXRoIjoiLmdpdGh1Yi93b3JrZmxvd3MvY2F0YWxvZy1yZWxlYXNlLnltbCJ9fSwiaW50ZXJuYWxQYXJhbWV0ZXJzIjp7ImdpdGh1YiI6eyJldmVudF9uYW1lIjoid29ya2Zsb3dfZGlzcGF0Y2giLCJyZXBvc2l0b3J5X2lkIjoiODczNTQxMjA2IiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjE1MTczNTQxMiIsInJ1bm5lcl9lbnZpcm9ubWVudCI6ImdpdGh1Yi1ob3N0ZWQifX0sInJlc29sdmVkRGVwZW5kZW5jaWVzIjpbeyJ1cmkiOiJnaXQraHR0cHM6Ly9naXRodWIuY29tL3ZvbHRlci1haS90d2luLXdvcmxkQHJlZnMvaGVhZHMvbWFpbiIsImRpZ2VzdCI6eyJnaXRDb21taXQiOiJmNjUyMTE5YTJkNGYxZTBjNmIzYTdkOWU4YzViNGEzZjJlMWQwYzliIn19XX0sInJ1bkRldGFpbHMiOnsiYnVpbGRlciI6eyJpZCI6Imh0dHBzOi8vZ2l0aHViLmNvbS9hY3Rpb25zL3J1bm5lci9naXRodWItaG9zdGVkIn0sIm1ldGFkYXRhIjp7Imludm9jYXRpb25JZCI6Imh0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbi13b3JsZC9hY3Rpb25zL3J1bnMvMTMzNzE3NDIwMDEvYXR0ZW1wdHMvMiJ9fX19\",\"payloadType\":\"application/vnd.in-toto+json\",\"signatures\":[{\"sig\":\"uecvcuqmm6eAL+teydLhERGNir6IFLsIy8rVfL8uW4q3XAFH4dpiQMwFzxEdAq4uEXE/Dl1ZBM6VCSqPvzruCQ==\",\"keyid\":\"\"}]}}",
+            "length": 7589
+          }
+        }
+      }
+    },
+    {
+      "name": "Wednesday 18 February, 10:00: the catalog index's check (scripts/twin-catalog.ts) on the new pack",
+      "wait": "1099m"
+    },
+    {
+      "name": "The check reads @volter/twin-github: its version names its attestations",
+      "method": "GET",
+      "path": "https://registry.npmjs.org/@volter%2ftwin-github",
+      "status": 200,
+      "headers": {
+        "user-agent": "node"
+      },
+      "expect": [
+        {
+          "path": "/versions/0.1.0/dist/attestations/provenance/predicateType",
+          "equals": "https://slsa.dev/provenance/v1"
+        }
+      ],
+      "capture": {
+        "attestations": "/versions/0.1.0/dist/attestations/url"
+      }
+    },
+    {
+      "name": "and reads them: the signing certificate's repository and workflow",
+      "method": "GET",
+      "path": "{attestations}",
+      "status": 200,
+      "headers": {
+        "user-agent": "node"
+      },
+      "expect": [
+        {
+          "path": "attestations.0.predicateType",
+          "equals": "https://slsa.dev/provenance/v1"
+        },
+        {
+          "path": "attestations.0.bundle.verificationMaterial.tlogEntries.0.kindVersion.kind",
+          "equals": "dsse"
+        }
+      ]
+    }
+  ],
+  "application": [
+    {
+      "method": "GET",
+      "url": "https://fulcio.sigstore.dev/api/v2/trustBundle",
+      "status": 200,
+      "body": "{\"chains\": [{\"certificates\": [\"-----BEGIN CERTIFICATE-----\\nMIIBezCCAS2gAwIBAgIUdSpGN6uZ7UCZM4dJC8xR/HflUYQwBQYDK2VwMCoxFTAT\\nBgNVBAoMDHNpZ3N0b3JlLmRldjERMA8GA1UEAwwIc2lnc3RvcmUwIBcNMjAwMTAx\\nMDAwMDAwWhgPMjEyMDAxMDEwMDAwMDBaMCoxFTATBgNVBAoMDHNpZ3N0b3JlLmRl\\ndjERMA8GA1UEAwwIc2lnc3RvcmUwKjAFBgMrZXADIQDYbaodrR/vTqKsDdo3k1vT\\npOp39UijN6hFb8YDmV79xKNjMGEwHQYDVR0OBBYEFInKqeP8NjY6GNwbrnyKLop1\\nCXMuMB8GA1UdIwQYMBaAFInKqeP8NjY6GNwbrnyKLop1CXMuMA8GA1UdEwEB/wQF\\nMAMBAf8wDgYDVR0PAQH/BAQDAgAGMAUGAytlcANBAFg5Hnpjo0S1AgJuCLeK2P3X\\nWdRUZyL+4yC6kylbQqVAQlYHGVqrEWoUxBnFENckZC9fhEcZG8S+8+kRgHqWWQc=\\n-----END CERTIFICATE-----\\n\"]}]}"
+    },
+    {
+      "method": "GET",
+      "url": "https://rekor.sigstore.dev/api/v1/log/publicKey",
+      "status": 200,
+      "body": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAQ5geBdPLUFH52W7SQjOnmkIxOBin4X3MC5o+RgFXx1o=\n-----END PUBLIC KEY-----\n"
+    },
+    {
+      "method": "GET",
+      "url": "https://fulcio.sigstore.dev/api/v2/trustBundle",
+      "status": 200,
+      "body": "{\"chains\": [{\"certificates\": [\"-----BEGIN CERTIFICATE-----\\nMIIBezCCAS2gAwIBAgIUdSpGN6uZ7UCZM4dJC8xR/HflUYQwBQYDK2VwMCoxFTAT\\nBgNVBAoMDHNpZ3N0b3JlLmRldjERMA8GA1UEAwwIc2lnc3RvcmUwIBcNMjAwMTAx\\nMDAwMDAwWhgPMjEyMDAxMDEwMDAwMDBaMCoxFTATBgNVBAoMDHNpZ3N0b3JlLmRl\\ndjERMA8GA1UEAwwIc2lnc3RvcmUwKjAFBgMrZXADIQDYbaodrR/vTqKsDdo3k1vT\\npOp39UijN6hFb8YDmV79xKNjMGEwHQYDVR0OBBYEFInKqeP8NjY6GNwbrnyKLop1\\nCXMuMB8GA1UdIwQYMBaAFInKqeP8NjY6GNwbrnyKLop1CXMuMA8GA1UdEwEB/wQF\\nMAMBAf8wDgYDVR0PAQH/BAQDAgAGMAUGAytlcANBAFg5Hnpjo0S1AgJuCLeK2P3X\\nWdRUZyL+4yC6kylbQqVAQlYHGVqrEWoUxBnFENckZC9fhEcZG8S+8+kRgHqWWQc=\\n-----END CERTIFICATE-----\\n\"]}]}"
+    },
+    {
+      "method": "GET",
+      "url": "https://rekor.sigstore.dev/api/v1/log/publicKey",
+      "status": 200,
+      "body": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAQ5geBdPLUFH52W7SQjOnmkIxOBin4X3MC5o+RgFXx1o=\n-----END PUBLIC KEY-----\n"
+    }
+  ]
+}

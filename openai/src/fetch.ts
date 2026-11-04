@@ -5,6 +5,7 @@ import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
 import { around } from './semantics/around.ts';
 import { clock } from './semantics/clock.ts';
+import { tenant } from './semantics/tenant.ts';
 import { scenario } from './semantics/scenario.ts';
 import * as sockets from './semantics/sockets.ts';
 import * as doors from './semantics/doors.ts';
@@ -22,6 +23,7 @@ export function createOpenaiFetch(options: PackFetchOptions = {}): DerivedFetch 
     doors,
     around,
     clock,
+    tenant,
     scenario,
     sockets,
     screens: { "api-keys": screen_api_keys, "login": screen_login },

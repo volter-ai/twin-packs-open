@@ -173,8 +173,8 @@ async function open(s: SocketSession, ctx: HandlerContext): Promise<void> {
   const offered = (ctx.call.request.headers.get('sec-websocket-protocol') ?? '').split(',').map((p) => p.trim()).find((p) => p.startsWith('openai-insecure-api-key.'));
   const bearer = /^Bearer\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization')?.trim() ?? '')?.[1] ?? offered?.slice('openai-insecure-api-key.'.length);
   const key = bearer ? ctx.rowsRaw(PROJECT_KEY, { withDeleted: true }).find((k) => k._sha256 === sha256(bearer)) : undefined;
-  const archived = key ? ctx.row('Project', String(key._project_id))?.status === 'archived' : false;
-  if (!key || key.deleted === true || archived) {
+  const project = key ? ctx.row('Project', String(key._project_id)) : undefined;
+  if (!key || key.deleted === true || !project || project.status === 'archived') {
     error(s, bearer ? INVALID_KEY.message : "You didn't provide an API key. You need to provide your API key in an Authorization header using Bearer auth (i.e. Authorization: Bearer YOUR_KEY).", 'invalid_api_key', undefined);
     return s.close(1008, 'invalid_api_key');
   }

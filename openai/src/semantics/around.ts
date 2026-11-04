@@ -18,8 +18,8 @@ export async function around(ctx: HandlerContext, next: (request?: Request) => P
   const bearer = /^Bearer\s+(\S+)$/i.exec(header)?.[1];
   const key = bearer ? ctx.rowsRaw(PROJECT_KEY, { withDeleted: true }).find((k) => k._sha256 === sha256(bearer)) : undefined;
   if (!key) return ctx.refuse(INVALID_KEY);
-  const archived = ctx.row('Project', String(key._project_id))?.status === 'archived';
-  if (key.deleted === true || archived) return ctx.refuse(INVALID_KEY);
+  const project = ctx.row('Project', String(key._project_id));
+  if (key.deleted === true || !project || project.status === 'archived') return ctx.refuse(INVALID_KEY);
   // a read-only request (a read-only World, or one that asks to be) records no use
   if (!isReadOnlyRequest(ctx.call.request)) await ctx.write(PROJECT_KEY, String(key.id), { last_used_at: epoch(ctx) }, 'api_key.update');
   return timeline(ctx) ?? next();

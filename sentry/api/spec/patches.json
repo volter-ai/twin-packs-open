@@ -1,0 +1,5350 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/paths/~1api~10~1organizations~1{organization_id_or_slug}~1chunk-upload~1",
+      "value": {
+        "get": {
+          "operationId": "getChunkUploadOptions",
+          "summary": "The server's options for chunked file uploads",
+          "tags": [
+            "Releases"
+          ],
+          "parameters": [
+            {
+              "name": "organization_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID or slug of the organization the resource belongs to."
+            }
+          ],
+          "security": [
+            {
+              "auth_token": [
+                "project:releases"
+              ]
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      },
+                      "chunkSize": {
+                        "type": "integer"
+                      },
+                      "chunksPerRequest": {
+                        "type": "integer"
+                      },
+                      "maxFileSize": {
+                        "type": "integer"
+                      },
+                      "maxRequestSize": {
+                        "type": "integer"
+                      },
+                      "concurrency": {
+                        "type": "integer"
+                      },
+                      "hashAlgorithm": {
+                        "type": "string"
+                      },
+                      "compression": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "accept": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "The server's options for chunked file uploads"
+        },
+        "post": {
+          "operationId": "uploadChunks",
+          "summary": "Chunks of files, each a part named by its SHA-1, gzipped when the options say so",
+          "tags": [
+            "Releases"
+          ],
+          "parameters": [
+            {
+              "name": "organization_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID or slug of the organization the resource belongs to."
+            }
+          ],
+          "security": [
+            {
+              "auth_token": [
+                "project:releases"
+              ]
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "multipart/form-data": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "file": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "file_gzip": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Success"
+            },
+            "400": {
+              "description": "Bad Input",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Chunks of files, each a part named by its SHA-1, gzipped when the options say so"
+        }
+      },
+      "why": "sentry-cli (2.58, which the applications' Next.js and bundler plugins run) uploads source maps in chunks: it reads the options and posts the chunks here. The endpoint is Sentry's; the document omits it.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/api/endpoints/chunk.py",
+        "quote": "\"chunksPerRequest\": MAX_CHUNKS_PER_REQUEST,"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1api~10~1organizations~1{organization_id_or_slug}~1artifactbundle~1assemble~1",
+      "value": {
+        "post": {
+          "operationId": "assembleArtifactBundle",
+          "summary": "An artifact bundle assembled from uploaded chunks",
+          "tags": [
+            "Releases"
+          ],
+          "parameters": [
+            {
+              "name": "organization_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID or slug of the organization the resource belongs to."
+            }
+          ],
+          "security": [
+            {
+              "auth_token": [
+                "project:releases"
+              ]
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "checksum",
+                    "chunks",
+                    "projects"
+                  ],
+                  "properties": {
+                    "checksum": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{40}$"
+                    },
+                    "chunks": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{40}$"
+                      }
+                    },
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "version": {
+                      "type": "string",
+                      "pattern": "^[^/]+$"
+                    },
+                    "dist": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "not_found",
+                          "created",
+                          "assembling",
+                          "ok",
+                          "error"
+                        ]
+                      },
+                      "missingChunks": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "detail": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Input",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "An artifact bundle assembled from uploaded chunks"
+        }
+      },
+      "why": "sentry-cli assembles the uploaded chunks into an artifact bundle for its projects (and release) here; the document omits the endpoint.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/api/endpoints/organization_artifactbundle_assemble.py",
+        "quote": "\"missingChunks\": missing_chunks,"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1api~10~1projects~1{organization_id_or_slug}~1{project_id_or_slug}~1releases~1/post",
+      "value": {
+        "operationId": "createProjectRelease",
+        "description": "Create a new release for the given organization. Releases are used by Sentry to\nimprove error reporting by correlating first-seen events with the release that may\nhave introduced them, and are required for source maps and other debug features.\n\nRelease versions that are the same across multiple projects within an organization\nare treated as the same release in Sentry.",
+        "summary": "Create a New Release for an Organization",
+        "parameters": [
+          {
+            "name": "organization_id_or_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The ID or slug of the organization the resource belongs to."
+          },
+          {
+            "name": "project_id_or_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The ID or slug of the project the resource belongs to."
+          }
+        ],
+        "tags": [
+          "Releases"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "description": "A version identifier for this release. Can be a version number, a commit hash, and so on.",
+                    "maxLength": 200
+                  },
+                  "projects": {
+                    "type": "array",
+                    "items": {},
+                    "description": "A list of project slugs that are involved in this release."
+                  },
+                  "ref": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "An optional commit reference. This is useful if a tagged version has been provided.",
+                    "maxLength": 200
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "nullable": true,
+                    "description": "A URL that points to the release. For instance, this can be the path to an online interface to the source code, such as a GitHub URL."
+                  },
+                  "dateReleased": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true,
+                    "description": "An optional date that indicates when the release went live.  If not provided the current time is used."
+                  },
+                  "commits": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 64
+                        },
+                        "repository": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 64
+                        },
+                        "message": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "author_name": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 128
+                        },
+                        "author_email": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        },
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "patch_set": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string",
+                                "maxLength": 510
+                              },
+                              "type": {
+                                "type": "string",
+                                "maxLength": 1
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "type"
+                            ]
+                          },
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    },
+                    "description": "An optional list of commit data to be associated."
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "The status of the release. Can be `open` or `archived`."
+                  },
+                  "owner": {
+                    "type": "string",
+                    "description": "The username of the user to set as the release owner."
+                  },
+                  "headCommits": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "currentId": {
+                          "type": "string",
+                          "maxLength": 64
+                        },
+                        "repository": {
+                          "type": "string",
+                          "maxLength": 64
+                        },
+                        "previousId": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 64
+                        }
+                      },
+                      "required": [
+                        "currentId",
+                        "repository"
+                      ]
+                    },
+                    "description": "(Deprecated) Use `refs` instead. An optional list of head commits to associate with the release, one per repository."
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "commit": {
+                          "type": "string"
+                        },
+                        "repository": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "previousCommit": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 64
+                        }
+                      },
+                      "required": [
+                        "commit",
+                        "repository"
+                      ]
+                    },
+                    "description": "An optional list of commit references, one per repository, used to associate commits with the release."
+                  }
+                },
+                "required": [
+                  "projects",
+                  "version"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "auth_token": [
+              "org:ci",
+              "project:admin",
+              "project:releases",
+              "project:write"
+            ]
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "url": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "dateReleased": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "dateCreated": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "dateStarted": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "owner": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "nullable": true
+                    },
+                    "lastCommit": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "nullable": true
+                    },
+                    "lastDeploy": {
+                      "type": "object",
+                      "properties": {
+                        "dateStarted": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "url": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "environment": {
+                          "type": "string"
+                        },
+                        "dateFinished": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dateFinished",
+                        "environment",
+                        "id",
+                        "name"
+                      ],
+                      "nullable": true
+                    },
+                    "firstEvent": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "lastEvent": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "currentProjectMeta": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "nullable": true
+                    },
+                    "userAgent": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "adoptionStages": {
+                      "type": "object",
+                      "additionalProperties": {},
+                      "nullable": true
+                    },
+                    "id": {
+                      "type": "integer"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "newGroups": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "shortVersion": {
+                      "type": "string"
+                    },
+                    "versionInfo": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string"
+                        },
+                        "package": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "version": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "buildHash": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "buildHash",
+                        "package",
+                        "version"
+                      ],
+                      "nullable": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "commitCount": {
+                      "type": "integer"
+                    },
+                    "deployCount": {
+                      "type": "integer"
+                    },
+                    "authors": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "identities": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "organization": {
+                                      "type": "object",
+                                      "properties": {
+                                        "slug": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "slug"
+                                      ]
+                                    },
+                                    "provider": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name"
+                                      ]
+                                    },
+                                    "dateVerified": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "dateSynced": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    }
+                                  },
+                                  "required": [
+                                    "dateSynced",
+                                    "dateVerified",
+                                    "id",
+                                    "name",
+                                    "organization",
+                                    "provider"
+                                  ]
+                                }
+                              },
+                              "avatar": {
+                                "type": "object",
+                                "properties": {
+                                  "avatarType": {
+                                    "type": "string"
+                                  },
+                                  "avatarUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "avatarUrl": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                }
+                              },
+                              "authenticators": {
+                                "type": "array",
+                                "items": {}
+                              },
+                              "canReset2fa": {
+                                "type": "boolean"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string"
+                              },
+                              "avatarUrl": {
+                                "type": "string"
+                              },
+                              "isActive": {
+                                "type": "boolean"
+                              },
+                              "isSuspended": {
+                                "type": "boolean"
+                              },
+                              "hasPasswordAuth": {
+                                "type": "boolean"
+                              },
+                              "isManaged": {
+                                "type": "boolean"
+                              },
+                              "dateJoined": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "lastLogin": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              },
+                              "has2fa": {
+                                "type": "boolean"
+                              },
+                              "lastActive": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              },
+                              "isSuperuser": {
+                                "type": "boolean"
+                              },
+                              "isStaff": {
+                                "type": "boolean"
+                              },
+                              "experiments": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              },
+                              "emails": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "email": {
+                                      "type": "string"
+                                    },
+                                    "is_verified": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "email",
+                                    "id",
+                                    "is_verified"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "avatarUrl",
+                              "dateJoined",
+                              "email",
+                              "emails",
+                              "experiments",
+                              "has2fa",
+                              "hasPasswordAuth",
+                              "id",
+                              "isActive",
+                              "isManaged",
+                              "isStaff",
+                              "isSuperuser",
+                              "isSuspended",
+                              "lastActive",
+                              "lastLogin",
+                              "name",
+                              "username"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "email": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "email",
+                              "name"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "healthData": {
+                            "type": "object",
+                            "properties": {
+                              "durationP50": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                              },
+                              "durationP90": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                              },
+                              "crashFreeUsers": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                              },
+                              "crashFreeSessions": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                              },
+                              "totalUsers": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "totalUsers24h": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "totalProjectUsers24h": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "totalSessions": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "totalSessions24h": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "totalProjectSessions24h": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "adoption": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                              },
+                              "sessionsAdoption": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                              },
+                              "sessionsCrashed": {
+                                "type": "integer"
+                              },
+                              "sessionsErrored": {
+                                "type": "integer"
+                              },
+                              "hasHealthData": {
+                                "type": "boolean"
+                              },
+                              "stats": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              }
+                            },
+                            "required": [
+                              "hasHealthData",
+                              "sessionsCrashed",
+                              "sessionsErrored",
+                              "stats"
+                            ],
+                            "nullable": true
+                          },
+                          "dateReleased": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "dateCreated": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "dateStarted": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "id": {
+                            "type": "integer"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "platform": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "platforms": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "nullable": true
+                          },
+                          "hasHealthData": {
+                            "type": "boolean"
+                          },
+                          "newGroups": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "hasHealthData",
+                          "id",
+                          "name",
+                          "newGroups",
+                          "platform",
+                          "platforms",
+                          "slug"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "authors",
+                    "commitCount",
+                    "data",
+                    "deployCount",
+                    "id",
+                    "newGroups",
+                    "projects",
+                    "shortVersion",
+                    "status",
+                    "version",
+                    "versionInfo"
+                  ]
+                },
+                "examples": {
+                  "CreateARelease": {
+                    "value": {
+                      "id": 1,
+                      "version": "frontend@1.0.0",
+                      "shortVersion": "frontend@1.0.0",
+                      "status": "open",
+                      "versionInfo": {
+                        "package": "frontend",
+                        "version": {
+                          "raw": "1.0.0",
+                          "major": 1,
+                          "minor": 0,
+                          "patch": 0,
+                          "pre": null,
+                          "buildCode": null,
+                          "components": 3
+                        },
+                        "description": "1.0.0",
+                        "buildHash": null
+                      },
+                      "ref": null,
+                      "url": null,
+                      "dateReleased": null,
+                      "dateCreated": "2024-01-01T00:00:00Z",
+                      "data": {},
+                      "newGroups": 0,
+                      "owner": null,
+                      "commitCount": 0,
+                      "lastCommit": null,
+                      "deployCount": 0,
+                      "lastDeploy": null,
+                      "authors": [],
+                      "projects": [
+                        {
+                          "id": 1,
+                          "slug": "sentry",
+                          "name": "sentry",
+                          "newGroups": 0,
+                          "platform": "javascript",
+                          "platforms": [
+                            "javascript"
+                          ],
+                          "hasHealthData": false
+                        }
+                      ],
+                      "firstEvent": null,
+                      "lastEvent": null,
+                      "currentProjectMeta": {},
+                      "userAgent": null
+                    },
+                    "summary": "Create a release"
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "208": {
+            "description": "Already Reported"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "why": "sentry-cli creates a single project's release at the project's path (`releases new` with one project); the document lists only the organization's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry/2efdd4760a75a3d395e3534b7f66a7fbb0c3f22e/src/sentry/releases/endpoints/project_releases.py",
+        "quote": "Create a new release and/or associate a project with a release."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1api~10~1projects~1{organization_id_or_slug}~1{project_id_or_slug}~1releases~1{version}~1",
+      "value": {
+        "get": {
+          "operationId": "getProjectRelease",
+          "description": "Return details on an individual release.",
+          "summary": "Retrieve an Organization's Release",
+          "parameters": [
+            {
+              "name": "organization_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID or slug of the organization the resource belongs to."
+            },
+            {
+              "name": "project_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID or slug of the project the resource belongs to."
+            },
+            {
+              "name": "version",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The version identifier of the release"
+            },
+            {
+              "in": "query",
+              "name": "project_id",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Deprecated. Use project instead.",
+              "deprecated": true
+            },
+            {
+              "in": "query",
+              "name": "project",
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "description": "The project ID or slug to filter by. Overrides project_id when both are sent."
+            },
+            {
+              "in": "query",
+              "name": "health",
+              "schema": {
+                "type": "boolean"
+              },
+              "description": "Whether or not to include health data with the release. By default, this is false."
+            },
+            {
+              "in": "query",
+              "name": "adoptionStages",
+              "schema": {
+                "type": "boolean"
+              },
+              "description": "Whether or not to include adoption stages with the release. By default, this is false."
+            },
+            {
+              "in": "query",
+              "name": "summaryStatsPeriod",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "14d",
+                  "1d",
+                  "1h",
+                  "24h",
+                  "2d",
+                  "30d",
+                  "48h",
+                  "7d",
+                  "90d"
+                ]
+              },
+              "description": "The period of time used to query summary stats for the release. By default, this is 14d."
+            },
+            {
+              "in": "query",
+              "name": "healthStatsPeriod",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "14d",
+                  "1d",
+                  "1h",
+                  "24h",
+                  "2d",
+                  "30d",
+                  "48h",
+                  "7d",
+                  "90d"
+                ]
+              },
+              "description": "The period of time used to query health stats for the release. By default, this is 24h if health is enabled."
+            },
+            {
+              "in": "query",
+              "name": "sort",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "date"
+                ]
+              },
+              "description": "The field used to sort results by. By default, this is `date`."
+            },
+            {
+              "in": "query",
+              "name": "status",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "archived",
+                  "open"
+                ]
+              },
+              "description": "Release statuses that you can filter by."
+            },
+            {
+              "in": "query",
+              "name": "query",
+              "schema": {
+                "type": "string"
+              },
+              "description": "Filters results by using [query syntax](/product/sentry-basics/search/).\n\nExample: `query=(transaction:foo AND release:abc) OR (transaction:[bar,baz] AND release:def)`\n"
+            }
+          ],
+          "tags": [
+            "Releases"
+          ],
+          "security": [
+            {
+              "auth_token": [
+                "org:ci",
+                "project:admin",
+                "project:read",
+                "project:releases",
+                "project:write"
+              ]
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "ref": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "dateReleased": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "dateCreated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "dateStarted": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "owner": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "lastCommit": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "lastDeploy": {
+                        "type": "object",
+                        "properties": {
+                          "dateStarted": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "url": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "environment": {
+                            "type": "string"
+                          },
+                          "dateFinished": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "dateFinished",
+                          "environment",
+                          "id",
+                          "name"
+                        ],
+                        "nullable": true
+                      },
+                      "firstEvent": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "lastEvent": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "currentProjectMeta": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "userAgent": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "adoptionStages": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "version": {
+                        "type": "string"
+                      },
+                      "newGroups": {
+                        "type": "integer"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "shortVersion": {
+                        "type": "string"
+                      },
+                      "versionInfo": {
+                        "type": "object",
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "package": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "version": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "buildHash": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "buildHash",
+                          "package",
+                          "version"
+                        ],
+                        "nullable": true
+                      },
+                      "data": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "commitCount": {
+                        "type": "integer"
+                      },
+                      "deployCount": {
+                        "type": "integer"
+                      },
+                      "authors": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "identities": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "organization": {
+                                        "type": "object",
+                                        "properties": {
+                                          "slug": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "slug"
+                                        ]
+                                      },
+                                      "provider": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "name"
+                                        ]
+                                      },
+                                      "dateVerified": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      },
+                                      "dateSynced": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "dateSynced",
+                                      "dateVerified",
+                                      "id",
+                                      "name",
+                                      "organization",
+                                      "provider"
+                                    ]
+                                  }
+                                },
+                                "avatar": {
+                                  "type": "object",
+                                  "properties": {
+                                    "avatarType": {
+                                      "type": "string"
+                                    },
+                                    "avatarUuid": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "avatarUrl": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  }
+                                },
+                                "authenticators": {
+                                  "type": "array",
+                                  "items": {}
+                                },
+                                "canReset2fa": {
+                                  "type": "boolean"
+                                },
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "username": {
+                                  "type": "string"
+                                },
+                                "email": {
+                                  "type": "string"
+                                },
+                                "avatarUrl": {
+                                  "type": "string"
+                                },
+                                "isActive": {
+                                  "type": "boolean"
+                                },
+                                "isSuspended": {
+                                  "type": "boolean"
+                                },
+                                "hasPasswordAuth": {
+                                  "type": "boolean"
+                                },
+                                "isManaged": {
+                                  "type": "boolean"
+                                },
+                                "dateJoined": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "lastLogin": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "nullable": true
+                                },
+                                "has2fa": {
+                                  "type": "boolean"
+                                },
+                                "lastActive": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "nullable": true
+                                },
+                                "isSuperuser": {
+                                  "type": "boolean"
+                                },
+                                "isStaff": {
+                                  "type": "boolean"
+                                },
+                                "experiments": {
+                                  "type": "object",
+                                  "additionalProperties": {}
+                                },
+                                "emails": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "email": {
+                                        "type": "string"
+                                      },
+                                      "is_verified": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "email",
+                                      "id",
+                                      "is_verified"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "avatarUrl",
+                                "dateJoined",
+                                "email",
+                                "emails",
+                                "experiments",
+                                "has2fa",
+                                "hasPasswordAuth",
+                                "id",
+                                "isActive",
+                                "isManaged",
+                                "isStaff",
+                                "isSuperuser",
+                                "isSuspended",
+                                "lastActive",
+                                "lastLogin",
+                                "name",
+                                "username"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "email": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "email",
+                                "name"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "projects": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "healthData": {
+                              "type": "object",
+                              "properties": {
+                                "durationP50": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "durationP90": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "crashFreeUsers": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "crashFreeSessions": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "totalUsers": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalUsers24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalProjectUsers24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalSessions": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalSessions24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalProjectSessions24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "adoption": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "sessionsAdoption": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "sessionsCrashed": {
+                                  "type": "integer"
+                                },
+                                "sessionsErrored": {
+                                  "type": "integer"
+                                },
+                                "hasHealthData": {
+                                  "type": "boolean"
+                                },
+                                "stats": {
+                                  "type": "object",
+                                  "additionalProperties": {}
+                                }
+                              },
+                              "required": [
+                                "hasHealthData",
+                                "sessionsCrashed",
+                                "sessionsErrored",
+                                "stats"
+                              ],
+                              "nullable": true
+                            },
+                            "dateReleased": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "dateCreated": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "dateStarted": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "id": {
+                              "type": "integer"
+                            },
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "platform": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "platforms": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "nullable": true
+                            },
+                            "hasHealthData": {
+                              "type": "boolean"
+                            },
+                            "newGroups": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "hasHealthData",
+                            "id",
+                            "name",
+                            "newGroups",
+                            "platform",
+                            "platforms",
+                            "slug"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "authors",
+                      "commitCount",
+                      "data",
+                      "deployCount",
+                      "id",
+                      "newGroups",
+                      "projects",
+                      "shortVersion",
+                      "status",
+                      "version",
+                      "versionInfo"
+                    ]
+                  },
+                  "examples": {
+                    "RetrieveReleaseDetails": {
+                      "value": {
+                        "id": 1122684517,
+                        "version": "control@abc123",
+                        "status": "open",
+                        "shortVersion": "control@abc123",
+                        "versionInfo": {
+                          "package": "control",
+                          "version": {
+                            "raw": "abc123"
+                          },
+                          "description": "abc123",
+                          "buildHash": "abc123"
+                        },
+                        "ref": null,
+                        "url": null,
+                        "dateReleased": null,
+                        "dateCreated": "2024-05-21T11:26:16.190281Z",
+                        "data": {},
+                        "newGroups": 0,
+                        "owner": null,
+                        "commitCount": 2,
+                        "lastCommit": {
+                          "id": "xyz123",
+                          "message": "feat(raspberries): Made raspberries even more delicious",
+                          "dateCreated": "2024-05-21T11:04:55Z",
+                          "pullRequest": {
+                            "id": "70214",
+                            "title": "feat(raspberries): Made raspberries even more delicious",
+                            "message": "Made raspberries even more delicious",
+                            "dateCreated": "2024-05-03T07:32:28.205043Z",
+                            "repository": {
+                              "id": "1",
+                              "name": "raj/raspberries",
+                              "url": "https://raspberries.raspberries/raj/raspberries",
+                              "provider": {
+                                "id": "integrations:github",
+                                "name": "GitHub"
+                              },
+                              "status": "active",
+                              "dateCreated": "2016-10-10T21:36:42.414678Z",
+                              "integrationId": "2933",
+                              "externalSlug": "raj/raspberries",
+                              "externalId": "873328"
+                            },
+                            "author": {
+                              "id": "2837091",
+                              "name": "Raj's Raspberries",
+                              "username": "rajraspberry",
+                              "avatarUrl": "https://gravatar.com/avatar/bf99685de539465db9208ab3a888843ba0e5e85b1f156084484c7c6c31312be5?s=32&d=mm",
+                              "isActive": true,
+                              "isSuspended": false,
+                              "hasPasswordAuth": false,
+                              "isManaged": false,
+                              "dateJoined": "2023-08-07T12:32:09.091427Z",
+                              "lastLogin": "2024-05-21T05:46:23.824074Z",
+                              "has2fa": true,
+                              "lastActive": "2024-05-21T13:59:10.614891Z",
+                              "isSuperuser": true,
+                              "isStaff": true,
+                              "experiments": {},
+                              "emails": [
+                                {
+                                  "id": "2972219",
+                                  "email": "raj@raspberries",
+                                  "is_verified": true
+                                }
+                              ],
+                              "avatar": {
+                                "avatarType": "upload",
+                                "avatarUuid": "xyz123",
+                                "avatarUrl": "https://sentry.io/avatar/xyz123/"
+                              }
+                            },
+                            "externalUrl": "https://github.com/raj/raspberries/pull/70214"
+                          },
+                          "suspectCommitType": "",
+                          "repository": {
+                            "id": "1",
+                            "name": "raj/raspberries",
+                            "url": "https://github.com/raj/raspberries",
+                            "provider": {
+                              "id": "integrations:github",
+                              "name": "GitHub"
+                            },
+                            "status": "active",
+                            "dateCreated": "2016-10-10T21:36:42.414678Z",
+                            "integrationId": "2933",
+                            "externalSlug": "raj/raspberries",
+                            "externalId": "873328"
+                          },
+                          "author": {
+                            "id": "2837091",
+                            "name": "Raj's Raspberries",
+                            "username": "rajraspberry",
+                            "avatarUrl": "https://gravatar.com/avatar/bf99685de539465db9208ab3a888843ba0e5e85b1f156084484c7c6c31312be5?s=32&d=mm",
+                            "isActive": true,
+                            "isSuspended": false,
+                            "hasPasswordAuth": false,
+                            "isManaged": false,
+                            "dateJoined": "2023-08-07T12:32:09.091427Z",
+                            "lastLogin": "2024-05-21T05:46:23.824074Z",
+                            "has2fa": true,
+                            "lastActive": "2024-05-21T13:59:10.614891Z",
+                            "isSuperuser": true,
+                            "isStaff": true,
+                            "experiments": {},
+                            "emails": [
+                              {
+                                "id": "2972219",
+                                "email": "raj@raspberries",
+                                "is_verified": true
+                              }
+                            ],
+                            "avatar": {
+                              "avatarType": "upload",
+                              "avatarUuid": "xyz123",
+                              "avatarUrl": "https://sentry.io/avatar/xyz123/"
+                            }
+                          },
+                          "releases": [
+                            {
+                              "version": "control@abc123",
+                              "shortVersion": "control@abc123",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T11:26:16.190281Z"
+                            },
+                            {
+                              "version": "backend@abc123",
+                              "shortVersion": "backend@abc123",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T11:56:36.790866Z"
+                            },
+                            {
+                              "version": "control@def789",
+                              "shortVersion": "control@def789",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T12:44:25.923663Z"
+                            },
+                            {
+                              "version": "frontend@ghi012",
+                              "shortVersion": "frontend@ghi012",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T12:46:42.338358Z"
+                            }
+                          ]
+                        },
+                        "deployCount": 1,
+                        "lastDeploy": {
+                          "id": "53070941",
+                          "environment": "canary-test-control",
+                          "dateStarted": null,
+                          "dateFinished": "2024-05-21T11:26:17.597793Z",
+                          "name": "control@abc123 to canary-test-",
+                          "url": null
+                        },
+                        "authors": [
+                          {
+                            "id": "2837091",
+                            "name": "Raj's Raspberries",
+                            "username": "rajraspberry",
+                            "email": "raj@raspberries",
+                            "avatarUrl": "https://gravatar.com/avatar/bf99685de539465db9208ab3a888843ba0e5e85b1f156084484c7c6c31312be5?s=32&d=mm",
+                            "isActive": true,
+                            "isSuspended": false,
+                            "hasPasswordAuth": false,
+                            "isManaged": false,
+                            "dateJoined": "2023-08-07T12:32:09.091427Z",
+                            "lastLogin": "2024-05-21T05:46:23.824074Z",
+                            "has2fa": true,
+                            "lastActive": "2024-05-21T13:59:10.614891Z",
+                            "isSuperuser": true,
+                            "isStaff": true,
+                            "experiments": {},
+                            "emails": [
+                              {
+                                "id": "2972219",
+                                "email": "raj@raspberries",
+                                "is_verified": true
+                              }
+                            ],
+                            "avatar": {
+                              "avatarType": "upload",
+                              "avatarUuid": "xyz123",
+                              "avatarUrl": "https://sentry.io/avatar/xyz123/"
+                            }
+                          }
+                        ],
+                        "projects": [
+                          {
+                            "id": 1,
+                            "slug": "sentry",
+                            "name": "Backend",
+                            "newGroups": 0,
+                            "platform": "python",
+                            "platforms": [
+                              "native",
+                              "other",
+                              "python"
+                            ],
+                            "hasHealthData": false,
+                            "healthData": {
+                              "durationP50": null,
+                              "durationP90": null,
+                              "crashFreeUsers": null,
+                              "crashFreeSessions": null,
+                              "sessionsCrashed": 0,
+                              "sessionsErrored": 0,
+                              "totalUsers": null,
+                              "totalUsers24h": null,
+                              "totalProjectUsers24h": null,
+                              "totalSessions": null,
+                              "totalSessions24h": null,
+                              "totalProjectSessions24h": null,
+                              "adoption": null,
+                              "sessionsAdoption": null,
+                              "stats": {
+                                "24h": [
+                                  [
+                                    1715126400,
+                                    0
+                                  ],
+                                  [
+                                    1715212800,
+                                    0
+                                  ],
+                                  [
+                                    1715299200,
+                                    0
+                                  ],
+                                  [
+                                    1715385600,
+                                    0
+                                  ],
+                                  [
+                                    1715472000,
+                                    0
+                                  ],
+                                  [
+                                    1715558400,
+                                    0
+                                  ],
+                                  [
+                                    1715644800,
+                                    0
+                                  ],
+                                  [
+                                    1715731200,
+                                    0
+                                  ],
+                                  [
+                                    1715817600,
+                                    0
+                                  ],
+                                  [
+                                    1715904000,
+                                    0
+                                  ],
+                                  [
+                                    1715990400,
+                                    0
+                                  ],
+                                  [
+                                    1716076800,
+                                    0
+                                  ],
+                                  [
+                                    1716163200,
+                                    0
+                                  ],
+                                  [
+                                    1716249600,
+                                    0
+                                  ]
+                                ]
+                              },
+                              "hasHealthData": false
+                            }
+                          }
+                        ],
+                        "firstEvent": null,
+                        "lastEvent": null,
+                        "currentProjectMeta": {},
+                        "userAgent": "Python-urllib/3.11",
+                        "adoptionStages": {
+                          "sentry": {
+                            "stage": "low_adoption",
+                            "adopted": null,
+                            "unadopted": null
+                          }
+                        }
+                      },
+                      "summary": "Retrieve release details"
+                    }
+                  }
+                }
+              },
+              "description": ""
+            },
+            "401": {
+              "description": "Unauthorized"
+            },
+            "403": {
+              "description": "Forbidden"
+            },
+            "404": {
+              "description": "Not Found"
+            }
+          }
+        },
+        "put": {
+          "operationId": "updateProjectRelease",
+          "description": "Update a release. This can change some metadata associated with\nthe release (the ref, url, and dates).",
+          "summary": "Update an Organization's Release",
+          "parameters": [
+            {
+              "name": "organization_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID or slug of the organization the resource belongs to."
+            },
+            {
+              "name": "project_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID or slug of the project the resource belongs to."
+            },
+            {
+              "name": "version",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The version identifier of the release"
+            }
+          ],
+          "tags": [
+            "Releases"
+          ],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "An optional commit reference. This is useful if a tagged version has been provided.",
+                      "maxLength": 200
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri",
+                      "nullable": true,
+                      "description": "A URL that points to the release. For instance, this can be the path to an online interface to the source code, such as a GitHub URL."
+                    },
+                    "dateReleased": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "An optional date that indicates when the release went live.  If not provided the current time is used."
+                    },
+                    "commits": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 64
+                          },
+                          "repository": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 64
+                          },
+                          "message": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "author_name": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 128
+                          },
+                          "author_email": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 200
+                          },
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "patch_set": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "path": {
+                                  "type": "string",
+                                  "maxLength": 510
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "maxLength": 1
+                                }
+                              },
+                              "required": [
+                                "path",
+                                "type"
+                              ]
+                            },
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id"
+                        ]
+                      },
+                      "description": "An optional list of commit data to be associated."
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "The status of the release. Can be `open` or `archived`."
+                    },
+                    "headCommits": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "currentId": {
+                            "type": "string",
+                            "maxLength": 64
+                          },
+                          "repository": {
+                            "type": "string",
+                            "maxLength": 64
+                          },
+                          "previousId": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 64
+                          }
+                        },
+                        "required": [
+                          "currentId",
+                          "repository"
+                        ]
+                      },
+                      "description": "Deprecated, use `commits`. Head commits to associate with the release."
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "commit": {
+                            "type": "string"
+                          },
+                          "repository": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "previousCommit": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 64
+                          }
+                        },
+                        "required": [
+                          "commit",
+                          "repository"
+                        ]
+                      },
+                      "description": "An optional way to indicate the start and end commits for each repository included in a release. Head commits must include parameters ``repository`` and ``commit`` (the HEAD SHA). For GitLab repositories, please use the Group name instead of the slug. They can optionally include ``previousCommit`` (the SHA of the HEAD of the previous release), which should be specified if this is the first time you've sent commit data."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "security": [
+            {
+              "auth_token": [
+                "org:ci",
+                "project:admin",
+                "project:releases",
+                "project:write"
+              ]
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "ref": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "dateReleased": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "dateCreated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "dateStarted": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "owner": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "lastCommit": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "lastDeploy": {
+                        "type": "object",
+                        "properties": {
+                          "dateStarted": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "url": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "environment": {
+                            "type": "string"
+                          },
+                          "dateFinished": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "dateFinished",
+                          "environment",
+                          "id",
+                          "name"
+                        ],
+                        "nullable": true
+                      },
+                      "firstEvent": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "lastEvent": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "currentProjectMeta": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "userAgent": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "adoptionStages": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "nullable": true
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "version": {
+                        "type": "string"
+                      },
+                      "newGroups": {
+                        "type": "integer"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "shortVersion": {
+                        "type": "string"
+                      },
+                      "versionInfo": {
+                        "type": "object",
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "package": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "version": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "buildHash": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "buildHash",
+                          "package",
+                          "version"
+                        ],
+                        "nullable": true
+                      },
+                      "data": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "commitCount": {
+                        "type": "integer"
+                      },
+                      "deployCount": {
+                        "type": "integer"
+                      },
+                      "authors": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "identities": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "organization": {
+                                        "type": "object",
+                                        "properties": {
+                                          "slug": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "slug"
+                                        ]
+                                      },
+                                      "provider": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "name"
+                                        ]
+                                      },
+                                      "dateVerified": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      },
+                                      "dateSynced": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "dateSynced",
+                                      "dateVerified",
+                                      "id",
+                                      "name",
+                                      "organization",
+                                      "provider"
+                                    ]
+                                  }
+                                },
+                                "avatar": {
+                                  "type": "object",
+                                  "properties": {
+                                    "avatarType": {
+                                      "type": "string"
+                                    },
+                                    "avatarUuid": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "avatarUrl": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  }
+                                },
+                                "authenticators": {
+                                  "type": "array",
+                                  "items": {}
+                                },
+                                "canReset2fa": {
+                                  "type": "boolean"
+                                },
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "username": {
+                                  "type": "string"
+                                },
+                                "email": {
+                                  "type": "string"
+                                },
+                                "avatarUrl": {
+                                  "type": "string"
+                                },
+                                "isActive": {
+                                  "type": "boolean"
+                                },
+                                "isSuspended": {
+                                  "type": "boolean"
+                                },
+                                "hasPasswordAuth": {
+                                  "type": "boolean"
+                                },
+                                "isManaged": {
+                                  "type": "boolean"
+                                },
+                                "dateJoined": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "lastLogin": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "nullable": true
+                                },
+                                "has2fa": {
+                                  "type": "boolean"
+                                },
+                                "lastActive": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "nullable": true
+                                },
+                                "isSuperuser": {
+                                  "type": "boolean"
+                                },
+                                "isStaff": {
+                                  "type": "boolean"
+                                },
+                                "experiments": {
+                                  "type": "object",
+                                  "additionalProperties": {}
+                                },
+                                "emails": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "email": {
+                                        "type": "string"
+                                      },
+                                      "is_verified": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "email",
+                                      "id",
+                                      "is_verified"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "avatarUrl",
+                                "dateJoined",
+                                "email",
+                                "emails",
+                                "experiments",
+                                "has2fa",
+                                "hasPasswordAuth",
+                                "id",
+                                "isActive",
+                                "isManaged",
+                                "isStaff",
+                                "isSuperuser",
+                                "isSuspended",
+                                "lastActive",
+                                "lastLogin",
+                                "name",
+                                "username"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "email": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "email",
+                                "name"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "projects": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "healthData": {
+                              "type": "object",
+                              "properties": {
+                                "durationP50": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "durationP90": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "crashFreeUsers": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "crashFreeSessions": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "totalUsers": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalUsers24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalProjectUsers24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalSessions": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalSessions24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "totalProjectSessions24h": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "adoption": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "sessionsAdoption": {
+                                  "type": "number",
+                                  "format": "double",
+                                  "nullable": true
+                                },
+                                "sessionsCrashed": {
+                                  "type": "integer"
+                                },
+                                "sessionsErrored": {
+                                  "type": "integer"
+                                },
+                                "hasHealthData": {
+                                  "type": "boolean"
+                                },
+                                "stats": {
+                                  "type": "object",
+                                  "additionalProperties": {}
+                                }
+                              },
+                              "required": [
+                                "hasHealthData",
+                                "sessionsCrashed",
+                                "sessionsErrored",
+                                "stats"
+                              ],
+                              "nullable": true
+                            },
+                            "dateReleased": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "dateCreated": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "dateStarted": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "id": {
+                              "type": "integer"
+                            },
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "platform": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "platforms": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "nullable": true
+                            },
+                            "hasHealthData": {
+                              "type": "boolean"
+                            },
+                            "newGroups": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "hasHealthData",
+                            "id",
+                            "name",
+                            "newGroups",
+                            "platform",
+                            "platforms",
+                            "slug"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "authors",
+                      "commitCount",
+                      "data",
+                      "deployCount",
+                      "id",
+                      "newGroups",
+                      "projects",
+                      "shortVersion",
+                      "status",
+                      "version",
+                      "versionInfo"
+                    ]
+                  },
+                  "examples": {
+                    "RetrieveReleaseDetails": {
+                      "value": {
+                        "id": 1122684517,
+                        "version": "control@abc123",
+                        "status": "open",
+                        "shortVersion": "control@abc123",
+                        "versionInfo": {
+                          "package": "control",
+                          "version": {
+                            "raw": "abc123"
+                          },
+                          "description": "abc123",
+                          "buildHash": "abc123"
+                        },
+                        "ref": null,
+                        "url": null,
+                        "dateReleased": null,
+                        "dateCreated": "2024-05-21T11:26:16.190281Z",
+                        "data": {},
+                        "newGroups": 0,
+                        "owner": null,
+                        "commitCount": 2,
+                        "lastCommit": {
+                          "id": "xyz123",
+                          "message": "feat(raspberries): Made raspberries even more delicious",
+                          "dateCreated": "2024-05-21T11:04:55Z",
+                          "pullRequest": {
+                            "id": "70214",
+                            "title": "feat(raspberries): Made raspberries even more delicious",
+                            "message": "Made raspberries even more delicious",
+                            "dateCreated": "2024-05-03T07:32:28.205043Z",
+                            "repository": {
+                              "id": "1",
+                              "name": "raj/raspberries",
+                              "url": "https://raspberries.raspberries/raj/raspberries",
+                              "provider": {
+                                "id": "integrations:github",
+                                "name": "GitHub"
+                              },
+                              "status": "active",
+                              "dateCreated": "2016-10-10T21:36:42.414678Z",
+                              "integrationId": "2933",
+                              "externalSlug": "raj/raspberries",
+                              "externalId": "873328"
+                            },
+                            "author": {
+                              "id": "2837091",
+                              "name": "Raj's Raspberries",
+                              "username": "rajraspberry",
+                              "avatarUrl": "https://gravatar.com/avatar/bf99685de539465db9208ab3a888843ba0e5e85b1f156084484c7c6c31312be5?s=32&d=mm",
+                              "isActive": true,
+                              "isSuspended": false,
+                              "hasPasswordAuth": false,
+                              "isManaged": false,
+                              "dateJoined": "2023-08-07T12:32:09.091427Z",
+                              "lastLogin": "2024-05-21T05:46:23.824074Z",
+                              "has2fa": true,
+                              "lastActive": "2024-05-21T13:59:10.614891Z",
+                              "isSuperuser": true,
+                              "isStaff": true,
+                              "experiments": {},
+                              "emails": [
+                                {
+                                  "id": "2972219",
+                                  "email": "raj@raspberries",
+                                  "is_verified": true
+                                }
+                              ],
+                              "avatar": {
+                                "avatarType": "upload",
+                                "avatarUuid": "xyz123",
+                                "avatarUrl": "https://sentry.io/avatar/xyz123/"
+                              }
+                            },
+                            "externalUrl": "https://github.com/raj/raspberries/pull/70214"
+                          },
+                          "suspectCommitType": "",
+                          "repository": {
+                            "id": "1",
+                            "name": "raj/raspberries",
+                            "url": "https://github.com/raj/raspberries",
+                            "provider": {
+                              "id": "integrations:github",
+                              "name": "GitHub"
+                            },
+                            "status": "active",
+                            "dateCreated": "2016-10-10T21:36:42.414678Z",
+                            "integrationId": "2933",
+                            "externalSlug": "raj/raspberries",
+                            "externalId": "873328"
+                          },
+                          "author": {
+                            "id": "2837091",
+                            "name": "Raj's Raspberries",
+                            "username": "rajraspberry",
+                            "avatarUrl": "https://gravatar.com/avatar/bf99685de539465db9208ab3a888843ba0e5e85b1f156084484c7c6c31312be5?s=32&d=mm",
+                            "isActive": true,
+                            "isSuspended": false,
+                            "hasPasswordAuth": false,
+                            "isManaged": false,
+                            "dateJoined": "2023-08-07T12:32:09.091427Z",
+                            "lastLogin": "2024-05-21T05:46:23.824074Z",
+                            "has2fa": true,
+                            "lastActive": "2024-05-21T13:59:10.614891Z",
+                            "isSuperuser": true,
+                            "isStaff": true,
+                            "experiments": {},
+                            "emails": [
+                              {
+                                "id": "2972219",
+                                "email": "raj@raspberries",
+                                "is_verified": true
+                              }
+                            ],
+                            "avatar": {
+                              "avatarType": "upload",
+                              "avatarUuid": "xyz123",
+                              "avatarUrl": "https://sentry.io/avatar/xyz123/"
+                            }
+                          },
+                          "releases": [
+                            {
+                              "version": "control@abc123",
+                              "shortVersion": "control@abc123",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T11:26:16.190281Z"
+                            },
+                            {
+                              "version": "backend@abc123",
+                              "shortVersion": "backend@abc123",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T11:56:36.790866Z"
+                            },
+                            {
+                              "version": "control@def789",
+                              "shortVersion": "control@def789",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T12:44:25.923663Z"
+                            },
+                            {
+                              "version": "frontend@ghi012",
+                              "shortVersion": "frontend@ghi012",
+                              "ref": null,
+                              "url": null,
+                              "dateReleased": null,
+                              "dateCreated": "2024-05-21T12:46:42.338358Z"
+                            }
+                          ]
+                        },
+                        "deployCount": 1,
+                        "lastDeploy": {
+                          "id": "53070941",
+                          "environment": "canary-test-control",
+                          "dateStarted": null,
+                          "dateFinished": "2024-05-21T11:26:17.597793Z",
+                          "name": "control@abc123 to canary-test-",
+                          "url": null
+                        },
+                        "authors": [
+                          {
+                            "id": "2837091",
+                            "name": "Raj's Raspberries",
+                            "username": "rajraspberry",
+                            "email": "raj@raspberries",
+                            "avatarUrl": "https://gravatar.com/avatar/bf99685de539465db9208ab3a888843ba0e5e85b1f156084484c7c6c31312be5?s=32&d=mm",
+                            "isActive": true,
+                            "isSuspended": false,
+                            "hasPasswordAuth": false,
+                            "isManaged": false,
+                            "dateJoined": "2023-08-07T12:32:09.091427Z",
+                            "lastLogin": "2024-05-21T05:46:23.824074Z",
+                            "has2fa": true,
+                            "lastActive": "2024-05-21T13:59:10.614891Z",
+                            "isSuperuser": true,
+                            "isStaff": true,
+                            "experiments": {},
+                            "emails": [
+                              {
+                                "id": "2972219",
+                                "email": "raj@raspberries",
+                                "is_verified": true
+                              }
+                            ],
+                            "avatar": {
+                              "avatarType": "upload",
+                              "avatarUuid": "xyz123",
+                              "avatarUrl": "https://sentry.io/avatar/xyz123/"
+                            }
+                          }
+                        ],
+                        "projects": [
+                          {
+                            "id": 1,
+                            "slug": "sentry",
+                            "name": "Backend",
+                            "newGroups": 0,
+                            "platform": "python",
+                            "platforms": [
+                              "native",
+                              "other",
+                              "python"
+                            ],
+                            "hasHealthData": false,
+                            "healthData": {
+                              "durationP50": null,
+                              "durationP90": null,
+                              "crashFreeUsers": null,
+                              "crashFreeSessions": null,
+                              "sessionsCrashed": 0,
+                              "sessionsErrored": 0,
+                              "totalUsers": null,
+                              "totalUsers24h": null,
+                              "totalProjectUsers24h": null,
+                              "totalSessions": null,
+                              "totalSessions24h": null,
+                              "totalProjectSessions24h": null,
+                              "adoption": null,
+                              "sessionsAdoption": null,
+                              "stats": {
+                                "24h": [
+                                  [
+                                    1715126400,
+                                    0
+                                  ],
+                                  [
+                                    1715212800,
+                                    0
+                                  ],
+                                  [
+                                    1715299200,
+                                    0
+                                  ],
+                                  [
+                                    1715385600,
+                                    0
+                                  ],
+                                  [
+                                    1715472000,
+                                    0
+                                  ],
+                                  [
+                                    1715558400,
+                                    0
+                                  ],
+                                  [
+                                    1715644800,
+                                    0
+                                  ],
+                                  [
+                                    1715731200,
+                                    0
+                                  ],
+                                  [
+                                    1715817600,
+                                    0
+                                  ],
+                                  [
+                                    1715904000,
+                                    0
+                                  ],
+                                  [
+                                    1715990400,
+                                    0
+                                  ],
+                                  [
+                                    1716076800,
+                                    0
+                                  ],
+                                  [
+                                    1716163200,
+                                    0
+                                  ],
+                                  [
+                                    1716249600,
+                                    0
+                                  ]
+                                ]
+                              },
+                              "hasHealthData": false
+                            }
+                          }
+                        ],
+                        "firstEvent": null,
+                        "lastEvent": null,
+                        "currentProjectMeta": {},
+                        "userAgent": "Python-urllib/3.11",
+                        "adoptionStages": {
+                          "sentry": {
+                            "stage": "low_adoption",
+                            "adopted": null,
+                            "unadopted": null
+                          }
+                        }
+                      },
+                      "summary": "Retrieve release details"
+                    }
+                  }
+                }
+              },
+              "description": ""
+            },
+            "401": {
+              "description": "Unauthorized"
+            },
+            "403": {
+              "description": "Forbidden"
+            },
+            "404": {
+              "description": "Not Found"
+            }
+          }
+        }
+      },
+      "why": "sentry-cli reads and finalizes a single project's release at the project's path (`releases finalize` with one project); the document lists only the organization's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-cli/2.58.5/src/api/mod.rs",
+        "quote": "let path = format!(\"/projects/{}/{}/releases/{}/\","
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1api~10~1organizations~1{organization_id_or_slug}~1releases~1{version}~1previous-with-commits~1",
+      "value": {
+        "get": {
+          "operationId": "getPreviousReleaseWithCommits",
+          "summary": "Retrieve the previous release with commits",
+          "description": "sentry-cli reads the previous release with commits before deriving local git commits.",
+          "parameters": [
+            {
+              "name": "organization_id_or_slug",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "version",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "The previous release"
+            },
+            "404": {
+              "description": "No previous release has commits"
+            }
+          }
+        }
+      },
+      "why": "Cal release script set-commits --auto falls back to local git when there is no repository integration.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-cli/2.58.4/src/api/mod.rs",
+        "quote": "pub fn get_previous_release_with_commits"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/sentry_project",
+      "value": {
+        "type": "object",
+        "properties": {
+          "latestDeploys": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "stats": {},
+          "transactionStats": {},
+          "sessionStats": {},
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateCreated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isBookmarked": {
+            "type": "boolean"
+          },
+          "isMember": {
+            "type": "boolean"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "firstEvent": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "firstTransactionEvent": {
+            "type": "boolean"
+          },
+          "access": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hasAccess": {
+            "type": "boolean"
+          },
+          "hasFeedbacks": {
+            "type": "boolean"
+          },
+          "hasFlags": {
+            "type": "boolean"
+          },
+          "hasMinifiedStackTrace": {
+            "type": "boolean"
+          },
+          "hasMonitors": {
+            "type": "boolean"
+          },
+          "hasNewFeedbacks": {
+            "type": "boolean"
+          },
+          "hasProfiles": {
+            "type": "boolean"
+          },
+          "hasReplays": {
+            "type": "boolean"
+          },
+          "hasSessions": {
+            "type": "boolean"
+          },
+          "hasInsightsHttp": {
+            "type": "boolean"
+          },
+          "hasInsightsDb": {
+            "type": "boolean"
+          },
+          "hasInsightsAssets": {
+            "type": "boolean"
+          },
+          "hasInsightsAppStart": {
+            "type": "boolean"
+          },
+          "hasInsightsScreenLoad": {
+            "type": "boolean"
+          },
+          "hasInsightsVitals": {
+            "type": "boolean"
+          },
+          "hasInsightsCaches": {
+            "type": "boolean"
+          },
+          "hasInsightsQueues": {
+            "type": "boolean"
+          },
+          "hasInsightsAgentMonitoring": {
+            "type": "boolean"
+          },
+          "hasInsightsMCP": {
+            "type": "boolean"
+          },
+          "hasLogs": {
+            "type": "boolean"
+          },
+          "hasTraceMetrics": {
+            "type": "boolean"
+          },
+          "team": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "slug"
+            ],
+            "nullable": true
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "slug"
+              ]
+            }
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hasUserReports": {
+            "type": "boolean"
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "latestRelease": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "access",
+          "dateCreated",
+          "environments",
+          "features",
+          "firstEvent",
+          "firstTransactionEvent",
+          "hasAccess",
+          "hasFeedbacks",
+          "hasFlags",
+          "hasInsightsAgentMonitoring",
+          "hasInsightsAppStart",
+          "hasInsightsAssets",
+          "hasInsightsCaches",
+          "hasInsightsDb",
+          "hasInsightsHttp",
+          "hasInsightsMCP",
+          "hasInsightsQueues",
+          "hasInsightsScreenLoad",
+          "hasInsightsVitals",
+          "hasLogs",
+          "hasMinifiedStackTrace",
+          "hasMonitors",
+          "hasNewFeedbacks",
+          "hasProfiles",
+          "hasReplays",
+          "hasSessions",
+          "hasTraceMetrics",
+          "hasUserReports",
+          "id",
+          "isBookmarked",
+          "isMember",
+          "latestRelease",
+          "name",
+          "platform",
+          "platforms",
+          "slug",
+          "team",
+          "teams"
+        ],
+        "x-resourceId": "project"
+      },
+      "why": "Name the vendor's unchanged inline resource schema so derive can identify this declared refresh read.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "listOrganizationProjects"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1api~10~1organizations~1{organization_id_or_slug}~1projects~1/get/responses/200/content/application~1json/schema/items",
+      "value": {
+        "$ref": "#/components/schemas/sentry_project"
+      },
+      "why": "Reference the identical response schema; the wire fields and upstream bytes stay the vendor's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "listOrganizationProjects"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/sentry_event",
+      "value": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "groupID": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventID": {
+            "type": "string"
+          },
+          "projectID": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "nullable": true
+              },
+              "email": {
+                "type": "string",
+                "nullable": true
+              },
+              "username": {
+                "type": "string",
+                "nullable": true
+              },
+              "ip_address": {
+                "type": "string",
+                "nullable": true
+              },
+              "name": {
+                "type": "string",
+                "nullable": true
+              },
+              "geo": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": {},
+                "nullable": true
+              }
+            },
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "value"
+              ]
+            }
+          },
+          "platform": {
+            "type": "string"
+          },
+          "dateReceived": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "contexts": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "size": {
+            "type": "integer",
+            "nullable": true
+          },
+          "entries": {
+            "type": "array",
+            "items": {}
+          },
+          "dist": {
+            "type": "string",
+            "nullable": true
+          },
+          "sdk": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "nullable": true
+              },
+              "version": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "name",
+              "version"
+            ],
+            "nullable": true
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "packages": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "type": {
+            "enum": [
+              "default",
+              "error",
+              "csp",
+              "nel",
+              "hpkp",
+              "expectct",
+              "expectstaple",
+              "transaction",
+              "generic",
+              "feedback"
+            ],
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "data",
+                "message",
+                "type"
+              ]
+            }
+          },
+          "occurrence": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "type": "integer"
+              },
+              "eventId": {
+                "type": "string"
+              },
+              "fingerprint": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "issueTitle": {
+                "type": "string"
+              },
+              "subtitle": {
+                "type": "string"
+              },
+              "resourceId": {
+                "type": "string",
+                "nullable": true
+              },
+              "evidenceData": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "evidenceDisplay": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "important": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "important",
+                    "name",
+                    "value"
+                  ]
+                }
+              },
+              "type": {
+                "type": "integer"
+              },
+              "detectionTime": {
+                "type": "number",
+                "format": "double"
+              },
+              "level": {
+                "type": "string",
+                "nullable": true
+              },
+              "culprit": {
+                "type": "string",
+                "nullable": true
+              },
+              "assignee": {
+                "type": "string",
+                "nullable": true
+              },
+              "priority": {
+                "type": "integer",
+                "nullable": true
+              }
+            },
+            "required": [
+              "assignee",
+              "culprit",
+              "detectionTime",
+              "eventId",
+              "evidenceData",
+              "evidenceDisplay",
+              "fingerprint",
+              "id",
+              "issueTitle",
+              "level",
+              "priority",
+              "projectId",
+              "resourceId",
+              "subtitle",
+              "type"
+            ],
+            "nullable": true
+          },
+          "_meta": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "crashFile": {
+            "type": "string",
+            "nullable": true
+          },
+          "culprit": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateCreated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fingerprints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groupingConfig": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "enhancements": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "enhancements",
+              "id"
+            ]
+          },
+          "startTimestamp": {
+            "type": "number",
+            "format": "double"
+          },
+          "endTimestamp": {
+            "type": "number",
+            "format": "double"
+          },
+          "measurements": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "unit": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "unit",
+                "value"
+              ]
+            },
+            "nullable": true
+          },
+          "breakdowns": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "unit": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "unit",
+                  "value"
+                ]
+              }
+            },
+            "nullable": true
+          },
+          "release": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "commitCount": {
+                "type": "integer"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "dateCreated": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateReleased": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "deployCount": {
+                "type": "integer"
+              },
+              "ref": {
+                "type": "string",
+                "nullable": true
+              },
+              "lastCommit": {
+                "type": "object",
+                "additionalProperties": {},
+                "nullable": true
+              },
+              "lastDeploy": {
+                "type": "object",
+                "properties": {
+                  "dateStarted": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "environment": {
+                    "type": "string"
+                  },
+                  "dateFinished": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "dateFinished",
+                  "environment",
+                  "id",
+                  "name"
+                ],
+                "nullable": true
+              },
+              "status": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "nullable": true
+              },
+              "userAgent": {
+                "type": "string",
+                "nullable": true
+              },
+              "version": {
+                "type": "string",
+                "nullable": true
+              },
+              "versionInfo": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "package": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "version": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "buildHash": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "buildHash",
+                  "package",
+                  "version"
+                ],
+                "nullable": true
+              }
+            },
+            "nullable": true
+          },
+          "userReport": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "eventID": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string",
+                "nullable": true
+              },
+              "email": {
+                "type": "string",
+                "nullable": true
+              },
+              "comments": {
+                "type": "string"
+              },
+              "dateCreated": {
+                "type": "string"
+              },
+              "user": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "ipAddress": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "avatarUrl": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "avatarUrl",
+                  "email",
+                  "id",
+                  "ipAddress",
+                  "name",
+                  "username"
+                ],
+                "nullable": true
+              },
+              "event": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "eventID": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "eventID",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "comments",
+              "dateCreated",
+              "email",
+              "event",
+              "eventID",
+              "id",
+              "name",
+              "user"
+            ],
+            "nullable": true
+          },
+          "sdkUpdates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "resolvedWith": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "nextEventID": {
+            "type": "string",
+            "nullable": true
+          },
+          "previousEventID": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "_meta",
+          "context",
+          "contexts",
+          "dateReceived",
+          "dist",
+          "entries",
+          "errors",
+          "eventID",
+          "groupID",
+          "id",
+          "location",
+          "message",
+          "metadata",
+          "nextEventID",
+          "occurrence",
+          "packages",
+          "platform",
+          "previousEventID",
+          "projectID",
+          "release",
+          "resolvedWith",
+          "sdk",
+          "sdkUpdates",
+          "size",
+          "tags",
+          "title",
+          "type",
+          "user",
+          "userReport"
+        ],
+        "x-resourceId": "event"
+      },
+      "why": "Name the vendor's unchanged inline resource schema so derive can identify this declared refresh read.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "getProjectEvent"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1api~10~1projects~1{organization_id_or_slug}~1{project_id_or_slug}~1events~1{event_id}~1/get/responses/200/content/application~1json/schema",
+      "value": {
+        "$ref": "#/components/schemas/sentry_event"
+      },
+      "why": "Reference the identical response schema; the wire fields and upstream bytes stay the vendor's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "getProjectEvent"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/sentry_issue",
+      "value": {
+        "type": "object",
+        "properties": {
+          "isUnhandled": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": "string"
+          },
+          "userCount": {
+            "type": "integer"
+          },
+          "firstSeen": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastSeen": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "derivedData": {
+            "type": "object",
+            "properties": {
+              "blocker": {
+                "type": "string"
+              },
+              "progress": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "viewCount": {
+                "type": "integer"
+              },
+              "hasOpenFixPr": {
+                "type": "boolean"
+              },
+              "isAssigned": {
+                "type": "boolean"
+              },
+              "hasRootCause": {
+                "type": "boolean"
+              },
+              "lastCompletedAutofixStep": {
+                "type": "string"
+              },
+              "lastProgressedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            },
+            "required": [
+              "blocker",
+              "hasOpenFixPr",
+              "hasRootCause",
+              "isAssigned",
+              "lastCompletedAutofixStep",
+              "lastProgressedAt",
+              "progress",
+              "status",
+              "viewCount"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "shareId": {
+            "type": "string",
+            "nullable": true
+          },
+          "shortId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "culprit": {
+            "type": "string",
+            "nullable": true
+          },
+          "permalink": {
+            "type": "string"
+          },
+          "logger": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "enum": [
+              "sample",
+              "debug",
+              "info",
+              "warning",
+              "error",
+              "fatal",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "resolved",
+              "ignored",
+              "pending_deletion",
+              "pending_merge",
+              "reprocessing",
+              "unresolved"
+            ],
+            "type": "string"
+          },
+          "statusDetails": {
+            "type": "object",
+            "properties": {
+              "ignoreCount": {
+                "type": "integer"
+              },
+              "ignoreUntil": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "ignoreUserCount": {
+                "type": "integer"
+              },
+              "ignoreUserWindow": {
+                "type": "integer"
+              },
+              "ignoreWindow": {
+                "type": "integer"
+              },
+              "actor": {
+                "type": "object",
+                "properties": {
+                  "identities": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "organization": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "slug"
+                          ]
+                        },
+                        "provider": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ]
+                        },
+                        "dateVerified": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "dateSynced": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "dateSynced",
+                        "dateVerified",
+                        "id",
+                        "name",
+                        "organization",
+                        "provider"
+                      ]
+                    }
+                  },
+                  "avatar": {
+                    "type": "object",
+                    "properties": {
+                      "avatarType": {
+                        "type": "string"
+                      },
+                      "avatarUuid": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "avatarUrl": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "authenticators": {
+                    "type": "array",
+                    "items": {}
+                  },
+                  "canReset2fa": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "avatarUrl": {
+                    "type": "string"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "isSuspended": {
+                    "type": "boolean"
+                  },
+                  "hasPasswordAuth": {
+                    "type": "boolean"
+                  },
+                  "isManaged": {
+                    "type": "boolean"
+                  },
+                  "dateJoined": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "lastLogin": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
+                  "has2fa": {
+                    "type": "boolean"
+                  },
+                  "lastActive": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
+                  "isSuperuser": {
+                    "type": "boolean"
+                  },
+                  "isStaff": {
+                    "type": "boolean"
+                  },
+                  "experiments": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "emails": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "is_verified": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "email",
+                        "id",
+                        "is_verified"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "avatarUrl",
+                  "dateJoined",
+                  "email",
+                  "emails",
+                  "experiments",
+                  "has2fa",
+                  "hasPasswordAuth",
+                  "id",
+                  "isActive",
+                  "isManaged",
+                  "isStaff",
+                  "isSuperuser",
+                  "isSuspended",
+                  "lastActive",
+                  "lastLogin",
+                  "name",
+                  "username"
+                ]
+              },
+              "inNextRelease": {
+                "type": "boolean"
+              },
+              "inRelease": {
+                "type": "string"
+              },
+              "inCommit": {
+                "type": "string"
+              },
+              "pendingEvents": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "object",
+                "properties": {
+                  "dateCreated": {
+                    "type": "string"
+                  },
+                  "syncCount": {
+                    "type": "integer"
+                  },
+                  "totalEvents": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "dateCreated",
+                  "syncCount",
+                  "totalEvents"
+                ],
+                "nullable": true
+              }
+            }
+          },
+          "substatus": {
+            "enum": [
+              "archived_until_escalating",
+              "archived_until_condition_met",
+              "archived_forever",
+              "escalating",
+              "ongoing",
+              "regressed",
+              "new",
+              null
+            ],
+            "type": "string",
+            "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "platform": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              null
+            ],
+            "type": "string",
+            "nullable": true
+          },
+          "priorityLockedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "seerFixabilityScore": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "seerAutofixLastTriggered": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "seerExplorerAutofixLastTriggered": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "platform",
+              "slug"
+            ]
+          },
+          "type": {
+            "enum": [
+              "default",
+              "error",
+              "csp",
+              "nel",
+              "hpkp",
+              "expectct",
+              "expectstaple",
+              "transaction",
+              "generic",
+              "feedback"
+            ],
+            "type": "string"
+          },
+          "issueType": {
+            "type": "string"
+          },
+          "issueCategory": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "numComments": {
+            "type": "integer"
+          },
+          "assignedTo": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "user",
+                  "team"
+                ],
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "type"
+            ],
+            "nullable": true
+          },
+          "isBookmarked": {
+            "type": "boolean"
+          },
+          "isSubscribed": {
+            "type": "boolean"
+          },
+          "subscriptionDetails": {
+            "type": "object",
+            "properties": {
+              "disabled": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "hasSeen": {
+            "type": "boolean"
+          },
+          "annotations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "displayName": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "displayName",
+                "url"
+              ]
+            }
+          },
+          "firstRelease": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "lastRelease": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "stats": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "double"
+                }
+              }
+            }
+          },
+          "inbox": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "integer"
+              },
+              "reason_details": {
+                "type": "object",
+                "properties": {
+                  "until": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "count": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "window": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "user_count": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "user_window": {
+                    "type": "integer",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "count",
+                  "until",
+                  "user_count",
+                  "user_window",
+                  "window"
+                ],
+                "nullable": true
+              },
+              "date_added": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "date_added",
+              "reason",
+              "reason_details"
+            ],
+            "nullable": true
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "date_added": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "date_added",
+                "owner",
+                "type"
+              ]
+            },
+            "nullable": true
+          },
+          "forecast": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "integrationIssues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "sentryAppIssues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "issueId": {
+                  "type": "string"
+                },
+                "serviceType": {
+                  "type": "string"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "webUrl": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "displayName",
+                "id",
+                "issueId",
+                "serviceType",
+                "webUrl"
+              ]
+            }
+          },
+          "latestEventHasAttachments": {
+            "type": "boolean"
+          },
+          "activity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "seenBy": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "userReportCount": {
+            "type": "integer"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          }
+        },
+        "required": [
+          "activity",
+          "annotations",
+          "assignedTo",
+          "culprit",
+          "hasSeen",
+          "id",
+          "isBookmarked",
+          "isPublic",
+          "isSubscribed",
+          "issueCategory",
+          "issueType",
+          "level",
+          "logger",
+          "metadata",
+          "numComments",
+          "participants",
+          "permalink",
+          "platform",
+          "priority",
+          "priorityLockedAt",
+          "project",
+          "seenBy",
+          "seerAutofixLastTriggered",
+          "seerExplorerAutofixLastTriggered",
+          "seerFixabilityScore",
+          "shareId",
+          "shortId",
+          "status",
+          "statusDetails",
+          "subscriptionDetails",
+          "substatus",
+          "title",
+          "type",
+          "userReportCount"
+        ],
+        "x-resourceId": "issue"
+      },
+      "why": "Name the vendor's unchanged inline resource schema so derive can identify this declared refresh read.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "getOrganizationIssue"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1api~10~1organizations~1{organization_id_or_slug}~1issues~1{issue_id}~1/get/responses/200/content/application~1json/schema",
+      "value": {
+        "$ref": "#/components/schemas/sentry_issue"
+      },
+      "why": "Reference the identical response schema; the wire fields and upstream bytes stay the vendor's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "getOrganizationIssue"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/sentry_monitor",
+      "value": {
+        "type": "object",
+        "properties": {
+          "alertRule": {
+            "type": "object",
+            "properties": {
+              "targets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "targetIdentifier": {
+                      "type": "integer"
+                    },
+                    "targetType": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "targetIdentifier",
+                    "targetType"
+                  ]
+                }
+              },
+              "environment": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "environment",
+              "targets"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "isMuted": {
+            "type": "boolean"
+          },
+          "isUpserting": {
+            "type": "boolean"
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "schedule_type": {
+                "enum": [
+                  "crontab",
+                  "interval"
+                ],
+                "type": "string"
+              },
+              "schedule": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "minLength": 2,
+                    "maxLength": 2
+                  }
+                ]
+              },
+              "checkin_margin": {
+                "type": "integer",
+                "nullable": true
+              },
+              "max_runtime": {
+                "type": "integer",
+                "nullable": true
+              },
+              "timezone": {
+                "type": "string",
+                "nullable": true
+              },
+              "failure_issue_threshold": {
+                "type": "integer",
+                "nullable": true
+              },
+              "recovery_threshold": {
+                "type": "integer",
+                "nullable": true
+              },
+              "alert_rule_id": {
+                "type": "integer",
+                "nullable": true
+              }
+            },
+            "required": [
+              "alert_rule_id",
+              "checkin_margin",
+              "failure_issue_threshold",
+              "max_runtime",
+              "recovery_threshold",
+              "schedule",
+              "schedule_type",
+              "timezone"
+            ]
+          },
+          "dateCreated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "project": {
+            "type": "object",
+            "properties": {
+              "stats": {},
+              "transactionStats": {},
+              "sessionStats": {},
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string",
+                "nullable": true
+              },
+              "dateCreated": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "isBookmarked": {
+                "type": "boolean"
+              },
+              "isMember": {
+                "type": "boolean"
+              },
+              "features": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "firstEvent": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "firstTransactionEvent": {
+                "type": "boolean"
+              },
+              "access": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "hasAccess": {
+                "type": "boolean"
+              },
+              "hasFeedbacks": {
+                "type": "boolean"
+              },
+              "hasFlags": {
+                "type": "boolean"
+              },
+              "hasMinifiedStackTrace": {
+                "type": "boolean"
+              },
+              "hasMonitors": {
+                "type": "boolean"
+              },
+              "hasNewFeedbacks": {
+                "type": "boolean"
+              },
+              "hasProfiles": {
+                "type": "boolean"
+              },
+              "hasReplays": {
+                "type": "boolean"
+              },
+              "hasSessions": {
+                "type": "boolean"
+              },
+              "hasInsightsHttp": {
+                "type": "boolean"
+              },
+              "hasInsightsDb": {
+                "type": "boolean"
+              },
+              "hasInsightsAssets": {
+                "type": "boolean"
+              },
+              "hasInsightsAppStart": {
+                "type": "boolean"
+              },
+              "hasInsightsScreenLoad": {
+                "type": "boolean"
+              },
+              "hasInsightsVitals": {
+                "type": "boolean"
+              },
+              "hasInsightsCaches": {
+                "type": "boolean"
+              },
+              "hasInsightsQueues": {
+                "type": "boolean"
+              },
+              "hasInsightsAgentMonitoring": {
+                "type": "boolean"
+              },
+              "hasInsightsMCP": {
+                "type": "boolean"
+              },
+              "hasLogs": {
+                "type": "boolean"
+              },
+              "hasTraceMetrics": {
+                "type": "boolean"
+              },
+              "isInternal": {
+                "type": "boolean"
+              },
+              "isPublic": {
+                "type": "boolean"
+              },
+              "avatar": {
+                "type": "object",
+                "properties": {
+                  "avatarType": {
+                    "type": "string"
+                  },
+                  "avatarUuid": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "avatarUrl": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "color": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "access",
+              "avatar",
+              "color",
+              "dateCreated",
+              "features",
+              "firstEvent",
+              "firstTransactionEvent",
+              "hasAccess",
+              "hasFeedbacks",
+              "hasFlags",
+              "hasInsightsAgentMonitoring",
+              "hasInsightsAppStart",
+              "hasInsightsAssets",
+              "hasInsightsCaches",
+              "hasInsightsDb",
+              "hasInsightsHttp",
+              "hasInsightsMCP",
+              "hasInsightsQueues",
+              "hasInsightsScreenLoad",
+              "hasInsightsVitals",
+              "hasLogs",
+              "hasMinifiedStackTrace",
+              "hasMonitors",
+              "hasNewFeedbacks",
+              "hasProfiles",
+              "hasReplays",
+              "hasSessions",
+              "hasTraceMetrics",
+              "id",
+              "isBookmarked",
+              "isInternal",
+              "isMember",
+              "isPublic",
+              "name",
+              "platform",
+              "slug",
+              "status"
+            ]
+          },
+          "environments": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "isMuted": {
+                "type": "boolean"
+              },
+              "dateCreated": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastCheckIn": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "nextCheckIn": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "nextCheckInLatest": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "activeIncident": {
+                "type": "object",
+                "properties": {
+                  "startingTimestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "resolvingTimestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "brokenNotice": {
+                    "type": "object",
+                    "properties": {
+                      "userNotifiedTimestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "environmentMutedTimestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "environmentMutedTimestamp",
+                      "userNotifiedTimestamp"
+                    ],
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "brokenNotice",
+                  "resolvingTimestamp",
+                  "startingTimestamp"
+                ],
+                "nullable": true
+              }
+            },
+            "required": [
+              "activeIncident",
+              "dateCreated",
+              "isMuted",
+              "lastCheckIn",
+              "name",
+              "nextCheckIn",
+              "nextCheckInLatest",
+              "status"
+            ]
+          },
+          "owner": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "user",
+                  "team"
+                ],
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "config",
+          "dateCreated",
+          "environments",
+          "id",
+          "isMuted",
+          "isUpserting",
+          "name",
+          "owner",
+          "project",
+          "slug",
+          "status"
+        ],
+        "x-resourceId": "monitor"
+      },
+      "why": "Name the vendor's unchanged inline resource schema so derive can identify this declared refresh read.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "listOrganizationMonitors"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1api~10~1organizations~1{organization_id_or_slug}~1monitors~1/get/responses/200/content/application~1json/schema/items",
+      "value": {
+        "$ref": "#/components/schemas/sentry_monitor"
+      },
+      "why": "Reference the identical response schema; the wire fields and upstream bytes stay the vendor's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "listOrganizationMonitors"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/sentry_check_in",
+      "value": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "integer",
+            "nullable": true
+          },
+          "dateCreated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dateAdded": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dateUpdated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dateInProgress": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "dateClock": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expectedTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "monitorConfig": {
+            "type": "object",
+            "properties": {
+              "schedule_type": {
+                "enum": [
+                  "crontab",
+                  "interval"
+                ],
+                "type": "string"
+              },
+              "schedule": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "minLength": 2,
+                    "maxLength": 2
+                  }
+                ]
+              },
+              "checkin_margin": {
+                "type": "integer",
+                "nullable": true
+              },
+              "max_runtime": {
+                "type": "integer",
+                "nullable": true
+              },
+              "timezone": {
+                "type": "string",
+                "nullable": true
+              },
+              "failure_issue_threshold": {
+                "type": "integer",
+                "nullable": true
+              },
+              "recovery_threshold": {
+                "type": "integer",
+                "nullable": true
+              },
+              "alert_rule_id": {
+                "type": "integer",
+                "nullable": true
+              }
+            },
+            "required": [
+              "alert_rule_id",
+              "checkin_margin",
+              "failure_issue_threshold",
+              "max_runtime",
+              "recovery_threshold",
+              "schedule",
+              "schedule_type",
+              "timezone"
+            ]
+          }
+        },
+        "required": [
+          "dateAdded",
+          "dateClock",
+          "dateCreated",
+          "dateInProgress",
+          "dateUpdated",
+          "duration",
+          "environment",
+          "expectedTime",
+          "id",
+          "monitorConfig",
+          "status"
+        ],
+        "x-resourceId": "check_in"
+      },
+      "why": "Name the vendor's unchanged inline resource schema so derive can identify this declared refresh read.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "listProjectMonitorCheckins"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1api~10~1projects~1{organization_id_or_slug}~1{project_id_or_slug}~1monitors~1{monitor_id_or_slug}~1checkins~1/get/responses/200/content/application~1json/schema/items",
+      "value": {
+        "$ref": "#/components/schemas/sentry_check_in"
+      },
+      "why": "Reference the identical response schema; the wire fields and upstream bytes stay the vendor's.",
+      "source": {
+        "url": "https://raw.githubusercontent.com/getsentry/sentry-api-schema/98ec014705fbecf18c2650097e4630afe51ffd85/openapi-derefed.json",
+        "quote": "listProjectMonitorCheckins"
+      }
+    }
+  ]
+}
