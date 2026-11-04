@@ -33,8 +33,8 @@ World rooted at a Tinybird account refreshes the Workspace, its Data Sources, Pi
 
 - `GET /_twin/mailbox/{email}`: the World's stand-in for a person's inbox, where the console's one-time log-in code
   arrives.
-- `POST /_twin/app-credentials`: the runtime's credential door, issuing an application's `TINYBIRD_API_KEY` (the
-  admin token of the World's Workspace `world`).
+- `POST /_twin/app-credentials {account?, deployment?}`: the runtime's credential door, issuing an application's
+  `TINYBIRD_API_KEY` (the admin token of the deployment's Workspace inside its World organization).
 - The console's pages (`src/screens/console.tsx`): sign-up and log-in, the Organization, Create Workspace (Classic),
   the Workspace's Tokens page, and Organization settings → Billing (billing details, a Developer plan, its
   cancellation).

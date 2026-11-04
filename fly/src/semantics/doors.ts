@@ -1,8 +1,7 @@
 // The World's doors (architecture, "Doors, screens and the gap"): Fly's tokens, as `fly tokens create` makes them (an
 // organization token, or a deploy token scoped to one app), and a machine's process exiting on its own.
-import { makeApp } from './apps.ts';
 import type { HandlerContext } from '@volter/world-core';
-import { APP, exitedMachine, MACHINE, obj, sha256, TOKEN } from './shared.ts';
+import { makeApp, APP, exitedMachine, MACHINE, obj, sha256, TOKEN } from './shared.ts';
 
 const bad = (message: string, status = 400): Response => Response.json({ message }, { status });
 
