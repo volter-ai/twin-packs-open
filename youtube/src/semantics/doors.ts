@@ -11,7 +11,7 @@
 // channel door is the step YouTube asks of an account before it uploads or streams. An author outside the World is a
 // YouTube channel of no Google account the World holds, made the first time it speaks.
 import type { HandlerContext } from '@volter/world-core';
-import { googleSubFor } from '@volter/twin-googleoauth';
+import { googleSubFor } from '@volter/twin-googleoauth/google-account-id';
 import { CHANNEL, THREAD, VIDEO, bodyObject, chatById, chatEnded, live, obj, postChatMessage, writeComment, type Row } from './shared.ts';
 
 const bad = (error: string, status = 400): Response => Response.json({ error }, { status });

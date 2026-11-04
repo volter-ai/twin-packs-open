@@ -1,6 +1,6 @@
 // Apps: a machine belongs to one. Names are unique across Fly; an app is its organization's.
 import { isMachineCapabilityGap, type HandlerContext, type MachineSpec } from '@volter/world-core';
-import { APP, appFor, appView, callerOf, destroy, fail, MACHINE, machineView, obj, type Row, VOLUME, volumeView, observeMachine } from './shared.ts';
+import { makeApp, APP, appFor, appView, callerOf, destroy, fail, MACHINE, machineView, obj, type Row, VOLUME, volumeView, observeMachine } from './shared.ts';
 
 // source: https://docs.fly.io/machines/api/apps-resource/ "Get details about an app, like its organization slug and name. Also, to check if the app exists!"
 export async function Apps_show(ctx: HandlerContext): Promise<Response> {
@@ -25,11 +25,6 @@ export async function Apps_create(ctx: HandlerContext): Promise<Response> {
   const id = String(made.id);
   // source: https://docs.fly.io/machines/api/apps-resource/ "Status: 201 created"
   return Response.json({ id, created_at: Date.parse(ctx.occurredAt) }, { status: 201 });
-}
-
-export async function makeApp(ctx: HandlerContext, name: string, org: string, network: unknown): Promise<Row | Response> {
-  const made = await ctx.createUnique(APP, (id) => ({ id, name, status: 'pending', network, organization: { name: org, slug: org }, machine_count: 0, volume_count: 0, _org: org }), 'Apps_create');
-  return made.created ? ctx.row(APP, String(made.row.id))! : fail(422, `app name "${name}" is already taken`);
 }
 
 /** The machine a path names, in the caller's app. */

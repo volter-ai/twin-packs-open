@@ -3,9 +3,9 @@
 import { createPackFetch, type DerivedFetch, type DerivedSurface, type PackFetchOptions } from '@volter/world-core';
 import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
+import { tenant } from './semantics/tenant.ts';
 import { scenario } from './semantics/scenario.ts';
 import * as sockets from './semantics/sockets.ts';
-import { tenant } from './semantics/tenant.ts';
 import * as doors from './semantics/doors.ts';
 import { elevenlabsSemantics } from './semantics/index.ts';
 

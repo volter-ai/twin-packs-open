@@ -9,8 +9,8 @@ import { mediaSemantics } from './semantics/index.ts';
 export function createMediaLaneFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
     manifest,
-    tenant,
     surface: surface as DerivedSurface,
     handlers: mediaSemantics,
+    tenant,
   }, options);
 }

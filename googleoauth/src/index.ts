@@ -5,7 +5,6 @@ import { packOf, registerPack, type DerivedSurface } from '@volter/world-core';
 import { manifest } from './manifest.ts';
 import surface from './generated/surface.gen.json' with { type: 'json' };
 
-export { googleSubFor } from './google-account-id.ts';
 export { createGoogleoauthFetch } from './fetch.ts';
 export { createGoogleoauthTwinServer } from './server.ts';
 export { manifest };

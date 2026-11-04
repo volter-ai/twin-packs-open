@@ -3,7 +3,7 @@
 import { createPackFetch, type DerivedFetch, type DerivedSurface, type PackFetchOptions } from '@volter/world-core';
 import surface from './generated/surface.gen.json' with { type: 'json' };
 import { manifest } from './manifest.ts';
-import { tenant } from '../../../src/semantics/tenant.ts';
+import { tenant } from './semantics/tenant.ts';
 import { scenario } from './semantics/scenario.ts';
 import { platformSemantics } from './semantics/index.ts';
 
@@ -12,7 +12,7 @@ export function createPlatformLaneFetch(options: PackFetchOptions = {}): Derived
     manifest,
     surface: surface as DerivedSurface,
     handlers: platformSemantics,
-    scenario,
     tenant,
+    scenario,
   }, options);
 }

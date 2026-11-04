@@ -14,7 +14,7 @@ export function createApiLaneFetch(options: PackFetchOptions = {}): DerivedFetch
     surface: surface as DerivedSurface,
     handlers: apiSemantics,
     doors,
-    clock,
     around,
+    clock,
   }, options);
 }
