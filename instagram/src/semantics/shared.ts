@@ -206,9 +206,9 @@ export function userView(ctx: HandlerContext, c: Pick<Caller, 'app' | 'account'>
 /** An IG Container as its fields answer it. */
 // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-container "A comma-separated list of fields and edges you want returned. If omitted, default fields will be returned."
 export function containerView(ctx: HandlerContext, row: Row, fields: Field[]): Row | Response {
-  const own = ctx.own(row);
-  const all: Row = { id: own.id ?? row.id, status_code: own.status_code, status: own.status };
-  const out: Row = {};
+  const own = ctx.render(row, CONTAINER);
+  const all: Row = { id: own.id, status_code: own.status_code, status: own.status };
+  const out: Row = { id: own.id };
   for (const f of fields) {
     if (!(f.name in all)) return nonexisting(ctx, f.name, 'ShadowIGMediaBuilder');
     out[f.name] = all[f.name];
