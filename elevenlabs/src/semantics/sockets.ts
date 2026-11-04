@@ -224,7 +224,7 @@ function apiKey(ctx: HandlerContext, value: unknown): string | undefined {
 // Where the documentation stops: the page names a tool call's failure; for a custom LLM, and for a workspace secret or a
 // dynamic variable a header names and the conversation lacks, the pages name none: the twin fails the request as it
 // fails one the LLM does not answer (the conversation ends failed), the configuration error its reason
-function requestOf(st: Session, ctx: HandlerContext, s: SocketSession): { url: string; headers: Record<string, string> } | { why: string } {
+function requestOf(st: Session, ctx: HandlerContext): { url: string; headers: Record<string, string> } | { why: string } {
   const llm = st.llm!;
   // source: https://elevenlabs.io/docs/eleven-agents/integrate/environment-variables "The custom LLM URL field supports the same"
   if (/\{\{\s*system__env_/.test(llm.url)) return { why: 'configuration error: the custom LLM URL names an environment variable that cannot be resolved' };
@@ -247,9 +247,9 @@ const LLM_WAIT_MS = 30_000;
 /** The turn the agent's custom LLM answers, asked as ElevenLabs asks it: the chat completion request of the prompt and
  *  the transcript, its client tools offered, streamed; undefined when every attempt failed (an error, no answer in time,
  *  or an answer that says nothing), with why and the last error status the LLM answered. */
-async function askLlm(s: SocketSession, st: Session, ctx: HandlerContext, transcript: Row[]): Promise<{ turn?: ReturnType<typeof readChatCompletion>; why: string; status: number }> {
+async function askLlm(st: Session, ctx: HandlerContext, transcript: Row[]): Promise<{ turn?: ReturnType<typeof readChatCompletion>; why: string; status: number }> {
   const llm = st.llm!;
-  const request = requestOf(st, ctx, s);
+  const request = requestOf(st, ctx);
   if ('why' in request) return { why: request.why, status: 0 };
   // source: https://elevenlabs.io/docs/eleven-agents/customization/llm/custom-llm "Both endpoints must return responses in SSE (Server-Sent Events) format"
   // source: https://elevenlabs.io/docs/eleven-agents/customization/llm/custom-llm "These tools are automatically included in the"
@@ -295,7 +295,7 @@ async function answer(s: SocketSession, ctx: HandlerContext, before: Row[], resu
   const row = stored(ctx, String(st.conversation));
   const transcript = [...(row ? transcriptOf(row) : []), ...before];
   if (st.llm) {
-    const asked = await askLlm(s, st, ctx, transcript);
+    const asked = await askLlm(st, ctx, transcript);
     if (!asked.turn) {
       if (row) await ctx.write(CONVERSATION, String(st.conversation), { ...row, transcript }, 'conversation.turn');
       return failed(s, ctx, asked.why, asked.status);
