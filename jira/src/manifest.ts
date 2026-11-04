@@ -29,6 +29,6 @@ export const manifest: VendorManifest = {
     adoption: { sdks: ['jira.js', 'jira-client'], envStems: ['JIRA', 'ATLASSIAN'] },
     hosts: [{ host: 'auth.atlassian.com' }, { host: 'api.atlassian.com', pathPattern: '^/(oauth/|ex/jira/)' }, { suffix: '.atlassian.net' }],
     endpointEnvNone: 'The on-call agent uses its site URL; the OAuth flow uses auth.atlassian.com and api.atlassian.com, all claimed by the World',
-    credentialDoor: { account: { field: 'account', tenancy: 'Atlassian person with site membership', source: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/' }, deployment: { field: 'deployment', object: 'Named personal API token', source: 'https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/' }, path: '/_twin/api-token', body: {}, fill: { JIRA_API_TOKEN: 'apiToken' } },
+    credentialDoor: { account: { field: 'account', tenancy: 'Atlassian person with site membership', source: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/' }, deployment: { field: 'deployment', object: 'Named personal API token', source: 'https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/' }, path: '/_twin/api-token', body: {}, fill: { JIRA_API_TOKEN: 'apiToken', JIRA_EMAIL: 'email', JIRA_URL: 'url' } },
   },
 };

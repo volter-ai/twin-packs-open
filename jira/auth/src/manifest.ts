@@ -32,7 +32,7 @@ export const manifest: DerivedManifest = {
   }],
   vendorBacked: { none: 'Atlassian account and OAuth credential state has no account-wide read-back or replayable credential API; it is World setup.' },
   doors: [
-    { id: 'apiToken', method: 'POST', path: '/_twin/api-token', note: '{ site, email, password }: an API token made in the Atlassian account console, acting as that person; answers apiToken and authorization' },
+    { id: 'apiToken', method: 'POST', path: '/_twin/api-token', note: '{ account?, deployment? } or { site, email, password }: an API token made in the Atlassian account console, acting as that person; answers apiToken, authorization, email and site url' },
     { id: 'sites', method: 'POST', path: '/_twin/sites', note: '{ name, admin: { name, email, password } }: a Jira Cloud site signed up for (its cloudid, URL), its first person its admin' },
     { id: 'people', method: 'POST', path: '/_twin/sites/{name}/people', note: '{ name, email, password }: a person given access to the site' },
     { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: '{ name?, callback_urls? }: an OAuth 2.0 (3LO) app made in the developer console' },
