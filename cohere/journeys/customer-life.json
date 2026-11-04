@@ -1,0 +1,121 @@
+{
+  "vendor": "cohere",
+  "author": "codex-demand-rule",
+  "about": "A LibreChat user selects cohere in the shipped web-search feature and supplies their own in-app key. Web search ships enabled (packages/data-provider/src/config.ts:2421); users choose providers and save their own key (packages/api/src/web/web.ts:386-402,476-482). No operator step is required.",
+  "steps": [
+    {
+      "name": "The World issues the application's Cohere key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      }
+    },
+    {
+      "name": "LibreChat reranks the scraped studio page about vinyasa classes",
+      "method": "POST",
+      "path": "https://api.cohere.com/v2/rerank",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "model": "rerank-v3.5",
+        "query": "when is vinyasa at tidewater yoga",
+        "top_n": 5,
+        "documents": [
+          "Tidewater Yoga class schedule: vinyasa on Tuesdays at 18:00\n\nParking near the studio is free after 17:00\n\nVinyasa flow for beginners: what to bring\n\nThe studio is closed on public holidays"
+        ]
+      },
+      "expect": [
+        {
+          "path": "results.0.index",
+          "equals": 0
+        },
+        {
+          "path": "results.1.index",
+          "exists": false
+        },
+        {
+          "path": "results.0.relevance_score",
+          "shape": {
+            "type": "number"
+          }
+        },
+        {
+          "path": "meta.billed_units.search_units",
+          "equals": 1
+        },
+        {
+          "path": "meta.warnings.0",
+          "contains": "no rerank model runs"
+        }
+      ]
+    },
+    {
+      "name": "The customer returns the next day",
+      "wait": "1d"
+    },
+    {
+      "name": "The World resumes with the same application key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "equals": "{k}"
+        }
+      ]
+    },
+    {
+      "name": "LibreChat reranks the scraped studio page about parking",
+      "method": "POST",
+      "path": "https://api.cohere.com/v2/rerank",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "model": "rerank-v3.5",
+        "query": "parking",
+        "documents": [
+          "Tidewater Yoga class schedule: vinyasa on Tuesdays at 18:00\n\nParking near the studio is free after 17:00\n\nVinyasa flow for beginners: what to bring\n\nThe studio is closed on public holidays"
+        ],
+        "top_n": 5
+      },
+      "expect": [
+        {
+          "path": "results.0.index",
+          "equals": 0
+        },
+        {
+          "path": "results.1.index",
+          "exists": false
+        },
+        {
+          "path": "results.0.relevance_score",
+          "shape": {
+            "type": "number"
+          }
+        },
+        {
+          "path": "meta.billed_units.search_units",
+          "equals": 1
+        },
+        {
+          "path": "meta.warnings.0",
+          "contains": "no rerank model runs"
+        }
+      ]
+    }
+  ],
+  "startsAt": "2026-10-03T12:00:00.000Z",
+  "host": "api.cohere.com"
+}

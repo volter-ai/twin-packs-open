@@ -59,19 +59,19 @@ export async function makeApiToken(ctx: HandlerContext, input: {
   name: string; kind: 'account' | 'user'; owner: string; account?: string; policies: Row[];
   expires_on?: string; not_before?: string;
 }): Promise<{ token: Row; value: string }> {
-  const id = ctx.mint('ApiToken');
-  const serial = await ctx.record('_credential_issue', { token_id: id });
+  const serial = await ctx.record('_credential_issue', {});
   const value = tokenFormat(input.kind, await ctx.secret(`cloudflare-api-token:${serial}`));
   // source: https://developers.cloudflare.com/fundamentals/api/get-started/create-token/ "The token secret is only shown once"
-  await ctx.write(API_TOKEN, id, {
+  const made = await ctx.create('ApiToken', (id) => ({
     id, name: input.name, policies: input.policies, status: 'active', issued_on: ctx.occurredAt,
     modified_on: ctx.occurredAt, ...(input.expires_on ? { expires_on: input.expires_on } : {}),
     ...(input.not_before ? { not_before: input.not_before } : {}),
     _kind: input.kind, _owner: input.owner, _account: input.account ?? null,
     _user: ctx.rowsRaw('cf_user').find(user => user.email === input.owner)?.id ?? null, _custody: serial,
     _sha256: ctx.crypto.sha256(value), deleted: false,
-  }, 'api_token.create');
-  return { token: ctx.row(API_TOKEN, id)!, value };
+  }), 'api_token.create');
+  await ctx.record('_credential_issue', { token_id: made.id }, serial);
+  return { token: ctx.row(API_TOKEN, String(made.id))!, value };
 }
 export async function rollApiToken(ctx: HandlerContext, token: Row): Promise<string> {
   const serial = await ctx.record('_credential_issue', { token_id: token.id });
