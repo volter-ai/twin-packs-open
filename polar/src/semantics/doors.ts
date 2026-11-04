@@ -58,13 +58,13 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   return Response.json({ access_token: key.secret }, { status: 201 });
 }
 
-/** GET /_twin/deliveries[?to=<url>][&type=<event>]: every webhook Polar sent (the kernel's record of each delivery, in
- *  the order sent): what the application's server was told, and when. */
+/** GET /_twin/deliveries[?to=<url>][&type=<event>]: webhooks accepted by the application's server, in send order,
+ *  with their headers, body and send time. */
 export async function deliveries(ctx: HandlerContext): Promise<Response> {
   if (!await settingsOrganization(ctx)) return fail(401, 'Unauthorized', 'Unauthorized');
   const q = new URL(ctx.call.request.url).searchParams;
   const rows = ctx.rowsRaw('_webhook_delivery')
-    .filter((d) => (q.get('to') === null || d.url === q.get('to')) && (q.get('type') === null || d.event_type === q.get('type')))
+    .filter((d) => typeof d.accepted_at === 'number' && (q.get('to') === null || d.url === q.get('to')) && (q.get('type') === null || d.event_type === q.get('type')))
     .sort((a, b) => Number(a.sent_at) - Number(b.sent_at));
   return Response.json({ data: rows.map((d) => ({ url: d.url, type: d.event_type, sent_at: d.sent_at, headers: d.headers, body: JSON.parse(String(d.body)) })) });
 }
