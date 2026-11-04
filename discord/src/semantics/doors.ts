@@ -64,13 +64,15 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
         const label = organization.id.length < 2 ? `user_${organization.id}` : organization.id;
         const create = async (suffixed: boolean) => {
           const username = ctx.vendorName(label, rule, { suffixed, identity: organization.id });
-          if (person(ctx, username)) return undefined;
-          return ctx.createUnique(USER, { username, _username: username, email, global_name: null, avatar: null }, 'user.create');
+          const existing = person(ctx, username);
+          if (existing) return String(existing.email ?? '').toLowerCase() === email ? existing : undefined;
+          const made = await ctx.createUnique(USER, { username, _username: username, email, global_name: null, avatar: null }, 'user.create');
+          return made.created || String(made.row.email ?? '').toLowerCase() === email ? made.row : undefined;
         };
         let made = await create(false);
-        if (!made?.created) made = await create(true);
-        if (!made?.created) throw bad(`Username is unavailable. Try adding numbers, letters, underscores _, or periods. (${organization.id})`, 409);
-        return String(made.row.id);
+        if (!made) made = await create(true);
+        if (!made) throw bad(`Username is unavailable. Try adding numbers, letters, underscores _, or periods. (${organization.id})`, 409);
+        return String(made.id);
       });
       app = await ctx.deploymentObject(`application:${owner.id}`, APP, async (deployment) => String((await makeApplication(ctx, deployment || 'World App', owner, b)).id));
     } else {
