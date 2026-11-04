@@ -4,7 +4,7 @@
 - **Upstream:** https://github.com/slackapi/slack-api-specs, `web-api/slack_web_openapi_v2.json` on `master`.
 - **Spec version:** `1.7.0` (`info.version`); base `https://slack.com/api`. Slack no longer maintains
   this document, so it lags the live API; the twin's own methods beyond it are declared in the manifest.
-- **SHA-256 of the uncompressed document:** `742a5c977180a829df8767cf57bc417d99b3713583aee83741efb9c08ca731e7`.
+- **SHA-256 of the original uncompressed document:** `742a5c977180a829df8767cf57bc417d99b3713583aee83741efb9c08ca731e7`.
 - **Corrections:** `patches.json` (RFC 6902, each with its reason), applied before the IR.
 - **Read by:** `bun scripts/derive-pack.ts slack`, which writes `../src/generated/surface.gen.json`.
 - **File:** `scopes.json`, Slack's permission scopes with the description each has in Slack's scopes reference
@@ -13,7 +13,7 @@
 
 Authored OAuth consent layout, reference read 2026-10-08: the firsthand installation screenshot in https://orkes.io/blog/automating-slack-greetings-to-community-with-orkes-conductor/ (2024-04-17). https://docs.slack.dev/authentication/installing-with-oauth/ owns the grant and callback behavior. Existing scope codes are shown in expandable permission groups; no optional grant selector or different workspace is fabricated. No vendor image, DOM or scripts are shipped.
 
-Browser entry for an existing member follows Slack's email-confirmation procedure at https://slack.com/help/articles/212681477-Sign-in-to-Slack (read 2026-10-08): email, the code in mail, then a browser session. The twin's existing mail door carries the code; the shared kernel person/session kit owns the cookie. Client bearer tokens remain supported. The challenge identity, cookie name, six-digit format and ten-minute World-time expiry are twin decisions. SSO, passkeys, Apple/Google sign-in and switching multiple workspaces remain outside this screen's scope. No real mail or identity provider is contacted.
+Browser entry for an existing member follows Slack's email-confirmation procedure at https://slack.com/help/articles/212681477-Sign-in-to-Slack (read 2026-10-08): email, the code in mail, then a browser session. The twin's existing mail door carries the code; the shared kernel person/session kit owns the cookie. Client bearer tokens remain supported. The challenge identity, cookie name, six-digit format and ten-minute World-time expiry are twin decisions. SSO, passkeys, Apple/Google sign-in and a workspace chooser remain outside this screen's scope. No real mail or identity provider is contacted.
 
 Conversation layout and message content use public Slack references, read 2026-10-10:
 
@@ -37,3 +37,7 @@ existing links and visibility-aware mentions. Plain-text fields are unchanged. A
 and full mrkdwn parity remain outside this renderer.
 Full Block Kit behavior and rich-text composition are not claimed. New-DM forms, file names, edit
 markers, API submission, member identity and routing retain the existing conversation implementation.
+
+## Credential-like captured example
+
+The exact archive sweep flags `/paths/~1oauth.v2.access/get/responses/200/examples/application~1json/access_token` in the original uncompressed `openapi.json.gz`. Only that string is replaced by `<bot-token-issued-at-runtime>`; all other uncompressed bytes, schema fields and the upstream locator stay unchanged. The original capture is retained outside the archive beside the release custody record. The OAuth handler (`src/semantics/oauth.ts`) issues its own bot token through `mintToken` and never serves the captured example, so client response formats remain unchanged.
