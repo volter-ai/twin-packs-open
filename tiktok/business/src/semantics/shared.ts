@@ -2,7 +2,7 @@
 // Business's envelope (`{code, message, request_id, data}`, a refusal a non-zero code at HTTP 200) and who a request is
 // (its Access-Token, a business app's, and the business_id it names).
 import type { HandlerContext } from '@volter/world-core';
-import { ACCESS, ACCESS_TTL, APP, CODE, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, bodyOf, bySha, clientSecret, credential, mediaUrl, next, openIdOf, privacyOptions, seconds, type Row, videoMoment, videoPage } from '../../../src/semantics/shared.ts';
+import { ACCESS, ACCESS_TTL, APP, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, bodyOf, bySha, clientSecret, credential, mediaUrl, next, openIdOf, seconds, type Row, videoMoment } from '../../../src/semantics/shared.ts';
 
 export * from '../../../src/semantics/shared.ts';
 export type { HandlerContext };
@@ -79,7 +79,7 @@ export const postsFields = ['item_id', 'create_time', 'thumbnail_url', 'share_ur
 export const publishObj = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? v as Row : {});
 
 /** Pull each URL through the World; the bytes pulled, or undefined when one fails. */
-export async function pullAll(ctx: HandlerContext, urls: string[]): Promise<number | undefined> {
+async function pullAll(ctx: HandlerContext, urls: string[]): Promise<number | undefined> {
   let n = 0;
   for (const url of urls) {
     try {
@@ -92,7 +92,7 @@ export async function pullAll(ctx: HandlerContext, urls: string[]): Promise<numb
 }
 
 /** The video a completed pull makes (the Video Object, as the open lane makes them), public; its id. */
-export async function madeVideo(ctx: HandlerContext, publishId: string, post: Row, person: Row): Promise<string> {
+async function madeVideo(ctx: HandlerContext, publishId: string, post: Row, person: Row): Promise<string> {
   const videoId = String(7_400_000_000_000_000_000 + (await next(ctx, 'video')) * 1024);
   const caption = typeof post.caption === 'string' ? post.caption : '';
   await ctx.write(VIDEO, videoId, {

@@ -1,5 +1,5 @@
 import type { HandlerContext } from '@volter/world-core';
-import { ACCESS, ACCESS_TTL, APP, CODE, DEFAULT, NO_PERMISSION, PARAM, PERSON, PUBLISH, REFRESH, REFRESH_TTL, VIDEO, appOf, authorized, bodyOf, bySha, clientSecret, credential, issue, jsonArray, madeVideo, mediaUrl, next, ok, openIdOf, postsFields, privacyOptions, profileFields, publish, publishObj, pullAll, refuse, seconds, type Row, videoMoment, videoPage } from './shared.ts';
+import { CODE, DEFAULT, NO_PERMISSION, PARAM, PERSON, PUBLISH, REFRESH, VIDEO, appOf, authorized, bodyOf, bySha, issue, jsonArray, mediaUrl, ok, postsFields, privacyOptions, profileFields, publish, publishObj, refuse, seconds, type Row, videoPage } from './shared.ts';
 
 // source: https://business-api.tiktok.com/gateway/api/doc/client/node/get/v2/?identify_key=c0138ffadd90a955c1f0670a56fe348d1d40680b3c89461e09f78ed26785164b&doc_id=1738084387220481&language=ENGLISH "The code is valid for 10 minutes and can only be used once."
 export async function ttUserOauth2Token(ctx: HandlerContext): Promise<Response> {

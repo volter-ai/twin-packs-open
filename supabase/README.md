@@ -34,11 +34,13 @@ walks RH2's own statements on it).
 ## What is served
 
 - **The database.** The runtime binds the twin to the World's managed Postgres (`managedDatabase`: `serve --database
-  <url>`), and the application connects to that database with any Postgres client. Under the containerless backing its
-  clock follows the World clock. Database-generated randomness belongs to the backing and is not pinned; use explicit
+  <url>`), and the application connects to that database with any Postgres client. PostgreSQL uses wall time.
+  Database-generated randomness belongs to the backing and is not pinned; use explicit
   stable fixture IDs when comparing fresh Worlds (twin-world architecture, SQL steps).
-- **The door.** `POST /_twin/app-credentials` (the descriptor's `credentialDoor`, called by the runtime at every boot):
-  makes the World's project `world` the first time and answers `{ ref, database_url }`, filling `SUPABASE_DB_URL`.
+- **The door.** `POST /_twin/app-credentials` (the descriptor's `credentialDoor`, used by the runtime to issue deployment values):
+  accepts `{ account, deployment }` and retains a project with its own Postgres database and login role for that
+  deployment. A direct `{}` call uses project `world` and the bound database. It answers `{ ref, database_url }`,
+  filling `SUPABASE_DB_URL`.
 - **Not served** (the gap): every operation of the Management API (`api.supabase.com/v1`), PostgREST (`/rest/v1`),
   Storage (`/storage/v1`) and Auth (`/auth/v1`), each answering its unit's own unknown-route error
   (`journeys/decisions.json`); Realtime and Edge Functions (their paths are not claimed, so the injector refuses them).
