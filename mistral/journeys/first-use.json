@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://unpkg.com/@mistralai/mistralai@2.7.0/README.md",
+  "about": "A Node application uses the unchanged official @mistralai/mistralai 2.7.0 client with the issued MISTRAL_API_KEY. Chat complete and stream calls assert the twin's explicitly labelled deterministic response, normal stop reason and usage through the SDK's native parsed fields. No model runs and this establishes client and wire behavior, not answer quality.",
+  "files": {
+    "package.json": "{\n  \"name\": \"mistral-chat-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@mistralai/mistralai\": \"2.7.0\"\n  }\n}\n",
+    ".env.example": "MISTRAL_API_KEY=\n",
+    "chat.mjs": "import assert from 'node:assert/strict';\nimport { Mistral } from '@mistralai/mistralai';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nassert.ok(process.env.MISTRAL_API_KEY, 'the application receives its own API key');\nconst client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });\nconst model = 'mistral-small-latest';\nconst prompt = 'Explain the purpose of this customer workflow.';\nconst messages = [{ role: 'user', content: prompt }];\nconst expected = '[twin-stub:' + model + '] This is a deterministic stub from the Mistral API twin (no model runs). Your last message: ' + prompt;\nconst response = await client.chat.complete({ model, messages });\nassert.equal(response.model, model);\nassert.equal(response.choices[0].message.content, expected);\nassert.equal(response.choices[0].finishReason, 'stop');\nassert.ok(response.usage.promptTokens > 0 && response.usage.completionTokens > 0);\nconst stream = await client.chat.stream({ model, messages });\nlet text = '', finishReason, usage;\nfor await (const event of stream) {\n  for (const choice of event.data.choices) {\n    text += choice.delta.content ?? '';\n    finishReason = choice.finishReason ?? finishReason;\n  }\n  if (event.data.usage) usage = event.data.usage;\n}\nassert.equal(text, expected);\nassert.equal(finishReason, 'stop');\nassert.ok(usage.promptTokens > 0 && usage.completionTokens > 0);\nconsole.log(JSON.stringify({ model, text, finishReason, usage }));\n"
+  },
+  "run": [
+    "node",
+    "chat.mjs"
+  ],
+  "retention": {
+    "none": "The served chat-completion API returns stateless computed answers and exposes no completion retrieval. Its private completion identifiers and API-key bookkeeping are not stored application conversations."
+  }
+}
