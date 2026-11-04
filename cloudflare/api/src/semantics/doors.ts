@@ -66,12 +66,12 @@ export async function dns(ctx: HandlerContext): Promise<Response> {
   return Response.json({ published: `${name} ${type}` }, { status: 201 });
 }
 
-/** GET /_twin/deliveries[?to=<url>][&type=<event>]: every notification Cloudflare sent a webhook destination (the
- *  kernel's record of each delivery, in the order sent), its headers and body as the receiving server got them. */
+/** GET /_twin/deliveries[?to=<url>][&type=<event>]: notifications accepted by a webhook destination, in send order,
+ *  with the headers and body its receiving server got. */
 export async function deliveries(ctx: HandlerContext): Promise<Response> {
   const q = new URL(ctx.call.request.url).searchParams;
   const rows = ctx.rowsRaw('_notification_delivery')
-    .filter((d) => (q.get('to') === null || d.url === q.get('to')) && (q.get('type') === null || d.event_type === q.get('type')))
+    .filter((d) => typeof d.accepted_at === 'number' && (q.get('to') === null || d.url === q.get('to')) && (q.get('type') === null || d.event_type === q.get('type')))
     .sort((a, b) => Number(a.sent_at) - Number(b.sent_at));
   return Response.json({ data: rows.map((d) => ({ url: d.url, type: d.event_type, sent_at: d.sent_at, headers: d.headers, body: JSON.parse(String(d.body)) })) });
 }
