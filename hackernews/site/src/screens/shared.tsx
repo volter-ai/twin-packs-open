@@ -31,7 +31,7 @@ export function age(time: unknown, now: number): string {
 /** The instant itself, as the age's title holds it. */
 const instant = (time: unknown): string => new Date(Number(time) * 1000).toISOString().slice(0, 19);
 /** The site a story links to, as the site names it beside the title. */
-export function siteOf(url: unknown): string {
+function siteOf(url: unknown): string {
   try { return new URL(String(url)).hostname.replace(/^www\./, ''); } catch { return ''; }
 }
 
@@ -46,7 +46,7 @@ const SKIN = `${SIGN_IN_CSS}
 
 /** A page of the site: the orange bar (the person signed in and their karma, or login) and the page's body, its links
  *  and forms on the base the page was reached at (../semantics/shared.ts placedHtml). */
-export async function page(ctx: HandlerContext, title: string, body: ReactNode, status = 200): Promise<Response> {
+export async function page(ctx: HandlerContext, title: string, body: ReactNode): Promise<Response> {
   const user = who(ctx);
   const karma = user ? userOf(ctx, user)?.karma : undefined;
   // signed in, the bar names the person, their karma and the logout link (../semantics/shared.ts logoutLink)
@@ -59,12 +59,12 @@ export async function page(ctx: HandlerContext, title: string, body: ReactNode, 
       <span className="hn-right">{user ? <><a href={`user?id=${user}`}>{user}</a>&nbsp;({String(karma ?? 1)})&nbsp;|&nbsp;<a href={logout}>logout</a></> : <a href={`login?goto=${encodeURIComponent(gotoHere(ctx))}`}>login</a>}</span>
     </div>
   );
-  const drawn = flowPage({ title, css: [HN_CSS, SKIN], body: <div className="hn">{top}<div className="hn-body">{body}</div></div>, status });
-  return new Response(placedHtml(await drawn.text(), placeOf(ctx)), { status, headers: drawn.headers });
+  const drawn = flowPage({ title, css: [HN_CSS, SKIN], body: <div className="hn">{top}<div className="hn-body">{body}</div></div> });
+  return new Response(placedHtml(await drawn.text(), placeOf(ctx)), { headers: drawn.headers });
 }
 
 /** This page's address as a goto: its path (without the slash) and query. */
-export function gotoHere(ctx: HandlerContext): string {
+function gotoHere(ctx: HandlerContext): string {
   const url = new URL(ctx.call.request.url);
   // the login page's own login link returns where the page does
   if (url.pathname.replace(/\/+$/, '') === '/login') return url.searchParams.get('goto') || 'news';
@@ -72,7 +72,7 @@ export function gotoHere(ctx: HandlerContext): string {
 }
 
 /** The site's plain answer for what it does not have ("No such item.", "Unknown."). */
-export const plain = (text: string, status = 200): Response => new Response(text, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+const plain = (text: string, status = 200): Response => new Response(text, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 // each answer in a function of its own, so one no step draws is measured as not drawn
 /** news.ycombinator.com/item?id=999999999999 answers "No such item." as text (read 2026-10-02). */
 export function noSuchItemPage(): Response {

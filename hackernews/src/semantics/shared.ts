@@ -21,7 +21,7 @@ type Reader = Pick<HandlerContext, 'row' | 'rowsRaw' | 'own'>;
 
 export const ITEM = 'item';
 export const USER = 'user';
-export const VOTE = '_vote';
+const VOTE = '_vote';
 /** Hacker News's session cookie. */
 export const COOKIE = 'user';
 /** The implicit organization's retained Hacker News handle. */
@@ -38,8 +38,8 @@ export function wire(ctx: Pick<HandlerContext, 'own'>, row: Row): Row {
   return Object.fromEntries(Object.entries({ ...(own.id === undefined ? { id: row.id } : {}), ...own }).filter(([k]) => !k.startsWith('_') && k !== 'deleted' && k !== 'updatedAt'));
 }
 
-export const itemRow = (ctx: Reader, id: unknown): Row | undefined => (/^\d+$/.test(String(id)) ? ctx.row(ITEM, String(id)) : undefined);
-export const userRow = (ctx: Reader, name: string): Row | undefined => ctx.row(USER, name);
+const itemRow = (ctx: Reader, id: unknown): Row | undefined => (/^\d+$/.test(String(id)) ? ctx.row(ITEM, String(id)) : undefined);
+const userRow = (ctx: Reader, name: string): Row | undefined => ctx.row(USER, name);
 /** Every item, as the API answers it. */
 export const allItems = (ctx: Reader): Row[] => ctx.rowsRaw(ITEM).map((r) => wire(ctx, r));
 export const itemOf = (ctx: Reader, id: unknown): Row | undefined => { const r = itemRow(ctx, id); return r ? wire(ctx, r) : undefined; };
@@ -49,9 +49,9 @@ export const userOf = (ctx: Reader, name: string): Row | undefined => { const r 
 
 const isStory = (i: Row): boolean => i.type === 'story' && i.dead !== true;
 // source: https://news.ycombinator.com/showhn.html "To post, submit a story whose title begins with"
-export const isShow = (i: Row): boolean => isStory(i) && String(i.title ?? '').startsWith('Show HN');
+const isShow = (i: Row): boolean => isStory(i) && String(i.title ?? '').startsWith('Show HN');
 // source: https://news.ycombinator.com/newsfaq.html "Ask HN lists questions and other text submissions."
-export const isAsk = (i: Row): boolean => isStory(i) && !i.url && !isShow(i);
+const isAsk = (i: Row): boolean => isStory(i) && !i.url && !isShow(i);
 
 /** A post's rank at an instant: Hacker News's frontpage-rank, from the source of the site it published (news.arc, in
  *  the Arc distribution, arclanguage/anarki's official branch). */
@@ -109,7 +109,7 @@ export function signedInAs(ctx: HandlerContext): string | undefined {
 
 /** Signed in: a session recorded as @volter/world-ui's kit records one (its `_web_session` row, its token a World
  *  secret), the `user` cookie set, and on to `next`. */
-export async function beginSession(ctx: HandlerContext, acct: string, next: string): Promise<Response> {
+async function beginSession(ctx: HandlerContext, acct: string, next: string): Promise<Response> {
   return new Response(null, { status: 302, headers: { location: onSite(ctx, next), 'set-cookie': await sessionCookie(ctx, acct) } });
 }
 
@@ -196,7 +196,7 @@ async function submitted(ctx: HandlerContext, by: string, id: number): Promise<v
 // source: https://raw.githubusercontent.com/arclanguage/anarki/622704867effa642c99ecf6aefc6a5f5f698650a/app.arc "Returns the index of the first char not part of the url beginning"
 // source: https://raw.githubusercontent.com/arclanguage/anarki/622704867effa642c99ecf6aefc6a5f5f698650a/app.arc "(and (punc c) (whitec (s (+ i 1))))"
 // source: https://raw.githubusercontent.com/arclanguage/anarki/622704867effa642c99ecf6aefc6a5f5f698650a/app.arc "Treats a delimiter as part of a url if it is (a) an open delimiter"
-export function urlEnd(s: string, start: number): number {
+function urlEnd(s: string, start: number): number {
   const punc = (c: string | undefined): boolean => c !== undefined && '.,;:!?'.includes(c);
   const white = (c: string | undefined): boolean => c !== undefined && ' \n\t\r'.includes(c);
   const open = (c: string | undefined): boolean => c !== undefined && '<([{'.includes(c);
@@ -219,7 +219,7 @@ export function urlEnd(s: string, start: number): number {
 /** Where indented code begins at `i`, after a paragraph break (two newlines) and two spaces or more: the index of its
  *  first character and the spaces before it (app.arc's indented-code). */
 // source: https://raw.githubusercontent.com/arclanguage/anarki/622704867effa642c99ecf6aefc6a5f5f698650a/app.arc "(if (and (> newlines 1) (> spaces 1)) (list i spaces) nil)"
-export function indentedCode(s: string, i: number, newlines: number): [number, number] | undefined {
+function indentedCode(s: string, i: number, newlines: number): [number, number] | undefined {
   let spaces = 0;
   for (let at = i; ; at++) {
     const c = s[at];
@@ -232,7 +232,7 @@ export function indentedCode(s: string, i: number, newlines: number): [number, n
 /** The code that follows `i`: every character up to a newline before a line that is not indented, or the end
  *  (app.arc's code-block). */
 // source: https://raw.githubusercontent.com/arclanguage/anarki/622704867effa642c99ecf6aefc6a5f5f698650a/app.arc "(and (> left 2) (is (s (+ i 1)) #\newline) (nonwhite (s (+ i 2))))))"
-export function codeBlock(s: string, i: number): string {
+function codeBlock(s: string, i: number): string {
   let out = '';
   for (;;) {
     const left = s.length - i - 1;
@@ -311,7 +311,7 @@ export async function postStory(ctx: HandlerContext, by: string, fields: { title
 /** A parent's comments in ranked display order at this instant: Hacker News sorts a thread's kids by the same rank. */
 // source: https://news.ycombinator.com/newsfaq.html "Comments in threads are ranked the same way."
 // source: https://raw.githubusercontent.com/arclanguage/anarki/622704867effa642c99ecf6aefc6a5f5f698650a/news.arc "(each k (sort (compare > frontpage-rank:item) c!kids)"
-export function rankedKids(ctx: Reader, parent: unknown, now: number): number[] {
+function rankedKids(ctx: Reader, parent: unknown, now: number): number[] {
   return ctx.rowsRaw(ITEM).filter((r) => Number(r.parent) === Number(parent) && r.dead !== true).map((r) => ({ r, w: wire(ctx, r) }))
     .sort((a, b) => rank(b.w, Number(b.r._points ?? 1), now) - rank(a.w, Number(a.r._points ?? 1), now) || Number(b.w.time) - Number(a.w.time) || Number(b.w.id) - Number(a.w.id))
     .map((x) => Number(x.w.id));
@@ -327,7 +327,7 @@ export function itemAt(ctx: Reader, id: unknown, now: number): Row | undefined {
 }
 
 /** A comment on a story or a reply to a comment: the parent's kids ranked again, the story's descendants counted. */
-export async function postComment(ctx: HandlerContext, by: string, parent: Row, text: string): Promise<number> {
+async function postComment(ctx: HandlerContext, by: string, parent: Row, text: string): Promise<number> {
   const id = Number(ctx.mint(ITEM));
   const now = unixOf(ctx.occurredAt);
   const story = storyOf(ctx, parent)!;
@@ -444,7 +444,7 @@ export const placeOf = (ctx: Pick<HandlerContext, 'call' | 'publicBase'>): strin
 
 /** A page of the site (`news`, `item?id=5`): written relative on its own host, as the site writes it; on the base at a
  *  World's place. */
-export const onSite = (ctx: Pick<HandlerContext, 'call' | 'publicBase'>, page: string): string => {
+const onSite = (ctx: Pick<HandlerContext, 'call' | 'publicBase'>, page: string): string => {
   const base = placeOf(ctx);
   return base === undefined ? page : `${base}/${page.replace(/^\/+/, '')}`;
 };
@@ -498,14 +498,15 @@ export const logoutAuthOf = (ctx: Minter, user: string): Promise<string> => toke
 
 /** A page of the site: the top bar (the person signed in, their karma and logout, or login back to `goto`) and its body. */
 // source: https://raw.githubusercontent.com/arclanguage/anarki/622704867effa642c99ecf6aefc6a5f5f698650a/news.arc "(when showkarma (pr \"&nbsp;(@(karma user))\"))"
-export async function sitePage(ctx: Pick<HandlerContext, 'call' | 'publicBase' | 'secret' | 'crypto' | 'row' | 'rowsRaw' | 'own'>, title: string, body: string, user: string | undefined, goto = 'news', status = 200): Promise<Response> {
+async function sitePage(ctx: Pick<HandlerContext, 'call' | 'publicBase' | 'secret' | 'crypto' | 'row' | 'rowsRaw' | 'own'>, title: string, body: string, user: string | undefined): Promise<Response> {
+  const goto = 'news';
   const karma = user ? userOf(ctx, user)?.karma : undefined;
   const right = user
     ? `<a href="user?id=${esc(user)}">${esc(user)}</a>&nbsp;(${esc(karma ?? 1)})&nbsp;|&nbsp;<a href="${esc(await logoutLink(ctx, user, goto))}">logout</a>`
     : `<a href="login?goto=${esc(encodeURIComponent(goto))}">login</a>`;
   const top = `<div class="hn-top"><a class="hn-logo" href="news">Y</a><b class="hn-name"><a href="news">Hacker News</a></b><a href="newest">new</a> | <a href="show">show</a> | <a href="submit">submit</a><span class="hn-right">${right}</span></div>`;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${esc(title)}</title><style>${HN_CSS}</style></head><body><div class="hn">${top}<div class="hn-body">${body}</div></div></body></html>`;
-  return new Response(placedHtml(html, placeOf(ctx)), { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
+  return new Response(placedHtml(html, placeOf(ctx)), { headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 
 /** A logout that signs no one out (nobody signed in, or a link not drawn for the person who is): on to the page, as the

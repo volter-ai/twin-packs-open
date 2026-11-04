@@ -1,12 +1,10 @@
 // The World's doors (architecture, "Doors, screens and the gap"): what Gateway's dashboard does. An organization on the
 // Pro plan with its prepaid credit, and its API key (the API keys page).
 import type { HandlerContext } from '@volter/world-core';
-import { KEY, ORG, sha256 } from './shared.ts';
+import { KEY, obj, ORG, sha256 } from './shared.ts';
 
 const keyValue = async (ctx: Pick<HandlerContext, 'secret'>, id: string): Promise<string> =>
   `mg_${(await ctx.secret(`merge-api-key:${id}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 40)}`;
-
-const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {});
 
 /** An organization with its credit in USD (10 when unsaid, a month's included credit), the gated providers support has
  *  granted it (`access`, e.g. ['anthropic']; a grant is asked of support, not the API), and its API key: `mg_` and 40

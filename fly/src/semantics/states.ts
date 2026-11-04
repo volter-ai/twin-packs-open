@@ -7,7 +7,7 @@ const VOLUMES = 'https://docs.fly.io/machines/api/volumes-resource/';
 /** A Machine's `state`: created, then launched (Fly starts it unless told not to); stopped and started by the API; a
  *  machine whose process exits stops on its own, and one with auto_destroy is then destroyed; destroyed is final. The
  *  transient states (starting, stopping, destroying) pass within the request here. */
-export const machineState: StateField = {
+const machineState: StateField = {
   initial: 'created',
   transitions: [
     { actor: 'vendor', from: ['created'], to: 'started', source: `${STATES} "Machines are launched automatically upon creation"` },
@@ -27,7 +27,7 @@ export const machineState: StateField = {
 /** A Volume's `state`: created; deleted, it is pending_destroy until Fly removes it. Where the documentation stops: the
  *  reference says only "This action cannot be undone"; the lingering pending_destroy state is the API's as Substrate
  *  observed and records it (packages/sandboxes/src/fly-provider.ts, "a deleted volume lingers as pending_destroy"). */
-export const volumeState: StateField = {
+const volumeState: StateField = {
   initial: 'created',
   transitions: [
     { operation: 'Volume_delete', from: ['created'], to: 'pending_destroy', source: `${VOLUMES} "Delete a volume. This action cannot be undone."` },

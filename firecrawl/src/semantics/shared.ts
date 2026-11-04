@@ -9,7 +9,6 @@ export function accountFor(ctx: HandlerContext): Promise<Record<string, unknown>
 export type Row = Record<string, unknown>;
 export const KEY = '_api_key';
 export const PAGE = '_web_page';
-const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string => ctx.crypto.digest('sha256', v, 'hex');
 
 // Where the documentation stops: a key is `fc-` and 32 hexadecimal digits, the form the dashboard shows; the World keeps it
 // by its SHA-256 and draws it from a secret it holds.

@@ -26,6 +26,28 @@ Only public documentation was read; no vendor sign-in, upstream DOM, script or i
   page's URL and the page's words for what it does, read with twin-standard's `read-page`. **Read by:**
   `bun scripts/vendor-examples.ts stripe`.
 
+## Credential example redactions
+
+The upstream locator and fixture capture hash above describe the original capture. The packaged fixture replaces only
+the following string scalars; all other uncompressed fixture bytes are preserved. The journey changes only the listed
+request, name and refusal assertions. Unmodified originals are retained outside the package.
+
+| File | JSON pointer | Replacement | Reason |
+| --- | --- | --- | --- |
+| `fixtures3.json.gz` | `/resources/account_session/client_secret` | `<example-account-session-client-secret>` | Captured account-session credential; replace its credential-shaped sample with an explicit inert string. |
+| `fixtures3.json.gz` | `/resources/customer_session/client_secret` | `<example-customer-session-client-secret>` | Captured customer-session credential; replace its credential-shaped sample with an explicit inert string. |
+| `fixtures3.json.gz` | `/resources/payment_intent/client_secret` | `<example-payment-intent-client-secret>` | Captured PaymentIntent credential; runtime intents issue their own id-bearing client secret. |
+| `fixtures3.json.gz` | `/resources/setup_intent/client_secret` | `<example-setup-intent-client-secret>` | Captured SetupIntent credential; runtime intents issue their own id-bearing client secret. |
+| `fixtures3.json.gz` | `/resources/terminal.connection_token/secret` | `<example-terminal-connection-token>` | Captured Terminal connection credential; replace its credential-shaped sample with an explicit inert string. |
+| `../journeys/customer-life.json` | `/steps/210/headers/authorization` | `Bearer {sk}-retired1234` | Corrupt the native key already captured at step 1 at test time; the appended suffix cannot authenticate as that issued key. No credential literal is retained. |
+| `../journeys/customer-life.json` | `/steps/210/name` | `A corrupted generated secret key fails the dashboard’s customer read` | Describe the generated-key corruption used by the negative request. |
+| `../journeys/customer-life.json` | `/steps/210/expect/0/equals` → `/steps/210/expect/0/contains` | `Invalid API Key provided: sk_test_` | Keep the invalid-key refusal and prefix-redaction assertion without pinning the generated credential's length. |
+| `../journeys/customer-life.json` | `/steps/210/expect/1` | `{ "path": "error.message", "contains": "1234" }` | Keep the original last-four-digits redaction assertion alongside the unchanged 401 status. |
+
+`fixtures3.json.gz` is read by the vendor-example tooling, not the response handlers. Its credential values remain
+strings. PaymentIntent and SetupIntent handlers use `mintClientSecret(id, ctx.secret(...))`, retaining the id that
+Stripe.js parses before `_secret_`; they do not serve captured fixture credentials.
+
 Screen references, read 2026-10-08: [Stripe's hosted-onboarding guide](https://docs.stripe.com/connect/hosted-onboarding), its hosted_onboarding_form.e59ba8300f563e43489953f06127f52c.png image, supplies the two-column layout, progress and sequential form. The image's example platform branding is configurable; this screen retains the Stripe skin. Back/Continue keep local form answers; only the existing final submit changes the connected account. The existing US requirements and refusal behavior remain the contract. No upstream page, image or script is shipped.
 
 Dashboard references, read 2026-10-08: [the Web Dashboard guide](https://docs.stripe.com/dashboard/basics) supplies the primary sidebar categories, Shortcuts and Settings. The public [Stripe Apps testing guide](https://docs.stripe.com/stripe-apps/test-app), image `test-app-uninstall.710b89177767cff3a7f53de749558d88.png`, illustrates the earlier horizontal navigation, settings breadcrumbs, form density and type; its publication date is unspecified, and it is not a current Public details screenshot. The authored shell follows the current documented sidebar, while the controls remain the existing public business name, Radar list creation and test Issuing funding. The declared root opens Public details; other Dashboard products are unavailable, and there are no invented analytics. [Radar Lists](https://docs.stripe.com/radar/lists) supplies New, name, alias, type and Add. No upstream image, DOM, script or account sign-in is shipped.
