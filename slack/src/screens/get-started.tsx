@@ -7,10 +7,10 @@
 // Where the documentation stops and the twin decides: the World's first workspace is `T0VOLTER01`;
 // it is named for the email's domain (`kiln.studio` → Kiln, domain `kiln`); the person's id is the one their client
 // token names. Each workspace has a unique URL.
-import type { HandlerContext } from '@volter/world-core';
+import { startBrowserSession, type HandlerContext } from '@volter/world-core';
 import { HOME_TEAM } from '../engine/wire.ts';
 import { makeWorkspace } from '../semantics/shared.ts';
-import { field, page, refused, visitor } from './shared.tsx';
+import { CLIENT_COOKIE, field, page, refused, visitor } from './shared.tsx';
 
 const form = (ctx: HandlerContext, error?: string): Response => page('Create a workspace', (
   <>
@@ -36,8 +36,12 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const email = field(ctx, 'email').trim().toLowerCase();
   const name = field(ctx, 'name').trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !name) return form(ctx, 'Enter your work email and your full name.');
+  const profile = who.row?.profile as Record<string, unknown> | undefined;
+  if (who.row && String(profile?.email ?? '').toLowerCase() !== email) return form(ctx, 'Use the email address you signed in with.');
   const label = email.split('@')[1]!.split('.')[0]!;
   const made = await makeWorkspace(ctx, ctx.get('team', HOME_TEAM) ? undefined : HOME_TEAM, { id: who.id, email, name }, { name: label[0]!.toUpperCase() + label.slice(1), domain: label });
   if (!made) return refused(409, 'This workspace URL is already in use.');
-  return page('Your workspace is ready', <><h1>Your workspace is ready</h1><p className="sk-lead">Welcome to Slack, {name}.</p><p><a href={`${ctx.publicBase}/client/${made.team}/${made.general}`}>Open Slack</a></p></>, 201);
+  const response = page('Your workspace is ready', <><h1>Your workspace is ready</h1><p className="sk-lead">Welcome to Slack, {name}.</p><p><a href={`${ctx.publicBase}/client/${made.team}/${made.general}`}>Open Slack</a></p></>, 201);
+  if (!ctx.call.request.headers.has('authorization')) response.headers.set('set-cookie', await startBrowserSession(ctx, email, CLIENT_COOKIE, made.team));
+  return response;
 }
