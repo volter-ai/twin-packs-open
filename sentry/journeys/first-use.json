@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "source": "https://docs.sentry.io/platforms/javascript/guides/node/usage/",
+  "about": "A Node application uses Twenty's demanded @sentry/node 10.73.0 to capture and flush a scoped exception using its issued SENTRY_DSN. The documented project-event API reads the resulting event with the issued SENTRY_AUTH_TOKEN. Resume reads the same event ID and asserts the exception, user and application tag without submitting another envelope.",
+  "files": {
+    "package.json": "{\n  \"name\": \"sentry-exception-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@sentry/node\": \"10.73.0\"\n  }\n}\n",
+    ".env.example": "SENTRY_DSN=\nSENTRY_AUTH_TOKEN=\nSENTRY_ORG=\nSENTRY_PROJECT=\n",
+    ".gitignore": ".sentry-event.json\n",
+    "capture.mjs": "import assert from 'node:assert/strict';\nimport { writeFileSync } from 'node:fs';\nimport * as Sentry from '@sentry/node';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nassert.ok(process.env.SENTRY_DSN, 'the application receives its own project DSN');\nSentry.init({ dsn: process.env.SENTRY_DSN, defaultIntegrations: false });\nSentry.setUser({ id: 'customer-member' });\nSentry.setTag('application', 'customer-workflow');\nconst eventId = Sentry.captureException(new Error('Customer workflow exception'));\nassert.match(eventId, /^[a-f0-9]{32}$/i);\nassert.equal(await Sentry.close(5000), true, 'the SDK drains its exception envelope');\nwriteFileSync('.sentry-event.json', JSON.stringify({ eventId }) + '\\n');\nawait import('./readback.mjs');\n",
+    "readback.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync } from 'node:fs';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this application through its World.');\nconst { eventId } = JSON.parse(readFileSync('.sentry-event.json', 'utf8'));\n// https://docs.sentry.io/api/events/retrieve-an-event-for-a-project/\nconst url = 'https://sentry.io/api/0/projects/' + encodeURIComponent(process.env.SENTRY_ORG) + '/' + encodeURIComponent(process.env.SENTRY_PROJECT) + '/events/' + eventId + '/';\nconst response = await fetch(url, { headers: { authorization: 'Bearer ' + process.env.SENTRY_AUTH_TOKEN } });\nassert.equal(response.status, 200, 'the issued organization token reads its project event');\nconst event = await response.json();\nassert.equal(event.eventID, eventId);\nassert.equal(event.user.id, 'customer-member');\nassert.ok(event.tags.some(tag => tag.key === 'application' && tag.value === 'customer-workflow'));\nconst exception = event.entries.find(entry => entry.type === 'exception');\nassert.equal(exception.data.values[0].value, 'Customer workflow exception');\nassert.ok(exception.data.values[0].stacktrace.frames.length > 0, 'the SDK stack survives ingestion and resume');\nconsole.log(JSON.stringify({ eventId: event.eventID, exception: exception.data.values[0].value, retained: true }));\n"
+  },
+  "run": [
+    "node",
+    "capture.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "readback.mjs"
+    ]
+  }
+}
