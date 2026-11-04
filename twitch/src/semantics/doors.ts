@@ -104,12 +104,14 @@ export async function developerConsole(ctx: HandlerContext): Promise<Response> {
           return String(app.id);
         }
         const issue = await ctx.issue('_credential_issue');
-        await ctx.atomically((rows) => {
-          const row = rows(CLIENT_SECRET).find((row) => row.id === app.id);
-          if (row?._pending === true || row?.label !== before?.label || row?.sha256 !== before?.sha256) return { value: undefined };
-          return { value: undefined, write: { resource: CLIENT_SECRET, id: String(app.id), fields: {
-            _application: app.id, label: `client-secret:${app.id}:${issue}`, _pending: true, revoked: false, deleted: false }, operation: 'client_secret.reserve' } };
-        });
+        const reserved = { _application: app.id, label: `client-secret:${app.id}:${issue}`, _pending: true, revoked: false, deleted: false };
+        if (before) {
+          await ctx.change(CLIENT_SECRET, String(app.id), (row) =>
+            row._pending === true || row.label !== before.label || row.sha256 !== before.sha256 ? undefined : reserved,
+          'client_secret.reserve', { input: 'omit' });
+        } else {
+          await ctx.createUnique(CLIENT_SECRET, reserved, 'client_secret.reserve', { id: String(app.id), input: 'omit' });
+        }
         const row = ctx.row(CLIENT_SECRET, String(app.id))!;
         const value = await credentialString(ctx, String(row.label));
         await ctx.change(CLIENT_SECRET, String(app.id), (current) => current.label === row.label

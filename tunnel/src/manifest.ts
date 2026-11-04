@@ -29,7 +29,7 @@ export const manifest: DerivedManifest = {
     { id: 'control', path: '/ws', note: "a client's control channel: register, then answer each request the relay sends", source: 'https://github.com/volter-ai/volter-tunnel/blob/main/packages/core/src/protocol.ts' },
   ],
   doors: [
-    { id: 'accounts', method: 'POST', path: '/_twin/accounts', note: '{ slug }: an account on the relay and its token (the World application\'s TUNNEL_SECRET)' },
+    { id: 'accounts', method: 'POST', path: '/_twin/accounts', note: '{}: the default World account; { account, deployment? }: a retained World account; { slug }: an account on the relay and its token (the World application\'s TUNNEL_SECRET)' },
   ],
   discovery: {
     twinOf: "Volter's tunnel relay (volter-tunnel) as Volter Harness's remote access uses it: a client's control socket, and every request to its tunnel answered through it",

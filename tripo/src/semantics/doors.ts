@@ -15,9 +15,11 @@ export async function accounts(ctx: HandlerContext): Promise<Response> {
   const b = obj(ctx.body);
   const balance = b.balance === undefined ? 0 : Number(b.balance);
   if (!Number.isFinite(balance) || balance < 0) return invalidCredits();
-  const account = await ctx.tenant(ACCOUNT, async (world) => String((await ctx.create(ACCOUNT, {
-    email: world.members[0]!.toLowerCase(), name: world.label, balance, frozen: 0,
-  }, 'account.create')).id));
+  const account = b.account === undefined && b.deployment === undefined
+    ? await ctx.create(ACCOUNT, { balance, frozen: 0 }, 'account.create')
+    : await ctx.tenant(ACCOUNT, async (world) => String((await ctx.create(ACCOUNT, {
+      email: world.members[0]!.toLowerCase(), name: world.label, balance, frozen: 0,
+    }, 'account.create')).id));
   const key = await ctx.accountKey(`api-key:${account.id}`, '_api_key', {
     make: async () => {
       const id = await ctx.issue('_api_key');

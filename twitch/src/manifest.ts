@@ -74,6 +74,7 @@ export const manifest: DerivedManifest = {
     // source: https://dev.twitch.tv/docs/chat/irc/ "An ID that uniquely identifies the message."
     chat_message: { idPrefix: '', ids: '{uuid}', refresh: { none: "Twitch's API reads no chat message back: chat delivers each message as it is sent (IRC, EventSub)" } },
     // an application registered in the developer console, by its client id
+    _client_secret: { idPrefix: '', unique: [{ fields: ['_application'], refusal: { status: 409, message: 'Application already has a client secret.' } }] },
     application: { idPrefix: '', ids: '{letters:30}', refresh: { none: "Twitch's API reads no application back: the developer console makes and shows them" } },
   },
   // the World's doors (./semantics/doors.ts): what Twitch's sign-up, developer console and audience do outside its API

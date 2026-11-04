@@ -17,7 +17,7 @@ async function makeAccount(ctx: HandlerContext, slug: string, owner?: string): P
 export async function accounts(ctx: HandlerContext): Promise<Response> {
   const body = (ctx.body && typeof ctx.body === 'object' ? ctx.body : {}) as Record<string, unknown>;
   let account: Record<string, unknown>;
-  if (body.account === undefined && body.deployment === undefined) {
+  if (body.slug !== undefined && body.account === undefined && body.deployment === undefined) {
     const slug = String(body.slug ?? '');
     if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) return Response.json({ message: 'slug must be lowercase letters, digits and dashes' }, { status: 400 });
     const held = ctx.rowsRaw(ACCOUNT).find((row) => row.slug === slug);

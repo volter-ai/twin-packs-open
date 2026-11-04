@@ -11,5 +11,5 @@ account's id and a bad token are refused (4002 for ownership/collision, 4003 for
 
 The executable life checks public HTTP requests while its client answers on the control socket, including buffered pages and streamed command output. Relay authentication cookies and query parameters are removed before forwarding; visitor-supplied forwarded addresses are replaced by the edge address or the relay sentinel.
 
-The World's door: `POST /_twin/accounts` ({ slug }: an account and its token). The credential door answers TUNNEL_SECRET
+The World's door: `POST /_twin/accounts` (`{}`: the retained default World account; `{ account, deployment? }`: a retained World account; `{ slug }`: an account and its token). The credential door answers TUNNEL_SECRET
 and the relay URL (TUNNEL_SERVER_URL, SUPERCODE_TUNNEL_SERVER_URL).
