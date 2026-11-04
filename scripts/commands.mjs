@@ -46,22 +46,27 @@ export async function runOwnedCommand(command, args, options) {
   const terminate = () => interrupt('SIGTERM'), cancel = () => interrupt('SIGINT');
   process.on('SIGTERM', terminate);
   process.on('SIGINT', cancel);
-  const collect = (stream, write) => stream?.on('data', (bytes) => {
-    write(bytes.toString());
-    if (Buffer.byteLength(stdout) + Buffer.byteLength(stderr) > 32 * 1024 * 1024) {
-      error = new Error('Qualification command output exceeded 32 MiB');
-      interrupt('SIGTERM');
-    }
-  });
+  const collect = (stream, write) => {
+    let size = 0;
+    stream?.setEncoding('utf8');
+    stream?.on('data', (text) => {
+      size += Buffer.byteLength(text);
+      if (size <= 32 * 1024 * 1024) write(text);
+      else {
+        error = new Error('Qualification command output exceeded 32 MiB');
+        interrupt('SIGTERM');
+      }
+    });
+  };
   collect(child.stdout, (text) => { stdout += text; });
   collect(child.stderr, (text) => { stderr += text; });
   try {
-    const status = await new Promise((resolve) => {
+    const status = await /** @type {Promise<number | null>} */ (new Promise((resolve) => {
       child.once('error', (cause) => { error = cause; });
       // close waits for inherited pipes too, so end orphan writers as soon as their parent exits.
       child.once('exit', () => { if (grouped) endGroup('SIGKILL'); });
       child.once('close', resolve);
-    });
+    }));
     if (grouped && child.pid) {
       // An exited npm parent is not a finished step while a descendant still writes.
       endGroup('SIGKILL');
