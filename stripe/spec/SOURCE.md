@@ -28,6 +28,8 @@ Only public documentation was read; no vendor sign-in, upstream DOM, script or i
 
 ## Credential example redactions
 
+SHA-256 of the packaged uncompressed `fixtures3.json.gz` after the listed redactions: `d8f1e0658a4da9b4de219519763d538c6cf074d4b811c9fc859c837211355015`.
+
 The upstream locator and fixture capture hash above describe the original capture. The packaged fixture replaces only
 the following string scalars; all other uncompressed fixture bytes are preserved. The journey changes only the listed
 request, name and refusal assertions. Unmodified originals are retained outside the package.

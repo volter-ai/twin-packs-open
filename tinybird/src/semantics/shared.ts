@@ -819,7 +819,7 @@ export async function createTinybirdWorkspace(
   }
   // source: https://www.tinybird.co/docs/classic/administration/auth-tokens "Your user Token is specific to your user account. It's a permanent Token for performing operations that aren't limited to a single Workspace, such as creating new Workspaces."
   if (!tinybirdUserToken(store, opts.owner)) {
-    const token = `p.${digest('sha256', `tinybird-twin:user-token:${opts.salt}:${opts.owner}`)}`;
+    const token = `p.${digest('sha256', `tinybird-twin:user-token:${await ctx.secret('tinybird-token-salt')}:${opts.owner}`)}`;
     await store.write('_user_token', `_user_token:${opts.owner}`, { email: opts.owner, token }, 'user_token.create');
   }
   return { id, name: opts.name, organizationId: opts.organizationId, owner: opts.owner, createdAt: at };
