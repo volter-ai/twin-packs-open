@@ -1,0 +1,200 @@
+{
+  "vendor": "fal",
+  "author": "Contributor 69",
+  "host": "fal.run",
+  "about": "Aya configures Editor and Scheduler with her fal API key, assembles horizontal and vertical campaign slides, then stops after invalid scheduling data.",
+  "steps": [
+    {
+      "name": "14 January 2026, 10:00: Aya configures Editor",
+      "wait": "19320m"
+    },
+    {
+      "name": "Aya creates her API-scope key on the dashboard stand-in",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      }
+    },
+    {
+      "name": "Editor validates the nonempty key Aya mistyped",
+      "method": "GET",
+      "path": "https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/flux/dev",
+      "status": 401,
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "authorization_error"
+        }
+      ],
+      "headers": {
+        "authorization": "Key mistyped-throwaway-key"
+      }
+    },
+    {
+      "name": "Editor validates the saved key",
+      "method": "GET",
+      "path": "https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/flux/dev",
+      "status": 200,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "expect": [
+        {
+          "path": "prices.0.endpoint_id",
+          "equals": "fal-ai/flux/dev"
+        },
+        {
+          "path": "prices.0.unit",
+          "exists": true
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "The afternoon campaign starts",
+      "wait": "4h"
+    },
+    {
+      "name": "Scheduler requests the horizontal slide",
+      "method": "POST",
+      "path": "https://fal.run/fal-ai/ideogram/v2",
+      "status": 200,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "body": {
+        "prompt": "A sunrise yoga class on a beach, calm and warm",
+        "aspect_ratio": "16:9",
+        "expand_prompt": true
+      },
+      "capture": {
+        "img": "images.0.url"
+      },
+      "expect": [
+        {
+          "path": "images.0.content_type",
+          "equals": "image/png"
+        },
+        {
+          "path": "images.0.file_size",
+          "exists": true
+        },
+        {
+          "path": "seed",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "The assembler downloads the returned image",
+      "method": "GET",
+      "path": "{img}",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "The next campaign is for phone screens",
+      "wait": "20h"
+    },
+    {
+      "name": "Scheduler requests a vertical slide",
+      "method": "POST",
+      "path": "https://fal.run/fal-ai/ideogram/v2",
+      "status": 200,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "body": {
+        "prompt": "A quiet woodland exercise class",
+        "aspect_ratio": "9:16",
+        "expand_prompt": true
+      },
+      "capture": {
+        "vertical": "images.0.url"
+      },
+      "expect": [
+        {
+          "path": "images.0.content_type",
+          "equals": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "The assembler downloads the vertical image",
+      "method": "GET",
+      "path": "{vertical}",
+      "status": 200,
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "The next day Aya experiments directly with an ultrawide API layout",
+      "wait": "24h"
+    },
+    {
+      "name": "Aya's direct ultrawide experiment is refused",
+      "method": "POST",
+      "path": "https://fal.run/fal-ai/ideogram/v2",
+      "status": 422,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "body": {
+        "prompt": "A sunrise yoga class on a beach, calm and warm",
+        "aspect_ratio": "21:9",
+        "expand_prompt": true
+      },
+      "expect": [
+        {
+          "path": "detail.0.loc.1",
+          "equals": "aspect_ratio"
+        },
+        {
+          "path": "detail.0.type",
+          "equals": "enum"
+        }
+      ]
+    },
+    {
+      "name": "On 19 January a scheduled slide has lost its prompt",
+      "wait": "72h"
+    },
+    {
+      "name": "The missing prompt stops this campaign; Aya disables the caller",
+      "method": "POST",
+      "path": "https://fal.run/fal-ai/ideogram/v2",
+      "status": 422,
+      "headers": {
+        "authorization": "Key {k}"
+      },
+      "body": {
+        "aspect_ratio": "16:9"
+      },
+      "expect": [
+        {
+          "path": "detail.0.loc.1",
+          "equals": "prompt"
+        },
+        {
+          "path": "detail.0.type",
+          "equals": "missing"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "judge": {
+    "agent": "Claude journey judge (Opus)",
+    "name": "Independent journey judge"
+  },
+  "authors": [
+    "yueranyuan",
+    "Aaron (A-001)",
+    "Claude Opus 5.5",
+    "Codex"
+  ],
+  "sha256": "4b3322e463cbb3892ff50ad73a9cc59613d7c15f51b8c2ab469ef97cdfb91486",
+  "judgedAt": "2026-10-15",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "mistyped-key-before-key-exists",
+      "steps": [
+        1,
+        2
+      ],
+      "barItem": "a refusal without a cause the story shows, or the same cause drawn twice; a run of refusals",
+      "reason": "Step 1's refusal is caused by 'the nonempty key Aya mistyped', but Aya has no key to mistype until step 2 creates it (fal keys are generated in the dashboard UI: https://fal.ai/docs/api-reference/platform-apis/authentication.md, 'generate a key from the UI'). The cause the step names presupposes a credential the story makes afterwards, so the 401 has no cause the story shows.",
+      "correction": "Move the key creation (step 2) before the refused check (step 1): Aya creates her key, mistypes it into Editor's credential check and is refused with authorization_error, then saves it correctly and step 3 validates it. Keep the steps' requests and expectations otherwise unchanged."
+    },
+    {
+      "id": "undocumented-ideogram-inputs",
+      "steps": [
+        5,
+        8,
+        11
+      ],
+      "barItem": "vendor behaviour the vendor's documentation contradicts",
+      "reason": "Steps 5, 8 and 11 send resolution '720p', num_images 1 and output_format 'jpeg' to fal-ai/ideogram/v2 and expect 200 (5, 8) with images.0.content_type 'image/png'. The model page https://fal.ai/models/fal-ai/ideogram/v2/api (and the pack's spec IdeogramV2Input) documents exactly prompt, aspect_ratio, expand_prompt, seed, style, sync_mode and negative_prompt: Ideogram v2 offers no resolution, image count or output format. The life presents Scheduler choosing a 720p JPEG that the endpoint cannot select, and its own png expectation contradicts the output_format it sends.",
+      "correction": "Remove resolution, num_images and output_format from the bodies of steps 5, 8 and 11, leaving prompt, aspect_ratio and expand_prompt (the documented inputs the Scheduler sets); keep the png and download expectations."
+    },
+    {
+      "id": "flux-dev-unit-pinned",
+      "steps": [
+        3
+      ],
+      "barItem": "vendor behaviour the vendor's documentation contradicts",
+      "reason": "Step 3 asserts prices.0.unit equals 'image' for fal-ai/flux/dev. The model's own page https://fal.ai/models/fal-ai/flux/dev states 'Your request will cost $0.025 per megapixel. Images are billed by rounding up to the nearest megapixel.' The pricing reference's sample (https://fal.ai/docs/platform-apis/v1/models/pricing.md) is illustrative, and this pack's own vendor-examples.json records prices.0.unit as undecided ('the sample is not a general contract for that value'). The life pins a billing unit the vendor's page for that endpoint contradicts.",
+      "correction": "Replace the prices.0.unit equality in step 3 with an exists check (keep the endpoint_id and has_more expectations)."
+    }
+  ],
+  "applied": {
+    "from": "bd441abfc8dc51b134265b211383c52b41999d7bc133b423dfec0d3f3d5fcfb3",
+    "wasPlausible": false,
+    "steps": [
+      "1",
+      "11",
+      "2",
+      "3",
+      "5",
+      "8"
+    ],
+    "rulings": [
+      {
+        "steps": [
+          1,
+          2
+        ],
+        "why": "Move the key creation (step 2) before the refused check (step 1): Aya creates her key, mistypes it into Editor's credential check and is refused with authorization_error, then saves it correctly and step 3 validates it. Keep the steps' requests and expectations otherwise unchanged."
+      },
+      {
+        "steps": [
+          5,
+          8,
+          11
+        ],
+        "why": "Remove resolution, num_images and output_format from the bodies of steps 5, 8 and 11, leaving prompt, aspect_ratio and expand_prompt (the documented inputs the Scheduler sets); keep the png and download expectations."
+      },
+      {
+        "steps": [
+          3
+        ],
+        "why": "Replace the prices.0.unit equality in step 3 with an exists check (keep the endpoint_id and has_more expectations)."
+      }
+    ]
+  }
+}

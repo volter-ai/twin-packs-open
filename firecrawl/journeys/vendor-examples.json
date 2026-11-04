@@ -1,0 +1,67 @@
+{
+  "vendor": "firecrawl",
+  "host": "api.firecrawl.dev",
+  "author": "codex-demand-rule",
+  "startsAt": "2026-10-03T12:00:00.000Z",
+  "about": "Published v2 scrape reference using synthetic public-page content.",
+  "steps": [
+    {
+      "name": "Dashboard key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      }
+    },
+    {
+      "name": "Reference URL on the synthetic web",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://example.com",
+        "title": "Example Domain",
+        "html": "<html><head><title>Example Domain</title></head><body><h1>Example Domain</h1><p>A synthetic public page.</p></body></html>"
+      }
+    },
+    {
+      "name": "Scrape reference request",
+      "example": "scrapeAndExtractFromUrl#doc Scrape reference request",
+      "method": "POST",
+      "path": "https://api.firecrawl.dev/v2/scrape",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "url": "https://example.com",
+        "formats": [
+          "markdown"
+        ]
+      },
+      "expect": [
+        {
+          "path": "success",
+          "equals": true
+        },
+        {
+          "path": "data.markdown",
+          "contains": "Example Domain"
+        },
+        {
+          "path": "data.metadata.sourceURL",
+          "equals": "https://example.com"
+        },
+        {
+          "path": "data.metadata.title",
+          "equals": "Example Domain"
+        }
+      ],
+      "undecided": {
+        "data.metadata.url": "The requested URL is repeated in sourceURL, which is asserted."
+      }
+    }
+  ]
+}

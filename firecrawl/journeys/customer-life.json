@@ -1,0 +1,133 @@
+{
+  "vendor": "firecrawl",
+  "author": "codex-demand-rule",
+  "about": "A LibreChat user selects firecrawl in the shipped web-search feature and supplies their own in-app key. Web search ships enabled (packages/data-provider/src/config.ts:2421); users choose providers and save their own key (packages/api/src/web/web.ts:386-402,476-482). No operator step is required.",
+  "steps": [
+    {
+      "name": "The World issues the application's Firecrawl key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "k": "api_key"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "contains": "fc-"
+        }
+      ]
+    },
+    {
+      "name": "The studio's schedule page is on the World's web",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "status": 201,
+      "body": {
+        "url": "https://tidewater.yoga/schedule",
+        "title": "Class schedule",
+        "html": "<html><head><title>Class schedule</title></head><body><h1>Schedule</h1><p>Vinyasa on Tuesdays at 18:00.</p><a href=\"/book\">Book a class</a></body></html>"
+      }
+    },
+    {
+      "name": "No key is refused",
+      "method": "POST",
+      "path": "https://api.firecrawl.dev/v2/scrape",
+      "status": 401,
+      "body": {
+        "url": "https://tidewater.yoga/schedule"
+      }
+    },
+    {
+      "name": "The page scraped as markdown and raw HTML",
+      "method": "POST",
+      "path": "https://api.firecrawl.dev/v2/scrape",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "url": "https://tidewater.yoga/schedule",
+        "formats": [
+          "markdown",
+          "rawHtml"
+        ],
+        "timeout": 7500
+      },
+      "expect": [
+        {
+          "path": "success",
+          "equals": true
+        },
+        {
+          "path": "data.markdown",
+          "contains": "# Schedule"
+        },
+        {
+          "path": "data.markdown",
+          "contains": "[Book a class](/book)"
+        },
+        {
+          "path": "data.rawHtml",
+          "contains": "<h1>Schedule</h1>"
+        },
+        {
+          "path": "data.metadata.title",
+          "equals": "Class schedule"
+        }
+      ]
+    },
+    {
+      "name": "A page the World does not hold fails",
+      "method": "POST",
+      "path": "https://api.firecrawl.dev/v2/scrape",
+      "status": 500,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "url": "https://nowhere.example/page"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": "SCRAPE_ALL_ENGINES_FAILED"
+        }
+      ]
+    },
+    {
+      "name": "A scrape of no URL",
+      "method": "POST",
+      "path": "https://api.firecrawl.dev/v2/scrape",
+      "status": 400,
+      "headers": {
+        "authorization": "Bearer {k}"
+      },
+      "body": {
+        "formats": [
+          "markdown"
+        ]
+      }
+    },
+    {
+      "name": "The customer returns the next day",
+      "wait": "1d"
+    },
+    {
+      "name": "The World resumes with the same key",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "expect": [
+        {
+          "path": "api_key",
+          "equals": "{k}"
+        }
+      ]
+    }
+  ],
+  "startsAt": "2026-10-03T12:00:00.000Z",
+  "host": "api.firecrawl.dev"
+}

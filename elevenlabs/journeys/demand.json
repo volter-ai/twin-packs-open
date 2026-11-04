@@ -1,0 +1,58 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/supercode",
+      "commit": "6262057",
+      "client": "its voice front (sdk/voice/providers): fetch with xi-api-key from ELEVENLABS_API_KEY, and the ws library on the signed URL; configuration read at sdk/voice/bin/voice.mjs:26-34; sdk/voice/providers/elevenlabs.mjs:5; sdk/voice/providers/setup.mjs:32-33",
+      "backend": [
+        {
+          "call": "setup-elevenlabs provisions the voice agent: a custom LLM, its client tools (delegate, hand_off), English on eleven_flash_v2 with pcm_24000 output, its client events, signed-URL auth and the prompt, first message and voice overrides enabled",
+          "operation": "create_agent_route",
+          "evidence": "sdk/voice/providers/setup.mjs:55"
+        },
+        {
+          "call": "a voice joining a call asks a signed URL for the agent",
+          "operation": "get_conversation_signed_link",
+          "evidence": "sdk/voice/providers/elevenlabs.mjs:7"
+        },
+        {
+          "call": "the conversation on the signed URL: conversation_initiation_client_data with the prompt, first message and voice overrides, then user_message turns, user_activity, client_tool_result and pong; it reads conversation_initiation_metadata (a PCM output format and the conversation id), audio, agent_response, agent_response_complete, client_tool_call, ping and interruption",
+          "operation": "socket:conversation",
+          "evidence": "sdk/voice/providers/elevenlabs.mjs:39"
+        },
+        {
+          "call": "the conversation's receipt once it is done or failed: its cost, credits, duration, termination reason and error",
+          "operation": "get_conversation_history_route",
+          "evidence": "sdk/voice/providers/elevenlabs.mjs:19"
+        }
+      ]
+    },
+    {
+      "name": "volter-ai/agent-stream",
+      "commit": "c34b748",
+      "client": "Raiku's voice: voice/tts_server.py, requests with xi-api-key (Accept audio/pcm); streamer/speech.js, the ws library with xi-api-key at the upgrade, Flash v2.5 on this socket (v4 Turbo, which ElevenLabs refuses here, goes to the text-to-dialogue socket: streamer/speech.js:13-15)",
+      "backend": [
+        {
+          "call": "the Raiku voice server speaks a line: eleven_flash_v2_5, output_format pcm_24000, Accept audio/pcm; it reads the raw PCM samples",
+          "operation": "text_to_speech_full",
+          "evidence": "voice/tts_server.py:53"
+        },
+        {
+          "call": "the stream speaks a reply as it is written: the stream-input socket with model_id, output_format pcm_24000, sync_alignment, auto_mode and inactivity_timeout; it sends {text: \" \"}, then each chunk with flush, then {text: \"\"}; it reads audio (PCM at 24 kHz), alignment (chars, charStartTimesMs, charDurationsMs) and isFinal",
+          "operation": "socket:streamInput",
+          "evidence": "streamer/speech.js:341"
+        }
+      ]
+    }
+  ],
+  "standIns": "a key is made in the console (the World's credential door); a voice an application names is added through the API (add_voice), training nothing; speech is labeled silence (real, playable audio of the text's length) and an agent's turn a labeled stub: the twin runs no model. The default voices are the one the spec names, Rachel.",
+  "optional": [
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "ElevenLabs text-to-speech streaming",
+      "setting": "Configuration (1): speech.tts.elevenlabs selects a server TTS provider; the speech/tts schemas are absent by default (packages/data-provider/src/config.ts:3224-3229; api/server/services/Files/Audio/TTSService.js:52-65).",
+      "evidence": "api/server/services/Files/Audio/TTSService.js:52-65,189-213; librechat.example.yaml:394-411; .env.example:730-731"
+    }
+  ]
+}
