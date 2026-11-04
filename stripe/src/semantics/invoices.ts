@@ -80,7 +80,7 @@ export async function PostInvoicesInvoiceVoid(ctx: HandlerContext): Promise<Resp
 export async function PostInvoices(ctx: HandlerContext): Promise<Response> {
   const params = ctx.params;
   // source: https://docs.stripe.com/api/invoices/create.md?api-version=2026-09-30.endive "required unless from_invoice is provided"
-  if (!params.customer && !params.from_invoice) return fail(ctx, 'Missing required param: customer.', 400, 'parameter_missing');
+  if (!params.customer) return fail(ctx, 'Missing required param: customer.', 400, 'parameter_missing');
   const now = Number(nowUnix(ctx.occurredAt));
   // the lines list names where it can be read, "The URL where this list can be accessed" (served spec, invoice.lines.url)
   const newId = ctx.mint(INV);
