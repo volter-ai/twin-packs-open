@@ -9,12 +9,11 @@
 // the credential door (./semantics/doors.ts) makes the World's project as the dashboard's sign-up makes one and answers
 // the database's URL, and what the application sends the database is Postgres's own answer. No demanded application calls
 // the Management API, PostgREST, Storage or Auth, so every operation of the four answers the gap
-// (../journeys/decisions.json); the manifest declares no resource, so no derived core serves one.
+// (../journeys/decisions.json); the declared provisioning rows are not served API resources.
 //
 // THE STATE is the World's project, the door's own bookkeeping (`_project`); the database's rows are the World's
 // Postgres, never the tree.
 import type { DerivedManifest } from '@volter/world-core';
-import { states } from './semantics/states.ts';
 
 export const manifest: DerivedManifest = {
   vendor: 'supabase',
@@ -45,8 +44,11 @@ export const manifest: DerivedManifest = {
   doors: [
     { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: "the World's project and its database URL, as the runtime issues them at every boot" },
   ],
-  resources: {},
-  ...states,
+  resources: {
+    _organization: { idPrefix: '', ids: '{uuid}' },
+    _project: { idPrefix: '', ids: '{letters:20}' },
+    _database_credential: { idPrefix: '', ids: '{uuid}', unique: [{ fields: ['project_id'], refusal: { status: 409, message: 'Project already has a database credential' } }] },
+  },
   // Supabase's gateway in front of a project's data plane: `/rest/v1` to PostgREST (../rest), `/storage/v1` to Storage
   // (../storage) and `/auth/v1` to Auth (../auth), each at a project's host or the twin's own address, each answering its
   // own gap; the Management API's host keeps those paths (it has none of them, so they answer its gap).
@@ -73,7 +75,7 @@ export const manifest: DerivedManifest = {
     // the World's project's database URL, issued once the twin is up (./semantics/doors.ts appCredentials), under the
     // name Supabase gives it
     // source: https://supabase.com/docs/guides/functions/secrets "The URL for your Postgres database. Use it to connect directly to your database."
-    credentialDoor: { path: '/_twin/app-credentials', body: {}, fill: { SUPABASE_DB_URL: 'database_url' } },
+    credentialDoor: { account: { field: 'account', tenancy: 'Organization', source: 'https://supabase.com/docs/guides/deployment/branching' }, deployment: { field: 'deployment', object: 'Project with its own Postgres database', source: 'https://supabase.com/docs/guides/deployment/branching' },  path: '/_twin/app-credentials', body: {}, fill: { SUPABASE_DB_URL: 'database_url' } },
     hosts: [
       { host: 'api.supabase.com' },
       { suffix: '.supabase.co', pathPattern: '^/(rest|storage|auth)/v1(/|$)' },
@@ -83,6 +85,10 @@ export const manifest: DerivedManifest = {
     managedDatabase: {
       kind: 'postgres',
       arg: '--database',
+      user: 'postgres',
+      database: 'postgres',
+      clock: 'wall',
+      credentialField: 'database_url',
       note: "the project's database is the World's managed postgres: the database the application's migrations and queries use, whose URL the credential door answers",
     },
     adoption: {
