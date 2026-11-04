@@ -1,0 +1,115 @@
+import { ManagedAccountApp, type ManagedAccountCatalog } from './app';
+import { createManagedCreditMeter, type ManagedCreditRateCatalog } from './credit-meter';
+import {
+  type DurableLedgerStorage,
+  openDurableObjectManagedAccountDatabase,
+} from './durable-object-database';
+
+interface ObjectNamespace {
+  idFromName(name: string): unknown;
+  get(id: unknown): { fetch(request: Request): Promise<Response> };
+}
+
+interface Fetcher {
+  fetch(request: Request): Promise<Response>;
+}
+
+interface ManagedAccountWorkerEnv {
+  LEDGER: ObjectNamespace;
+  VGAI_AUTH?: Fetcher;
+  POLAR_TWIN?: Fetcher;
+  CLERK_SECRET_KEY?: string;
+  CLERK_PUBLISHABLE_KEY?: string;
+  CLERK_AUTHORIZED_PARTIES?: string;
+  POLAR_ACCESS_TOKEN?: string;
+  POLAR_WEBHOOK_SECRET?: string;
+  VGAI_BILLING_SERVICE_TOKEN?: string;
+  VGAI_BILLING_PUBLIC_URL?: string;
+  VGAI_BILLING_CATALOG_JSON?: string;
+  VGAI_CREDIT_METER_JSON?: string;
+  VGAI_MANAGED_DAILY_CREDIT_LIMIT?: string;
+}
+
+interface ManagedAccountObjectState {
+  storage: DurableLedgerStorage;
+}
+
+const LEDGER_NAME = 'universal-v1';
+
+export class ManagedAccountLedger {
+  private readonly app: ManagedAccountApp;
+
+  constructor(state: ManagedAccountObjectState, env: ManagedAccountWorkerEnv) {
+    this.app = new ManagedAccountApp(
+      {
+        clerkSecretKey: env.CLERK_SECRET_KEY ?? 'service-bound-clerk-identity',
+        clerkPublishableKey: env.CLERK_PUBLISHABLE_KEY ?? 'service-bound-clerk-identity',
+        authorizedParties: csv(env.CLERK_AUTHORIZED_PARTIES),
+        polarAccessToken: required(env.POLAR_ACCESS_TOKEN, 'POLAR_ACCESS_TOKEN'),
+        ...(env.POLAR_TWIN
+          ? { polarAuthority: env.POLAR_TWIN, sealedPolarTwin: true as const }
+          : {}),
+        polarWebhookSecret: required(env.POLAR_WEBHOOK_SECRET, 'POLAR_WEBHOOK_SECRET'),
+        internalServiceToken: required(
+          env.VGAI_BILLING_SERVICE_TOKEN,
+          'VGAI_BILLING_SERVICE_TOKEN',
+        ),
+        ...(env.VGAI_AUTH ? { identityAuthority: env.VGAI_AUTH } : {}),
+        publicBaseUrl: required(env.VGAI_BILLING_PUBLIC_URL, 'VGAI_BILLING_PUBLIC_URL'),
+        catalog: json<ManagedAccountCatalog>(
+          env.VGAI_BILLING_CATALOG_JSON,
+          'VGAI_BILLING_CATALOG_JSON',
+        ),
+        meterCredits: createManagedCreditMeter(
+          json<ManagedCreditRateCatalog>(env.VGAI_CREDIT_METER_JSON, 'VGAI_CREDIT_METER_JSON'),
+        ),
+        platformDailyCreditLimit: positiveInteger(
+          env.VGAI_MANAGED_DAILY_CREDIT_LIMIT,
+          'VGAI_MANAGED_DAILY_CREDIT_LIMIT',
+        ),
+      },
+      openDurableObjectManagedAccountDatabase(state.storage),
+    );
+  }
+
+  fetch(request: Request): Promise<Response> {
+    return this.app.fetch(request);
+  }
+}
+
+export default {
+  fetch(request: Request, env: ManagedAccountWorkerEnv): Promise<Response> {
+    const object = env.LEDGER.get(env.LEDGER.idFromName(LEDGER_NAME));
+    return object.fetch(request);
+  },
+};
+
+function required(value: string | undefined, name: string): string {
+  const normalized = value?.trim();
+  if (!normalized) throw new Error(`${name} is required.`);
+  return normalized;
+}
+
+function csv(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function json<T>(value: string | undefined, name: string): T {
+  try {
+    return JSON.parse(required(value, name)) as T;
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new Error(`${name} must be valid JSON.`);
+    throw error;
+  }
+}
+
+function positiveInteger(value: string | undefined, name: string): number {
+  const parsed = Number(required(value, name));
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}

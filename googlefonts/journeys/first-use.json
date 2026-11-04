@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": "majodev/google-webfonts-helper ff245dc87cfcbaeacd4120cf1b4a7443b59db42f package.json axios1.20.0 and server/logic/fetchGoogleFonts.ts, fetchCSS.ts, fetchFontSubsetArchive.ts; Google Developer API guide",
+  "about": "The default seed publishes the attributed vendor snapshot through its publisher door. The customer reads the issued key and authenticates with the real axios client, consuming metadata/CSS/src bytes. Retention re-reads without writes. This entry is not run during source construction.",
+  "files": {
+    "package.json": "{\"type\": \"module\", \"dependencies\": {\"axios\": \"1.20.0\"}}\n",
+    ".env.example": "GOOGLE_FONTS_API_KEY=\n",
+    "app.mjs": "import axios from 'axios';\nimport assert from 'node:assert/strict';\nconst key = process.env.GOOGLE_FONTS_API_KEY;\nassert.ok(key, 'World-issued GOOGLE_FONTS_API_KEY is required');\nconst res = await axios.get(`https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${key}`, { responseType: 'json', maxRedirects: 0 });\nassert.equal(res.data.kind, 'webfonts#webfontList');\nconst item = res.data.items.find(f => f.family === 'Antic');\nassert.ok(item); assert.ok(item.variants.includes('regular')); assert.ok(item.subsets.includes('latin'));\nconst agents = {\"0\": \"Mozilla/5.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)\", \"1\": \"Mozilla/5.0 (Windows NT 6.1; WOW64; rv:27.0) Gecko/20100101 Firefox/27.0\", \"2\": \"Mozilla/5.0 (Windows NT 6.3; rv:39.0) Gecko/20100101 Firefox/39.0\", \"3\": \"Mozilla/4.0 (iPad; CPU OS 4_0_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Version/4.1 Mobile/9A405 Safari/7534.48.3\", \"4\": \"Mozilla/5.0 (Unknown; Linux x86_64) AppleWebKit/538.1 (KHTML, like Gecko) Safari/538.1 Daum/4.1\"};\nfor (const agent of Object.values(agents)) {\n const css = await axios.get('http://fonts.googleapis.com/css?family='+encodeURIComponent(item.family+':regular')+'&subset=latin', { responseType: 'text', maxRedirects: 0, headers: { Accept: 'text/css,*/*;q=0.1', 'User-Agent': agent } });\n assert.match(css.data, /@font-face/);\n const url = css.data.match(/url\\((https?:\\/\\/[^)]+)\\)/)?.[1]; assert.ok(url);\n const file = await axios.get(url.replace('http://','https://'), { responseType: 'arraybuffer', maxRedirects: 0 });\n assert.ok(file.data.length > 0); assert.ok(file.headers['content-type']);\n}\nconsole.log('Read retained Google Fonts catalog, CSS and bytes through unchanged axios calls');\n"
+  },
+  "run": [
+    "node",
+    "app.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "app.mjs"
+    ]
+  }
+}

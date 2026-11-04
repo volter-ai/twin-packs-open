@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://github.com/volter-ai/vgai-engine/tree/archive/launch-scope-2026-09-20/packages/vgai-auth",
+  "about": "The Editor's native fetch discovery entry reads the account authority's OAuth metadata. This deployment is a configuration act with fill:{}, not a credential issuer; no invented bearer, password, signing key, or separate client identity is supplied. The published authority advertises authorization-code and refresh grants, PKCE S256 and no device flow.",
+  "files": {
+    "package.json": "{\n  \"name\": \"vgauth-account-customer\",\n  \"private\": true,\n  \"type\": \"module\"\n}\n",
+    ".env.example": "VOLTER_ACCOUNT_URL=https://auth.videogame.ai\n",
+    "client.mjs": "import assert from 'node:assert/strict';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst authority = new URL(process.env.VOLTER_ACCOUNT_URL);\nconst response = await fetch(new URL('/.well-known/oauth-authorization-server', authority));\nassert.equal(response.status, 200);\nconst metadata = await response.json();\nassert.equal(metadata.issuer, 'https://auth.videogame.ai');\nassert.equal(metadata.authorization_endpoint, 'https://auth.videogame.ai/account/authorize');\nassert.equal(metadata.token_endpoint, 'https://auth.videogame.ai/account/token');\nassert.deepEqual(metadata.grant_types_supported, ['authorization_code', 'refresh_token']);\nassert.ok(metadata.code_challenge_methods_supported.includes('S256'));\nassert.equal(metadata.device_authorization_endpoint, undefined);\nconsole.log(JSON.stringify({ issuer: metadata.issuer, grants: metadata.grant_types_supported }));\n"
+  },
+  "run": [
+    "node",
+    "client.mjs"
+  ],
+  "retention": {
+    "none": "OAuth discovery is a stateless read of the configured authority. This pack has no account credential to issue, and discovery creates no resource for an application to read back."
+  }
+}
