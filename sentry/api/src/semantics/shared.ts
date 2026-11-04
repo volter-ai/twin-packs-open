@@ -1,7 +1,7 @@
 // What every family of Sentry's API shares: who is calling (an auth token the World issued), the organization a request
 // names and whether the token may act on it, and the API's answers (Django REST framework's `{"detail": ...}`).
 import type { HandlerContext } from '@volter/world-core';
-import { bearerToken, grants, orgBySlug, projectOf, type Row, wire } from '../../../src/semantics/shared.ts';
+import { bearerToken, grants, orgBySlug, projectOf, type Row } from '../../../src/semantics/shared.ts';
 
 export * from '../../../src/semantics/shared.ts';
 
@@ -29,7 +29,3 @@ export function projectFor(ctx: HandlerContext, scope: string): { org: Row; proj
   const project = projectOf(ctx, org, String(ctx.call.params.project_id_or_slug ?? ''));
   return project ? { org, project } : notFound();
 }
-
-
-
-export function projectView(ctx: HandlerContext, p: Row, _org: Row): Row { return wire(ctx, p); }
