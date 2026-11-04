@@ -82,7 +82,8 @@ pack's official visual references and limits are in `spec/screen-references.json
 
 The Backend API takes only the keys the instance holds: the application's, which the World issues when it boots
 (`POST /_twin/app-credentials`, the descriptor's credential door, with the publishable key, the `CLERK_JWT_KEY` a
-backend verifies session tokens with and the webhook signing secret), and every key the API Keys page's door made. No
+backend verifies session tokens with and the signing secret of a configured webhook endpoint), and every key the API
+Keys page's door made. No
 `Authorization` header is Clerk's 401 `authorization_header_format_invalid`, and any other key, whatever its shape, is
 its 401 `clerk_key_invalid`. A request with no secret key is never the Backend API's: on a Frontend API path it is the
 browser's, answered by the Frontend API.
@@ -100,8 +101,12 @@ refused on a read-only twin:
 
 - `POST /_twin/secret-keys {name}`: a secret key, as the API Keys page shows it once (`sk_test_…` on a development
   instance); the twin keeps its hash.
-- `POST /_twin/webhook-endpoints {url, events, signing_secret?}`: a webhook endpoint and its `whsec_…` signing secret
-  (the one given, when the World's application already holds one).
+- `POST /_twin/webhook-endpoints {account?, deployment?, url, events?, signing_secret?}`: a webhook endpoint and its
+  `whsec_…` signing secret. Configure it through this door or the World's `seed.ts` before rendering
+  `clerk.webhook_secret`; until then only that output fails with a named missing-endpoint error. Other credential
+  outputs remain available. Send `{id, signing_secret}` to rotate its secret, `{id, url?, events?, disabled?}` to edit
+  it, or `{id, delete: true}` to remove it, with the same selectors or the instance's key. Credential rendering reads
+  the live endpoint's current secret and refuses disabled or deleted endpoints.
 - `POST /_twin/instance {…}`: the instance's sign-up settings (password on or off, legal consent, organization
   membership optional or required, the Frontend API host, the Native API on or off).
 - `POST /_twin/native-applications {platform, …}`: an iOS app (`app_id_prefix`, `bundle_id`) or Android app
