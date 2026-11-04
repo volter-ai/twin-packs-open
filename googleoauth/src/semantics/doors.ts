@@ -39,10 +39,7 @@ export async function accounts(ctx: HandlerContext): Promise<Response> {
  *  downloads it: its private key is a key pair the World makes once, at random, for the account. */
 // source: https://cloud.google.com/iam/docs/keys-create-delete "Service account keys"
 export async function serviceAccounts(ctx: HandlerContext): Promise<Response> {
-  return makeServiceAccount(ctx, bodyOf(ctx));
-}
-
-async function makeServiceAccount(ctx: HandlerContext, b: Row): Promise<Response> {
+  const b = bodyOf(ctx);
   if (typeof b.client_email !== 'string' || !/^[^@\s]+@[^@\s]+$/.test(b.client_email)) return bad('client_email is required');
   const account = ctx.row(SERVICE_ACCOUNT, b.client_email) ?? await createServiceAccount(ctx, b.client_email, typeof b.project_id === 'string' ? b.project_id : b.client_email.split('@')[1]!.split('.')[0]!, typeof b.client_id === 'string' ? b.client_id : undefined);
   if (account instanceof Response) return account;
@@ -63,7 +60,7 @@ async function createServiceAccount(ctx: HandlerContext, email: string, project:
 }
 
 async function makeServiceAccountKey(ctx: HandlerContext, account: Row): Promise<string> {
-  const label = `service-account-key:${await serial(ctx, 'service-account-key')}`;
+  const label = `service-account-key:${await serial(ctx)}`;
   const key = await ctx.signingKey(label, 'RS256');
   const id = ctx.crypto.digest('sha1', key.publicPem, 'hex');
   await ctx.record(SERVICE_ACCOUNT_KEY, { _service_account: account.id, _key_label: label, private_key_id: id, public_key: key.publicPem }, id);
@@ -122,7 +119,7 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
     if (c) {
       if (!Array.isArray(c.redirect_uris) || !c.redirect_uris.every((u) => typeof u === 'string')) return bad('client.redirect_uris is required');
       const client = await ctx.deploymentObject(`oauth-client:${String(project.id)}`, CLIENT, async (deployment) => {
-        const n = await serial(ctx, 'oauth-client');
+        const n = await serial(ctx);
         const digits = (await ctx.secret(`googleoauth:client-id:${n}`)).replace(/\D/g, '').padEnd(12, '7').slice(0, 12);
         const tail = (await ctx.secret(`googleoauth:client-name:${n}`)).replace(/[^a-z0-9]/g, '').padEnd(32, '0').slice(0, 32);
         const id = `${digits}-${tail}.apps.googleusercontent.com`;
@@ -132,7 +129,7 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
       const secret = await ctx.accountKey('oauth-client-secret', CLIENT, {
         make: async () => {
           if (typeof ctx.row(CLIENT, String(client.id))?.secret !== 'string') {
-            const value = await credential(ctx, 'GOCSPX-', `client-secret:${await serial(ctx, 'client-secret')}`, 28);
+            const value = await credential(ctx, 'GOCSPX-', `client-secret:${await serial(ctx)}`, 28);
             await ctx.change(CLIENT, String(client.id), (row) => row._project === project.id && typeof row.secret !== 'string'
               ? { secret: value } : undefined, 'client.secret_reset');
           }
@@ -153,7 +150,7 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
     if (k) {
       const key = await ctx.accountKey('api-key', API_KEY, {
         make: async () => {
-          const label = `api-key:${await serial(ctx, 'api-key')}`;
+          const label = `api-key:${await serial(ctx)}`;
           const value = await credential(ctx, 'AIza', label, 35);
           const id = ctx.crypto.sha256(value);
           await ctx.write(API_KEY, id, { project: project.id, name: typeof k.name === 'string' ? k.name : 'API key 1', created: ctx.occurredAt, _secret_label: label }, 'api_key.create');

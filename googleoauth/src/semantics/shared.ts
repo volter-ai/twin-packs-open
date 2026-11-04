@@ -9,12 +9,12 @@
 //   account       id = the account's sub  { email, name, given_name, family_name, picture }
 //   api_key       id = the key's SHA-256 (hex) { project, name, created }: a Cloud project's API key, as the console's
 //                                           Credentials page creates it; the key itself is answered once, never kept
-import type { HandlerContext, WriteHookContext } from '@volter/world-core';
+import type { HandlerContext } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
-type Reader = Pick<HandlerContext, 'row' | 'rowsRaw' | 'crypto'> | Pick<WriteHookContext, 'row' | 'rowsRaw' | 'crypto'>;
+type Reader = Pick<HandlerContext, 'row'>;
 
-export const ISSUER = 'https://accounts.google.com';
+const ISSUER = 'https://accounts.google.com';
 export const ACCESS_TOKEN = 'access_token';
 export const ACCOUNT = 'account';
 export const CLIENT = 'client';
@@ -24,7 +24,6 @@ export const API_KEY = 'api_key';
 export const CODE = '_authorization_code';
 export const REFRESH = '_refresh_token';
 
-/** The twin's signing key for ID tokens: its own, generated for it (it signs nothing outside its World). */
 /** Google's signing key for ID tokens, in a World the World's own, made once at random (ctx.signingKey), so an ID token
  *  verifies against this World's certs and no one forges one from the pack. */
 const idTokenKey = async (ctx: Pick<HandlerContext, 'signingKey'>) => ({ alg: 'RS256' as const, ...(await ctx.signingKey('google-id-token')) });
@@ -74,7 +73,7 @@ export function accountClaims(a: Row, scopes: string[]): Row {
 export async function issue(ctx: HandlerContext, client: Row, account: Row, scopes: string[], offline: boolean, nonce?: string): Promise<Row> {
   const clientId = String(client.client_id);
   const sub = String(account.id);
-  const n = await serial(ctx, 'access-token');
+  const n = await serial(ctx);
   const access = await credential(ctx, 'ya29.a0', `access:${clientId}:${sub}:${ctx.occurredAt}:${n}`, 180);
   const expiresAt = nowSeconds(ctx) + 3599;
   await ctx.write(ACCESS_TOKEN, access, { clientId, sub, scope: scopes.join(' '), expiresAt, revoked: false }, 'access_token.create');
@@ -91,12 +90,12 @@ export async function issue(ctx: HandlerContext, client: Row, account: Row, scop
 }
 
 /** The access token a request bears, when current: its row. */
-export function bearer(ctx: Reader & { call: HandlerContext['call']; occurredAt: string }, token?: string): Row | undefined {
-  const t = token ?? /^Bearer\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
+export function bearer(ctx: Reader & { call: HandlerContext['call']; occurredAt: string }): Row | undefined {
+  const t = /^Bearer\s+(\S+)$/i.exec(ctx.call.request.headers.get('authorization') ?? '')?.[1];
   const row = t ? live(ctx.row(ACCESS_TOKEN, t)) : undefined;
   return row && row.revoked !== true && Number(row.expiresAt) > Math.floor(Date.parse(ctx.occurredAt) / 1000) ? row : undefined;
 }
 
 /** The World's next number (a nonce in a secret's label, a numeric id), issued from the tree over `_serial` (ctx.issue),
- *  never a row count; `what` names what it is for where it is called. */
-export const serial = async (ctx: Pick<HandlerContext, 'issue'>, _what: string): Promise<number> => Number(await ctx.issue('_serial'));
+ *  never a row count. */
+export const serial = async (ctx: Pick<HandlerContext, 'issue'>): Promise<number> => Number(await ctx.issue('_serial'));
