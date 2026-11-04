@@ -40,11 +40,11 @@ async function register(s: SocketSession, msg: Row, ctx: HandlerContext): Promis
     // source: spec:/x-reference/relay "Replaced by new client"
     live.close(4001, 'Replaced by new client');
   }
-  Object.assign(s.state, { registering: true, tunnelId: id, account: account.id });
+  Object.assign(s.state, { registering: true, tunnelId: id });
   try { if (!held) await ctx.record(TUNNEL, { _owner: account.id, reservedAt: ctx.occurredAt }, id); }
   finally { s.state.registering = false; }
   if (s.state.superseded === true || !ctx.sockets('control').includes(s)) return;
-  Object.assign(s.state, { registered: true, tunnelId: id, account: account.id, authRequired: msg.authRequired !== false });
+  Object.assign(s.state, { registered: true, tunnelId: id });
   // source: spec:/x-reference/protocol "Acknowledges a successful registration; carries the public URL + usage."
   s.send({ type: 'registered', tunnelId: id, url: tunnelUrl(id) });
 }
@@ -98,7 +98,6 @@ export const control: SocketEngine<HandlerContext> = {
   },
   close(s) {
     s.state.registered = false;
-    s.state.closed = true;
     for (const c of streams(s).values()) { try { c.error(new Error('Tunnel closed')); } catch { /* already ended */ } }
     streams(s).clear();
   },
