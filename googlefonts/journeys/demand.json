@@ -1,0 +1,67 @@
+{
+  "measured": "2026-10-12: source-only read of every non-test server TS file at ff245dc87cfcbaeacd4120cf1b4a7443b59db42f, image 77e89ea9. No application or vendor-key request was executed. The normal start fetches the Developer API catalog; font detail/download reaches CSS for all five configured UAs and downloads its returned URLs. GOOGLE_FONTS_USE_TEST_JSON is excluded, and is not set. 2026-10-15: source-only read of Dub 7e01013 and Rallly 3e63239 Open Graph routes; Google's CSS2 answers retained with no User-Agent, node and undici (vendor/inter.json).",
+  "applications": [
+    {
+      "name": "majodev/google-webfonts-helper",
+      "commit": "ff245dc87cfcbaeacd4120cf1b4a7443b59db42f",
+      "client": "axios 1.20.0, unchanged production server",
+      "backend": [
+        {
+          "call": "GET www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=<issued key>",
+          "operation": "webfonts.webfonts.list",
+          "evidence": "server/logic/fetchGoogleFonts.ts:62"
+        },
+        {
+          "call": "GET fonts.googleapis.com/css?family=<family>:<variant>&subset=<subsets>, User-Agent from config.ts",
+          "operation": "getStylesheet",
+          "evidence": "server/logic/fetchCSS.ts:19"
+        },
+        {
+          "call": "GET fonts.gstatic.com/s/... bytes returned in the CSS",
+          "operation": "getFontFile",
+          "evidence": "server/logic/fetchFontSubsetArchive.ts:104"
+        },
+        {
+          "call": "GET fonts.gstatic.com/l/font?kit=...&skey=...&v=... for EOT/SVG representations",
+          "operation": "getLegacyFontFile",
+          "evidence": "server/logic/fetchFontURLs.ts:61; vendor/inputs.json retained Google EOT/SVG CSS"
+        }
+      ]
+    },
+    {
+      "name": "dubinc/dub",
+      "commit": "7e01013",
+      "client": "Next.js server fetch, no browser User-Agent",
+      "backend": [
+        {
+          "call": "GET fonts.googleapis.com/css2?family=Inter:wght@<500|600|700>",
+          "operation": "getStylesheet2",
+          "evidence": "apps/web/app/api/og/load-google-font.ts:2-3; callers apps/web/app/api/og/program/route.tsx:29, analytics/route.tsx:18, partner-earnings/route.tsx:27, program/categories/route.tsx:34, partner-rewind/route.tsx:29"
+        },
+        {
+          "call": "GET fonts.gstatic.com/s/... truetype URL returned in the CSS",
+          "operation": "getFontFile",
+          "evidence": "apps/web/app/api/og/load-google-font.ts:9"
+        }
+      ]
+    },
+    {
+      "name": "lukevella/rallly",
+      "commit": "3e63239",
+      "client": "Next.js server fetch, no browser User-Agent",
+      "backend": [
+        {
+          "call": "GET fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@<400|700>&text=<rendered CJK text>",
+          "operation": "getStylesheet2",
+          "evidence": "apps/landing/src/app/[locale]/opengraph-image.tsx:26-27 (CJK locales only)"
+        },
+        {
+          "call": "GET fonts.gstatic.com truetype URL returned in the CSS",
+          "operation": "getFontFile",
+          "evidence": "apps/landing/src/app/[locale]/opengraph-image.tsx:38"
+        }
+      ]
+    }
+  ],
+  "notDemanded": "OAuth, font submission/publishing UI, effects and advanced catalog capabilities are outside these client paths."
+}

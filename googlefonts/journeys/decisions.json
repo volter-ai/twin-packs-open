@@ -1,0 +1,54 @@
+{
+  "about": "Source-bound decisions before handler implementation; each lane shares one googlefonts store. Qualification remains separate.",
+  "decisions": [
+    {
+      "operation": "webfonts.webfonts.list",
+      "lane": "api",
+      "mechanism": "handler",
+      "demand": "Pinned production startup",
+      "why": "Read unchanged vendor font items in the stored catalog order; alpha/date/style sorting and family/subset/category filtering consume the Developer API fields. first-use axios catalog call asserts the list and derives all later selections from its returned item. Never return a full-live-catalog claim."
+    },
+    {
+      "operation": "getStylesheet",
+      "lane": "css",
+      "mechanism": "handler",
+      "demand": "All five pinned config.ts UAs",
+      "why": "Use exact published CSS per request/UA, with the real font-family/style/weight/src consumed by fetchCSS; first-use downloads every returned src. Unsupported representations answer a refusal."
+    },
+    {
+      "operation": "getStylesheet2",
+      "lane": "css",
+      "mechanism": "handler",
+      "demand": "Dub's Inter weights and Rallly's CJK text subsets, both from a server",
+      "why": "Use the exact published CSS per ordered CSS2 query and User-Agent; a non-browser agent without its own representation reads the one published for no agent, as Google answered the same CSS to none, node and undici. Unpublished families, text subsets and browser representations answer a refusal; text= and display= given twice, or another parameter, are a bad request."
+    },
+    {
+      "operation": "getFontFile",
+      "lane": "assets",
+      "mechanism": "handler",
+      "demand": "Archive stream for returned /s URL",
+      "why": "Resolve the actual vendor URL to its resource blob and preserve Content-Type/bytes; no conversion or placeholder font."
+    },
+    {
+      "operation": "getLegacyFontFile",
+      "lane": "assets",
+      "mechanism": "handler",
+      "demand": "EOT/SVG src uses /l/font query URL",
+      "why": "Same blob mechanism; preserve kit/skey/v and ignore the SVG fragment as HTTP does."
+    },
+    {
+      "operation": "door:appCredentials",
+      "lane": "api",
+      "mechanism": "door",
+      "demand": "World boot credential fill",
+      "why": "Google key issuance is outside the Fonts read-only API. ctx.secret supplies the opaque per-World key; only its hash is recorded. Repeated boot retains that key."
+    },
+    {
+      "operation": "door:publishCatalog",
+      "lane": "api",
+      "mechanism": "door",
+      "demand": "Vendor-side prerequisite for a reference-data World",
+      "why": "There is no Developer API create-font endpoint. Validate a complete vendor-shaped catalog/CSS/blob publication before recording it; the default seed and first-use supply retained genuine bytes. This is an explicit publisher door, not a handler pretending a vendor mutation."
+    }
+  ]
+}
