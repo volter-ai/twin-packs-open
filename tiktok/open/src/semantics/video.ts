@@ -1,5 +1,5 @@
 import type { HandlerContext } from '@volter/world-core';
-import { CHUNK, PUBLISH, VIDEO, authorized, fieldsOf, mediaUrl, next, ok, partialChunk, project, publishObj, refuse, seconds, sha256, type Row, videoMoment, videoPage, videosObj } from './shared.ts';
+import { CHUNK, PUBLISH, VIDEO, authorized, fieldsOf, mediaUrl, next, obj, ok, partialChunk, project, refuse, seconds, sha256, type Row, videoMoment, videoPage } from './shared.ts';
 import { mp4Facts } from '../engine/mp4.ts';
 
 // source: https://developers.tiktok.com/doc/tiktok-api-v2-video-list "sorted by"
@@ -8,7 +8,7 @@ export async function videoList(ctx: HandlerContext): Promise<Response> {
   if (c instanceof Response) return c;
   const fields = fieldsOf(ctx);
   if (fields instanceof Response) return fields;
-  const b = videosObj(ctx.body);
+  const b = obj(ctx.body);
   // source: https://developers.tiktok.com/doc/tiktok-api-v2-video-list "Default is 10. Maximum is 20."
   const max = b.max_count === undefined ? 10 : Number(b.max_count);
   if (!Number.isInteger(max) || max < 1 || max > 20) return refuse(ctx, 400, 'invalid_params', 'max_count must be between 1 and 20');
@@ -24,7 +24,7 @@ export async function videoQuery(ctx: HandlerContext): Promise<Response> {
   if (c instanceof Response) return c;
   const fields = fieldsOf(ctx);
   if (fields instanceof Response) return fields;
-  const ids = Array.isArray(videosObj(videosObj(ctx.body).filters).video_ids) ? (videosObj(videosObj(ctx.body).filters).video_ids as unknown[]).map(String) : [];
+  const ids = Array.isArray(obj(obj(ctx.body).filters).video_ids) ? (obj(obj(ctx.body).filters).video_ids as unknown[]).map(String) : [];
   // source: https://developers.tiktok.com/doc/tiktok-api-v2-video-query "Up to 20 video IDs can be included per request."
   if (!ids.length || ids.length > 20) return refuse(ctx, 400, 'invalid_params', 'filters.video_ids must hold 1 to 20 ids');
   const mine = ctx.rowsRaw(VIDEO).filter((v) => v.deleted !== true && v._person === c.person.id && ids.includes(String(v.id)));
@@ -70,7 +70,7 @@ export async function uploadVideo(ctx: HandlerContext): Promise<Response> {
   const to = direct ? 'PUBLISH_COMPLETE' : 'SEND_TO_USER_INBOX';
   const refused = ctx.legal(PUBLISH, 'status', 'uploadVideo', 'PROCESSING_UPLOAD', to, id, 'vendor');
   if (refused) throw new Error(refused.message);
-  const post = publishObj(p._post_info);
+  const post = obj(p._post_info);
   let postIds: number[] = [];
   if (direct) {
     const facts = mp4Facts(whole);

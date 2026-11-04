@@ -4,10 +4,9 @@
   from its reference page, https://core.telegram.org/bots/api, as Telegram serves it (fetched 2026-10-02, HTML,
   860074 bytes, sha256 `9da688c4213864d7911fcf0f501d2d7a8c3bbc351b8b4325e85e509bcc9d969f`; the page's "Recent changes"
   head it **Bot API 10.3**, August 24, 2026).
-- **How it was written:** mechanically from the page's HTML by `page-to-openapi.ts`, kept here
-  (`gunzip -c spec/bot-api.html.gz > page.html; bun spec/page-to-openapi.ts page.html openapi.json`, then `gzip -n -9`), from the bytes named above, kept here as `bot-api.html.gz`, every
-  section of methods and types it documents (Getting updates, Available types, Available methods, Updating messages,
-  Stickers, Rich messages, Inline mode, Payments, Telegram Passport, Games): 185 methods and 400 types.
+- **How it was written:** mechanically from the page's HTML, captured as `bot-api.html.gz` with the bytes named above.
+  It covers the page's methods and types across Getting updates, Available types, Available methods, Updating messages,
+  Stickers, Rich messages, Inline mode, Payments, Telegram Passport and Games: 185 methods and 400 types.
   - A method (an `h4` with a lower-case name and a Parameter/Type/Required/Description table) is
     `POST /bot{token}/<method>` (the page's "https://api.telegram.org/bot<token>/METHOD_NAME"), its operationId the
     method's name, its tag the page's section; its parameters a body taken as JSON, form or multipart, and the same

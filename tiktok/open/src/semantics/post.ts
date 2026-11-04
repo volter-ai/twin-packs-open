@@ -1,5 +1,5 @@
 import type { HandlerContext } from '@volter/world-core';
-import { PUBLISH, authorized, initVideo, invalid, mediaUrl, ok, privacyOptions, publishObj, pull, refuse } from './shared.ts';
+import { PUBLISH, authorized, initVideo, invalid, mediaUrl, obj, ok, privacyOptions, pull, refuse } from './shared.ts';
 
 // source: https://developers.tiktok.com/doc/content-posting-api-reference-query-creator-info "This API returns profile and permission information of the current user."
 export async function creatorInfoQuery(ctx: HandlerContext): Promise<Response> {
@@ -23,14 +23,14 @@ export async function inboxVideoInit(ctx: HandlerContext): Promise<Response> { r
 
 // source: https://developers.tiktok.com/doc/content-posting-api-reference-photo-post "Currently only PHOTO is allowed"
 export async function contentInit(ctx: HandlerContext): Promise<Response> {
-  const b = publishObj(ctx.body);
+  const b = obj(ctx.body);
   const direct = b.post_mode === 'DIRECT_POST';
   const c = authorized(ctx, direct ? 'video.publish' : 'video.upload');
   if (c instanceof Response) return c;
   if (b.media_type !== 'PHOTO') return invalid(ctx, 'media_type must be PHOTO');
   if (!direct && b.post_mode !== 'MEDIA_UPLOAD') return invalid(ctx, 'post_mode must be DIRECT_POST or MEDIA_UPLOAD');
-  const post = publishObj(b.post_info);
-  const source = publishObj(b.source_info);
+  const post = obj(b.post_info);
+  const source = obj(b.source_info);
   // source: https://developers.tiktok.com/doc/content-posting-api-reference-photo-post "Only PULL_FROM_URL is allowed"
   if (source.source !== 'PULL_FROM_URL') return invalid(ctx, 'source must be PULL_FROM_URL');
   const images = Array.isArray(source.photo_images) ? (source.photo_images as unknown[]).map(String) : [];
@@ -50,7 +50,7 @@ export async function contentInit(ctx: HandlerContext): Promise<Response> {
 export async function publishStatusFetch(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx, 'video.upload', 'video.publish');
   if (c instanceof Response) return c;
-  const id = String(publishObj(ctx.body).publish_id ?? '');
+  const id = String(obj(ctx.body).publish_id ?? '');
   const p = ctx.row(PUBLISH, id);
   // source: https://developers.tiktok.com/doc/content-posting-api-reference-get-video-status "does not exist"
   if (!p || p.deleted === true) return refuse(ctx, 400, 'invalid_publish_id', 'The publish_id does not exist.');
