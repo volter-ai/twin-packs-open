@@ -20,7 +20,9 @@ export async function emails(ctx: HandlerContext): Promise<Response> {
 /** GET /_twin/webhook-messages?type=: what Svix delivered, oldest first, as the receiver was sent them. */
 export async function webhookMessages(ctx: HandlerContext): Promise<Response> {
   const type = new URL(ctx.call.request.url).searchParams.get('type');
-  const data = ctx.rowsRaw('_webhook_message').filter((m) => !type || m.event_type === type).map(bare).sort((a, b) => Number(a.sent_at ?? 0) - Number(b.sent_at ?? 0));
+  const data = ctx.rowsRaw('_webhook_message').filter((m) => !type || m.event_type === type)
+    .map(({ id, url, body, headers, event_type, sent_at }) => ({ id, url, body, headers, event_type, sent_at }))
+    .sort((a, b) => Number(a.sent_at ?? 0) - Number(b.sent_at ?? 0));
   return Response.json({ data, total_count: data.length });
 }
 
