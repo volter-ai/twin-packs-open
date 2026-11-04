@@ -53,7 +53,7 @@ export function toJoin(ctx: HandlerContext): Response {
 // path, and is a place still.
 
 /** The twin's base path at a World's place ('' for a prefix of `/`), or undefined on LinkedIn's own hosts. */
-export function placeOf(ctx: HandlerContext): string | undefined {
+function placeOf(ctx: HandlerContext): string | undefined {
   return ctx.call.request.headers.has('x-forwarded-prefix') ? new URL(ctx.publicBase).pathname.replace(/\/+$/, '') : undefined;
 }
 
@@ -89,11 +89,11 @@ export function whileProcessing(posts: Row[]): Record<string, string> {
 
 /** What hands a viewer a media URL: ../semantics/shared.ts mediaSigner, made once per page and given to each post it
  *  draws, which signs only the URLs of the assets of a post the viewer may see (postsBy, visibleTo). */
-export type Signer = Awaited<ReturnType<typeof mediaSigner>>;
+type Signer = Awaited<ReturnType<typeof mediaSigner>>;
 
 // LinkedIn's palette: its blue, the warm grey of its canvas, white cards and its type stack. Where the documentation
 // stops: the measures are the twin's.
-export const LINKEDIN_CSS = `
+const LINKEDIN_CSS = `
 * { box-sizing: border-box; }
 body { margin: 0; background: #f4f2ee; color: rgba(0,0,0,.9); font: 14px/1.42857 -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 a { color: #0a66c2; text-decoration: none; } a:hover { text-decoration: underline; }
@@ -203,7 +203,7 @@ export function GlobalNav({ member, active, next }: { member: Row | undefined; a
 }
 
 /** A name's initials, for a picture LinkedIn draws when there is none. */
-export const initials = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => Array.from(w)[0]!.toUpperCase()).join('');
+const initials = (name: string): string => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => Array.from(w)[0]!.toUpperCase()).join('');
 
 /** A member's or a page's picture: a page's square, a member's circle. */
 export function Avatar({ name, kind, size }: { name: string; kind: 'member' | 'org'; size: number }): Body {
@@ -244,7 +244,7 @@ export function visibleTo(ctx: HandlerContext, post: Row, member: Row | undefine
 }
 
 /** A post's time as the feed shows it: "now", "5m", "3h", "2d", "1w", "4mo", "1yr". */
-export function ago(nowMs: number, thenMs: number): string {
+function ago(nowMs: number, thenMs: number): string {
   const s = Math.max(0, Math.floor((nowMs - thenMs) / 1000));
   const unit = AGO.find(([below]) => s < below) ?? AGO[AGO.length - 1]!;
   return unit[1] === 'now' ? 'now' : `${Math.floor(s / unit[2])}${unit[1]}`;
@@ -254,7 +254,7 @@ const AGO: Array<[number, string, number]> = [[60, 'now', 1], [3600, 'm', 60], [
 /** Little text as a page draws it: escapes undone, hashtags (a template's or a `#word`) and mentions in LinkedIn's
  *  link colour (the World serves no hashtag or profile page for them to open), web addresses as links, line breaks
  *  kept. */
-export function LittleText({ text }: { text: string }): Body {
+function LittleText({ text }: { text: string }): Body {
   const out: Array<Body | string> = [];
   let plain = '';
   const flush = (): void => { if (plain) { out.push(...linkified(plain, out.length)); plain = ''; } };
