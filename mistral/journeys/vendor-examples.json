@@ -1,0 +1,607 @@
+{
+  "vendor": "mistral",
+  "author": "Contributor 94",
+  "host": "api.mistral.ai",
+  "about": "Mistral published chat request with an application key; other operations remain outside demand.",
+  "steps": [
+    {
+      "name": "Obtain application credential",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "body": {},
+      "status": 201,
+      "capture": {
+        "key": "api_key"
+      }
+    },
+    {
+      "name": "Painter chat request (TypeScript, Python and cURL)",
+      "example": "chat_completion_v1_chat_completions_post#doc Painter chat request (TypeScript, Python and cURL)",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-large-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Who is the best French painter? Answer in one short sentence."
+          }
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "model",
+          "equals": "mistral-large-latest"
+        }
+      ],
+      "exampleDiffers": {
+        "choices[].index": "The reference uses the string placeholder <to fill>; ChatCompletionChoice.index is integer in spec/openapi.yaml.gz.",
+        "created": "The reference renders 1702256327 as a quoted string; ChatCompletionResponse.created is integer in spec/openapi.yaml.gz."
+      }
+    },
+    {
+      "name": "Streaming ends with DONE",
+      "example": "chat_completion_v1_chat_completions_post#doc Streaming ends with DONE",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "stream": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        }
+      ]
+    },
+    {
+      "name": "JSON object output",
+      "example": "chat_completion_v1_chat_completions_post#doc JSON object output",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Return JSON"
+          }
+        ],
+        "response_format": {
+          "type": "json_object"
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        }
+      ]
+    },
+    {
+      "name": "JSON schema output",
+      "example": "chat_completion_v1_chat_completions_post#doc JSON schema output",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Return JSON"
+          }
+        ],
+        "response_format": {
+          "type": "json_schema",
+          "json_schema": {
+            "name": "schedule",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "classes": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "classes"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        }
+      ]
+    },
+    {
+      "name": "Tool choice none",
+      "example": "chat_completion_v1_chat_completions_post#doc Tool choice none",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "one",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "two",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        ],
+        "tool_choice": "none"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        }
+      ]
+    },
+    {
+      "name": "Named tool is forced",
+      "example": "chat_completion_v1_chat_completions_post#doc Named tool is forced",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "one",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "two",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "function",
+          "function": {
+            "name": "two"
+          }
+        }
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.type",
+          "equals": "function"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.function.name",
+          "equals": "two"
+        }
+      ]
+    },
+    {
+      "name": "Any requires a tool after tool results",
+      "example": "chat_completion_v1_chat_completions_post#doc Any requires a tool after tool results",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "abcdef123",
+            "content": "done"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "one",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "two",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        ],
+        "tool_choice": "any"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "tool_calls"
+        },
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.type",
+          "equals": "function"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.function.name",
+          "equals": "one"
+        }
+      ]
+    },
+    {
+      "name": "Two choices charge prompt once",
+      "example": "chat_completion_v1_chat_completions_post#doc Two choices charge prompt once",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "n": 2
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.1.index",
+          "equals": 1
+        },
+        {
+          "path": "choices.2",
+          "exists": false
+        },
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        }
+      ]
+    },
+    {
+      "name": "Stop sequence removes its suffix",
+      "example": "chat_completion_v1_chat_completions_post#doc Stop sequence removes its suffix",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "stop": "Your last message:"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.message.content",
+          "notContains": "Your last message:"
+        },
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        }
+      ]
+    },
+    {
+      "name": "Maximum generated tokens truncates",
+      "example": "chat_completion_v1_chat_completions_post#doc Maximum generated tokens truncates",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "max_tokens": 1
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.finish_reason",
+          "equals": "length"
+        },
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        }
+      ]
+    },
+    {
+      "name": "Chat requires model",
+      "example": "chat_completion_v1_chat_completions_post#doc Chat requires model",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ]
+      },
+      "status": 422
+    },
+    {
+      "name": "Chat requires messages",
+      "example": "chat_completion_v1_chat_completions_post#doc Chat requires messages",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest"
+      },
+      "status": 422
+    },
+    {
+      "name": "Chat model must be available",
+      "example": "chat_completion_v1_chat_completions_post#doc Chat model must be available",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "gpt-4o",
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ]
+      },
+      "status": 400
+    },
+    {
+      "name": "Parallel tool calls can be disabled",
+      "example": "chat_completion_v1_chat_completions_post#doc Parallel tool calls can be disabled",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "parallel example"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "one",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "two",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        ],
+        "parallel_tool_calls": false
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.type",
+          "equals": "function"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.function.name",
+          "equals": "one"
+        }
+      ]
+    },
+    {
+      "name": "Parallel tool calls can be enabled",
+      "example": "chat_completion_v1_chat_completions_post#doc Parallel tool calls can be enabled",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "parallel example"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "one",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "two",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        ],
+        "parallel_tool_calls": true
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.type",
+          "equals": "function"
+        },
+        {
+          "path": "choices.0.message.tool_calls.0.function.name",
+          "equals": "one"
+        }
+      ]
+    },
+    {
+      "name": "Any stop sequence removes its suffix",
+      "example": "chat_completion_v1_chat_completions_post#doc Any stop sequence removes its suffix",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "body": {
+        "model": "mistral-small-latest",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "stop": [
+          "sequence absent from this turn",
+          "Your last message:"
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "choices.0.message.content",
+          "notContains": "Your last message:"
+        },
+        {
+          "path": "model",
+          "equals": "mistral-small-latest"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,860 @@
+{
+  "vendor": "merge",
+  "author": "Contributor 65",
+  "host": "api-gateway.merge.dev",
+  "about": "Replay the published pagination requests and the documented validation, key, credit, stream and tool-choice contracts. Requests on models outside the demand-scoped catalogue are retained with reasons. Setup only supplies account credentials and the zero-credit precondition.",
+  "steps": [
+    {
+      "name": "Replay at the current model-catalog date",
+      "wait": "273d"
+    },
+    {
+      "name": "Create the Pro organization whose key authenticates the documented requests",
+      "method": "POST",
+      "path": "/_twin/organizations",
+      "body": {
+        "name": "Documentation replay",
+        "access": [
+          "anthropic"
+        ]
+      },
+      "status": 201,
+      "capture": {
+        "key": "api_key"
+      }
+    },
+    {
+      "name": "models_list#doc Pagination cURL first page",
+      "example": "models_list#doc Pagination cURL first page",
+      "method": "GET",
+      "path": "/v1/models?limit=500",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "object",
+          "equals": "list"
+        },
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "data.0.model",
+          "equals": "anthropic/claude-haiku-4-5-20251001"
+        },
+        {
+          "path": "data.1.model",
+          "equals": "anthropic/claude-sonnet-5-5"
+        },
+        {
+          "path": "data.2.model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "data.0.provider",
+          "equals": "anthropic"
+        },
+        {
+          "path": "data.1.provider",
+          "equals": "anthropic"
+        }
+      ]
+    },
+    {
+      "name": "models_list#doc Pagination cURL next page",
+      "example": "models_list#doc Pagination cURL next page",
+      "method": "GET",
+      "path": "/v1/models?limit=500&cursor=mistral/magistral-medium-2509-thinking",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "data.0.model",
+          "equals": "anthropic/claude-haiku-4-5-20251001"
+        },
+        {
+          "path": "data.1.model",
+          "equals": "anthropic/claude-sonnet-5-5"
+        },
+        {
+          "path": "data.2.model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "data.0.provider",
+          "equals": "anthropic"
+        },
+        {
+          "path": "data.1.provider",
+          "equals": "anthropic"
+        }
+      ],
+      "undecided": {
+        "data": "The documented stale cursor restarts the scoped catalogue; its contents are fixture models rather than the live catalog."
+      }
+    },
+    {
+      "name": "models_list#doc Pagination Python loop",
+      "example": "models_list#doc Pagination Python loop",
+      "method": "GET",
+      "path": "/v1/models?limit=500",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "has_more",
+          "equals": false
+        },
+        {
+          "path": "next_cursor",
+          "exists": false
+        },
+        {
+          "path": "data.0.provider",
+          "equals": "anthropic"
+        },
+        {
+          "path": "data.1.provider",
+          "equals": "anthropic"
+        }
+      ]
+    },
+    {
+      "name": "models_list#doc Oversized page refusal",
+      "example": "models_list#doc Oversized page refusal",
+      "method": "GET",
+      "path": "/v1/models?limit=501",
+      "status": 422,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "detail.0.loc.1",
+          "equals": "limit"
+        }
+      ]
+    },
+    {
+      "name": "models_list#doc Single model query",
+      "example": "models_list#doc Single model query",
+      "method": "GET",
+      "path": "/v1/models?model=zai/glm-5.3-flash",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "vendors.zai.pricing.currency",
+          "equals": "USD"
+        }
+      ]
+    },
+    {
+      "name": "models_list#doc Provider filter",
+      "example": "models_list#doc Provider filter",
+      "method": "GET",
+      "path": "/v1/models?provider=zai",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "data.0.provider",
+          "equals": "zai"
+        },
+        {
+          "path": "data.1",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "name": "models_list#doc Unknown single model",
+      "example": "models_list#doc Unknown single model",
+      "method": "GET",
+      "path": "/v1/models?model=openai/gpt-9",
+      "status": 404,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "model_not_found"
+        }
+      ]
+    },
+    {
+      "name": "chatCompletions_create#doc Unknown model error envelope",
+      "example": "chatCompletions_create#doc Unknown model error envelope",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 404,
+      "body": {
+        "model": "openai/gpt-9",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ]
+      },
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "not_found_error"
+        },
+        {
+          "path": "error.code",
+          "equals": "model_not_found"
+        },
+        {
+          "path": "error.param",
+          "equals": "model"
+        },
+        {
+          "path": "error.source",
+          "equals": "gateway"
+        },
+        {
+          "path": "error.message",
+          "equals": "Model 'openai/gpt-9' is not supported. Check /v1/models for available models."
+        }
+      ]
+    },
+    {
+      "name": "chatCompletions_create#doc Model required",
+      "example": "chatCompletions_create#doc Model required",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 400,
+      "body": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ]
+      },
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "model_required"
+        }
+      ]
+    },
+    {
+      "name": "chatCompletions_create#doc Missing key",
+      "example": "chatCompletions_create#doc Missing key",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 401,
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_request_error"
+        }
+      ]
+    },
+    {
+      "name": "chatCompletions_create#doc Invalid key",
+      "example": "chatCompletions_create#doc Invalid key",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 401,
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ]
+      },
+      "headers": {
+        "Authorization": "Bearer mg_notakey",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "invalid_api_key"
+        }
+      ]
+    },
+    {
+      "name": "Create the account with no prepaid credit required by the documented budget refusal",
+      "method": "POST",
+      "path": "/_twin/organizations",
+      "body": {
+        "name": "Unfunded documentation account",
+        "credit_usd": 0
+      },
+      "status": 201,
+      "capture": {
+        "emptyKey": "api_key"
+      },
+      "expect": [
+        {
+          "path": "credit_usd",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "chatCompletions_create#doc Credit exhausted",
+      "example": "chatCompletions_create#doc Credit exhausted",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 402,
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ]
+      },
+      "headers": {
+        "Authorization": "Bearer {emptyKey}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "error.type",
+          "equals": "budget_exceeded"
+        },
+        {
+          "path": "error.code",
+          "equals": "budget_exceeded"
+        }
+      ]
+    },
+    {
+      "name": "chatCompletions_create#doc Chat terminal usage",
+      "example": "chatCompletions_create#doc Chat terminal usage",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "stream": true
+      },
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"cost\":"
+        },
+        {
+          "path": "",
+          "contains": "data: [DONE]"
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc Native response snapshots",
+      "example": "responses_create#doc Native response snapshots",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "stream": true
+      },
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "\"object\":\"response.stream\""
+        },
+        {
+          "path": "",
+          "contains": "\"object\":\"response.done\""
+        },
+        {
+          "path": "",
+          "notContains": "[DONE]"
+        }
+      ]
+    },
+    {
+      "name": "messages_create#doc Messages event order",
+      "example": "messages_create#doc Messages event order",
+      "method": "POST",
+      "path": "/v1/messages",
+      "status": 200,
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "stream": true
+      },
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "",
+          "contains": "event: message_start"
+        },
+        {
+          "path": "",
+          "contains": "event: message_delta"
+        },
+        {
+          "path": "",
+          "contains": "event: message_stop"
+        },
+        {
+          "path": "",
+          "notContains": "\"cost\""
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc No tool calls under none",
+      "example": "responses_create#doc No tool calls under none",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Explain the ledger"
+          }
+        ],
+        "tool_choice": "none",
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_balance",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ]
+      },
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "expect": [
+        {
+          "path": "output.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "output.0.content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc Required native input",
+      "example": "responses_create#doc Required native input",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 422,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash"
+      },
+      "expect": [
+        {
+          "path": "detail.0.loc.1",
+          "equals": "input"
+        },
+        {
+          "path": "detail.0.type",
+          "equals": "missing"
+        },
+        {
+          "path": "detail.0.input.model",
+          "equals": "zai/glm-5.3-flash"
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc Native input must be an array",
+      "example": "responses_create#doc Native input must be an array",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 422,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": "Hello"
+      },
+      "expect": [
+        {
+          "path": "detail.0.loc.1",
+          "equals": "input"
+        },
+        {
+          "path": "detail.0.type",
+          "equals": "array_type"
+        },
+        {
+          "path": "detail.0.input",
+          "equals": "Hello"
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc Unpriced service tier",
+      "example": "responses_create#doc Unpriced service tier",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 400,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "service_tier": "priority"
+      },
+      "expect": [
+        {
+          "path": "error.code",
+          "equals": "unsupported_params"
+        },
+        {
+          "path": "error.param",
+          "equals": "service_tier"
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc Ignored OpenAI-only fields",
+      "example": "responses_create#doc Ignored OpenAI-only fields",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Hello"
+          }
+        ],
+        "metadata": {
+          "case": "docs"
+        }
+      },
+      "expect": [
+        {
+          "path": "warnings.0.code",
+          "equals": "openai_fields_ignored"
+        },
+        {
+          "path": "warnings.0.detail.ignored_fields.0",
+          "equals": "metadata"
+        },
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc Native named tool choice",
+      "example": "responses_create#doc Native named tool choice",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Check the ledger balance"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "name": "ls",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          {
+            "type": "function",
+            "name": "get_balance",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "function",
+          "function": {
+            "name": "get_balance"
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "output.0.finish_reason",
+          "equals": "tool_use"
+        },
+        {
+          "path": "output.0.content.0.name",
+          "equals": "get_balance"
+        },
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        }
+      ],
+      "capture": {
+        "nativeTool": "output.0.content.0.id",
+        "nativeInput": "output.0.content.0.input"
+      }
+    },
+    {
+      "name": "responses_create#doc Native tool result loop",
+      "example": "responses_create#doc Native tool result loop",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Check the ledger balance"
+          },
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "{nativeTool}",
+                "name": "get_balance",
+                "input": "{nativeInput}"
+              }
+            ]
+          },
+          {
+            "type": "tool_result",
+            "tool_use_id": "{nativeTool}",
+            "content": "10 USD"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_balance",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "output.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "output.0.content.0.type",
+          "equals": "text"
+        },
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        },
+        {
+          "path": "output.0.role",
+          "equals": "assistant"
+        }
+      ]
+    },
+    {
+      "name": "responses_create#doc Native structured output",
+      "example": "responses_create#doc Native structured output",
+      "method": "POST",
+      "path": "/v1/responses",
+      "status": 200,
+      "headers": {
+        "Authorization": "Bearer {key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "zai/glm-5.3-flash",
+        "input": [
+          {
+            "type": "message",
+            "role": "user",
+            "content": "Give JSON"
+          }
+        ],
+        "response_format": {
+          "type": "json_object"
+        },
+        "text": {
+          "format": {
+            "type": "text"
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "output.0.content.0.text",
+          "matches": "^\\{"
+        },
+        {
+          "path": "output.0.finish_reason",
+          "equals": "stop"
+        },
+        {
+          "path": "model",
+          "equals": "zai/glm-5.3-flash"
+        },
+        {
+          "path": "output.0.type",
+          "equals": "message"
+        },
+        {
+          "path": "output.0.role",
+          "equals": "assistant"
+        },
+        {
+          "path": "output.0.content.0.type",
+          "equals": "text"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "responses_create#doc Quickstart cURL": "The published request selects openai/gpt-5-nano, outside the demand-scoped catalogue in shared.ts. This World has no route/pricing fixture for it; replaying it as a successful priced call would invent vendor facts. The request is retained verbatim rather than replacing its model with a demanded one.",
+    "responses_create#doc Quickstart Python": "The published request selects openai/gpt-5-nano, outside the demand-scoped catalogue in shared.ts. This World has no route/pricing fixture for it; replaying it as a successful priced call would invent vendor facts. The request is retained verbatim rather than replacing its model with a demanded one.",
+    "responses_create#doc Tool request cURL": "The published request selects openai/gpt-5.1, outside the demand-scoped catalogue in shared.ts. This World has no route/pricing fixture for it; replaying it as a successful priced call would invent vendor facts. The request is retained verbatim rather than replacing its model with a demanded one.",
+    "responses_create#doc Tool request Python": "The published request selects openai/gpt-5.1, outside the demand-scoped catalogue in shared.ts. This World has no route/pricing fixture for it; replaying it as a successful priced call would invent vendor facts. The request is retained verbatim rather than replacing its model with a demanded one.",
+    "responses_create#doc Tool result Python": "The published request selects openai/gpt-5.1, outside the demand-scoped catalogue in shared.ts. This World has no route/pricing fixture for it; replaying it as a successful priced call would invent vendor facts. The request is retained verbatim rather than replacing its model with a demanded one."
+  }
+}

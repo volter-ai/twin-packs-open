@@ -1,0 +1,113 @@
+{
+ "about": "googleoauth's decision table (the P3 procedure). The demand (journeys/demand.json) is the applications' sign-in with Google and their offline grants for Google's APIs: discovery, the account chooser, the token endpoint's code and refresh grants, the keys, userinfo and revocation; the jwt-bearer grant is served for the World's service account, whose key file the credential door writes. Every served operation is a handler's; the rest of the document answers the gap.",
+ "decisions": [
+  {
+   "operation": "openidConfiguration",
+   "demand": "cal.com packages/features/auth/lib/next-auth-options.ts and dub apps/web/lib/auth/options.ts (NextAuth's Google provider reads the discovery document); the life: cal.com reads Google's discovery document",
+   "mechanism": "handler",
+   "why": "A fixed document: Google's issuer and its endpoints, each on the host the descriptor claims, so a client following it stays in the World."
+  },
+  {
+   "operation": "authorize",
+   "demand": "every demanded sign-in with Google and offline grant (cal.com, dub, rallly, inbox-zero, twenty, LibreChat, AFFiNE, ponder; journeys/demand.json); the life: each person sent to Google's account chooser",
+   "mechanism": "handler",
+   "why": "The account chooser screen: the World's Google accounts, the client and its registered redirect_uri checked, a code issued for the account chosen and the scopes asked (offline access and PKCE kept with it)."
+  },
+  {
+   "operation": "token",
+   "demand": "every demanded code exchange and refresh (journeys/demand.json: cal.com's CalendarService.ts, rallly's calendar service, inbox-zero, twenty, LibreChat, AFFiNE, ponder); the life: cal.com and Rallly exchange codes and refresh",
+   "mechanism": "handler",
+   "why": "The token endpoint's grants: an authorization code (once, with its PKCE verifier and client secret), a refresh token, and a service account's JWT assertion (the credential door's key file, as google-auth-library's application default credentials sign it for the Google API packs); a code or token it does not hold is invalid_grant."
+  },
+  {
+   "operation": "tokeninfoPost",
+   "demand": "The installed customer workflow uses unchanged google-auth-library 10.9.1 OAuth2Client.getTokenInfo to inspect its issued service-account access token and read the same token after resume (journeys/first-use.json).",
+   "mechanism": "handler",
+   "why": "The SDK sends a bodyless POST with Bearer authorization. Read the same live, unrevoked access-token row the Google API packs authorize against; return its audience, granted scope and remaining lifetime."
+  },
+  {
+   "operation": "revoke",
+   "demand": "rallly apps/web/src/features/calendars/google/service.ts, inbox-zero apps/web/utils/google/oauth.ts and AFFiNE's OAuth providers revoke a disconnected grant; the life: Rallly revokes Femke's grant",
+   "mechanism": "handler",
+   "why": "An access token stops answering and a refresh token is removed; a token it does not hold is invalid_token."
+  },
+  {
+   "operation": "certs",
+   "demand": "every demanded id_token verification (journeys/demand.json: cal.com, dub, rallly, inbox-zero, twenty, LibreChat, AFFiNE, ponder); the life: cal.com fetches Google's keys",
+   "mechanism": "handler",
+   "why": "The World's signing keys as a JWK set, the keys the id_tokens it issues are signed with."
+  },
+  {
+   "operation": "userinfoV3",
+   "demand": "the signed-in person read by the sign-in providers (journeys/demand.json: cal.com, dub, rallly, inbox-zero, twenty, LibreChat, AFFiNE); the life: cal.com reads Ruben's profile",
+   "mechanism": "handler",
+   "why": "The OpenID Connect claims of the account an access token belongs to; a token revoked or expired is refused."
+  },
+  {
+   "operation": "oauth2.userinfo.get",
+   "demand": "cal.com packages/app-store/_utils/oauth/updateProfilePhotoGoogle.ts:13 (googleapis oauth2.userinfo.get); the life: cal.com reads the connected account's profile photo",
+   "mechanism": "handler",
+   "why": "The oauth2 v2 API's userinfo shape (`id`, `verified_email`) for the account an access token belongs to."
+  },
+  {
+   "operation": "authorizeV1",
+   "demand": "(no demand)",
+   "mechanism": "unmodeled",
+   "why": "The older authorization endpoint: no demanded client sends a person there; the discovery document names /o/oauth2/v2/auth."
+  },
+  {
+   "operation": "tokenV4",
+   "demand": "(no demand)",
+   "mechanism": "unmodeled",
+   "why": "The older token endpoint: every demanded client posts to oauth2.googleapis.com/token, the discovery document's."
+  },
+  {
+   "operation": "tokeninfo",
+   "demand": "(no demand)",
+   "mechanism": "unmodeled",
+   "why": "No demanded application asks tokeninfo; tokens are verified against the keys and read through userinfo."
+  },
+  {
+   "operation": "oauth2.tokeninfo",
+   "demand": "(no demand)",
+   "mechanism": "unmodeled",
+   "why": "No demanded application calls the oauth2 v2 API's tokeninfo."
+  },
+  {
+   "operation": "userinfo",
+   "demand": "(no demand)",
+   "mechanism": "unmodeled",
+   "why": "The discovery document's userinfo_endpoint (openidconnect.googleapis.com/v1/userinfo): no demanded client reads it; the demanded sign-in providers verify the id_token against the keys or read /oauth2/v3/userinfo."
+  },
+  {
+   "operation": "deviceCode",
+   "demand": "(no demand)",
+   "mechanism": "unmodeled",
+   "why": "The device flow: no demanded application signs a person in on a device without a browser."
+  },
+  {
+   "operation": "door:clients",
+   "demand": "the life: the World registers each application's OAuth client (cal.com's and Rallly's callbacks)",
+   "mechanism": "door",
+   "why": "An OAuth client as the Cloud console's Credentials page registers it: its id, secret and redirect URIs. No API call makes one."
+  },
+  {
+   "operation": "door:accounts",
+   "demand": "the life: the World's Google accounts each person chooses on the account chooser",
+   "mechanism": "door",
+   "why": "A Google account (its 21-digit sub, email and name), the sign-up no API call makes."
+  },
+  {
+   "operation": "door:serviceAccounts",
+   "demand": "google-auth-library's application default credentials (GOOGLE_APPLICATION_CREDENTIALS), the jwt-bearer grant",
+   "mechanism": "door",
+   "why": "A service account and its JSON key file, as the console's Create key downloads it."
+  },
+  {
+   "operation": "door:worldCredentials",
+   "demand": "the credential door: every World application gets GOOGLE_APPLICATION_CREDENTIALS, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET; the Google API packs' person sign-in (youtube journeys/first-use.json signs the World person in on the account chooser with this client); dubinc/dub apps/web/lib/youtube/client.ts:11 sends the project's API key (YOUTUBE_API_KEY) to YouTube",
+   "mechanism": "door",
+   "why": "The World's credentials at boot: the service account and key file, the application's OAuth client (its installed-app loopback redirect http://localhost:3000/oauth2callback registered), the World's person (the Google account who consents) and the project's API key (kept by its SHA-256 as api_key, which the Google API packs read across packs; filled as YOUTUBE_API_KEY, the name Dub reads). The same body answers the same credentials at every boot."
+  }
+ ]
+}

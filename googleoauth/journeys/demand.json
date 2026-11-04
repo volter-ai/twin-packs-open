@@ -1,0 +1,217 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [
+    {
+      "name": "volter-ai/runhuman",
+      "backend": [],
+      "note": "no Google OAuth call found (runhuman's matches are its own CLI's OAuth and docs)"
+    },
+    {
+      "name": "supercode",
+      "backend": [],
+      "note": "no Google OAuth call found"
+    },
+    {
+      "name": "editor",
+      "backend": [],
+      "note": "no Google OAuth call found"
+    },
+    {
+      "name": "browser-substrate",
+      "backend": [],
+      "note": "no Google OAuth call found"
+    },
+    {
+      "name": "tabnode",
+      "backend": [],
+      "note": "no Google OAuth call found"
+    },
+    {
+      "name": "twin-catalog",
+      "backend": [],
+      "note": "no Google OAuth call found"
+    },
+    {
+      "name": "company-layer",
+      "backend": [],
+      "note": "no Google OAuth call found"
+    },
+    {
+      "commit": "7e0101363b2a",
+      "client": "NextAuth's Google provider",
+      "backend": [
+        {
+          "call": "OIDC discovery document",
+          "operation": "openidConfiguration",
+          "evidence": "apps/web/lib/auth/options.ts:116"
+        },
+        {
+          "call": "the consent at accounts.google.com/o/oauth2/v2/auth (a person chooses their account)",
+          "operation": "authorize",
+          "evidence": "apps/web/lib/auth/options.ts:116"
+        },
+        {
+          "call": "the code exchanged at oauth2.googleapis.com/token (authorization_code)",
+          "operation": "token",
+          "evidence": "apps/web/lib/auth/options.ts:116"
+        },
+        {
+          "call": "the signed-in person read: the id_token's claims, verified against the JWKS, or the userinfo endpoint",
+          "operation": "certs; userinfoV3",
+          "evidence": "apps/web/lib/auth/options.ts:116"
+        }
+      ],
+      "name": "dubinc/dub",
+      "gate": "NextAuth registers Google unconditionally in the shipped providers array (apps/web/lib/auth/options.ts:95,116-119)."
+    },
+    {
+      "commit": "54343aa685ae",
+      "client": "googleapis OAuth2Client for shipped calendar onboarding and team directory",
+      "backend": [
+        {
+          "call": "an offline grant (access_type=offline, prompt=consent) for the Google API scopes the product needs",
+          "operation": "authorize",
+          "evidence": "packages/app-store/googlecalendar/api/add.ts:29"
+        },
+        {
+          "call": "the code exchanged, and the access token refreshed with the refresh token (grant_type=refresh_token)",
+          "operation": "token",
+          "evidence": "packages/app-store/googlecalendar/api/callback.ts:53; packages/app-store/googlecalendar/lib/CalendarAuth.ts:109; packages/trpc/server/routers/viewer/googleWorkspace/googleWorkspace.handler.ts:53"
+        },
+        {
+          "call": "the connected Google account's profile photo: googleapis oauth2.userinfo.get (the OAuth2 API v2)",
+          "operation": "oauth2.userinfo.get",
+          "evidence": "packages/app-store/_utils/oauth/updateProfilePhotoGoogle.ts:13"
+        }
+      ],
+      "name": "calcom/cal.diy",
+      "gate": "Google Calendar onboarding uses its offline OAuth grant independently of the disabled Google sign-in flag (packages/app-store/googlecalendar/_metadata.ts:9; packages/app-store/googlecalendar/api/add.ts:25-36; apps/web/modules/onboarding/personal/calendar/personal-calendar-view.tsx:28-34)."
+    },
+    {
+      "name": "lukevella/rallly",
+      "client": "Google sign-in, Google Calendar connections and Google Meet conferencing",
+      "backend": [
+        {
+          "call": "Google sign-in OAuth authorization and code exchange",
+          "operation": "authorize; token; userinfoV3",
+          "evidence": "apps/web/src/lib/auth.ts:239-247"
+        },
+        {
+          "call": "Google Calendar connection OAuth consent and offline grant",
+          "operation": "authorize; token",
+          "evidence": "apps/web/src/app/api/integrations/[...connection]/route.ts:80-93"
+        }
+      ],
+      "commit": "3e63239dbdec",
+      "gate": "Google sign-in and Calendar connection are shipped features gated only by OAuth credentials; Google Meet has a separate off-by-default conferencing flag (apps/web/src/lib/auth.ts:239-247; apps/web/src/app/api/integrations/[...connection]/route.ts:80-93,125-132; apps/web/src/env.ts:117).",
+      "evidence": "ccc517289b86: apps/web/src/lib/auth.ts:258; apps/web/src/app/api/integrations/[...connection]/route.ts:81,127-129; 3e63239dbdec: apps/web/src/lib/auth.ts:241; apps/web/src/app/api/integrations/[...connection]/route.ts:81,127-129"
+    },
+    {
+      "name": "LibreChat-AI/LibreChat",
+      "client": "User-configured Agents Actions OAuth credentials",
+      "backend": [
+        {
+          "call": "Action OAuth consent, authorization-code exchange and token refresh",
+          "operation": "authorize; token",
+          "evidence": "api/server/services/ActionService.js:347; packages/api/src/oauth/tokens.ts:214"
+        }
+      ],
+      "commit": "f10b1d91f1ee",
+      "gate": "Agents Actions lets an end user supply OAuth client credentials in-app; Google token exchange/refresh is reached through those shipped action tools, independently of optional social login (client/src/components/SidePanel/Agents/ActionsInput.tsx:187-188; api/server/services/ActionService.js:347; packages/api/src/oauth/tokens.ts:214).",
+      "evidence": "api/server/index.js:393-394; api/server/socialLogins.js:92-94; .env.example:891,928-929; configured flow citations at the same scanned commit: api/strategies/googleStrategy.js:26; api/strategies/googleStrategy.js:26; api/strategies/googleStrategy.js:5; packages/api/src/oauth/tokens.ts:214; api/server/services/ActionService.js:347"
+    },
+    {
+      "name": "googleoauth installed customer workflow",
+      "client": "google-auth-library 10.9.1",
+      "backend": [
+        {
+          "call": "OAuth2Client.getTokenInfo posts the retained access token as Bearer authorization",
+          "operation": "tokeninfoPost",
+          "evidence": "journeys/first-use.json:11; https://unpkg.com/google-auth-library@10.9.1/build/src/auth/oauth2client.js:552"
+        }
+      ]
+    }
+  ],
+  "optional": [
+    {
+      "what": "Google Meet conferencing, separately from demanded Google sign-in/Calendar",
+      "application": "lukevella/rallly",
+      "evidence": "3e63239dbdec: apps/web/src/lib/auth.ts:241; apps/web/src/app/api/integrations/[...connection]/route.ts:81,127-129",
+      "setting": "Configuration (1): CONFERENCING_ENABLED=true replaces false (apps/web/src/env.ts:117; apps/web/src/app/api/integrations/[...connection]/route.ts:125-132)."
+    },
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "what": "Google social sign-in, separately from demanded user Actions OAuth",
+      "setting": "Configuration (1): ALLOW_SOCIAL_LOGIN=true replaces false (api/server/index.js:393-394; .env.example:891).",
+      "evidence": "api/server/index.js:393"
+    },
+    {
+      "commit": "1d561b8c73c9",
+      "client": "passport-google-oauth20 for sign-in; googleapis OAuth2Client for Gmail and Calendar sync",
+      "backend": [
+        {
+          "call": "the consent at accounts.google.com/o/oauth2/v2/auth (a person chooses their account)",
+          "operation": "authorize",
+          "evidence": "packages/twenty-server/src/engine/core-modules/auth/strategies/google.auth.strategy.ts:42"
+        },
+        {
+          "call": "the code exchanged at oauth2.googleapis.com/token (authorization_code)",
+          "operation": "token",
+          "evidence": "packages/twenty-server/src/engine/core-modules/auth/strategies/google.auth.strategy.ts:42"
+        },
+        {
+          "call": "the signed-in person read: the id_token's claims, verified against the JWKS, or the userinfo endpoint",
+          "operation": "certs; userinfoV3",
+          "evidence": "packages/twenty-server/src/engine/core-modules/auth/strategies/google.auth.strategy.ts:75"
+        },
+        {
+          "call": "an offline grant (access_type=offline, prompt=consent) for the Google API scopes the product needs",
+          "operation": "authorize",
+          "evidence": "packages/twenty-server/src/engine/core-modules/auth/strategies/google-apis-oauth-request-code.auth.strategy.ts:24"
+        },
+        {
+          "call": "the code exchanged, and the access token refreshed with the refresh token (grant_type=refresh_token)",
+          "operation": "token",
+          "evidence": "packages/twenty-server/src/engine/core-modules/auth/strategies/google-apis-oauth-exchange-code-for-token.auth.strategy.ts:21; packages/twenty-server/src/modules/connected-account/oauth2-client-manager/drivers/google/google-oauth2-client.provider.ts:81"
+        },
+        {
+          "call": "Gmail's push notification's OIDC token verified",
+          "operation": "certs",
+          "evidence": "packages/twenty-server/src/modules/connected-account-sync-webhooks/drivers/google/google-messaging-notification.handler.ts:129"
+        }
+      ],
+      "application": "twentyhq/twenty",
+      "what": "passport-google-oauth20 for sign-in; googleapis OAuth2Client for Gmail and Calendar sync",
+      "setting": "Configuration (1): AUTH_GOOGLE_ENABLED, MESSAGING_PROVIDER_GMAIL_ENABLED or CALENDAR_PROVIDER_GOOGLE_ENABLED must replace false (packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:150,166,201).",
+      "evidence": "packages/twenty-server/.env.example:17,19,31-35; packages/twenty-server/src/engine/core-modules/auth/guards/google-provider-enabled.guard.ts:24"
+    },
+    {
+      "application": "calcom/cal.diy",
+      "what": "Google social sign-in, separately from demanded Calendar OAuth",
+      "setting": "Configuration (1): GOOGLE_LOGIN_ENABLED=true replaces false; Calendar onboarding is independent (.env.example:134; packages/features/auth/lib/next-auth-options.ts:316).",
+      "evidence": "packages/features/auth/lib/next-auth-options.ts:316",
+      "backend": [
+        {
+          "call": "OIDC discovery document",
+          "operation": "openidConfiguration",
+          "evidence": "packages/features/auth/lib/next-auth-options.ts"
+        },
+        {
+          "call": "the consent at accounts.google.com/o/oauth2/v2/auth (a person chooses their account)",
+          "operation": "authorize",
+          "evidence": "packages/features/auth/lib/next-auth-options.ts"
+        },
+        {
+          "call": "the code exchanged at oauth2.googleapis.com/token (authorization_code)",
+          "operation": "token",
+          "evidence": "packages/features/auth/lib/next-auth-options.ts"
+        },
+        {
+          "call": "the signed-in person read: the id_token's claims, verified against the JWKS, or the userinfo endpoint",
+          "operation": "certs; userinfoV3",
+          "evidence": "packages/features/auth/lib/next-auth-options.ts"
+        }
+      ]
+    }
+  ]
+}
