@@ -24,7 +24,9 @@ async function ensureGoogleAccount(ctx: HandlerContext, sub: string, fields: Row
   const made = await ctx.createUnique(ACCOUNT, { id: sub, ...fields }, 'account.create', { id: sub });
   const account = ctx.row(ACCOUNT, sub)!;
   if (account.email !== fields.email) return Response.json({ error: 'ALREADY_EXISTS', error_description: `Google account ${sub} belongs to another email (${String(fields.email)})` }, { status: 409 });
-  return made.created ? account : ctx.write(ACCOUNT, sub, fields, 'account.update');
+  if (!made.created) await ctx.change(ACCOUNT, sub, (current) =>
+    Object.entries(fields).some(([key, value]) => current[key] !== value) ? fields : undefined, 'account.update');
+  return ctx.row(ACCOUNT, sub)!;
 }
 
 export async function accounts(ctx: HandlerContext): Promise<Response> {
