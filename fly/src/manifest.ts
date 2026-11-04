@@ -142,6 +142,6 @@ export const manifest: DerivedManifest = {
     adoption: { sdks: [], envStems: ['FLY'] },
     hosts: [{ host: 'api.machines.dev' }, { suffix: '.fly.dev' }],
     endpointEnv: { name: 'FLY_API_HOSTNAME', note: 'Substrate reads the Machines API base from FLY_API_HOSTNAME (fly-provider.ts), as flyctl does' },
-    credentialDoor: { account: { field: 'account', tenancy: 'organization', source: 'https://docs.fly.io/security/tokens/' }, deployment: { field: 'deployment', object: 'App and app-scoped deploy token', source: 'https://docs.fly.io/machines/api/apps-resource/' }, path: '/_twin/tokens', body: {}, fill: { FLY_API_TOKEN: 'token' } },
+    credentialDoor: { account: { field: 'account', tenancy: 'organization', source: 'https://docs.fly.io/security/tokens/' }, deployment: { field: 'deployment', object: 'App and app-scoped deploy token', source: 'https://docs.fly.io/machines/api/apps-resource/' }, path: '/_twin/tokens', body: {}, fill: { FLY_API_TOKEN: 'token', FLY_APP: 'app', FLY_ORG: 'org' } },
   },
 };
