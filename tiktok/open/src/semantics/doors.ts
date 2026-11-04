@@ -3,7 +3,7 @@
 //
 //   POST /_twin/app-credentials                   the application's apps: the developer site's client key and secret,
 //                                                  and the ads portal's App ID and secret (the credential door)
-//   POST /_twin/apps { redirect_uris?, url_properties? }   that app's redirect URIs and verified URL properties (Login Kit's
+//   POST /_twin/apps { client_key?, redirect_uris?, url_properties? }   that app's redirect URIs and verified URL properties (Login Kit's
 //                                                  settings and the URL properties widget); each list replaces the held one
 //   POST /_twin/people { username, display_name, password, … }   a TikTok account
 //   POST /_twin/videos/{id}/stats { view_count?, … }   a video's audience: its views, likes, comments and shares
@@ -11,7 +11,7 @@
 //   POST /_twin/locations { location_name, … }     a location tag TikTok holds (the business lane's search finds it)
 //   POST /_twin/tracks { name, artist, … }         a track of the Commercial Music Library
 import type { HandlerContext } from '@volter/world-core';
-import { APP, APP_SCOPES, BUSINESS_SCOPES, bodyOf, clientSecret, mediaBytes, mediaUrl, PERSON, sha256, VIDEO } from './shared.ts';
+import { APP, APP_SCOPES, BUSINESS_SCOPES, appByKey, bodyOf, clientSecret, mediaBytes, mediaUrl, PERSON, sha256, VIDEO } from './shared.ts';
 
 type Row = Record<string, unknown>;
 const bad = (error: string): Response => Response.json({ error }, { status: 400 });
@@ -87,7 +87,9 @@ export async function apps(ctx: HandlerContext): Promise<Response> {
   const badBusiness = businessRedirects?.map((u) => [u, portalRefusal(u)] as const).find(([, r]) => r);
   if (badBusiness) return bad(`the business redirect URL ${badBusiness[0]} ${badBusiness[1]}`);
   if (businessRedirects && businessRedirects.length > 10) return bad('a business app holds up to 10 redirect URLs');
-  const app = await worldApp(ctx, 'open');
+  // This synthetic dashboard door may select the deployment-issued app by its native client key.
+  const app = b.client_key === undefined ? await worldApp(ctx, 'open') : appByKey(ctx, b.client_key);
+  if (!app || (app.kind ?? 'open') !== 'open') return bad('client_key does not name an open application');
   await ctx.record(APP, { ...app, ...(redirects ? { redirect_uris: redirects } : {}), ...(props ? { url_properties: props } : {}) }, String(app.id));
   if (businessRedirects) {
     const business = await worldApp(ctx, 'business');
