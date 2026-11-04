@@ -3,6 +3,10 @@
 // agents and their conversations (ElevenAgents), which the REST families and the conversation's WebSocket both read.
 import type { HandlerContext } from '@volter/world-core';
 
+export function accountFor(ctx: HandlerContext): Promise<Record<string, unknown>> {
+  return ctx.tenant('_workspace', (organization) => ctx.record('_workspace', { name: organization.label, owner: organization.members[0]!, members: organization.members }));
+}
+
 export type Row = Record<string, unknown>;
 export const KEY = '_api_key';
 export const VOICE = 'voice';
