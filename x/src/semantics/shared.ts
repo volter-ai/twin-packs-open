@@ -197,8 +197,6 @@ export const SCOPE_CATALOG: Record<string, { label: string; group: 'view' | 'do'
 // …" line; it is not from a fetched official artefact and is marked as such in the manifest
 // (`x.consent.offline_access_wording`, todo).
 
-export const KNOWN_SCOPES: readonly string[] = Object.keys(SCOPE_CATALOG);
-
 /** Space-separated scope param → ordered unique scope list (X formats scope space-separated). */
 export function parseScopeParam(raw: string | null): string[] {
   if (!raw) return [];
@@ -289,25 +287,6 @@ export function pkceVerifies(method: ChallengeMethod, challenge: string, verifie
 //
 // The mutable-in-place rows (a code being consumed, a token being revoked, a grant re-granted, a rate window
 // advancing) carry a per-subject `rev` ordinal (the upstash precedent), so each rewrite of a subject is told apart.
-
-/** The kinds of state the twin keeps, as the conformance check's reachability witnesses name them. */
-export const RESOURCE_TYPES = [
-  'oauth_client',
-  'account',
-  'auth_request',
-  '_authorization_code',
-  '_access_token',
-  '_refresh_token',
-  '_grant',
-  '_rate_window',
-  // OAuth 1.0a (below): an App registered through the twin door, a request token in flight between the
-  // three legs, an issued access token, and the (app, user) approval that lets GET oauth/authenticate skip a screen.
-  'oauth1_app',
-  '_oauth1_request_token',
-  '_oauth1_token',
-  '_oauth1_grant',
-] as const;
-export type ResourceType = (typeof RESOURCE_TYPES)[number];
 
 export type Row = { id: string; type: string } & Record<string, any>;
 
@@ -757,21 +736,6 @@ export function scopesOfAccessLevel(level: unknown): string[] {
   // media and like
   return level === 'read' ? ['tweet.read', 'users.read', 'like.read'] : ['tweet.read', 'users.read', 'like.read', 'tweet.write', 'media.write', 'like.write'];
 }
-
-/** A JSON answer with X's v1.1 headers (invalidate_token's `{"access_token": …}`). */
-export const jsonReply = (body: unknown): XResponse => ({ status: 200, body, headers: { ...JSON_TYPE, ...NOSTORE } });
-
-/** The OAuth 1.0a surface this pack serves: the three legs and invalidate_token (operations), and the two screens and
- *  the screen's decision post. */
-export const OAUTH1_ENDPOINTS = [
-  'POST /oauth/request_token',
-  'GET /oauth/authorize',
-  'POST /oauth/authorize',
-  'GET /oauth/authenticate',
-  'POST /oauth/access_token',
-  'POST /1.1/oauth/invalidate_token',
-  'POST /1.1/oauth/invalidate_token.json',
-] as const;
 
 // ── the request as a handler reads it ─────────────────────────────────────────────────────────
 
