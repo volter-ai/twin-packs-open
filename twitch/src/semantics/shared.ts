@@ -122,7 +122,7 @@ export const secondsLeft = (row: Row, now: string): number => Math.max(0, Math.f
 export const loginOf = (value: string): string => value.trim().replace(/^@/, '').toLowerCase();
 
 const live = (rows: Row[]): Row[] => rows.filter((r) => r.deleted !== true);
-export const usersOf = (ctx: Pick<HandlerContext, 'rowsRaw'>): Row[] => live(ctx.rowsRaw('user'));
+const usersOf = (ctx: Pick<HandlerContext, 'rowsRaw'>): Row[] => live(ctx.rowsRaw('user'));
 export const userByLogin = (ctx: Pick<HandlerContext, 'rowsRaw'>, login: string): Row | undefined => usersOf(ctx).find((u) => u.login === loginOf(login));
 export const userById = (ctx: Pick<HandlerContext, 'rowsRaw'>, id: string): Row | undefined => usersOf(ctx).find((u) => u.id === id);
 export const channelOf = (ctx: Pick<HandlerContext, 'rowsRaw'>, id: string): Row | undefined => live(ctx.rowsRaw('channel')).find((c) => c.broadcaster_id === id);
@@ -177,7 +177,7 @@ export function sessionUser(ctx: Pick<HandlerContext, 'call' | 'rowsRaw'>): Row 
  *  catalog of its categories; the twin knows the ones the reference's examples name, each by the id and name they give
  *  it, its box art at the address form Search Categories' example answers. */
 // source: https://dev.twitch.tv/docs/api/reference/ "https://static-cdn.jtvnw.net/ttv-boxart/33214-52x72.jpg"
-export const CATEGORIES: ReadonlyArray<{ id: string; name: string }> = [
+const CATEGORIES: ReadonlyArray<{ id: string; name: string }> = [
   // source: https://dev.twitch.tv/docs/api/reference/ "Fortnite"
   { id: '33214', name: 'Fortnite' },
   // source: https://dev.twitch.tv/docs/api/reference/ "Software and Game Development"

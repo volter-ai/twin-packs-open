@@ -1,7 +1,7 @@
 // What World Labs shares: the World's accounts (each API key held by its SHA-256) and the host's refusals.
 import type { HandlerContext } from '@volter/world-core';
 
-export type Row = Record<string, unknown>;
+type Row = Record<string, unknown>;
 export type { HandlerContext };
 export const ACCOUNT = '_account';
 
@@ -9,7 +9,7 @@ export const sha256 = (ctx: Pick<HandlerContext, 'crypto'>, v: string): string =
 
 // source: https://docs.worldlabs.ai/api/errors "Many responses include a request_id."
 /** The host's request id: 32 hex digits, drawn from the request and its moment. */
-export const requestId = (ctx: HandlerContext): string => ctx.crypto.md5(`${ctx.occurredAt}:${ctx.call.request.url}`);
+const requestId = (ctx: HandlerContext): string => ctx.crypto.md5(`${ctx.occurredAt}:${ctx.call.request.url}`);
 
 /** The account a request's `WLT-Api-Key` opens, or the host's 401 (spec/SOURCE.md). */
 // source: spec:/components/securitySchemes/ApiKeyAuth "API key for authentication. Get your key from the developer portal."
