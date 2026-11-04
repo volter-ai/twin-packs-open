@@ -11,10 +11,10 @@ import { tripoSemantics } from './semantics/index.ts';
 export function createTripoFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
     manifest,
-    around,
     surface: surface as DerivedSurface,
     handlers: tripoSemantics,
     doors,
+    around,
     gap,
   }, options);
 }
