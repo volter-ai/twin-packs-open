@@ -25,13 +25,15 @@ export async function users(ctx: HandlerContext): Promise<Response> {
   return answer({ login, id: u.id }, 201);
 }
 
-/** POST /_twin/users/{login}/password {password}. */
+/** POST /_twin/users/{login}/password {password?}: choose a password or receive the World's retained one. */
 export async function password(ctx: HandlerContext): Promise<Response> {
   const login = String(ctx.call.params.login ?? '');
-  const p = str(bodyOf(ctx).password);
+  const supplied = bodyOf(ctx).password;
+  const generated = supplied === undefined;
+  const p = generated ? await ctx.secret(`password:${login}`) : str(supplied);
   if (!p) return refused('password is required');
   await ensureUser(ctx, login, { _password: passwordOf(login, p) });
-  return new Response(null, { status: 204 });
+  return generated ? answer({ password: p }) : new Response(null, { status: 204 });
 }
 
 /** POST /_twin/users/{login}/two-factor {secret?}: an authenticator app set up — its setup key (base32), the one the
