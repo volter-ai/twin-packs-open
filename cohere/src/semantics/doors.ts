@@ -32,4 +32,3 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   });
   return Response.json({ api_key: key.secret }, { status: 201 });
 }
-
