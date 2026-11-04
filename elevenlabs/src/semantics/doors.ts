@@ -1,9 +1,8 @@
 // The World's doors: what ElevenLabs' console does.
 //
 //   POST /_twin/app-credentials                 the application's key (the descriptor's credentialDoor), the same every boot
-import { accountFor } from './tenant.ts';
 import type { HandlerContext } from '@volter/world-core';
-import { KEY, readKey, makeKey } from './shared.ts';
+import { accountFor, KEY, readKey, makeKey } from './shared.ts';
 
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const owner = await accountFor(ctx);

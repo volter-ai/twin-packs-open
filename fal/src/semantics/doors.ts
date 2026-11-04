@@ -1,6 +1,5 @@
-import { accountFor } from './tenant.ts';
 import type { HandlerContext } from '@volter/world-core';
-import { KEY, readKey, IMAGE, makeKey } from './shared.ts';
+import { accountFor, KEY, readKey, IMAGE, makeKey } from './shared.ts';
 // source: https://fal.ai/docs/api-reference/platform-apis/authentication.md "generate a key from the UI"
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
   const owner = await accountFor(ctx);
