@@ -55,7 +55,7 @@ export const manifest: DerivedManifest = {
   }],
   doors: [
     { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: "the World application's app on the developer site: its client key and secret" },
-    { id: 'apps', method: 'POST', path: '/_twin/apps', note: "{ redirect_uris?, url_properties?, business_redirect_uris? }: the World application's apps' redirect URIs and verified URL properties (the developer site's Login Kit and URL properties settings)" },
+    { id: 'apps', method: 'POST', path: '/_twin/apps', note: "{ client_key?, redirect_uris?, url_properties?, business_redirect_uris? }: synthetic dashboard configuration; client_key selects an existing open app, otherwise the World's selected app; redirect URIs and verified URL properties stand in for Login Kit and developer-site settings" },
     { id: 'people', method: 'POST', path: '/_twin/people', note: '{ username, display_name, password, follower_count?, following_count?, likes_count?, max_video_post_duration_sec?, private? }: a TikTok account' },
     { id: 'videoStats', method: 'POST', path: '/_twin/videos/{id}/stats', note: "{ view_count?, like_count?, comment_count?, share_count? }: a video's audience (TikTok's viewers)" },
     { id: 'media', method: 'GET', path: '/_twin/media/{name}', note: 'a placeholder image (an avatar, a cover)' },
