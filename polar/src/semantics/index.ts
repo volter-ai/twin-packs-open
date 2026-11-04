@@ -5,6 +5,7 @@ import * as checkouts from './checkouts.ts';
 import * as customer_sessions from './customer-sessions.ts';
 import * as customers from './customers.ts';
 import * as events from './events.ts';
+import * as meters from './meters.ts';
 import * as orders from './orders.ts';
 import * as products from './products.ts';
 import * as refunds from './refunds.ts';
@@ -24,6 +25,8 @@ export const polarSemantics: Record<string, Handler> = {
   "customers:list": customers.customers_list,
   "events:ingest": events.events_ingest,
   "events:list": events.events_list,
+  "meters:create": meters.meters_create,
+  "meters:list": meters.meters_list,
   "orders:get": orders.orders_get,
   "orders:list": orders.orders_list,
   "products:create": products.products_create,

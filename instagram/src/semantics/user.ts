@@ -21,7 +21,7 @@ export async function getMe(ctx: HandlerContext): Promise<Response> {
 export async function getUserMedia(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx);
   if (c instanceof Response) return c;
-  const id = String(ctx.params['ig-user-id'] ?? '');
+  const id = String(ctx.call.params['ig-user-id'] ?? '');
   // an Instagram User access token reaches its own account alone
   if (!isCaller(c, id)) return unsupported(ctx, 'GET', id);
   const fields = selection(ctx, ['id']);
@@ -66,7 +66,7 @@ function captionRefusal(ctx: HandlerContext, caption: string | undefined): Respo
 export async function createUserMedia(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx, PUBLISH);
   if (c instanceof Response) return c;
-  const userId = String(ctx.params['ig-user-id'] ?? '');
+  const userId = String(ctx.call.params['ig-user-id'] ?? '');
   if (!isCaller(c, userId)) return unsupported(ctx, 'POST', userId);
   const p = paramsOf(ctx);
   const type = text(p.media_type);
@@ -169,7 +169,7 @@ const publishedSince = (ctx: HandlerContext, account: unknown, since: number): n
 export async function publishUserMedia(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx, PUBLISH);
   if (c instanceof Response) return c;
-  const userId = String(ctx.params['ig-user-id'] ?? '');
+  const userId = String(ctx.call.params['ig-user-id'] ?? '');
   if (!isCaller(c, userId)) return unsupported(ctx, 'POST', userId);
   const creation = text(paramsOf(ctx).creation_id);
   // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media_publish "The ID of the IG Container to be published."
@@ -210,7 +210,7 @@ export async function publishUserMedia(ctx: HandlerContext): Promise<Response> {
 export async function getContentPublishingLimit(ctx: HandlerContext): Promise<Response> {
   const c = authorized(ctx, PUBLISH);
   if (c instanceof Response) return c;
-  const userId = String(ctx.params['ig-user-id'] ?? '');
+  const userId = String(ctx.call.params['ig-user-id'] ?? '');
   if (!isCaller(c, userId)) return unsupported(ctx, 'GET', userId);
   const p = paramsOf(ctx);
   const now = seconds(ctx.occurredAt);

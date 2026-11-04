@@ -1,7 +1,7 @@
 // Polar's manifest: the vendor facts its spec does not carry (architecture, "Protocol 3", in twin-world). The surface is
 // generated (./generated/surface.gen.json) from Polar's OpenAPI document (../spec/openapi.json.gz, 2026-04).
 //
-// THE CORE serves meters, individual stored product reads and the webhook endpoints' list. Handlers compose
+// THE CORE serves individual stored product reads and the webhook endpoints' list. Handlers compose
 // filtered answers and writes that make other resources (a checkout's confirmation).
 // The served set is the demand's (../journeys/decisions.json); every other operation of a declared resource is
 // `unmodeled`, the gap.
@@ -104,7 +104,10 @@ export const manifest: DerivedManifest = {
     { id: 'portal', kind: 'flow', host: 'polar.sh', path: '/{slug}/portal', demand: "a customer session's customer_portal_url (Twin's biller, Manage billing)", status: 'done', controls: [], source: 'https://polar.sh/docs/features/customer-portal' },
   ],
   resources: {
-    organization: { shared: true, idPrefix: '', ids: '{uuid}' },
+    organization: { shared: true, idPrefix: '', ids: '{uuid}', unique: [
+      { fields: ['_world_organization', '_environment'], refusal: { status: 409, message: 'Organization already exists.' } },
+      { fields: ['slug', '_environment'], refusal: { status: 409, message: 'Organization slug already exists.' } },
+    ], refresh: { none: "Organizations are created in Polar's dashboard; organization list and detail operations are outside this pack's demanded application surface." } },
     _access_token: { idPrefix: 'oat_', ids: '{prefix}{n}' },
     _customer_meter: { idPrefix: '', ids: '{uuid}' },
     _order_item: { idPrefix: '', ids: '{uuid}' },
@@ -120,8 +123,6 @@ export const manifest: DerivedManifest = {
     // a meter as the spec's Meter requires it: what the server assigns beside what the request gives
     Meter: { orderBy: { param: 'sorting', default: '-created_at', fields: ['created_at', 'name'], invalid: { status: 422, code: 'RequestValidationError', message: 'Invalid sorting criterion' } },
       storedAs: 'meter', idPrefix: '', ...states.Meter, filters: ['name'], order: { field: 'created_at', direction: 'desc' }, refresh: { list: 'meters:list' },
-      // source: spec:/components/schemas/MeterCreate/properties/unit "scalar"
-      assigned: { unit: { value: 'scalar' }, created_at: { now: true }, modified_at: { value: null }, archived_at: { value: null }, metadata: { value: {} } },
     },
     WebhookEndpoint: { orderBy: { param: 'sorting', default: '-created_at', fields: ['created_at'], invalid: { status: 422, code: 'RequestValidationError', message: 'Invalid sorting criterion' } }, storedAs: 'webhook_endpoint', idPrefix: '', ...states.WebhookEndpoint, order: { field: 'created_at', direction: 'desc' }, refresh: { list: 'webhooks:list_webhook_endpoints' } },
     Checkout: { orderBy: { param: 'sorting', default: '-created_at', fields: ['created_at'], invalid: { status: 422, code: 'RequestValidationError', message: 'Invalid sorting criterion' } }, storedAs: 'checkout', idPrefix: '', ...states.Checkout, refresh: { list: 'checkouts:list' } },

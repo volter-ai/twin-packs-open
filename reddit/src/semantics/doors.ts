@@ -41,7 +41,7 @@ export async function accounts(ctx: HandlerContext): Promise<Response> {
   // an account's own profile community, u_<name>, is made with it (GET /api/v1/me answers it as `subreddit`)
   const profile = ctx.mint(SUBREDDIT);
   await ctx.write(SUBREDDIT, profile, { id: profile, display_name: `u_${username}`, title: '', subreddit_type: 'user', submission_type: 'any', public_description: '', description: '', created_utc: created, _profile_of: id }, 'subreddit.create');
-  await ctx.write(ACCOUNT, id, { id, name: username, created_utc: created, _email: email, _profile: profile }, 'account.create');
+  await ctx.write(ACCOUNT, id, { id, name: username, _name: username.toLowerCase(), created_utc: created, _email: email, _profile: profile }, 'account.create');
   return Response.json({ id, name: username, email }, { status: 201 });
 }
 
@@ -89,23 +89,20 @@ async function memberAccount(ctx: HandlerContext): Promise<Row> {
     const label = world.id.length < 3 ? `world-${world.id}` : world.id;
     for (const suffixed of [false, true]) {
       const name = ctx.vendorName(label, { max: 20, allowed: /[A-Za-z0-9_-]/ }, { suffixed, identity: world.id });
-      const id = await ctx.atomically((rows) => {
-        const same = rows(ACCOUNT).find((row) => row._email === email);
-        if (same) return { value: String(same.id) };
-        if (rows(ACCOUNT).some((row) => String(row.name).toLowerCase() === name.toLowerCase())) return { value: undefined };
-        const id = ctx.mint(ACCOUNT), profile = ctx.mint(SUBREDDIT);
-        return { value: id, write: { resource: ACCOUNT, id, fields: { id, name, _email: email, _profile: profile,
-          created_utc: nowSeconds(ctx) }, operation: 'account.create' } };
-      });
-      if (id) return id;
+      const made = await ctx.createUnique(ACCOUNT, (id) => ({ id, name, _name: name.toLowerCase(), _email: email,
+        created_utc: nowSeconds(ctx) }), 'account.create');
+      const row = ctx.row(ACCOUNT, String(made.row.id))!;
+      if (made.created || row._email === email) return String(row.id);
     }
     throw Response.json({ message: `A username already exists for ${world.id}.`, error: 409 }, { status: 409 });
   });
-  if (account._profile && !ctx.row(SUBREDDIT, String(account._profile))) await ctx.write(SUBREDDIT, String(account._profile), {
-    id: account._profile, display_name: `u_${account.name}`, title: '', subreddit_type: 'user', submission_type: 'any',
-    public_description: '', description: '', created_utc: account.created_utc, _profile_of: account.id,
-  }, 'subreddit.create');
-  return account;
+  if (!account._profile || !ctx.row(SUBREDDIT, String(account._profile))) {
+    const made = await ctx.createUnique(SUBREDDIT, (id) => ({ id, display_name: `u_${account.name}`, title: '',
+      subreddit_type: 'user', submission_type: 'any', public_description: '', description: '',
+      created_utc: account.created_utc, _profile_of: account.id }), 'subreddit.create');
+    await ctx.change(ACCOUNT, String(account.id), (row) => row._profile === made.row.id ? undefined : { _profile: made.row.id }, 'account.profile');
+  }
+  return ctx.row(ACCOUNT, String(account.id))!;
 }
 
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {

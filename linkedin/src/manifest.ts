@@ -96,7 +96,7 @@ export const manifest: DerivedManifest = {
     { id: 'developerApps', method: 'POST', path: '/_twin/developer-apps', note: "an application created on the Developer Portal, with its products" },
     { id: 'tokens', method: 'POST', path: '/_twin/tokens', note: "the Developer Portal's OAuth Token Generator Tool: a member's token for an application" },
     { id: 'appLimits', method: 'POST', path: '/_twin/developer-apps/{clientId}/limits', note: "the daily limits an application's Analytics tab shows for an endpoint" },
-    { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: "a deployment developer application with the first member's OAuth grant" },
+    { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: "{ account?, deployment? } or { email, client_id }: a developer application's retained member OAuth grant" },
   ],
   discovery: {
     twinOf: "LinkedIn: linkedin.com's sign-in, feed and share box (a post with a photo or a video from the person's machine, as a member or a company page), a post's page and a company page's Posts tab; and the versioned REST API at api.linkedin.com/rest (Posts, Images and Videos with their uploads, Organization Access Control, Organization Lookup) with /v2/userinfo",

@@ -40,7 +40,7 @@ async function deploymentToken(ctx: HandlerContext): Promise<Response> {
       let made = await create(false);
       if (!made.created) made = await create(true);
       if (!made.created) throw bad(`organization slug is taken (${organization.id})`, 409);
-      return String(made.row.id);
+      return String(made.row.org_slug);
     });
     const app = await ctx.deploymentObject(`app:${String(org.id)}`, APP, async (deployment) => {
       const label = deployment || 'world';

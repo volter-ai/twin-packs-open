@@ -169,7 +169,7 @@ export async function get_conversation_histories_route(ctx: HandlerContext): Pro
 export async function get_agent_route(ctx: HandlerContext): Promise<Response> {
   const row = ctx.row(AGENT, String(ctx.call.params.agent_id ?? ''));
   if (!row || row.deleted === true) return elError(404, 'agent_not_found', 'Agent not found.');
-  return Response.json(ctx.own(row));
+  return Response.json(ctx.get(AGENT, String(row.id)));
 }
 
 // source: spec:create_secret_route "Create a new secret for the workspace"
@@ -191,7 +191,7 @@ export async function create_secret_route(ctx: HandlerContext): Promise<Response
 export async function get_secret_route(ctx: HandlerContext): Promise<Response> {
   const row = ctx.row(WORKSPACE_SECRET, String(ctx.call.params.secret_id ?? ''));
   // Where the documentation stops: missing secrets use the API's documented not-found class.
-  return row && row.deleted !== true ? Response.json(ctx.own(row)) : elError(404, 'secret_not_found', 'Secret not found.');
+  return row && row.deleted !== true ? Response.json(ctx.get(WORKSPACE_SECRET, String(row.id))) : elError(404, 'secret_not_found', 'Secret not found.');
 }
 
 // source: spec:get_secrets_route "Get all workspace secrets for the user"
