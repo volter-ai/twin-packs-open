@@ -87,6 +87,8 @@ export const manifest: DerivedManifest = {
     managedDatabase: {
       kind: 'postgres',
       arg: '--database',
+      user: 'postgres',
+      database: 'postgres',
       note: "the project's database is the World's managed postgres: the database the application's migrations and queries use, whose URL the credential door answers",
     },
     adoption: {

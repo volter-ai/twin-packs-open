@@ -27,7 +27,7 @@ export async function people(ctx: HandlerContext): Promise<Response> {
   const row = await ctx.create('user', (id) => ({
     id: Number(id), is_bot: false, first_name: first,
     ...(str(ctx.params.last_name) ? { last_name: str(ctx.params.last_name) } : {}),
-    ...(username ? { username } : {}),
+    ...(username ? { username, _username: username.toLowerCase() } : {}),
     ...(str(ctx.params.language_code) ? { language_code: str(ctx.params.language_code) } : {}),
   }), 'people');
   return Response.json(userView(ctx, (row as Row).id ?? ctx.own(row as Row).id));
@@ -51,15 +51,13 @@ async function applicationBot(ctx: HandlerContext): Promise<Response> {
     for (const suffixed of [false, true]) {
       const username = explicit && !suffixed && /^[A-Za-z0-9_]{5,32}$/.test(explicit) && /bot$/i.test(explicit) ? explicit
         : `${ctx.vendorName(base, { max: 28, lower: true, allowed: /[a-z0-9_]/, separator: '_' }, { suffixed, identity })}_bot`;
-      const id = await ctx.atomically((rows) => {
-        if (rows('user').some((row) => String(row.username ?? '').toLowerCase() === username.toLowerCase())) return { value: undefined };
-        const id = ctx.mint('user');
-        return { value: id, write: { resource: 'user', id, fields: { id: Number(id), is_bot: true,
-          first_name: str(ctx.params.name) ?? (deployment || 'World Twin Bot'), username,
-          can_join_groups: true, can_read_all_group_messages: false, supports_inline_queries: false, can_connect_to_business: false,
-          has_main_web_app: false, has_topics_enabled: false }, operation: 'bots' } };
-      });
-      if (id) {
+      if (userByName(ctx, username)) continue;
+      const made = await ctx.createUnique('user', (id) => ({ id: Number(id), is_bot: true,
+        first_name: str(ctx.params.name) ?? (deployment || 'World Twin Bot'), username, _username: username.toLowerCase(),
+        can_join_groups: true, can_read_all_group_messages: false, supports_inline_queries: false, can_connect_to_business: false,
+        has_main_web_app: false, has_topics_enabled: false }), 'bots');
+      if (made.created) {
+        const id = String(made.row.id);
         await ctx.record('_bot', { owner: owner.id, generation: 1, update_seq: 836_000_000 }, id);
         return id;
       }
@@ -74,13 +72,10 @@ async function applicationBot(ctx: HandlerContext): Promise<Response> {
         const retired = ctx.row('_bot', id, { withDeleted: true });
         const generation = Number(retired?.generation ?? 0) + 1;
         const token = await issueToken(ctx, id, generation);
-        await ctx.atomically((rows) => rows('_bot').some((row) => row.id === id) ? { value: undefined } : {
-          value: undefined,
-          write: { resource: '_bot', id, fields: {
-            owner: owner.id, generation, token_sha256: ctx.crypto.sha256(token),
-            update_seq: retired?.update_seq ?? 836_000_000, deleted: false, _pending: false,
-          }, operation: 'bot.token' },
-        });
+        await ctx.createUnique('_bot', {
+          id, owner: owner.id, generation, token_sha256: ctx.crypto.sha256(token),
+          update_seq: retired?.update_seq ?? 836_000_000, deleted: false, _pending: false,
+        }, 'bot.token', { id, input: 'omit' });
         return id;
       }
       const current = await issueToken(ctx, String(bot.id), Number(before.generation ?? 1));
@@ -121,7 +116,7 @@ export async function bots(ctx: HandlerContext): Promise<Response> {
   // was not set up for
   // source: https://core.telegram.org/bots/features#privacy-mode "Privacy mode is enabled by default for all bots"
   const row = await ctx.create('user', (id) => ({
-    id: Number(id), is_bot: true, first_name: name, username,
+    id: Number(id), is_bot: true, first_name: name, username, _username: username.toLowerCase(),
     can_join_groups: true, can_read_all_group_messages: false, supports_inline_queries: false, can_connect_to_business: false,
     has_main_web_app: false, has_topics_enabled: false,
   }), 'bots');

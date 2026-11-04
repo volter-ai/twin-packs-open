@@ -46,7 +46,7 @@ export const manifest: DerivedManifest = {
     // a Telegram account, a person's or a bot's, stored as the Bot API answers a User; its id is an integer the vendor
     // assigns, kept as the subject's id and as its own `id`
     // source: https://core.telegram.org/bots/api#user "Unique identifier for this user or bot."
-    user: { idPrefix: '58104400', ids: '{prefix}{n}', refresh: { none: 'the Bot API reads no user by id and lists none: getMe answers the bot itself, and a person is seen only in the messages and updates that name them' } },
+    user: { idPrefix: '58104400', ids: '{prefix}{n}', unique: [{ fields: ['_username'], refusal: { status: 409, message: 'This username is taken.' } }], refresh: { none: 'the Bot API reads no user by id and lists none: getMe answers the bot itself, and a person is seen only in the messages and updates that name them' } },
     // a chat as getChat answers it (ChatFullInfo); a private chat's id is its person's, a group's and a channel's are
     // the vendor's negative ids (minted by the doors that make them)
     // source: https://core.telegram.org/bots/api#chat "Unique identifier for this chat."
@@ -64,7 +64,7 @@ export const manifest: DerivedManifest = {
     // source: https://core.telegram.org/bots/api#file "Unique identifier for this file, which is supposed to be the same over time and for different bots."
     file: { idPrefix: 'AgAD', ids: '{prefix}{letters:12}', refresh: { none: 'getFile reads a file by a file_id the World learns only from messages, and its answer is the download path, not the file' } },
     // a bot's own keeping: its token's SHA-256 and its owner, its updates' counter and the allowed_updates it last asked for
-    _bot: { idPrefix: '' },
+    _bot: { idPrefix: '', unique: [{ fields: ['id'], refusal: { status: 409, message: 'This bot already has credentials.' } }] },
     // the ids the vendor assigns to a basic group and to a channel or supergroup, and a file's download path
     _group: { idPrefix: '-49870000', ids: '{prefix}{n}' },
     _channel: { idPrefix: '-10019876540', ids: '{prefix}{n}' },
