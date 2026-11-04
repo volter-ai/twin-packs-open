@@ -37,7 +37,11 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
       const existing = ctx.rowsRaw(ACCOUNT).find((row) => row._email === email);
       if (existing) return String(existing.id);
       const rule = { max: 30, lower: true, allowed: /[a-z0-9._]/, separator: '_', first: /[a-z0-9_]/ };
-      const create = (suffixed: boolean) => makeAccount(ctx, { ...accountFields({ username: ctx.vendorName(organization.id, rule, { suffixed, identity: organization.id }), name: organization.label }) as Row, _email: email });
+      const create = (suffixed: boolean) => {
+        const fields = accountFields({ username: ctx.vendorName(organization.id, rule, { suffixed, identity: organization.id }), name: organization.label, ...b });
+        if (typeof fields === 'string') throw bad(fields);
+        return makeAccount(ctx, { ...fields, _email: email, ...(text(b.password) ? { password_sha256: sha256(ctx, String(b.password)) } : {}) });
+      };
       let made = await create(false);
       if (made instanceof Response) made = await create(true);
       if (made instanceof Response) throw bad(`that username is taken (${organization.id})`, 409);

@@ -354,7 +354,6 @@ export const manifest: DerivedManifest = {
     resources: [],
     specSource: "Mistral's OpenAPI document (spec/openapi.yaml.gz)",
     description: 'Mistral chat completions and streams, scripted or labeled stubs.',
-    clientCasesNone: 'Twenty uses @ai-sdk/mistral, not the official Mistral SDK.',
     credentialDoor: { account: { field: 'account', tenancy: 'Organization', source: 'https://docs.mistral.ai/admin/identity-access/api-keys.md' }, deployment: { field: 'deployment', object: 'Workspace', source: 'https://docs.mistral.ai/admin/identity-access/api-keys.md' }, path: '/_twin/app-credentials', body: {}, fill: { MISTRAL_API_KEY: 'api_key' } },
     adoption: { sdks: ['@ai-sdk/mistral', '@mistralai/mistralai'], pypi: ['mistralai'], envStems: ['MISTRAL', 'OCR'] },
     hosts: [{ host: 'api.mistral.ai' }],

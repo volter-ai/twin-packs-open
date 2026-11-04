@@ -4,7 +4,7 @@ import { COMMENT, COMMENTS, INSIGHTS, MEDIA, authorized, commentList, commentsCo
 
 /** The caller's own media by the path's ID, or the refusal. */
 function ownMedia(ctx: HandlerContext, c: Caller): Row | Response {
-  const id = String(ctx.params['ig-media-id'] ?? '');
+  const id = String(ctx.call.params['ig-media-id'] ?? '');
   const row = ctx.row(MEDIA, id);
   // source: https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-media/comments "An access token from a User who created the IG Media object"
   return row && row.deleted !== true && row._account === c.account.id ? row : mediaNotFound(ctx, id);
