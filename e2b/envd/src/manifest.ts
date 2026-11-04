@@ -41,6 +41,7 @@ export const manifest: DerivedManifest = {
   gap: { status: 404, code: 'unimplemented', message: 'the method is not implemented by this twin' },
   headerParams: { sandboxID: 'e2b-sandbox-id', port: 'e2b-sandbox-port' },
   hostParams: '^(?<port>\\d+)-(?<sandboxID>[a-z0-9]+)\\.',
+  remoteHost: { template: '49983-{sandboxID}.e2b.app' },
   deleted: {},
   resources: {},
   vendorBacked: { none: 'The sandbox service is a compute wire; lifecycle operations and refresh belong to the api lane.' },
