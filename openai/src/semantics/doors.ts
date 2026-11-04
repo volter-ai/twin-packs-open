@@ -1,8 +1,7 @@
 // The World's doors (docs/contributing/architecture.md, "Doors, screens and the gap"), each declared in the manifest's
 // `doors`: a person of the World's organization, who logs in to the dashboard with the password the World gave them.
 import { personOf, recordPerson, type HandlerContext } from '@volter/world-core';
-import { credentialProject, nativeOrganization } from './tenant.ts';
-import { codexCredentials, epoch, makeProjectKey, organizationCodexCredentials, PROJECT_KEY, readProjectKey } from './shared.ts';
+import { codexCredentials, credentialProject, epoch, makeProjectKey, nativeOrganization, organizationCodexCredentials, PROJECT_KEY, readProjectKey } from './shared.ts';
 
 /** POST /_twin/accounts {email, name, password, role?} → 201 the person's user object (organization.user): the first is
  *  the organization's owner, every later one a reader, unless the call names the role. */

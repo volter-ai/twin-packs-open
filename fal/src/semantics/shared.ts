@@ -1,4 +1,9 @@
 import { placeholderPng, type HandlerContext, type PackScenario } from '@volter/world-core';
+
+export function accountFor(ctx: HandlerContext): Promise<Record<string, unknown>> {
+  return ctx.tenant('_account', (organization) => ctx.record('_account', { name: organization.label, owner: organization.members[0]!, members: organization.members }));
+}
+
 export type Row = Record<string, unknown>;
 export const KEY = '_api_key';
 export const IMAGE = '_image';
