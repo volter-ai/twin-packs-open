@@ -2,6 +2,8 @@
 
 This repository publishes immutable Protocol 3 packages using released World and twin-standard tooling. It does not clone platform source or require a platform account. Package-specific behavior, spec, limitations and journeys live with each package. Catalog release claims come from the [catalog process](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/process.md); local standing and publisher qualification are development and preparation records, not admission.
 
+[ADR 0000](docs/adr/0000-native-package-contracts.md) defines ownership of installed API requirements, live credential authentication and complete native relay responses.
+
 [ADR 0001](docs/adr/0001-packaged-public-values.md) defines provenance for authored fixtures, upstream documentation samples and byte-identical public upstream code in release archives.
 
 ## Prepare outside CI

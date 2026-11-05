@@ -21,7 +21,7 @@ export function accountOf(ctx: HandlerContext): Row | undefined {
   if (!key) return undefined;
   const hash = sha256(ctx, key);
   const credential = ctx.rowsRaw('_api_key').find((row) => row.revoked !== true && row.key_sha256 === hash);
-  return credential ? ctx.row(ACCOUNT, String(credential.account_id)) : ctx.rowsRaw(ACCOUNT).find((row) => row.key_sha256 === hash);
+  return credential ? ctx.row(ACCOUNT, String(credential.account_id)) : undefined;
 }
 
 // source: recording:gap.json "<title>404 Not Found</title>"
