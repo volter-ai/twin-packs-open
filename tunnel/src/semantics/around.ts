@@ -4,7 +4,7 @@
 import type { HandlerContext } from '@volter/world-core';
 import { b64encode, cors, DOMAIN, holder, requests, RESERVED } from './shared.ts';
 
-const text = (status: number, body: string): Response => new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+const text = (request: Request, status: number, body: string): Response => new Response(body, { status, headers: { ...cors(request), 'content-type': 'text/plain; charset=utf-8' } });
 // World transport metadata belongs to the World; preserve the application's own x-volter-* headers.
 const INTERNAL = new Set(['x-volter-token', 'x-volter-pass', 'x-volter-read-only', 'x-volter-twin-original-host', 'x-volter-scenario-decision', 'x-volter-path-prefix-params', 'x-volter-lane']);
 
@@ -27,14 +27,14 @@ export async function around(ctx: HandlerContext, next: (request?: Request) => P
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(request) });
   const client = holder(ctx, id);
   // source: spec:/x-reference/relay "Tunnel not connected"
-  if (!client) return text(502, 'Tunnel not connected');
+  if (!client) return text(request, 502, 'Tunnel not connected');
   const url = new URL(request.url);
   // source: spec:/x-reference/auth "u.searchParams.delete('__volter_token');"
   url.searchParams.delete('__tunnel');
   url.searchParams.delete('__volter_token');
   const body = request.method === 'GET' || request.method === 'HEAD' ? null : new Uint8Array(await request.arrayBuffer());
   // source: spec:/x-reference/relay "bodyBytes.length > 750_000"
-  if (body && body.length > 750_000) return text(413, 'Request body too large to tunnel (limit ~750KB)');
+  if (body && body.length > 750_000) return text(request, 413, 'Request body too large to tunnel (limit ~750KB)');
   const headers = Object.fromEntries([...request.headers].filter(([k]) => !INTERNAL.has(k.toLowerCase())));
   // The injector preserves the visitor's vendor Host in the same metadata used by kernel host routing.
   headers.host = request.headers.get('x-volter-twin-original-host') ?? request.headers.get('host') ?? url.host;
@@ -58,11 +58,9 @@ export async function around(ctx: HandlerContext, next: (request?: Request) => P
     return (await answered) as Response;
   } catch {
     // source: spec:/x-reference/relay "Tunnel disconnected"
-    return !ctx.sockets('control').includes(client) ? text(502, String(client.state.disconnectReason ?? 'Tunnel disconnected')) : timeout();
+    // source: spec:/x-reference/relay "Tunnel timeout"
+    return !ctx.sockets('control').includes(client)
+      ? text(request, 502, String(client.state.disconnectReason ?? 'Tunnel disconnected'))
+      : text(request, 504, 'Tunnel timeout');
   } finally { requests(client).delete(reqId); }
-}
-
-// source: spec:/x-reference/relay "Tunnel timeout"
-function timeout(): Response {
-  return text(504, 'Tunnel timeout');
 }

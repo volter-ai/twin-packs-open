@@ -19,7 +19,8 @@ export function accountOf(ctx: HandlerContext): Row | Response {
   if (!key) return Response.json({ message: 'No API key found in request', request_id: requestId(ctx) }, { status: 401 });
   const hash = sha256(ctx, key);
   const credential = ctx.rowsRaw('_api_key').find((row) => row.revoked !== true && row.key_sha256 === hash);
-  return (credential ? ctx.row(ACCOUNT, String(credential.account_id)) : ctx.rowsRaw(ACCOUNT).find((row) => row.key_sha256 === hash)) ?? Response.json({ message: 'Unauthorized', request_id: requestId(ctx) }, { status: 401 });
+  const account = credential ? ctx.row(ACCOUNT, String(credential.account_id)) : undefined;
+  return account ?? Response.json({ message: 'Unauthorized', request_id: requestId(ctx) }, { status: 401 });
 }
 
 // The kernel validates the top-level body. These are the World API-specific union/enum and nested filter rules.
