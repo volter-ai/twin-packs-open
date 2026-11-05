@@ -15,3 +15,14 @@
   API_GetSecretValue.html, API_RotateSecret.html, API_GetRandomPassword.html, API_ListSecrets.html,
   API_BatchGetSecretValue.html and API_ListSecretVersionIds.html state.
 - **Read by:** `bun <twin-world>/scripts/derive-pack.ts <this lane>`; the twin orchestrator, 2026-09-29.
+
+## Packaged documentation samples
+
+- **Source:** https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html; `doc-examples.json` entry 37, `GetSecretValue`.
+- **Retained original:** `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/aws/secretsmanager-doc-examples.upstream.json`; SHA-256 `691f6000563c0127b7e6e01e760adbc906b342bbb19e0fc37b99e9604dc93040`.
+- **Packaged file:** `doc-examples.json`; SHA-256 `3ae9ae05011194f6efb628c83b5c1125a90fb7ee7081fa167731556e816ecd47`.
+- The published version identifier is an inert UUID in the packaged documentation and the journey that creates and reads that version. All other documentation bytes and values remain unchanged.
+
+| JSON pointer | Packaged replacement |
+|---|---|
+| `/37/input/VersionId` | `00000000-0000-4000-8000-000000000007` |

@@ -1,8 +1,8 @@
 # Supabase Management API spec — provenance
 
 - **File:** `openapi.json.gz`, the Management API's OpenAPI document as the API itself serves it, the vendor's bytes
-  unchanged and gzipped (`gzip -9 -n`): OpenAPI 3.0.0, `info.title` "Supabase API (v1)", `info.version` `1.0.0`,
-  349,176 bytes, 170 operations under `https://api.supabase.com` (its one `servers` entry).
+  gzipped (`gzip -9 -n`), with packaged public sample changes listed below: OpenAPI 3.0.0, `info.title` "Supabase API (v1)", `info.version` `1.0.0`,
+  349,176 original bytes, 170 operations under `https://api.supabase.com` (its one `servers` entry).
 - **Upstream:** https://api.supabase.com/api/v1-json (the "OpenAPI Spec" link of https://supabase.com/docs/reference/api/introduction),
   fetched 2026-09-28 by the supabase-p3 lane.
 - **SHA-256 of the vendor's bytes** (uncompressed): `8873c81f0f0465a17032b78e191ac6d2e89ee5b8cb3245700efed60ba3f6da2c`.
@@ -22,3 +22,12 @@
   values (`lorem`), which are not the vendor's answers either. The recordings above are the vendor's answers.
 - **Read by:** `bun scripts/derive-pack.ts supabase`, which writes `../src/generated/`.
 - **The data plane's documents** are the lanes': Storage in `../storage/spec`, PostgREST in `../rest/spec`.
+
+## Packaged public example scalars
+
+`spec/openapi.json.gz` retains the pinned source above with only the string-scalar replacements listed below. Original inputs are retained outside the package at `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/supabase/spec/openapi.json.gz` and `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/supabase/spec/openapi.json`. Original uncompressed SHA-256: `8873c81f0f0465a17032b78e191ac6d2e89ee5b8cb3245700efed60ba3f6da2c`; packaged uncompressed SHA-256: `4dfb7187e3fcfb8d6395cd4438a7d94b6d8062562828fe03ce6b7db72638e45f`. Every byte outside the listed JSON string values is unchanged. These public samples are inert; runtime credentials are issued through the existing doors.
+
+| JSON pointer | Packaged value | Reason |
+| --- | --- | --- |
+| `/components/schemas/PgsodiumConfigResponse_Output/example/root_key` | `<example-root-key>` | Public Pgsodium root-key sample replaced with one shared inert marker. |
+| `/components/schemas/UpdatePgsodiumConfigBody/example/root_key` | `<example-root-key>` | Public Pgsodium root-key sample replaced with one shared inert marker. |

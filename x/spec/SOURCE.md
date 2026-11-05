@@ -38,7 +38,7 @@
 
 ## Published documentation examples
 
-doc-examples.json preserves the request bodies and URLs from:
+doc-examples.json records the request bodies and URLs from:
 - https://docs.x.com/fundamentals/authentication/api-reference (request-token, access-token, redirect and PIN flows).
 - https://docs.x.com/fundamentals/authentication/oauth-2-0/user-access-token (public and confidential code/refresh grants, bulk lookup).
 - https://docs.x.com/x-api/posts/manage-tweets/introduction (basic post, reply, quote, uploaded photo, poll, paid partnership and label lookup).
@@ -62,3 +62,15 @@ SHA-256: 7fb2baf64a6b331ec50ad67d81a7bdfa9dcfc9988320b337aa6a44fd674aae86. Its c
 The former developer Web Intent guide now redirects to the general overview.
 recordings/2026-10-03-how-to-post.json records the official X Help Center's rendered posting instruction read with web search (its shell fetch refused 403).
 The Web Intent's internal submit wire and DOM are undocumented; this screen's same-path form and post-page redirect are explicit substitutes, as on the OAuth screens.
+
+## Packaged public example scalars
+
+`spec/doc-examples.json` retains the pinned source above with only the string-scalar replacements listed below. Original inputs are retained outside the package at `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/x/spec/doc-examples.json`. Original uncompressed SHA-256: `5fdeb3d80119161f4f16bd5b3193cfb1f6ab4a9b4d46ab4d9e003a985393dcc6`; packaged uncompressed SHA-256: `ce5c144ad7b528a226f8f511d2078e6c3bca0cca05ee9c2a64a1ae86e4dfe7ff`. Every byte outside the listed JSON string values is unchanged. These public samples are inert; runtime credentials are issued through the existing doors.
+
+| JSON pointer | Packaged value | Reason |
+| --- | --- | --- |
+| `/1/input/refresh_token` | `<example-refresh-token>` | Public refresh-token sample replaced with one shared inert placeholder; its existing declaration retains capture substitution. |
+| `/3/input/refresh_token` | `<example-refresh-token>` | Public refresh-token sample replaced with one shared inert placeholder; its existing declaration retains capture substitution. |
+| `/5/request/url` | `https://api.x.com/oauth/access_token?oauth_token=example-oauth-token&oauth_verifier=example-oauth-verifier` | Inert request token and verifier retain the published OAuth URL and query fields. |
+| `/1/placeholders/names/0` | `<example-refresh-token>` | Existing named-placeholder metadata follows the replaced request value. |
+| `/3/placeholders/names/0` | `<example-refresh-token>` | Existing named-placeholder metadata follows the replaced request value. |

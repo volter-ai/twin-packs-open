@@ -104,7 +104,7 @@ export async function post_oauth_access_token(ctx: HandlerContext): Promise<Resp
     const existing = (rows('_oauth1_token') as Row[]).find((r) => r.consumerKey === request.consumerKey && r.userId === userId && r.accessLevel === request.accessLevel && r.revoked !== true);
     if (existing) return { value: { token: String(existing.id), secret: String(existing.secret) } };
     const held = rows('_oauth1_token').length;
-    // The docs' example: `oauth_token=6253282-eWudHldSbIaelX7swmsiHImEL4KinwaGloHANdrY` — the user id, a dash, 40
+    // A user access token: the user id, a dash, 40
     // alphanumerics; a 40-character secret.
     const token = `${userId}-${alnum(`${salt}:oauth1_token:${at}:${held}:${requestToken}`, 40)}`;
     const secret = alnum(`${salt}:oauth1_token_secret:${at}:${held}:${token}`, 40);

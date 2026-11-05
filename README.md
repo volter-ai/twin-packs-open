@@ -2,6 +2,8 @@
 
 This repository publishes immutable Protocol 3 packages using released World and twin-standard tooling. It does not clone platform source or require a platform account. Package-specific behavior, spec, limitations and journeys live with each package. Catalog release claims come from the [catalog process](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/process.md); local standing and publisher qualification are development and preparation records, not admission.
 
+[ADR 0001](docs/adr/0001-packaged-public-values.md) defines provenance for authored fixtures, upstream documentation samples and byte-identical public upstream code in release archives.
+
 ## Prepare outside CI
 
 Main integrates reviewed source and never publishes. Build and qualify explicitly after construction is complete. Use the committed Bun 1.4.2 lock and existing credentials; all candidate execution goes through a task-owned World. Select the vendor directory with `PACK_VENDOR` (the retained default is Tavily).

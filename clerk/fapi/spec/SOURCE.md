@@ -1,7 +1,7 @@
 # Clerk Frontend API spec — provenance (the Frontend API lane)
 
-- **File:** `openapi.yaml.gz`, Clerk's own OpenAPI document for the Frontend API, the vendor's bytes unchanged and
-  gzipped (`gzip -9 -n`): OpenAPI 3.0.3, `info.title` "Clerk Frontend API", `info.version` `v1`, 594,027 bytes, 210
+- **File:** `openapi.yaml.gz`, Clerk's own OpenAPI document for the Frontend API, with the five OAuth sample replacements recorded below and
+  otherwise the vendor's bytes, gzipped: OpenAPI 3.0.3, `info.title` "Clerk Frontend API", `info.version` `v1`, 594,027 upstream bytes, 210
   operations under `https://{domain}.clerk.accounts.dev` (a development instance's Frontend API host). Its paths
   overlap the Backend API's at `/v1/organizations/…`, `/.well-known/jwks.json` and `/api_keys`: the two APIs are told
   apart by host and credential, not by path.
@@ -21,3 +21,20 @@
   200 (its body not kept).
 
 - **OAuth evidence:** the authorize, token and consent facts are this pinned spec's operation descriptions; the sign-in and consent page flow and proxy headers are Clerk's guides, recorded with checked quotes in `sources.json`. The token-type discriminator is the published `@clerk/backend@3.11.6` archive, pinned by SHA-256 in the same record.
+
+## Packaged documentation samples
+
+- **Pinned source:** https://raw.githubusercontent.com/clerk/openapi-specs/7fcc9874cdd30937e7b75384ca21bdee3e46ecff/fapi/2026-05-12.yml; Frontend API `v1`, document `2026-05-12`.
+- **Retained original YAML:** `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/clerk/openapi.upstream.yaml`; SHA-256 `17b568daf5073bfc2fecac17e50cc81f4614d015a1cbf273d7f8f31cc3167902`.
+- **Retained original gzip:** `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/clerk/openapi.upstream.yaml.gz`; SHA-256 `f1ea82829def95f07ed6a3a1da97626dfd4242d5014947bd44657c764f85f2ac`.
+- **Packaged YAML:** `openapi.yaml.gz` decompressed; SHA-256 `7fe91eab578cf04ad14ad144f6a4c8d2843a331f0c78df4083b58ef8dda67670`.
+- **Packaged gzip:** `openapi.yaml.gz`; SHA-256 `28a58ef692000af818e16940e83d4fea2af1f8916e55dab0d8751a75bbdbf2b7`.
+- Only these five example scalar strings change. Equal upstream client-secret and access-token samples retain equal replacements. Schemas, operations, descriptions and other sample values remain unchanged.
+
+| JSON pointer in the parsed YAML | Packaged replacement |
+|---|---|
+| `/paths/~1oauth~1token/post/requestBody/content/application~1x-www-form-urlencoded/examples/authorizationCodeConfidential/value/client_secret` | `example_client_secret` |
+| `/paths/~1oauth~1token/post/requestBody/content/application~1x-www-form-urlencoded/examples/refreshToken/value/client_secret` | `example_client_secret` |
+| `/components/responses/OAuth.Token/content/application~1json/examples/withoutIdToken/value/access_token` | `example_access_token` |
+| `/components/responses/OAuth.Token/content/application~1json/examples/withIdToken/value/access_token` | `example_access_token` |
+| `/components/responses/OAuth.Token/content/application~1json/examples/withIdToken/value/id_token` | `example_id_token` |
