@@ -90,14 +90,15 @@ async function clientsAnswer(ctx: HandlerContext): Promise<XResponse> {
   }, 'oauth_client.create');
   if (secret !== null) await ctx.record(CLIENT_SECRET, { sha256: sha256(secret) }, clientId);
   // the answer is this registration's, whatever a concurrent one wrote since
-  return { status: 200, body: { ...row, name: typeof b['name'] === 'string' ? b['name'] : 'Twin App', clientType, redirectUris: Array.isArray(b['redirect_uris']) ? b['redirect_uris'] : defaultRedirectUris(originOf(ctx)), secret } };
+  return { status: 200, body: { ...ctx.own(row), id: row.id, name: typeof b['name'] === 'string' ? b['name'] : 'Twin App', clientType, redirectUris: Array.isArray(b['redirect_uris']) ? b['redirect_uris'] : defaultRedirectUris(originOf(ctx)), secret } };
 }
 
 async function rateWindowsAnswer(ctx: HandlerContext): Promise<XResponse> {
   const b = jsonOf(ctx);
   if (!b || typeof b['account_id'] !== 'string' || typeof b['used'] !== 'number') return oauthError('invalid_request', 'account_id and used are required', 400);
   const windowStart = Math.floor(Date.parse(ctx.occurredAt) / 1000);
-  return { status: 200, body: await save(ctx, '_rate_window', `users_me:${b['account_id']}`, { windowStart, used: b['used'] }, 'rate_window.arm') };
+  const row = await save(ctx, '_rate_window', `users_me:${b['account_id']}`, { windowStart, used: b['used'] }, 'rate_window.arm');
+  return { status: 200, body: { ...ctx.own(row), id: row.id } };
 }
 
 async function oauth1AppsAnswer(ctx: HandlerContext): Promise<XResponse> {

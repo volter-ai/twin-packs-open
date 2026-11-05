@@ -199,6 +199,7 @@ async function operate(argv: string[], lifetime: Lifetime, operation: Operation)
   let session: string | undefined;
   let runtime: string | undefined;
   let worldMayHaveStarted = false;
+  let worldCommandCompleted = false;
   let status = 1;
   try {
     writeFileSync(join(active, 'owner.json'), JSON.stringify({ pid: process.pid, vendor: process.env.PACK_VENDOR ?? 'tavily', mode }));
@@ -227,6 +228,7 @@ async function operate(argv: string[], lifetime: Lifetime, operation: Operation)
       writeFileSync(config, JSON.stringify({ id: owner, services: [], network: { egress: [] } }));
       worldMayHaveStarted = true;
       const result = await command(process.execPath, [runtime, 'run', config, '--root', work, '--env-out', join(work, 'world.env'), '--owner', owner, '--', ...consumer], { cwd, stdio: 'inherit' });
+      worldCommandCompleted = !result.error && Number.isInteger(result.exitCode) && result.signal === null;
       if (result.error) throw result.error;
       return result.status ?? 1;
     } });
@@ -239,6 +241,7 @@ async function operate(argv: string[], lifetime: Lifetime, operation: Operation)
       if (worldMayHaveStarted) {
         if (!session || !runtime) throw new Error('The exact runtime for native retirement is unknown');
         await retireSession(session, runtime, candidateEnv);
+        if (!worldCommandCompleted) throw new Error('World CLI completion was not confirmed; its lifetime worker may still be retiring');
       }
       // Removing active is conditional on successful session removal. No lifecycle record is edited here.
       await settledNode('node', ['-e', `
