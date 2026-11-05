@@ -4,6 +4,8 @@ This repository publishes immutable Protocol 3 packages using released World and
 
 [ADR 0000](docs/adr/0000-native-package-contracts.md) defines ownership of installed API requirements, live credential authentication and complete native relay responses.
 
+[ADR 0001](docs/adr/0001-packaged-public-values.md) defines provenance for authored fixtures, upstream documentation samples and byte-identical public upstream code in release archives.
+
 ## Prepare outside CI
 
 Main integrates reviewed source and never publishes. Build and qualify explicitly after construction is complete. Use the committed Bun 1.4.2 lock and existing credentials; all candidate execution goes through a task-owned World. Select the vendor directory with `PACK_VENDOR` (the retained default is Tavily).
@@ -20,7 +22,7 @@ Commit the release's version and README installation pins before preparation. Th
 
 The root `package.json` owns the publisher's exact tool cohort. After selecting new tool versions, wait for their exact registry archives before generating `bun.lock` with the declared Bun using `bun install --lockfile-only --ignore-scripts`; never edit dependency locks by hand. Commit that native lock before the frozen install, build and qualification. Pack peer ranges continue to describe their own compatible kernel and UI requirements; a publisher tool update does not rewrite an immutable pack or its earlier qualification.
 
-After qualification, prepare on a POSIX machine holding the existing custody registry. `PACK_SWEEP_ROOT` names the exact unedited supercode commit pinned by `scripts/release-evidence.mjs`. Its selected files include `scripts/npm-keys-sweep.mjs`, `scripts/release-bindings/catalog-public-operation-ids.json` and the `sdk/volter-teams` redactor; a sparse checkout must retain all three paths. The pinned sweep opens compressed entries and checks the exact archive against pinned gitleaks rules, readable custody values and Teams token forms. It refuses unsupported tooling or absent custody instead of issuing a clean verdict. The source pin selects the tool; an actual release still needs the approved pin's clean sweep over its exact archive and separate manager npm permission.
+After qualification, prepare on a POSIX machine holding the existing custody registry. `PACK_SWEEP_ROOT` names the exact unedited supercode commit pinned by `scripts/release-evidence.mjs`. A sparse checkout retains `scripts/npm-keys-sweep.mjs`, all of `scripts/release-bindings/` and the `sdk/volter-teams/` redactor. The pinned sweep opens compressed entries and checks the exact archive against pinned gitleaks rules, readable custody values and Teams token forms. It refuses unsupported tooling or absent custody instead of issuing a clean verdict. The source pin selects the tool; an actual release still needs the approved pin's clean sweep over its exact archive and separate manager npm permission.
 
 ```sh
 PACK_SWEEP_ROOT=/path/to/pinned-supercode node scripts/prepare-release.mjs

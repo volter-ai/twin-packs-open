@@ -1,8 +1,8 @@
 # Supabase Storage spec — provenance
 
 - **File:** `openapi.json`, storage-api's OpenAPI document as Supabase's documentation publishes it (the source of
-  https://supabase.com/docs/reference/storage), the vendor's bytes unchanged: OpenAPI 3.0.3, `info.title` "Supabase
-  Storage API", `info.version` `0.0.0`, 138,185 bytes, 108 operations, no operationIds (the IR mints `method_path` slugs).
+  https://supabase.com/docs/reference/storage), the pinned vendor source, with packaged public sample changes listed below: OpenAPI 3.0.3, `info.title` "Supabase
+  Storage API", `info.version` `0.0.0`, 138,185 original bytes, 108 operations, no operationIds (the IR mints `method_path` slugs).
 - **Upstream:** https://raw.githubusercontent.com/supabase/supabase/80761d2521cbaf796ea9e9d84975dc20219e03ef/apps/docs/spec/storage_v0_openapi.json
   (repository `supabase/supabase`, `master` at that commit), fetched 2026-09-28.
 - **SHA-256 of the vendor's bytes:** `bd435bab4b3b2ef87e3e61f2e948092c30db204f881a4d72d4234a032a356311`.
@@ -20,3 +20,19 @@
 - **The vendor's own source** is cited for what the document does not state (its error body, its exposed HEAD routes):
   storage-api `v1.79.22` (tag commit `61acd3b8ae57c31698b9171f0f2dd77bdb0b4b68`).
 - **Read by:** `bun scripts/derive-pack.ts supabase/storage`, which writes `../src/generated/`.
+
+## Packaged public example scalars
+
+`storage/spec/openapi.json` retains the pinned source above with only the string-scalar replacements listed below. Original inputs are retained outside the package at `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/supabase/storage/spec/openapi.json`. Original uncompressed SHA-256: `bd435bab4b3b2ef87e3e61f2e948092c30db204f881a4d72d4234a032a356311`; packaged uncompressed SHA-256: `662d740035d1ab2ec5ec029fd8958fcc69566428d68034304323a1607b550d89`. Every byte outside the listed JSON string values is unchanged. These public samples are inert; runtime credentials are issued through the existing doors.
+
+| JSON pointer | Packaged value | Reason |
+| --- | --- | --- |
+| `/components/schemas/def-0/properties/authorization/example` | `Bearer example-signed-token-1` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1object~1sign~1{bucketName}/post/responses/200/content/application~1json/schema/items/properties/signedURL/example` | `/object/sign/avatars/folder/cat.png?token=example-signed-token-2` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1object~1sign~1{bucketName}~1{*}/get/parameters/1/example` | `example-signed-token-3` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1object~1sign~1{bucketName}~1{*}/head/parameters/1/example` | `example-signed-token-3` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1object~1sign~1{bucketName}~1{*}/post/responses/200/content/application~1json/schema/properties/signedURL/example` | `/object/sign/avatars/folder/cat.png?token=example-signed-token-2` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1object~1upload~1sign~1{bucketName}~1{*}/post/responses/200/content/application~1json/schema/properties/url/example` | `/object/sign/upload/avatars/folder/cat.png?token=example-signed-token-2` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1object~1upload~1sign~1{bucketName}~1{*}/put/parameters/0/example` | `example-signed-token-3` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1render~1image~1sign~1{bucketName}~1{*}/get/parameters/0/example` | `example-signed-token-3` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |
+| `/paths/~1render~1image~1sign~1{bucketName}~1{*}/head/parameters/0/example` | `example-signed-token-3` | Public signed-token sample replaced with an inert token; URL or authorization structure and repeated token equality are retained. |

@@ -16,3 +16,22 @@
   2026-10-01 (the reaction, edit and current-user rules, and the application commands, on 2026-10-02).
 - **Cited pages:** `sources.json`, check-sources' record of every page a `// source:` line cites.
 - **Read by:** `bun scripts/derive-pack.ts discord`, which writes `../src/generated/surface.gen.json`.
+
+## Packaged public example scalars
+
+`spec/doc-examples.json` retains the pinned source above with only the string-scalar replacements listed below. Original inputs are retained outside the package at `/Volumes/PeakSSD/peak-floor/state/prod-ops/releases/vo3818-source-captures/discord/spec/doc-examples.json`. Original uncompressed SHA-256: `a55795ab2a8efe461da95dbad3cf298e8a3d71286f88f0ef13e4ec6a4c7c9a33`; packaged uncompressed SHA-256: `50b455dd4cee6ca33b95840a231bab8cd79e2f82595a4499dd26ee32163f0fa8`. Every byte outside the listed JSON string values is unchanged. These public samples are inert; runtime credentials are issued through the existing doors.
+
+| JSON pointer | Packaged value | Reason |
+| --- | --- | --- |
+| `/0/output/access_token` | `example-discord-token-1` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/0/output/refresh_token` | `example-discord-token-4` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/2/output/access_token` | `example-discord-token-1` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/2/output/refresh_token` | `example-discord-token-4` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/3/output/access_token` | `example-discord-token-1` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/4/output/access_token` | `example-discord-token-2` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/4/output/refresh_token` | `example-discord-token-5` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/5/output/access_token` | `example-discord-token-3` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/5/output/refresh_token` | `example-discord-token-6` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/5/output/webhook/token` | `example-discord-token-7` | Public token/key sample replaced with an inert value; repeated samples retain equality. |
+| `/5/output/webhook/url` | `https://discord.com/api/webhooks/347114750880120863/example-discord-token-7` | Preserves the webhook token component of its public example URL. |
+| `/6/output/application/verify_key` | `0000000000000000000000000000000000000000000000000000000000000000` | Public token/key sample replaced with an inert value; repeated samples retain equality. |

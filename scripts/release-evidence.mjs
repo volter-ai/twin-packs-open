@@ -9,7 +9,7 @@ export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex'
 export const integrity = (bytes) => 'sha512-' + createHash('sha512').update(bytes).digest('base64');
 export const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 export const git = (...args) => execFileSync('git', args, { encoding: 'utf8', timeout: 5000 }).trim();
-export const sweepCommit = '3311131f659699dceb3701df5522f530bbf88d91';
+export const sweepCommit = 'a3c4c5f41e1d866a143420c3a5f80a1d6d7384b0';
 export const publicationRef = 'refs/heads/publish';
 export const publicationWorkflow = `volter-ai/twin-packs-open/.github/workflows/release.yml@${publicationRef}`;
 

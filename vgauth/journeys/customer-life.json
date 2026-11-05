@@ -5,25 +5,20 @@
   "companions": [
     "clerk"
   ],
-  "about": "Marta signs in, consents and exchanges through the Worker, reads both the explicit no-binding projection and the service-bound first-read stored account with the source-shipped non-production Free/100 catalog, then shares through Clerk. The configured Free catalog is the source-shipped non-production deployment input, not production values; admission remains server-owned Clerk metadata.",
+  "about": "The operator obtains Clerk keys for the World’s default organization and its VGAuth service deployment, then uses the application’s issued OAuth client and endpoints. Marta signs in, consents and exchanges through the Worker, reads both the explicit no-binding projection and the service-bound first-read stored account with the source-shipped non-production Free/100 catalog, then shares through Clerk. The configured Free catalog is the source-shipped non-production deployment input, not production values; admission remains server-owned Clerk metadata.",
   "steps": [
     {
-      "name": "The operator records the deployed Clerk Frontend API domain on its dashboard",
-      "method": "POST",
-      "path": "https://api.clerk.com/_twin/instance",
-      "status": 200,
-      "body": {
-        "frontend_api": "clerk.auth.videogame.ai"
-      }
-    },
-    {
-      "name": "The operator obtains the development Clerk application keys from its dashboard door",
+      "name": "The operator obtains the VGAuth service’s Clerk application keys from its dashboard door",
       "method": "POST",
       "path": "https://api.clerk.com/_twin/app-credentials",
       "status": 201,
       "capture": {
         "clerkKey": "secret_key",
         "publishableKey": "publishable_key"
+      },
+      "body": {
+        "account": "default",
+        "deployment": "vgauth"
       }
     },
     {
@@ -120,7 +115,9 @@
       "capture": {
         "providerClientId": "client_id",
         "providerApplicationId": "id",
-        "providerTokenEndpoint": "token_fetch_url"
+        "providerTokenEndpoint": "token_fetch_url",
+        "providerAuthorizationEndpoint": "authorize_url",
+        "providerFrontend": "text:\"authorize_url\"\\s*:\\s*\"(https://[^/\"]+)/oauth/authorize\""
       },
       "expect": [
         {
@@ -159,17 +156,26 @@
         {
           "path": "pkce_required",
           "equals": true
+        },
+        {
+          "path": "authorize_url",
+          "equals": "{providerAuthorizationEndpoint}"
+        },
+        {
+          "path": "token_fetch_url",
+          "equals": "{providerTokenEndpoint}"
         }
       ]
     },
     {
-      "name": "The worker uses the client ID and token endpoint issued by Clerk",
+      "name": "The worker uses the client ID and authorization and token endpoints issued by Clerk",
       "method": "POST",
       "path": "/_twin/configuration",
       "status": 200,
       "body": {
         "providerClientId": "{providerClientId}",
-        "tokenEndpoint": "{providerTokenEndpoint}"
+        "tokenEndpoint": "{providerTokenEndpoint}",
+        "authorizationEndpoint": "{providerAuthorizationEndpoint}"
       }
     },
     {
@@ -190,7 +196,7 @@
     {
       "name": "The browser signs in through Clerk’s Frontend API with that ticket",
       "method": "POST",
-      "path": "https://clerk.auth.videogame.ai/v1/client/sign_ins",
+      "path": "{providerFrontend}/v1/client/sign_ins",
       "status": 200,
       "body": "strategy=ticket&ticket={browserTicket}",
       "headers": {
@@ -207,6 +213,25 @@
         {
           "path": "client.sessions.0.user.id",
           "equals": "{userId}"
+        }
+      ]
+    },
+    {
+      "name": "The signed-in browser reads its Clerk session through the Worker’s proxy",
+      "method": "GET",
+      "path": "/__clerk/v1/client",
+      "status": 200,
+      "headers": {
+        "cookie": "__client={browserClient}"
+      },
+      "expect": [
+        {
+          "path": "response.sessions.0.user.id",
+          "equals": "{userId}"
+        },
+        {
+          "path": "response.sessions.0.status",
+          "equals": "active"
         }
       ]
     },
@@ -259,7 +284,7 @@
       ]
     },
     {
-      "name": "The signed-in browser follows the worker’s authorization redirect through its Clerk proxy",
+      "name": "The signed-in browser follows the worker’s redirect to its issued Clerk application",
       "method": "GET",
       "path": "{providerAuthorization}",
       "status": 302,
@@ -269,14 +294,14 @@
       "expect": [
         {
           "header": "location",
-          "contains": "https://auth.videogame.ai/__clerk/oauth/consent?"
+          "contains": "{providerFrontend}/oauth/consent?"
         }
       ]
     },
     {
       "name": "The person grants the worker access through Clerk’s own consent API",
       "method": "POST",
-      "path": "https://clerk.auth.videogame.ai/v1/me/oauth/consent/{providerClientId}",
+      "path": "{providerFrontend}/v1/me/oauth/consent/{providerClientId}",
       "status": 303,
       "body": "response_type=code&client_id={providerClientId}&redirect_uri=https%3A%2F%2Fauth.videogame.ai%2Faccount%2Fcallback&state={state}&code_challenge={providerChallenge}&code_challenge_method=S256&scope=openid%20profile%20email%20user%3Aorg%3Aread&consented=true",
       "headers": {
@@ -691,7 +716,10 @@
           "path": "total_count",
           "equals": 1
         }
-      ]
+      ],
+      "headers": {
+        "authorization": "Bearer {clerkKey}"
+      }
     },
     {
       "name": "The operator restores the explicit development configuration for the local editor",

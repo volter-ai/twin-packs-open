@@ -90,8 +90,9 @@ if (existsSync(clientDir)) {
   }
 }
 const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+const packFacts = join(packageRoot, 'generated', 'pack-facts.json');
 for (const entry of Array.isArray(manifest.files) ? manifest.files : []) {
   if (typeof entry !== 'string' || entry.startsWith('!') || entry.includes('*') || ['src', 'dist', 'README.md', 'LICENSE', 'CHANGELOG.md'].includes(entry)) continue;
-  copyTree(join(packageRoot, entry), join(packageRoot, 'dist', entry), (path) => !/\.test\./.test(path));
+  copyTree(join(packageRoot, entry), join(packageRoot, 'dist', entry), (path) => path !== packFacts && !/\.test\./.test(path));
 }
 process.stdout.write(`built ${packageRoot.split('/').slice(-2).join('/')} → dist/src\n`);
