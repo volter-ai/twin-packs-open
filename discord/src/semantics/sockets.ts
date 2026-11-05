@@ -9,7 +9,7 @@
 // limit is counted (GET /gateway/bot) but not enforced: Discord's answer to the thousandth identify in a day is to end
 // every session and reset the bot's token, which no application of the World reaches.
 import type { EventWrite, HandlerContext, SocketEngine, SocketSession } from '@volter/world-core';
-import { appView, arr, BOT_TOKEN, CHANNEL, channelPermissions, EPHEMERAL, gatewayUrl, GUILD, IDENTIFY, INTERACTION, interactionView, isThread, MEMBER, memberView, MESSAGE, messageView, obj, P, REACTION, ROLE, roleView, type Row, sha256, USER, userView } from './shared.ts';
+import { appView, arr, BOT_TOKEN, CHANNEL, channelPermissions, EPHEMERAL, gatewayUrl, GUILD, guildView, IDENTIFY, INTERACTION, interactionView, isThread, MEMBER, memberView, MESSAGE, messageView, obj, P, REACTION, type Row, sha256, USER, userView } from './shared.ts';
 
 // source: https://docs.discord.com/developers/events/gateway "Example Hello Event"
 const HEARTBEAT_INTERVAL = 41250;
@@ -31,8 +31,8 @@ function dispatch(s: SocketSession, t: string, d: unknown): void {
 /** A server as GUILD_CREATE sends it: the guild with its roles, and what the bot joined with (channels, threads and
  *  the bot itself; the World keeps no one in voice). */
 function guildCreate(ctx: HandlerContext, guildId: string, bot: string): Row | undefined {
-  const guild = ctx.get(GUILD, guildId);
-  if (!guild) return undefined;
+  const guild = ctx.row(GUILD, guildId);
+  if (!guild || guild.deleted === true) return undefined;
   const all = (type: string): Row[] => ctx.rowsRaw(type).filter((r) => r.deleted !== true);
   const channels = all(CHANNEL).filter((c) => c.guild_id === guildId);
   const members = all(MEMBER).filter((m) => m._guild === guildId);
@@ -40,7 +40,7 @@ function guildCreate(ctx: HandlerContext, guildId: string, bot: string): Row | u
   const shown = members.filter((m) => m._user === bot);
   const me = members.find((m) => m._user === bot);
   return {
-    ...guild, roles: all(ROLE).filter((r) => r._guild === guildId).map((r) => roleView(ctx, r)), joined_at: me?.joined_at ?? null, large: false, unavailable: false, member_count: members.length,
+    ...guildView(ctx, guild), joined_at: me?.joined_at ?? null, large: false, unavailable: false, member_count: members.length,
     voice_states: [],
     members: shown.map((m) => memberView(ctx, m)), channels: channels.filter((c) => !isThread(ctx.own(c))).map((c) => ctx.get(CHANNEL, String(c.id))),
     threads: channels.filter((c) => isThread(ctx.own(c))).map((c) => ctx.get(CHANNEL, String(c.id))), presences: [], stage_instances: [], guild_scheduled_events: [], soundboard_sounds: [],

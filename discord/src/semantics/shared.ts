@@ -192,8 +192,10 @@ export function guildFor(ctx: HandlerContext, id: string, user: string): Row | R
 /** A user as another sees it; `me` adds what the user itself sees (email only under the email scope). */
 export function userView(u: Row, me?: { email: boolean }): Row {
   const view: Row = {
-    id: u.id, username: u.username, avatar: u.avatar ?? null, discriminator: '0', public_flags: 0, flags: 0, ...(u.bot === true ? { bot: true } : {}),
-    banner: null, accent_color: null, global_name: u.global_name ?? null, avatar_decoration_data: null, collectibles: null, primary_guild: null,
+    id: u.id, username: u.username, avatar: u.avatar ?? null, discriminator: u.discriminator ?? '0', public_flags: u.public_flags ?? 0, flags: u.flags ?? 0,
+    ...(u.bot === true ? { bot: true } : {}), ...(u.system === undefined ? {} : { system: u.system }),
+    banner: u.banner ?? null, accent_color: u.accent_color ?? null, global_name: u.global_name ?? null,
+    avatar_decoration_data: u.avatar_decoration_data ?? null, collectibles: u.collectibles ?? null, primary_guild: u.primary_guild ?? null,
   };
   if (me) Object.assign(view, { mfa_enabled: false, locale: 'en-US', premium_type: 0, ...(me.email ? { email: u.bot === true ? null : u.email ?? null, verified: true } : {}) });
   return view;
@@ -201,11 +203,40 @@ export function userView(u: Row, me?: { email: boolean }): Row {
 export const userById = (ctx: Pick<HandlerContext, 'row'>, id: string): Row | undefined => live(ctx.row(USER, id));
 /** A member with its user. */
 export function memberView(ctx: Pick<HandlerContext, 'row' | 'own'>, m: Row): Row {
+  const member = ctx.own(m);
   const u = userById(ctx, String(m._user));
-  return { ...vendorView(ctx, m), ...(u ? { user: userView(u) } : {}) };
+  return {
+    avatar: member.avatar, avatar_decoration_data: member.avatar_decoration_data, banner: member.banner,
+    communication_disabled_until: member.communication_disabled_until, flags: member.flags, joined_at: member.joined_at,
+    nick: member.nick, pending: member.pending, premium_since: member.premium_since, roles: member.roles,
+    collectibles: member.collectibles, ...(u ? { user: userView(u) } : {}), mute: member.mute, deaf: member.deaf,
+  };
 }
-/** A message with its author, mentions, reactions and thread, as the API answers it. */
+/** The native BasicMessageResponse embedded by a full message, without reactions or another referenced message. */
+function basicMessageView(ctx: Pick<HandlerContext, 'row' | 'own'>, m: Row): Row {
+  const message = ctx.own(m);
+  const thread = m.thread_id ? live(ctx.row(CHANNEL, String(m.thread_id))) : undefined;
+  // a person's or a bot's message names its author's user as it is now; a webhook's keeps the name it was sent under
+  const author = m._author ? userById(ctx, String(m._author)) : undefined;
+  return {
+    type: message.type, content: message.content,
+    mentions: arr<string>(m._mentions).map((id) => userById(ctx, id)).filter(Boolean).map((u) => userView(u!)),
+    mention_roles: message.mention_roles, attachments: message.attachments, embeds: message.embeds,
+    timestamp: message.timestamp, edited_timestamp: message.edited_timestamp, flags: message.flags, components: message.components,
+    stickers: message.stickers, sticker_items: message.sticker_items, id: m.id, channel_id: message.channel_id,
+    author: author ? userView(author) : message.author ? userView(obj(message.author)) : undefined,
+    pinned: message.pinned, mention_everyone: message.mention_everyone, tts: message.tts,
+    call: message.call, activity: message.activity, application: message.application, application_id: message.application_id,
+    interaction: message.interaction, nonce: message.nonce, webhook_id: message.webhook_id, message_reference: message.message_reference,
+    thread: thread ? vendorView(ctx, thread) : message.thread, mention_channels: message.mention_channels,
+    role_subscription_data: message.role_subscription_data, purchase_notification: message.purchase_notification, position: message.position,
+    resolved: message.resolved, poll: message.poll, shared_client_theme: message.shared_client_theme,
+    interaction_metadata: message.interaction_metadata, message_snapshots: message.message_snapshots, lobby_member: message.lobby_member,
+  };
+}
+/** A native MessageResponse with its author, mentions, reactions, thread and basic referenced message. */
 export function messageView(ctx: Pick<HandlerContext, 'row' | 'rowsRaw' | 'own'>, m: Row, viewer?: string): Row {
+  const view = basicMessageView(ctx, m);
   const reactions = new Map<string, { emoji: Row; users: string[] }>();
   for (const r of ctx.rowsRaw(REACTION)) if (r.deleted !== true && r._message === m.id) {
     const key = String(r._emoji);
@@ -213,21 +244,45 @@ export function messageView(ctx: Pick<HandlerContext, 'row' | 'rowsRaw' | 'own'>
     at.users.push(String(r._user));
     reactions.set(key, at);
   }
-  const thread = m.thread_id ? live(ctx.row(CHANNEL, String(m.thread_id))) : undefined;
-  const { thread_id: _t, ...view } = vendorView(ctx, m);
-  // a person's or a bot's message names its author's user as it is now; a webhook's keeps the name it was sent under
-  const author = m._author ? userById(ctx, String(m._author)) : undefined;
-  view.author = author ? userView(author) : m.author;
-  view.mentions = arr<string>(m._mentions).map((id) => userById(ctx, id)).filter(Boolean).map((u) => userView(u!));
   // source: https://docs.discord.com/developers/resources/message "Whether the current user reacted using this emoji"
   if (reactions.size) view.reactions = [...reactions.values()].map((r) => ({ count: r.users.length, count_details: { burst: 0, normal: r.users.length }, me: viewer ? r.users.includes(viewer) : false, me_burst: false, burst_colors: [], emoji: r.emoji }));
-  if (thread) view.thread = vendorView(ctx, thread);
   const referenced = m.message_reference && obj(m.message_reference).message_id ? live(ctx.row(MESSAGE, String(obj(m.message_reference).message_id))) : undefined;
-  if (referenced) view.referenced_message = messageView(ctx, referenced, viewer);
+  if (referenced) view.referenced_message = basicMessageView(ctx, referenced);
   return view;
 }
-/** A role's JSON. */
-export const roleView = (ctx: Pick<HandlerContext, 'own'>, r: Row): Row => vendorView(ctx, r);
+/** The native GuildRoleResponse, including its own color and tag classes. */
+export function roleView(ctx: Pick<HandlerContext, 'own'>, r: Row): Row {
+  const role = ctx.own(r), colors = obj(role.colors), tags = obj(role.tags);
+  return {
+    id: r.id, name: role.name, permissions: role.permissions, position: role.position, color: role.color,
+    colors: { primary_color: colors.primary_color, secondary_color: colors.secondary_color, tertiary_color: colors.tertiary_color },
+    hoist: role.hoist, managed: role.managed, mentionable: role.mentionable, icon: role.icon, unicode_emoji: role.unicode_emoji,
+    ...(role.tags === undefined ? {} : { tags: {
+      premium_subscriber: tags.premium_subscriber, bot_id: tags.bot_id, integration_id: tags.integration_id,
+      subscription_listing_id: tags.subscription_listing_id, available_for_purchase: tags.available_for_purchase, guild_connections: tags.guild_connections,
+    } }), flags: role.flags,
+  };
+}
+
+/** The native GuildResponse used by the token answer and the Gateway's guild event. */
+export function guildView(ctx: Pick<HandlerContext, 'own' | 'rowsRaw'>, g: Row): Row {
+  const guild = ctx.own(g);
+  return {
+    id: g.id, name: guild.name, icon: guild.icon, description: guild.description, home_header: guild.home_header ?? null,
+    splash: guild.splash, discovery_splash: guild.discovery_splash, features: guild.features, banner: guild.banner,
+    owner_id: guild.owner_id, application_id: guild.application_id, region: guild.region, afk_channel_id: guild.afk_channel_id,
+    afk_timeout: guild.afk_timeout, system_channel_id: guild.system_channel_id, system_channel_flags: guild.system_channel_flags,
+    widget_enabled: guild.widget_enabled, widget_channel_id: guild.widget_channel_id, verification_level: guild.verification_level,
+    roles: ctx.rowsRaw(ROLE).filter((r) => r.deleted !== true && r._guild === g.id).map((r) => roleView(ctx, r)),
+    default_message_notifications: guild.default_message_notifications, mfa_level: guild.mfa_level, explicit_content_filter: guild.explicit_content_filter,
+    max_presences: guild.max_presences, max_members: guild.max_members, max_stage_video_channel_users: guild.max_stage_video_channel_users,
+    max_video_channel_users: guild.max_video_channel_users, vanity_url_code: guild.vanity_url_code, premium_tier: guild.premium_tier,
+    premium_subscription_count: guild.premium_subscription_count, preferred_locale: guild.preferred_locale, rules_channel_id: guild.rules_channel_id,
+    safety_alerts_channel_id: guild.safety_alerts_channel_id, public_updates_channel_id: guild.public_updates_channel_id,
+    premium_progress_bar_enabled: guild.premium_progress_bar_enabled, premium_progress_bar_enabled_user_updated_at: guild.premium_progress_bar_enabled_user_updated_at,
+    nsfw: guild.nsfw, nsfw_level: guild.nsfw_level, emojis: guild.emojis, stickers: guild.stickers, incidents_data: guild.incidents_data,
+  };
+}
 
 // ── applications ───────────────────────────────────────────────────────────────────────────────
 // source: https://docs.discord.com/developers/resources/application "Application Structure"
@@ -238,16 +293,45 @@ export async function verifyKey(ctx: Pick<HandlerContext, 'signingKey'>, app: st
   const der = Buffer.from(publicPem.replace(/-----[^-]+-----|\s/g, ''), 'base64');
   return der.subarray(der.length - 32).toString('hex');
 }
-/** The application as `oauth2/@me` and the bot's own reads answer it (with its bot user, and its owner when the portal
- *  knows who made it). */
+/** The native application's optional OAuth2 installation parameters. */
+function appInstallParams(value: unknown): Row | undefined {
+  if (value === undefined || value === null) return undefined;
+  const params = obj(value);
+  return { scopes: params.scopes, permissions: params.permissions };
+}
+
+/** The public ApplicationResponse embedded by the current authorization. */
+export function publicAppView(ctx: Pick<HandlerContext, 'row' | 'own'>, a: Row): Row {
+  const application = ctx.own(a);
+  const bot = userById(ctx, String(a._bot));
+  return {
+    id: a.id, name: application.name, icon: application.icon, description: application.description, type: application.type,
+    cover_image: application.cover_image, primary_sku_id: application.primary_sku_id, flags: application.flags, flags_new: application.flags_new,
+    ...(bot ? { bot: userView(bot) } : {}), slug: application.slug, vibegrations_project_id: application.vibegrations_project_id,
+    guild_id: application.guild_id, rpc_origins: application.rpc_origins, bot_public: application.bot_public, bot_require_code_grant: application.bot_require_code_grant,
+    terms_of_service_url: application.terms_of_service_url, privacy_policy_url: application.privacy_policy_url, custom_install_url: application.custom_install_url,
+    install_params: appInstallParams(application.install_params),
+    integration_types_config: application.integration_types_config === undefined ? undefined : Object.fromEntries(Object.entries(obj(application.integration_types_config))
+      .map(([kind, config]) => [kind, { oauth2_install_params: appInstallParams(obj(config).oauth2_install_params) }])),
+    verify_key: application.verify_key, max_participants: application.max_participants, tags: application.tags,
+  };
+}
+
+/** The native PrivateApplicationResponse returned by the bot's own application reads. */
 // source: https://docs.discord.com/developers/resources/application "Partial user object for the owner of the app"
 export function appView(ctx: Pick<HandlerContext, 'row' | 'rowsRaw' | 'own'>, a: Row): Row {
-  const bot = userById(ctx, String(a._bot));
+  const application = ctx.own(a);
   const owner = a._owner ? userById(ctx, String(a._owner)) : undefined;
-  const view = vendorView(ctx, a);
   // source: https://docs.discord.com/developers/resources/application "Approximate count of guilds the app has been added to"
   const approximate_guild_count = ctx.rowsRaw(MEMBER).filter((m) => m.deleted !== true && m._user === a._bot && live(ctx.row(GUILD, String(m._guild)))).length;
-  return { id: a.id, ...view, approximate_guild_count, ...(owner ? { owner: userView(owner) } : {}), ...(bot ? { bot: userView(bot) } : {}) };
+  return {
+    ...publicAppView(ctx, a), redirect_uris: application.redirect_uris, interactions_endpoint_url: application.interactions_endpoint_url,
+    role_connections_verification_url: application.role_connections_verification_url, owner: owner ? userView(owner) : application.owner,
+    approximate_guild_count, approximate_user_install_count: application.approximate_user_install_count,
+    approximate_user_authorization_count: application.approximate_user_authorization_count, event_webhooks_url: application.event_webhooks_url,
+    event_webhooks_status: application.event_webhooks_status, event_webhooks_types: application.event_webhooks_types,
+    explicit_content_filter: application.explicit_content_filter, team: application.team, eligible_oauth2_scopes: application.eligible_oauth2_scopes,
+  };
 }
 
 export const IDENTIFY = '_identify';
@@ -282,15 +366,15 @@ export async function makeGuild(ctx: HandlerContext, owner: Row, name: string): 
   const id = ctx.mint(GUILD);
   const text = ctx.mint(CHANNEL);
   await ctx.write(GUILD, id, {
-    id, name, icon: null, icon_hash: null, splash: null, discovery_splash: null, owner_id: owner.id, afk_channel_id: null, afk_timeout: 300,
+    id, name, icon: null, home_header: null, splash: null, discovery_splash: null, owner_id: owner.id, afk_channel_id: null, afk_timeout: 300,
     widget_enabled: false, widget_channel_id: null, verification_level: 0, default_message_notifications: 0, explicit_content_filter: 0, emojis: [], stickers: [],
     features: [], mfa_level: 0, application_id: null, system_channel_id: null, system_channel_flags: 0, rules_channel_id: null, max_presences: null, max_members: 500000,
     vanity_url_code: null, description: null, banner: null, premium_tier: 0, premium_subscription_count: 0, preferred_locale: 'en-US', public_updates_channel_id: null,
     max_video_channel_users: 25, max_stage_video_channel_users: 50, nsfw_level: 0, safety_alerts_channel_id: null, premium_progress_bar_enabled: false,
-    region: 'deprecated', hub_type: null, nsfw: false, incidents_data: null,
+    region: 'deprecated', nsfw: false, incidents_data: null,
   }, 'guild.create');
   // source: https://docs.discord.com/developers/topics/permissions "The @everyone role has the same ID as the guild it belongs to."
-  await ctx.write(ROLE, id, { id, name: '@everyone', description: null, color: 0, colors: { primary_color: 0, secondary_color: null, tertiary_color: null }, hoist: false, icon: null, unicode_emoji: null, position: 0, permissions: EVERYONE_DEFAULT, managed: false, mentionable: false, flags: 0, _guild: id }, 'role.create');
+  await ctx.write(ROLE, id, { id, name: '@everyone', color: 0, colors: { primary_color: 0, secondary_color: null, tertiary_color: null }, hoist: false, icon: null, unicode_emoji: null, position: 0, permissions: EVERYONE_DEFAULT, managed: false, mentionable: false, flags: 0, _guild: id }, 'role.create');
   await join(ctx, id, String(owner.id));
   const category = async (label: string, position: number): Promise<string> => makeChannel(ctx, id, { name: label, type: TYPE.GUILD_CATEGORY, position });
   const textCategory = await category('Text Channels', 0);
@@ -304,7 +388,7 @@ export async function makeGuild(ctx: HandlerContext, owner: Row, name: string): 
 /** A user joins a server: a member with no roles yet. */
 export async function join(ctx: HandlerContext, guild: string, user: string, fields: Row = {}): Promise<Row> {
   const id = memberId(guild, user);
-  await ctx.write(MEMBER, id, { avatar: null, banner: null, communication_disabled_until: null, flags: 0, joined_at: stamp(ctx.occurredAt), nick: null, pending: false, premium_since: null, roles: [], unusual_dm_activity_until: null, mute: false, deaf: false, _guild: guild, _user: user, ...fields }, 'member.add');
+  await ctx.write(MEMBER, id, { avatar: null, banner: null, communication_disabled_until: null, flags: 0, joined_at: stamp(ctx.occurredAt), nick: null, pending: false, premium_since: null, roles: [], mute: false, deaf: false, _guild: guild, _user: user, ...fields }, 'member.add');
   return ctx.row(MEMBER, id)!;
 }
 
