@@ -1,3 +1,3 @@
-import { publish } from '../../../src/semantics/states.ts';
+import { publish } from '../../../src/semantics/shared.ts';
 
 export const states = { publish };

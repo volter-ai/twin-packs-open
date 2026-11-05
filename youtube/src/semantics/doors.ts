@@ -75,7 +75,7 @@ export async function channels(ctx: HandlerContext): Promise<Response> {
 }
 
 export async function videoAudience(ctx: HandlerContext): Promise<Response> {
-  const id = String(ctx.params.id ?? '');
+  const id = String(ctx.call.params.id ?? '');
   const video = live(ctx.row(VIDEO, id));
   if (!video) return bad('no such video', 404);
   const b = bodyObject(ctx);
@@ -97,7 +97,7 @@ export async function videoAudience(ctx: HandlerContext): Promise<Response> {
 }
 
 export async function chatAudience(ctx: HandlerContext): Promise<Response> {
-  const liveChatId = String(ctx.params.liveChatId ?? '');
+  const liveChatId = String(ctx.call.params.liveChatId ?? '');
   const held = chatById(ctx, liveChatId);
   if (!held || !held.broadcast) return bad('no such live chat', 404);
   if (chatEnded(ctx, held.broadcast)) return bad('the live chat has ended', 409);
@@ -109,7 +109,7 @@ export async function chatAudience(ctx: HandlerContext): Promise<Response> {
 }
 
 export async function channelAudience(ctx: HandlerContext): Promise<Response> {
-  const id = String(ctx.params.id ?? '');
+  const id = String(ctx.call.params.id ?? '');
   const channel = live(ctx.row(CHANNEL, id));
   if (!channel) return bad('no such channel', 404);
   const b = bodyObject(ctx);

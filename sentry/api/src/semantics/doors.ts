@@ -46,7 +46,7 @@ export async function appCredentials(ctx: HandlerContext): Promise<Response> {
       make: async () => ctx.crypto.sha256(await makePersonalToken(ctx, org, ctx.deployment() || 'world-app', ['org:read', 'project:read', 'project:write', 'project:releases', 'event:read', 'alerts:read'])),
       read: (row) => readToken(ctx, org, row),
     });
-    return Response.json({ dsn: dsnOf(org, project, { public: key.secret }), auth_token: token.secret, org: org.slug, org_id: org.id, project: project.slug }, { status: 201 });
+    return Response.json({ dsn: dsnOf(org, project, { public: key.secret }), auth_token: token.secret, authorization: `Bearer ${token.secret}`, url: 'https://sentry.io', org: org.slug, org_id: org.id, project: project.slug }, { status: 201 });
   } catch (error) {
     if (error instanceof Response) return error;
     throw error;

@@ -132,15 +132,15 @@ export async function action(ctx: HandlerContext): Promise<Response> {
   return Response.json({ ok: answer.status === 200 && !answer.missed, delivered_to: to, status: answer.status, ...(answer.missed ? { error: 'operation_timeout' } : {}) });
 }
 
-/** What Slack sent an app's server (`?to=<url>`), newest first: the commands and interactions it asked the app, and the
- *  events it sent it (each event's body its payload). */
+/** Slack's app-delivery outbox (`?to=<url>`), newest first: commands, interactions and declared events, including
+ *  queued or rejected deliveries, with their native outcomes. Each event's body is its payload. */
 export async function deliveries(ctx: HandlerContext): Promise<Response> {
   const to = new URL(ctx.call.request.url).searchParams.get('to');
   // an interaction is sent as the one form field `payload`, its JSON ("a payload parameter",
   // https://docs.slack.dev/interactivity/handling-user-interaction): what the app reads is that interaction
   const interaction = (p: unknown): unknown => { const o = p as Record<string, unknown> | undefined; return o && typeof o === 'object' && Object.keys(o).length === 1 && o.payload && typeof o.payload === 'object' ? o.payload : p; };
-  const asked = ctx.rowsRaw(DELIVERIES).map((d) => ({ to: String(d.to), payload: interaction(d.payload), sent: Number(d.sent) }));
-  const events = ctx.rowsRaw(EVENT_DELIVERIES).map((d) => { let payload: unknown = d.body; try { payload = JSON.parse(String(d.body)); } catch { /* sent as recorded */ } return { to: String(d.url), payload, sent: Math.floor(Number(d.sent_at) / 1000) }; });
+  const asked = ctx.rowsRaw(DELIVERIES).map((d) => ({ to: String(d.to), payload: interaction(d.payload), sent: Number(d.sent), status: d.status, missed: d.missed }));
+  const events = ctx.rowsRaw(EVENT_DELIVERIES).map((d) => { let payload: unknown = d.body; try { payload = JSON.parse(String(d.body)); } catch { /* sent as recorded */ } return { to: String(d.url), payload, sent: Math.floor(Number(d.sent_at) / 1000), status: d.transport_status ?? null, delivery_state: d.delivery_state ?? null, accepted_at: d.accepted_at ?? null }; });
   const all = [...asked, ...events].map((d, i) => ({ ...d, i })).filter((d) => !to || d.to === to).sort((a, b) => b.sent - a.sent || b.i - a.i);
   return Response.json({ deliveries: all.map(({ i: _i, ...d }) => d) });
 }

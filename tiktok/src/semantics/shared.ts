@@ -1,7 +1,7 @@
 // What TikTok's lanes share (a lane imports its vendor's shared helpers): the developer sites' apps, TikTok's people,
 // the codes and tokens an app holds for a person (each kept by its SHA-256, drawn from ctx.secret), posts and videos,
 // and the World's numbering and placeholder images.
-import { placeholderPng, type HandlerContext } from '@volter/world-core';
+import { placeholderPng, type HandlerContext, type StateField } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
 export const APP = '_app';
@@ -77,3 +77,20 @@ export function videoPage(ctx: Pick<HandlerContext, 'rowsRaw'>, person: string, 
  *  PUBLIC_TO_EVERYONE MUTUAL_FOLLOW_FRIENDS SELF_ONLY"; a private one's, FOLLOWER_OF_CREATOR in place of the first. */
 // source: https://developers.tiktok.com/doc/content-posting-api-reference-query-creator-info "If the TikTok creator account is public, the available options are:"
 export const privacyOptions = (p: Row): string[] => (p.private === true ? ['FOLLOWER_OF_CREATOR', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'] : ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY']);
+
+const STATUS = 'https://developers.tiktok.com/doc/content-posting-api-reference-get-video-status';
+
+/** A post's `status`: an upload begins PROCESSING_UPLOAD ("Indicates that the upload is in process"), a pull from URL
+ *  PROCESSING_DOWNLOAD (written so at the post's start); the vendor finishes it when the last chunk arrives or the pull
+ *  ends. Not made by the twin: a post the creator makes from an inbox draft (PUBLISH_COMPLETE after SEND_TO_USER_INBOX,
+ *  the creator's move in the app), a moderation that fails a post, and a cancelled pull (the cancel is unmodeled). */
+const publishStatus: StateField = {
+  initial: 'PROCESSING_UPLOAD',
+  transitions: [
+    { actor: 'vendor', from: ['PROCESSING_UPLOAD', 'PROCESSING_DOWNLOAD'], to: 'PUBLISH_COMPLETE', source: `${STATUS} "it indicates that the content has been posted"` },
+    { actor: 'vendor', from: ['PROCESSING_UPLOAD', 'PROCESSING_DOWNLOAD'], to: 'SEND_TO_USER_INBOX', source: `${STATUS} "Indicates that a notification has been sent to creator's inbox to complete the draft post using TikTok's editing flow."` },
+    { actor: 'vendor', from: ['PROCESSING_DOWNLOAD'], to: 'FAILED', source: `${STATUS} "Indicates that an error has occurred and the entire process has failed."` },
+  ],
+};
+
+export const publish = { state: { status: publishStatus }, notState: ['fail_reason', 'reason'] };

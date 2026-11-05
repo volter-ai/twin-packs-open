@@ -9,8 +9,9 @@ The API and ingest share one vendor store.
 | `sentry.io`, `us.sentry.io`, `de.sentry.io` | sentry-cli release creation, finalization, commits and previous-release lookup, repository listing and source-map chunk/artifact uploads; account project creation and client-key reads; declared vendor refresh reads. | [api/spec](./api/spec/SOURCE.md), Sentry's pinned OpenAPI document and evidenced patches |
 
 The application's SDK authenticates ingestion with its public DSN key. API calls use scoped personal tokens or
-organization CI tokens, stored by their hash. The credential door is bootstrap signup: it creates the account,
-first token, project and client key named by the environment, returning the same credentials at every boot.
+organization CI tokens, stored by their hash. The credential door retains the selected organization and each
+deployment's project, client key and scoped personal token. It returns the same DSN and token on later issuance,
+with the API's native bearer authorization and origin.
 Additional projects are created through `createOrganizationProject`; their DSNs are read through `listProjectKeys`.
 
 World account doors:

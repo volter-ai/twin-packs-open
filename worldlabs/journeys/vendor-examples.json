@@ -1,0 +1,259 @@
+{
+  "vendor": "worldlabs",
+  "author": "Contributor 70",
+  "host": "api.worldlabs.ai",
+  "about": "The reference page ListWorldsRequest samples (first also the rendered cURL request) and its rendered 200/422 response samples, plus the page size bounds and required credential. The empty account determines an empty list. A rendered response is a schema sample, not a promise of a nonempty account. The fifth sample is the published opaque cursor, sent unchanged; this scope holds no world on either side of it.",
+  "steps": [
+    {
+      "name": "Create the empty Platform account whose API key the examples use",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "body": {},
+      "status": 201,
+      "capture": {
+        "key": "api_key"
+      }
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc List request 1",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "model": "marble-1.0",
+        "page_size": 20,
+        "sort_by": "created_at",
+        "status": "SUCCEEDED"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "worlds",
+          "equals": []
+        },
+        {
+          "path": "next_page_token",
+          "equals": null
+        }
+      ],
+      "exampleDiffers": {
+        "worlds": "The page renders a sample world; this account holds none, since making one (generate_world) is the gap here: Volter Editor only lists worlds, to check its key."
+      }
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc List request 2",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "page_size": 50,
+        "sort_by": "created_at",
+        "status": "SUCCEEDED",
+        "tags": [
+          "fantasy",
+          "nature"
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "worlds",
+          "equals": []
+        },
+        {
+          "path": "next_page_token",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc List request 3",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "created_after": "2024-01-01T00:00:00Z",
+        "created_before": "2024-12-31T23:59:59Z",
+        "page_size": 100,
+        "sort_by": "created_at"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "worlds",
+          "equals": []
+        },
+        {
+          "path": "next_page_token",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc List request 4",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "model": "marble-1.0-draft",
+        "page_size": 30,
+        "tags": [
+          "landscape"
+        ]
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "worlds",
+          "equals": []
+        },
+        {
+          "path": "next_page_token",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc List request 5",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "page_size": 20,
+        "page_token": "<example-page-token>",
+        "sort_by": "created_at"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "worlds",
+          "equals": []
+        },
+        {
+          "path": "next_page_token",
+          "equals": null
+        }
+      ]
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc Validation error response",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "page_size": "one"
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "detail.0.loc",
+          "equals": [
+            "body",
+            "page_size"
+          ]
+        },
+        {
+          "path": "detail.0.type",
+          "equals": "int_parsing"
+        },
+        {
+          "path": "detail.0.input",
+          "equals": "one"
+        }
+      ],
+      "exampleDiffers": {
+        "detail[].loc": "The page renders loc as one placeholder string; the answer names where the value was found and which field, as the API's validation errors give it (body, page_size)."
+      }
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc Page size lower bound",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "page_size": 0
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "detail.0.loc",
+          "equals": [
+            "body",
+            "page_size"
+          ]
+        },
+        {
+          "path": "detail.0.type",
+          "equals": "greater_than_equal"
+        }
+      ]
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc Page size upper bound",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "page_size": 101
+      },
+      "status": 422,
+      "expect": [
+        {
+          "path": "detail.0.loc",
+          "equals": [
+            "body",
+            "page_size"
+          ]
+        },
+        {
+          "path": "detail.0.type",
+          "equals": "less_than_equal"
+        },
+        {
+          "path": "detail.0.input",
+          "equals": 101
+        }
+      ]
+    },
+    {
+      "name": "list_worlds_marble_v1_worlds_list_post#doc API key required",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {},
+      "status": 401,
+      "expect": [
+        {
+          "path": "message",
+          "equals": "No API key found in request"
+        }
+      ]
+    }
+  ]
+}

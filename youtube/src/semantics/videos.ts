@@ -176,7 +176,7 @@ export async function youtube_videos_insert_upload(ctx: HandlerContext): Promise
   // source: https://developers.google.com/youtube/v3/guides/using_resumable_upload_protocol "If the upload already completed, regardless of whether it succeeded or failed, the API will return the same response that it sent when the upload originally completed."
   if (session.video) {
     const done = live(ctx.row(VIDEO, String(session.video)));
-    if (done) return Response.json(videoAnswer(ctx, { ...done, status: obj(session.answeredStatus), processingDetails: obj(session.answeredProcessing) }, parts), { status: 201 });
+    if (done) return Response.json(videoAnswer(ctx, { ...ctx.render(done, VIDEO), status: obj(session.answeredStatus), processingDetails: obj(session.answeredProcessing) }, parts), { status: 201 });
   }
   const received = Number(session.received ?? 0);
   // source: https://developers.google.com/youtube/v3/guides/using_resumable_upload_protocol "The header value is indexed from 0 ."

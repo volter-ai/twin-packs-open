@@ -10,8 +10,7 @@
 // THE RATE WINDOW. Every OAuth call counts against its client's window: 1,000 requests a ten-minute window, the window
 // turning at each tenth minute of the clock, as Reddit's answers count it (x-ratelimit-used and -remaining summing to
 // 1,000, -reset the seconds to the next ten-minute mark, recorded on 2025-05-07 and 2025-06-19); a call past it is 429.
-import { isReadOnlyRequest, type HandlerContext } from '@volter/world-core';
-import { cookieOf, signedIn } from '@volter/world-ui';
+import { cookieOf, isReadOnlyRequest, signedIn, type HandlerContext } from '@volter/world-core';
 import { accountOfPerson, CALLER_HEADER, err, hasScope, hostOf, httpError, jsonAnswer, legacyEncoded, modhashFor, nowSeconds, RATE_WINDOW, SESSION_COOKIE, TOKEN, type Caller } from './shared.ts';
 
 /** The calls a person may make on www.reddit.com with no one signed in: reads of what anyone may read. */

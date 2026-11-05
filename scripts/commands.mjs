@@ -292,11 +292,11 @@ export async function runOwnedCommand(command, args, options) {
     if (interrupted) endGroup(interrupted === 130 ? 'SIGINT' : 'SIGTERM');
     collect(child.stdout, (text) => { stdout += text; });
     collect(child.stderr, (text) => { stderr += text; });
-    const status = await /** @type {Promise<number | null>} */ (new Promise((resolve) => {
+    const closed = await /** @type {Promise<{ exitCode: number | null, signal: NodeJS.Signals | null }>} */ (new Promise((resolve) => {
       child.once('error', (cause) => { error = cause; });
       // close waits for inherited pipes too, so end orphan writers as soon as their parent exits.
       child.once('exit', () => { if (grouped) endGroup('SIGKILL'); });
-      child.once('close', resolve);
+      child.once('close', (exitCode, signal) => resolve({ exitCode, signal }));
     }));
     if (owner) {
       try { await owner.finish(); }
@@ -311,7 +311,7 @@ export async function runOwnedCommand(command, args, options) {
         await delay(20);
       }
     }
-    return { status: interrupted || status, stdout, stderr, error };
+    return { status: interrupted || closed.exitCode, exitCode: closed.exitCode, signal: closed.signal, stdout, stderr, error };
   } finally {
     clearTimeout(cancellation);
     process.off('SIGTERM', terminate);

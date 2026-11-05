@@ -1,7 +1,7 @@
 // What every OpenAI family's semantics share: its error answers, its cursor page, its update pick,
 // the usage ledger every billable call writes, and the request shape the pack's helpers in
 // model's builders take. All of it is over the handler's context.
-import { personWith as codexPersonWith, recordPerson as codexRecordPerson, base62From, isReadOnlyRequest, placeholderPng as kernelPlaceholderPng, sha256, type Handler, type HandlerContext, type ScenarioDecision } from '@volter/world-core';
+import { personWith as codexPersonWith, recordPerson as codexRecordPerson, base62From, imageDimensions, isReadOnlyRequest, placeholderPng as kernelPlaceholderPng, sha256, type Handler, type HandlerContext, type ScenarioDecision } from '@volter/world-core';
 
 import type { openaiWire as CodexWire } from '@volter/world-core';
 import { states } from './states.ts';
@@ -414,8 +414,9 @@ export const imageFormat = (b: Uint8Array): 'png' | 'jpg' | 'webp' | undefined =
 
 /** A PNG's width and height from its IHDR chunk. */
 export function pngSize(b: Uint8Array): { width: number; height: number } {
-  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  return { width: v.getUint32(16), height: v.getUint32(20) };
+  const size = imageDimensions(b, 'image/png');
+  if (!size) throw new RangeError('Offset is outside the bounds of the DataView');
+  return size;
 }
 
 /** Each audio format OpenAI transcribes that a signature tells, checked in this order. */

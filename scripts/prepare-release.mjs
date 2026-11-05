@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { selectedPack } from './selected-pack.mjs';
 import { digest, git, integrity, packedManifest, publicationRef, publicationWorkflow, readJson, sourceCommit, sweepCommit, verifyPreparation } from './release-evidence.mjs';
 
@@ -25,6 +26,9 @@ assert.equal(qualification.integrity, inventory.integrity);
 const assessment = readJson(join(selected.release, 'prepared-assessment.json'));
 assert.equal(assessment.sourceCommit, source);
 assert.equal(assessment.integrity, inventory.integrity);
+const evaluatorLocks = ['assessment-package-lock.json', 'assessment-pnpm-lock.yaml'].filter(name =>
+  existsSync(join(selected.release, name)) && createHash('sha512').update(readFileSync(join(selected.release, name))).digest('hex') === assessment.dependencyLockSha512);
+assert.equal(evaluatorLocks.length, 1, 'Exact assessment evaluator dependency lock is absent or ambiguous');
 const sweepRoot = resolve(process.env.PACK_SWEEP_ROOT ?? '');
 assert.ok(process.env.PACK_SWEEP_ROOT, 'PACK_SWEEP_ROOT must name the pinned supercode sweep checkout on a custody machine');
 assert.equal(git('-C', sweepRoot, 'rev-parse', 'HEAD'), sweepCommit, 'Keys sweep tool commit differs from the reviewed pin');
@@ -51,7 +55,7 @@ writeFileSync(join(selected.release, 'keys-sweep.json'), JSON.stringify({
 cpSync('bun.lock', join(selected.release, 'publisher-bun.lock'));
 cpSync('package.json', join(selected.release, 'publisher-package.json'));
 const retained = [inventory.filename, 'pack-inventory.json', 'qualification.json', 'prepared-assessment.json',
-  'assessment-package-lock.json', 'publisher-bun.lock', 'publisher-package.json', 'keys-sweep.json'];
+  evaluatorLocks[0], 'publisher-bun.lock', 'publisher-package.json', 'keys-sweep.json'];
 for (const name of ['consumer-package-lock.json', 'consumer-pnpm-lock.yaml']) if (existsSync(join(selected.release, name))) retained.push(name);
 assert.ok(retained.some(name => name.startsWith('consumer-')), 'Prepared customer dependency lock is absent');
 const preparation = {

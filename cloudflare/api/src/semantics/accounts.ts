@@ -11,6 +11,6 @@ export async function accounts_list_accounts(ctx: HandlerContext): Promise<Respo
   const q = new URL(ctx.call.request.url).searchParams;
   const name = q.get('name');
   const rows = ctx.rowsRaw(ACCOUNT).filter((a) => a.deleted !== true && caller !== undefined && personInAccount(ctx, caller, String(a.id)) && (name === null || a.name === name))
-    .map((row): Row => { const a = ctx.own(row); return ({ id: a.id, name: a.name, type: a.type, settings: a.settings ?? {}, created_on: a.created_on }); });
+    .map((row): Row => { const a = ctx.render(row); return ({ id: a.id, name: a.name, type: a.type, settings: a.settings ?? {}, created_on: a.created_on }); });
   return listed(ctx, q.get('direction') === 'desc' ? rows.reverse() : rows);
 }

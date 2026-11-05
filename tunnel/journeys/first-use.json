@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://github.com/volter-ai/volter-tunnel/blob/c14b6e36722b20cbb3ee7245c7f555b5c12b376e/client/tunnel-client.ts",
+  "about": "Volter Harness's remote access as it ships (volter-ai/supercode 62620578c014, sdk/remote-access/index.mjs startStableTunnel; @volter/tunnel 2.0.5 as its bun.lock resolves it): the unchanged client opens a tunnel for a loopback server at the relay the World's credential door names (SUPERCODE_TUNNEL_SERVER_URL, with TUNNEL_SECRET), with a stable tunnel id and authRequired false, and shares its origin; a person opening the shared URL reaches the local server through the control socket, method, path, public host and body intact.",
+  "files": {
+    "package.json": "{\n  \"name\": \"tunnel-harness-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@volter/tunnel\": \"2.0.5\"\n  }\n}\n",
+    ".env.example": "SUPERCODE_TUNNEL_SERVER_URL=\nTUNNEL_SECRET=\n",
+    "share.mjs": "import assert from 'node:assert/strict';\nimport { createServer } from 'node:http';\nimport { createTunnel } from '@volter/tunnel/client';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n// the Harness's local server, on loopback\nconst local = createServer((request, response) => {\n  const chunks = [];\n  request.on('data', (chunk) => chunks.push(chunk));\n  request.on('end', () => {\n    response.writeHead(200, { 'content-type': 'application/json' });\n    response.end(JSON.stringify({ method: request.method, path: request.url, host: request.headers['x-forwarded-host'] ?? request.headers.host, body: Buffer.concat(chunks).toString() }));\n  });\n});\nawait new Promise((resolve) => local.listen(0, '127.0.0.1', resolve));\n// Volter Harness's stable relay (sdk/remote-access/index.mjs startStableTunnel), as it calls the client\nconst relay = (process.env.SUPERCODE_TUNNEL_SERVER_URL ?? process.env.TUNNEL_SERVER_URL)?.trim();\nif (!relay) throw new Error('Set SUPERCODE_TUNNEL_SERVER_URL before using the stable relay.');\nconst tunnel = await createTunnel({\n  authRequired: false,\n  host: relay,\n  port: local.address().port,\n  ...(process.env.TUNNEL_SECRET ? { secret: process.env.TUNNEL_SECRET } : {}),\n  tunnelId: 'ada-harness',\n});\ntry {\n  const publicOrigin = new URL(tunnel.url).origin;\n  assert.equal(publicOrigin, 'https://ada-harness.voltertest.xyz');\n  // a person opens the shared remote-access URL: the request reaches the local server through the control socket\n  const opened = await fetch(publicOrigin + '/sessions?view=board', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: 'open the board' });\n  assert.equal(opened.status, 200);\n  const seen = await opened.json();\n  assert.deepEqual(seen, { method: 'POST', path: '/sessions?view=board', host: 'ada-harness.voltertest.xyz', body: 'open the board' });\n  console.log(JSON.stringify({ shared: publicOrigin, seen }));\n} finally {\n  tunnel.close();\n  local.close();\n}\n"
+  },
+  "run": [
+    "node",
+    "share.mjs"
+  ],
+  "retention": {
+    "none": "The relay stores nothing a client reads back: a tunnel lives only while its control socket is open, and the account and reserved tunnel id are World bookkeeping the relay serves no read of (its /api/status is unserved, the pack's vendorBacked none, src/manifest.ts)."
+  }
+}

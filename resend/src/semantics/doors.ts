@@ -142,17 +142,17 @@ export async function mail(ctx: HandlerContext): Promise<Response> {
   return Response.json({ mail: got.map((e) => ({ id: e.id, from: e.from, subject: e.subject, html: e.html, text: e.text, received_at: e._delivered_at, attachments: ((e._attachments ?? []) as Row[]).map(({ _blob, ...metadata }) => metadata) })) });
 }
 
-/** GET /_twin/deliveries?to=<url>[&type=<event>][&email=<id>]: the webhooks Resend sent there, oldest first, of one
- *  type or about one email when named. */
+/** GET /_twin/deliveries?to=<url>[&type=<event>][&email=<id>]: webhooks accepted there, oldest first, of one type
+ *  or about one email when named, with their native transport status. */
 export async function deliveries(ctx: HandlerContext): Promise<Response> {
   const q = new URL(ctx.call.request.url).searchParams;
   const to = q.get('to') ?? '';
   const type = q.get('type');
   const email = q.get('email');
-  const sent = ctx.rowsRaw('_webhook_delivery').filter((d) => String(d.url ?? '').startsWith(to)).map((d) => {
+  const sent = ctx.rowsRaw('_webhook_delivery').filter((d) => typeof d.accepted_at === 'number' && String(d.url ?? '').startsWith(to)).map((d) => {
     let body: unknown = d.body;
     try { body = JSON.parse(String(d.body)); } catch { /* as sent */ }
-    return { url: d.url, headers: d.headers, body: body as Row, status: d.status };
+    return { url: d.url, headers: d.headers, body: body as Row, status: d.transport_status };
   }).filter((d) => (!type || d.body?.type === type) && (!email || (d.body?.data as Row | undefined)?.email_id === email));
   return Response.json({ deliveries: sent });
 }

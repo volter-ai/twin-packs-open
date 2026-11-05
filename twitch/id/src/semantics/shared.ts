@@ -21,8 +21,10 @@ export const applicationOf = (ctx: Pick<HandlerContext, 'row'>, clientId: string
 };
 
 /** Whether `secret` is the application's client secret (kept by its SHA-256). */
-export const clientSecretMatches = (ctx: Pick<HandlerContext, 'row' | 'crypto'>, clientId: string, secret: string): boolean =>
-  Boolean(secret) && ctx.row(CLIENT_SECRET, clientId)?.sha256 === digestOf(ctx, secret);
+export const clientSecretMatches = (ctx: Pick<HandlerContext, 'row' | 'crypto'>, clientId: string, secret: string): boolean => {
+  const held = ctx.row(CLIENT_SECRET, clientId);
+  return Boolean(secret) && held?.revoked !== true && held?._pending !== true && held?.sha256 === digestOf(ctx, secret);
+};
 
 /** An access token issued (and, for a user, its refresh token): each a fresh credential drawn from the World's secret,
  *  kept by its SHA-256. A user access token lasts about four hours, an app access token weeks. */

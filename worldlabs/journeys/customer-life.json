@@ -1,0 +1,67 @@
+{
+  "vendor": "worldlabs",
+  "author": "Contributor 70",
+  "host": "api.worldlabs.ai",
+  "about": "An artist connects a newly issued World API key in Volter Editor. A clipboard mistake is corrected before the connection succeeds.",
+  "steps": [
+    {
+      "name": "The artist creates a Platform API key and saves it securely",
+      "method": "POST",
+      "path": "/_twin/accounts",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "key": "api_key",
+        "account": "account_id"
+      },
+      "expect": [
+        {
+          "path": "api_key",
+          "matches": "^[A-Za-z0-9]{40}$"
+        }
+      ]
+    },
+    {
+      "name": "The first connection attempt uses a truncated clipboard value; the editor cannot connect",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "status": 401,
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "truncated-copy"
+      },
+      "body": {
+        "page_size": 1
+      },
+      "expect": [
+        {
+          "path": "message",
+          "equals": "Unauthorized"
+        }
+      ]
+    },
+    {
+      "name": "The artist copies the full saved key; the editor verifies it and connects",
+      "method": "POST",
+      "path": "/marble/v1/worlds:list",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "WLT-Api-Key": "{key}"
+      },
+      "body": {
+        "page_size": 1
+      },
+      "expect": [
+        {
+          "path": "worlds",
+          "equals": []
+        },
+        {
+          "path": "next_page_token",
+          "equals": null
+        }
+      ]
+    }
+  ]
+}

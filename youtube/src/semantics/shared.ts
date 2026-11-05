@@ -34,12 +34,6 @@ export const refuse = (ctx: Pick<HandlerContext, 'refuse'>, status: number, doma
 
 export const live = (r: Row | undefined): Row | undefined => (r && r.deleted !== true ? r : undefined);
 
-/** A stored row as YouTube answers it: its own fields, without the twin's bookkeeping. */
-function vendorView(ctx: Pick<HandlerContext, 'own'>, row: Row): Row {
-  const own = ctx.own(row);
-  return Object.fromEntries(Object.entries(own).filter(([k]) => !k.startsWith('_')));
-}
-
 /** The resource's ETag: a digest of what it holds, so it changes when the resource does. */
 export const etagOf = (ctx: Pick<HandlerContext, 'crypto'>, body: unknown): string => ctx.crypto.digest('sha256', JSON.stringify(body), 'base64').replace(/[+/=]/g, '').slice(0, 27);
 
@@ -62,8 +56,8 @@ export const obj = (v: unknown): Row => (v && typeof v === 'object' && !Array.is
 /** A resource answered with the parts asked: `kind`, `etag` and `id` always, then each part the request named that the
  *  resource holds. */
 // source: https://developers.google.com/youtube/v3/docs/videos/list "If the parameter identifies a property that contains child properties, the child properties will be included in the response."
-export function answerOf(ctx: Pick<HandlerContext, 'own' | 'crypto'>, row: Row, parts: Set<string>): Row {
-  const v = vendorView(ctx, row);
+export function answerOf(ctx: Pick<HandlerContext, 'render' | 'crypto'>, row: Row, parts: Set<string>): Row {
+  const v = ctx.render(row);
   const out: Row = { kind: v.kind };
   for (const [k, value] of Object.entries(v)) if (k !== 'kind' && k !== 'id' && parts.has(k)) out[k] = value;
   return { kind: v.kind, etag: etagOf(ctx, out), id: v.id, ...Object.fromEntries(Object.entries(out).filter(([k]) => k !== 'kind')) };
@@ -326,7 +320,7 @@ export async function writeComment(ctx: HandlerContext, id: string, author: Row,
 // source: https://developers.google.com/youtube/v3/docs/comments "The original text is only returned to the authenticated user if they are the comment's author."
 // source: https://developers.google.com/youtube/v3/docs/comments "This property is only returned if the API request was authorized by the owner of the channel or the video on which the requested comments were made."
 export function commentAnswer(ctx: HandlerContext, comment: Row, viewer: { channelId?: string; sub?: string }, format: string | undefined, byId = false): Row {
-  const v = vendorView(ctx, comment);
+  const v = ctx.render(comment);
   const snippet = { ...obj(v.snippet) };
   snippet.textDisplay = textDisplay(String(snippet.textOriginal ?? ''), format);
   if (viewer.channelId !== comment._author) delete snippet.textOriginal;
@@ -347,7 +341,7 @@ function repliesTo(ctx: HandlerContext, threadId: string): Row[] {
 /** A comment thread as YouTube answers it: its top-level comment and, with the replies part, its published replies. */
 // source: https://developers.google.com/youtube/v3/docs/commentThreads "The total number of replies that have been submitted in response to the top-level comment."
 export function threadAnswer(ctx: HandlerContext, thread: Row, parts: Set<string>, viewer: { channelId?: string; sub?: string }, format: string | undefined, byId = false): Row {
-  const t = vendorView(ctx, thread);
+  const t = ctx.render(thread);
   const id = String(t.id);
   const top = live(ctx.row(COMMENT, id));
   const replies = repliesTo(ctx, id).filter((r) => obj(ctx.own(r).snippet).moderationStatus === 'published');

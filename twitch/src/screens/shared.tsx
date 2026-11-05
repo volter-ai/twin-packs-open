@@ -15,7 +15,7 @@ export type { Row };
 
 /** twitch.tv's dark theme: its near-black ground, its purple, its type. Where the documentation stops: twitch.tv's look
  *  is its own client's, no document describes it; the colours and labels here are Twitch's own. */
-export const TWITCH_CSS = `
+const TWITCH_CSS = `
 *{box-sizing:border-box}
 body{margin:0;background:#0e0e10;color:#efeff1;font:13px/1.5 Inter,Roobert,"Helvetica Neue",Helvetica,Arial,sans-serif}
 a{color:#bf94ff;text-decoration:none}a:hover{text-decoration:underline}
@@ -67,7 +67,7 @@ fieldset.field{border:0;padding:0;margin:0 0 12px}
 
 /** Twitch's glitch mark (the brand's own glyph, as simple-icons draws it). */
 export const TWITCH_LOGO_PATH = 'M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z';
-export const TwitchLogo = () => <svg width="28" height="32" viewBox="0 0 24 24" aria-label="Twitch" role="img"><path fill="currentColor" d={TWITCH_LOGO_PATH} /></svg>;
+const TwitchLogo = () => <svg width="28" height="32" viewBox="0 0 24 24" aria-label="Twitch" role="img"><path fill="currentColor" d={TWITCH_LOGO_PATH} /></svg>;
 
 /** An account's avatar as the page draws it: its first letter on a colour drawn from its id. Where the documentation
  *  stops: an account's picture is served by Twitch's image host, which the twin does not serve; the page draws it. */
@@ -117,7 +117,7 @@ export function linkTo(host: string, path: string, ctx: HandlerContext): string 
 
 /** Where a page asks Twitch's media hosts: at a World's place, under the content route; else the vendor's URL as the
  *  World serves it (on a hosted site, on the page's origin). */
-export function mediaUrl(ctx: HandlerContext, host: string, path: string): string {
+function mediaUrl(ctx: HandlerContext, host: string, path: string): string {
   const placed = placeOf(ctx);
   return placed !== undefined ? `${placed}/@${host}${path}` : twinVendorUrl(ctx.call.request, `https://${host}${path}`);
 }

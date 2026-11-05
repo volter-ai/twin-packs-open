@@ -56,12 +56,13 @@ export const manifest: DerivedManifest = {
   list: { style: 'envelope', envelope: { data: '{data}' }, limit: { param: 'first', default: 20, max: 100 }, after: 'after', before: 'before' },
   deleted: {},
   resources: {
+    _credential_issue: { idPrefix: '', ids: '{uuid}' },
     // a Twitch account (the sign-up the World's doors stand in for), in Get Users' shape; its email is answered only to a
     // user access token with user:read:email (./semantics/users.ts)
     // source: spec:getUsers "Gets information about one or more users."
-    // Get Users lists no whole type: with no id or login it answers the token's own user, so a refresh reads that one and
-    // never takes the type as complete
-    GetUsersResponseData: { storedAs: 'user', idPrefix: '', refresh: { list: 'getUsers', items: 'data', complete: false } },
+    // Get Users lists no whole type. Read each known user by id: app access tokens require an id or login, and a user
+    // access token can read the same known accounts without treating its own user as the whole type.
+    GetUsersResponseData: { unique: [{ fields: ['login'], refusal: { status: 409, message: 'Login is taken' } }], storedAs: 'user', idPrefix: '', refresh: { get: 'getUsers', known: true, query: { id: '{id}' } } },
     // a user's channel, made with the account (every account has one), keyed by the broadcaster's id
     // source: spec:getChannelInformation "Gets information about one or more channels."
     GetChannelInformationResponseData: { storedAs: 'channel', idPrefix: '', ...states.GetChannelInformationResponseData, parent: { resource: 'GetUsersResponseData', field: 'broadcaster_id', param: 'broadcaster_id' }, refresh: { list: 'getChannelInformation', items: 'data' } },
@@ -73,7 +74,8 @@ export const manifest: DerivedManifest = {
     // source: https://dev.twitch.tv/docs/chat/irc/ "An ID that uniquely identifies the message."
     chat_message: { idPrefix: '', ids: '{uuid}', refresh: { none: "Twitch's API reads no chat message back: chat delivers each message as it is sent (IRC, EventSub)" } },
     // an application registered in the developer console, by its client id
-    application: { idPrefix: '', refresh: { none: "Twitch's API reads no application back: the developer console makes and shows them" } },
+    _client_secret: { idPrefix: '', unique: [{ fields: ['_application'], refusal: { status: 409, message: 'Application already has a client secret.' } }] },
+    application: { idPrefix: '', ids: '{letters:30}', refresh: { none: "Twitch's API reads no application back: the developer console makes and shows them" } },
   },
   // the World's doors (./semantics/doors.ts): what Twitch's sign-up, developer console and audience do outside its API
   doors: [
@@ -183,9 +185,9 @@ export const manifest: DerivedManifest = {
     endpointEnvNone: "Twitch's clients address api.twitch.tv, id.twitch.tv and irc-ws.chat.twitch.tv by their published URLs; no SDK reads a base-URL variable",
     // the developer console's application, made with the account that registers it: its client id and secret, and the
     // channel's login, in the names Twitch apps read them by
-    credentialDoor: {
+    credentialDoor: { account: { field: 'account', tenancy: 'Twitch developer user', source: 'https://dev.twitch.tv/docs/authentication/register-app/' }, deployment: { field: 'deployment', object: 'Registered application; channel remains user-level', source: 'https://dev.twitch.tv/docs/authentication/register-app/', organizationOutputs: ['TWITCH_CHANNEL'] },
       path: '/_twin/console',
-      body: { login: 'worldchannel', password: 'world-password', email: 'worldchannel@example.com', application: { name: 'World App', redirect_uris: ['http://localhost:3000'] } },
+      body: { application: { name: 'World App', redirect_uris: ['http://localhost:3000'] } },
       fill: { TWITCH_CLIENT_ID: 'client_id', TWITCH_CLIENT_SECRET: 'client_secret', TWITCH_CHANNEL: 'login' },
     },
   },

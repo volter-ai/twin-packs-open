@@ -2,7 +2,7 @@
 // answer carries the guild), the current authorization, and a bot's read of its application. The authorize page is
 // ../screens/authorize.ts. Codes and tokens are drawn from the World's secret and kept by SHA-256.
 import type { HandlerContext } from '@volter/world-core';
-import { ACCESS, APP, appView, authorized, CODE, gap, GUILD, REFRESH, ROLE, roleView, type Row, SECRET, sha256, stamp, tokenValue, userView } from './shared.ts';
+import { ACCESS, APP, appView, authorized, CODE, gap, GUILD, guildView, publicAppView, REFRESH, type Row, SECRET, sha256, stamp, tokenValue, userView } from './shared.ts';
 
 // source: https://docs.discord.com/developers/topics/oauth2 "expires_in"
 const ACCESS_TTL = 604800;
@@ -56,8 +56,8 @@ export async function oauth2_token(ctx: HandlerContext): Promise<Response> {
     const answer: Row = { token_type: 'Bearer', access_token: pair.access_token, expires_in: ACCESS_TTL, refresh_token: pair.refresh_token, scope: code.scope };
     // source: https://docs.discord.com/developers/topics/oauth2 "also receive information about the guild to which your bot was added"
     if (code.guild) {
-      const g = ctx.get(GUILD, String(code.guild));
-      if (g) answer.guild = { ...g, roles: ctx.rowsRaw(ROLE).filter((r) => r.deleted !== true && r._guild === code.guild).map((r) => roleView(ctx, r)) };
+      const g = ctx.row(GUILD, String(code.guild));
+      if (g && g.deleted !== true) answer.guild = guildView(ctx, g);
     }
     return Response.json(answer);
   }
@@ -83,7 +83,7 @@ export async function get_my_oauth2_authorization(ctx: HandlerContext): Promise<
   if (c.kind !== 'bearer') return Response.json({ message: '401: Unauthorized', code: 0 }, { status: 401 });
   const scopes = c.scopes;
   return Response.json({
-    application: appView(ctx, c.app), scopes, expires: stamp(String(c.token.expires)),
+    application: publicAppView(ctx, c.app), scopes, expires: stamp(String(c.token.expires)),
     ...(scopes.includes('identify') ? { user: userView(c.user) } : {}),
   });
 }

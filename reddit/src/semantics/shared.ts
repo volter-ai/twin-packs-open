@@ -420,7 +420,7 @@ export function mediaFacts(bytes: Uint8Array, mimetype: string): { width?: numbe
   if (mimetype in VIDEO_TYPES) {
     const file = readMp4Header(bytes);
     const header = file.movies.flatMap((movie) => movie.headers).filter((movie) => movie.timescale > 0).at(-1);
-    const track = file.movies.flatMap((movie) => movie.tracks)[0];
+    const track = file.movies.flatMap((movie) => movie.tracks).find(({ width, height }) => width > 0 && height > 0);
     return {
       ...(header ? { duration: Math.round(header.duration / header.timescale) } : {}),
       ...(track ? { width: Math.round(track.width), height: Math.round(track.height) } : {}),

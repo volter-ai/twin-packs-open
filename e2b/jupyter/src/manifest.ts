@@ -1,5 +1,5 @@
-// The envd lane's manifest: each sandbox's process door (../spec, envd's process proto as Connect operations), at
-// `49983-<sandboxID>.e2b.app`: the sandbox is named in the host (`hostParams`). RH2 starts a process in its sandbox.
+// Each sandbox's code-interpreter door (spec/SOURCE.md), at `49999-<sandboxID>.e2b.app`.
+// The sandbox is named in the host (`hostParams`).
 // It shares the vendor's store with the api lane.
 import type { DerivedManifest } from '@volter/world-core';
 
@@ -16,6 +16,7 @@ export const manifest: DerivedManifest = {
   notFound: { status: 404, code: 'not_found', message: 'not found' },
   gap: { status: 404, code: 'unimplemented', message: 'the method is not implemented by this twin' },
   hostParams: '^(?<port>\\d+)-(?<sandboxID>[a-z0-9]+)\\.',
+  remoteHost: { template: '49999-{sandboxID}.e2b.app' },
   deleted: {},
   resources: {},
   vendorBacked: { none: 'The sandbox service is a compute wire; lifecycle operations and refresh belong to the api lane.' },
