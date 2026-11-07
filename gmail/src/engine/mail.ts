@@ -2,8 +2,8 @@
 // receiving server accepted: pure, so the server's front keeps it in each recipient's mailbox (semantics/shared.ts
 // `deliver`). The data arrives with its dot-stuffing undone (../stream.ts); the World keeps the bytes as sent.
 type Part = { headers: Record<string, string>; body: string };
-export type Attachment = { filename: string | null; contentType: string; size: number; contentId: string | null; base64: string };
-export type Parsed = { headers: Record<string, string>; subject: string; from: string; to: string[]; cc: string[]; text: string | null; html: string | null; attachments: Attachment[] };
+type Attachment = { filename: string | null; contentType: string; size: number; contentId: string | null; base64: string };
+type Parsed = { headers: Record<string, string>; subject: string; from: string; to: string[]; cc: string[]; text: string | null; html: string | null; attachments: Attachment[] };
 
 /** Headers and body split at the first empty line; folded headers unfolded, names lowercased (RFC 5322 §2.2.3). */
 // source: https://www.rfc-editor.org/rfc/rfc5322 "Unfolding is accomplished by simply removing any CRLF that is immediately followed by WSP"
@@ -39,7 +39,7 @@ function decoded(part: Part): Uint8Array {
 
 /** Encoded words in a header (`=?UTF-8?B?…?=`, `=?UTF-8?Q?…?=`), decoded (RFC 2047). */
 // source: https://www.rfc-editor.org/rfc/rfc2047 "encoded-word = \"=?\" charset \"?\" encoding \"?\" encoded-text \"?=\""
-export function words(value: string): string {
+function words(value: string): string {
   return value.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=(\s+(?==\?))?/g, (_, _cs: string, e: string, t: string) => {
     try { return textFor(e.toUpperCase() === 'B' ? bytesOf(atob(t)) : bytesOf(t.replace(/_/g, ' ').replace(/=([0-9A-Fa-f]{2})/g, (_m, h: string) => String.fromCharCode(Number.parseInt(h, 16)))), _cs); } catch { return t; }
   });

@@ -4,7 +4,7 @@ import { privateTransportKey, type HandlerContext, type smtpServer } from '@volt
 
 export type Row = Record<string, unknown>;
 
-export const MESSAGE = 'message';
+const MESSAGE = 'message';
 export const RELAY = 'relay';
 
 /** The relay's policy, as the `relay` door set it; an open relay until it is set. */
@@ -12,7 +12,7 @@ export type Policy = { hostname: string; auth?: { username: string; password: st
 
 // Postfix's default message_size_limit (10240000 bytes)
 // source: https://www.postfix.org/postconf.5.html "message_size_limit (default: 10240000)"
-export const DEFAULT_MAX_SIZE = 10_240_000;
+const DEFAULT_MAX_SIZE = 10_240_000;
 
 export function policyOf(ctx: Pick<HandlerContext, 'rowsRaw'>): Policy {
   const r = ctx.rowsRaw(RELAY).find((x) => x.id === 'relay' && x.deleted !== true);
@@ -34,7 +34,6 @@ export type Session = {
   from?: string;
   rcpt: string[];
   smtputf8?: boolean;
-  declaredSize?: number;
   /** an AUTH exchange under way: its mechanism and the user a LOGIN has given */
   auth?: { mechanism: 'PLAIN' | 'LOGIN'; user?: string };
   /** the stage a transaction returns to: the greeting it began from */
@@ -106,7 +105,7 @@ export const authFailed = (why: string): string => `535 5.7.8 Error: authenticat
 export const AUTH_ABORTED = '501 5.7.0 Authentication aborted';
 // an unknown mechanism: RFC 4954's 504
 // source: https://www.rfc-editor.org/rfc/rfc4954 "the server rejects the AUTH command with a 504 reply"
-export const UNKNOWN_MECHANISM = '504 5.5.4 Unrecognized authentication type';
+const UNKNOWN_MECHANISM = '504 5.5.4 Unrecognized authentication type';
 
 
 /** A message accepted: handed to each recipient's mailbox provider through the kernel's ctx.mail (ADR 0032 §3), as
@@ -126,7 +125,7 @@ export async function deliver(ctx: HandlerContext, e: { from: string; to: string
 
 // An optional SASL initial response: nodemailer uses a challenge for LOGIN, but other clients may supply one.
 // source: https://www.rfc-editor.org/rfc/rfc4954 "initial-response"
-export function loginInitial(s: Session, initial: string): WireAnswer {
+function loginInitial(s: Session, initial: string): WireAnswer {
   let user: string;
   try { user = atob(initial.trim()); } catch { return { replies: [authFailed('Invalid base64 data in initial response')], session: s, mode: 'command' }; }
   return { replies: ['334 UGFzc3dvcmQ6'], session: { ...s, auth: { mechanism: 'LOGIN', user } }, mode: 'auth' };
@@ -144,14 +143,14 @@ function queueFailure(session: Session): WireAnswer {
 export const BRIDGE: smtpServer.SmtpBridge<Session> = { header: 'x-volter-smtp-wire', key: wireKey, fresh: freshSession, failure: queueFailure };
 
 // source: https://www.rfc-editor.org/rfc/rfc4954 "the server rejects the AUTH command with a 504 reply"
-export function unknownAuth(session: Session): WireAnswer {
+function unknownAuth(session: Session): WireAnswer {
   return { replies: [UNKNOWN_MECHANISM], session, mode: 'command' };
 }
 // source: https://raw.githubusercontent.com/vdukhovni/postfix/master/postfix/src/smtpd/smtpd.c "500 5.5.2 Error: command not recognized"
 export function unknownCommand(session: Session): WireAnswer {
   return { replies: [UNRECOGNIZED], session, mode: 'command' };
 }
-export const loginChallenge = (s: Session): WireAnswer => ({ replies: ['334 VXNlcm5hbWU6'], session: { ...s, auth: { mechanism: 'LOGIN' } }, mode: 'auth' });
+const loginChallenge = (s: Session): WireAnswer => ({ replies: ['334 VXNlcm5hbWU6'], session: { ...s, auth: { mechanism: 'LOGIN' } }, mode: 'auth' });
 
 // Optional non-PLAIN mechanisms: this relay advertises PLAIN first; the application's default selects it.
 // source: https://www.rfc-editor.org/rfc/rfc4954 "initial-response"

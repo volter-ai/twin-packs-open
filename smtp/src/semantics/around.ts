@@ -60,7 +60,7 @@ async function command(ctx: HandlerContext, s: Session, line: string): Promise<W
       if (p.auth && s.authenticated !== 'true') return cmd(s, AUTH_REQUIRED);
       if (size !== undefined && size > p.maxSize) return cmd(s, TOO_BIG);
       if (p.senderDomains && from !== '' && !p.senderDomains.includes(domainOf(from))) return cmd(s, s.user ? notOwned(from, s.user) : senderDenied(from));
-      return cmd({ ...s, stage: 'mail', from, rcpt: [], ...(smtputf8 ? { smtputf8 } : {}), ...(size !== undefined ? { declaredSize: size } : {}) }, OK_MAIL);
+      return cmd({ ...s, stage: 'mail', from, rcpt: [], ...(smtputf8 ? { smtputf8 } : {}) }, OK_MAIL);
     }
     // source: spec:4.1.1.3 "This command is used to identify an individual recipient of the mail data; multiple recipients are specified by multiple uses of this command."
     case 'RCPT': {
