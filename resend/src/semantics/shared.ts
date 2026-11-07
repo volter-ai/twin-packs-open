@@ -1,14 +1,14 @@
 // What Resend's front, handlers, doors and pages share: its error envelope, the key a request carries and the team it
 // acts for, addresses and their domains, Resend's timestamps, a domain's records and whether it may send, and an email
 // as the API answers it.
-import type { ErrorSpec, HandlerContext } from '@volter/world-core';
+import { signedIn, type ErrorSpec, type HandlerContext } from '@volter/world-core';
+import { rawMessage } from '../engine/mime.ts';
 
 export type Row = Record<string, unknown>;
 
 export const EMAIL = 'email';
 export const DOMAIN = 'domain';
 export const KEY = '_api_key';
-export const TEAM = 'team';
 export const RECEIVED = 'GetReceivedEmailResponse';
 export const TEAM_HEADER = 'x-volter-resend-team';
 
@@ -113,4 +113,112 @@ export async function keepAttachments(ctx: HandlerContext, email: string, input:
     files.push({ metadata, bytes, blob });
   }
   return files;
+}
+
+/** A recipient's reply, as the server of their domain answered Resend's hand-off (ctx.mail). */
+export type Reply = { to: string; code: number; reply: string };
+
+/** What a reply makes of the email for that recipient (ADR 0032 §3), the one reading every send takes (a single send,
+ *  each email of a batch, a released scheduled send): `2xx` delivered, `5xx` a permanent refusal (bounced), and any other
+ *  reply, a `4xx` among them, temporary (RFC 5321 §4.2.1 "transient negative completion"), which leaves it undelivered
+ *  (delayed). The twin retries nothing. */
+export const outcome = (r: Reply): 'delivered' | 'bounced' | 'delayed' =>
+  r.code >= 200 && r.code < 300 ? 'delivered' : r.code >= 500 && r.code < 600 ? 'bounced' : 'delayed';
+
+/** Words for a header, RFC 2047's encoded word when they are not ASCII. */
+const headerWords = (value: unknown): string => {
+  const text = String(value ?? '');
+  return /^[\x20-\x7e]*$/.test(text) ? text : `=?UTF-8?B?${Buffer.from(text, 'utf8').toString('base64')}?=`;
+};
+
+/** The message Resend sends for a stored email: its headers (From, To, Cc, Reply-To, Subject, Date, Message-ID), its
+ *  text and HTML, and its attachments' bytes, as MIME; Bcc is the envelope's alone. */
+async function outbound(ctx: HandlerContext, e: Row): Promise<string> {
+  const files: Array<{ metadata: Row; bytes: Uint8Array }> = [];
+  for (const a of (e._attachments ?? []) as Row[]) {
+    const bytes = await ctx.blobs.get(String(a._blob));
+    if (bytes) files.push({ metadata: a, bytes: new Uint8Array(bytes) });
+  }
+  const cc = list(e.cc), replyTo = list(e.reply_to);
+  const headers: Row = {
+    From: e.from, To: list(e.to).join(', '), ...(cc.length ? { Cc: cc.join(', ') } : {}), ...(replyTo.length ? { 'Reply-To': replyTo.join(', ') } : {}),
+    Subject: headerWords(e.subject), Date: new Date(String(e._created_iso)).toUTCString().replace(/GMT$/, '+0000'), 'Message-ID': e.message_id, 'MIME-Version': '1.0',
+  };
+  return rawMessage(headers, typeof e.text === 'string' ? e.text : null, typeof e.html === 'string' ? e.html : null, files, (await ctx.secret(`resend-outbound:${String(e.id)}`)).replace(/[^A-Za-z0-9]/g, '').slice(0, 24));
+}
+
+/** A sent email handed to each recipient's mailbox provider (ADR 0032 §3): its message, over SMTP through the kernel's
+ *  ctx.mail, to the World's twin that receives each recipient's domain; every recipient's reply, which the clock turns
+ *  into `delivered`, `bounced` or `delivery_delayed` by `outcome` (./clock.ts). Resend's testing addresses at resend.dev are its own: `bounced@` refuses,
+ *  any other accepts. */
+// source: https://resend.com/docs/api-reference/errors "Please, add and verify your domain."
+export async function handOn(ctx: HandlerContext, e: Row): Promise<Reply[]> {
+  const recipients = [...list(e.to), ...list(e.cc), ...list(e.bcc)].map(addressOf);
+  const testing = recipients.filter((r) => domainOf(r) === 'resend.dev');
+  const outside = recipients.filter((r) => domainOf(r) !== 'resend.dev');
+  // Where the documentation stops: the testing addresses' replies are the twin's words
+  const own: Reply[] = testing.map((to) => (to.startsWith('bounced@') ? { to, code: 550, reply: `550 5.1.1 <${to}>: Recipient address rejected` } : { to, code: 250, reply: '250 2.0.0 OK' }));
+  const handed = outside.length ? await ctx.mail({ from: addressOf(e.from), to: outside, raw: await outbound(ctx, e) }) : [];
+  return [...own, ...handed.map(({ to, code, reply }) => ({ to, code, reply }))];
+}
+
+// ---------- the dashboard's people and teams (resend.com's sign-up, sign-in and Domains page)
+
+/** Resend's dashboard session cookie. Where the documentation stops: its name is the twin's, opaque. */
+export const SESSION_COOKIE = 'resend_session';
+
+/** A team, as the sign-up makes it: an id Resend mints, the team's identity every person, domain, key and email of it
+ *  is bound to, and its label (the organization's name, which another team may share: ADR 0033 §6). */
+export const TEAM = '_team';
+
+/** The team of the person signed in to the dashboard, by its id, or undefined. */
+export function signedInTeam(ctx: HandlerContext): string | undefined {
+  const person = signedIn(ctx, SESSION_COOKIE);
+  return typeof person?.team === 'string' ? person.team : undefined;
+}
+
+/** A team's label on the dashboard: the name its sign-up gave it, else its identity (a team the World's doors name). */
+export const teamLabel = (ctx: Pick<HandlerContext, 'rowsRaw'>, team: string): string => String(ctx.rowsRaw(TEAM).find((t) => t.id === team && t.deleted !== true)?.name ?? team);
+
+const REGIONS = ['us-east-1', 'eu-west-1', 'sa-east-1', 'ap-northeast-1'];
+/** A domain as Resend answers it. */
+export const domainView = (d: Row): Row => ({ object: 'domain', id: d.id, name: d.name, status: d.status, created_at: d.created_at, region: d.region, open_tracking: d.open_tracking, click_tracking: d.click_tracking, ...(d.tracking_subdomain ? { tracking_subdomain: d.tracking_subdomain } : {}), capabilities: d.capabilities, records: d.records });
+
+/** A domain added to a team, its records to set at the owner's DNS host: the created domain as Resend answers it (201),
+ *  or its refusal. */
+// source: spec:domains/create "Create a new domain"
+export async function createDomain(ctx: HandlerContext, team: string, p: Row): Promise<Response> {
+  const name = typeof p.name === 'string' ? p.name.trim().toLowerCase() : '';
+  if (!name) return invalid('Missing `name` field.', 422, 'missing_required_field');
+  const region = typeof p.region === 'string' ? p.region : 'us-east-1';
+  if (!REGIONS.includes(region)) return invalid(`Invalid \`region\`. Possible values are ${REGIONS.join(' | ')}.`);
+  // source: https://resend.com/docs/api-reference/errors "domain has been registered already."
+  if (ctx.rowsRaw(DOMAIN).some((d) => d.name === name && d.deleted !== true)) return invalid(`The ${name} domain has been registered already.`, 403);
+  const caps = (p.capabilities ?? {}) as Row;
+  const receiving = caps.receiving === 'enabled';
+  // source: https://resend.com/docs/api-reference/domains/create-domain "tracking_subdomain"
+  const tracking = typeof p.tracking_subdomain === 'string' && p.tracking_subdomain ? p.tracking_subdomain : 'links';
+  const id = ctx.mint(DOMAIN);
+  const dkim = (await ctx.secret(`resend-dkim:${id}`)).replace(/[-_]/g, 'A').slice(0, 172);
+  // source: https://resend.com/docs/api-reference/domains/create-domain "tracking_subdomain"
+  // The published default response includes the Tracking CNAME even with click_tracking false.
+  const row: Row = {
+    id, object: 'domain', name, status: 'not_started', created_at: stamp(ctx.occurredAt), region, open_tracking: p.open_tracking === true, click_tracking: p.click_tracking === true,
+    ...(tracking ? { tracking_subdomain: tracking } : {}), capabilities: { sending: caps.sending === 'disabled' ? 'disabled' : 'enabled', receiving: receiving ? 'enabled' : 'disabled' },
+    records: recordsOf(name, region, dkim, tracking, receiving), _team: team,
+  };
+  await ctx.write(DOMAIN, id, row, 'domain.create');
+  const { object: _o, ...created } = domainView({ ...row, id });
+  return Response.json(created, { status: 201 });
+}
+
+/** Resend starts checking a domain's records (pending); a verified domain stays verified. */
+// source: spec:domains/verify "Verify an existing domain"
+export async function verifyDomain(ctx: HandlerContext, d: Row): Promise<Response> {
+  if (d.status !== 'verified') {
+    const refused = ctx.legal(DOMAIN, 'status', 'domains/verify', d.status, 'pending');
+    if (refused) return invalid(refused.message, refused.status);
+    await ctx.write(DOMAIN, String(d.id), { status: 'pending', records: (d.records as Row[]).map((r) => ({ ...r, status: 'pending' })), _verify_at: ctx.occurredAt }, 'domain.verify');
+  }
+  return Response.json({ object: 'domain', id: d.id });
 }

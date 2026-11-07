@@ -13,7 +13,7 @@ with a key of its own:
 - **Twenty** (twentyhq/twenty at `1d561b8c73`), its CRM, sends account managers' mail from its own emailing domain,
   which receives replies. Twenty reads a sent email, and reads each received reply and its raw message when Resend's
   `email.received` webhook names it.
-- **Postiz** (gitroomhq/postiz-app at `e0a08a7d95`), which schedules its clients' social posts, mails them through
+- **Scheduler**, which schedules its clients' social posts, mails them through
   `resend.emails.send` (`from: 'Name <address>'`, html, `reply_to`).
 - **Volter World's platform** (volter-ai/twin-world at `96ca4478bb`), where Kadewerk's developers keep their Worlds,
   sends its own text mail with `resend.emails.send` (a member added, a World deleted) and reads the team's sent mail
@@ -21,14 +21,19 @@ with a key of its own:
 
 The World clock starts 2026-01-01.
 
+The partners, clients and staff Kadewerk mails read their mail at Gmail: each has a Google account at gmail.com, made at
+Google's sign-up when the year opens (the life's companions are googleoauth and gmail, twin-world ADR 0032), so Resend
+hands their mail to Gmail's receiving server and it is delivered. An address at a domain no twin in the World receives
+is refused there.
+
 ## People and programs
 
 | who | holds | how |
 |---|---|---|
-| Hanne Peeters, CTO, the team's owner (hanne@kadewerk.be) | the dashboard | makes the keys and the webhook endpoints (World doors), sets DNS records at Kadewerk's DNS host (a door) |
+| Hanne Peeters, CTO, the team's owner (hanne.kadewerk@gmail.com) | the dashboard | makes the keys and the webhook endpoints (World doors), sets DNS records at Kadewerk's DNS host (a door), reads the team's sent mail on the Emails page |
 | Dub | `RESEND_API_KEY` ("dub"), `RESEND_WEBHOOK_SECRET` | full-access API key, the resend SDK |
 | Twenty | its key ("twenty") and its webhook's signing secret | full-access API key, fetch to api.resend.com |
-| Postiz | its key ("postiz") | full-access API key, the resend SDK |
+| Scheduler | its key ("scheduler") | full-access API key, the resend SDK |
 | the World platform | its key ("worlds") | full-access API key, the resend SDK, and fetch for the list |
 
 ## The arc
@@ -42,9 +47,10 @@ minutes after the last record was set.
 
 ### 2. Dub's program mail (from Tue 13 Jan, sampled)
 Hanne adds Dub's webhook endpoint for `email.delivered`, `email.opened` and `email.bounced`. Dub sends a partner's
-welcome, delivered moments later (a signed `email.delivered`), and the partner opens it (`email.opened`). A batch of
-three payout notices goes out in one call. One partner's company server refuses mail, so that notice bounces
-(`email.bounced`, naming the partner) while the other two are delivered.
+welcome, delivered moments later (a signed `email.delivered`; Hanne sees it delivered on the dashboard's Emails page),
+and the partner opens it (`email.opened`). A batch of three payout notices goes out in one call. One partner's company
+address is at a domain no mail server in the World receives, so that notice bounces (`email.bounced`, naming the partner) while the other two are delivered;
+Hanne filters the Emails page to Bounced to tell that company which notice its server refused.
 
 ### 3. Twenty's domain and replies (from Mon 2 Feb)
 Twenty creates `crm.kadewerk.be` with receiving enabled (its records include the receiving MX). Hanne sets every
@@ -53,17 +59,17 @@ record, and it is verified. Hanne adds Twenty's webhook for `email.received`, `e
 Resend sends `email.received`, Twenty reads the received email and downloads its raw message at the pre-signed URL,
 which threads the reply by its `In-Reply-To`. A later client marks a follow-up as spam (`email.complained`).
 
-### 4. Postiz's mail (Wed 4 Mar)
-Postiz tells Els her client's post went out, from `Kadewerk Social <social@mail.kadewerk.be>`, replies going to Hanne.
-It reaches Els's inbox, and reads back delivered with Hanne as its reply-to.
+### 4. Scheduler's mail (Wed 4 Mar)
+Scheduler tells Els her client's post went out, from `Kadewerk Social <social@mail.kadewerk.be>`, replies going to Hanne.
+It reads back delivered with Hanne as its reply-to.
 
 ### 5. The World platform's mail (Fri 20 Mar)
 The platform mails Bart that he was added to Kadewerk, text only. It reads the team's sent mail back newest first, two
-at a time: Bart's mail first, delivered, with no bodies in the list, Postiz's after it, and more beyond; the next page
+at a time: Bart's mail first, delivered, with no bodies in the list, Scheduler's after it, and more beyond; the next page
 starts after the second.
 
 ### 6. A leaked key (Thu 16 Apr)
-Postiz's key is committed to a public repository. Hanne deletes it and makes a new one. A queued Postiz job still uses the old configuration and is refused (403 "API key is not active"). Hanne installs the new key and the next notification sends.
+Scheduler's key is committed to a public repository. Hanne deletes it and makes a new one. A queued Scheduler job still uses the old configuration and is refused (403 "API key is not active"). Hanne installs the new key and the next notification sends.
 
 ### 7. A program ends (Mon 7 Sep)
 Dub's program for one retailer ends, and Dub removes its email domain. The team's domain list keeps Twenty's.

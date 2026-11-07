@@ -3,16 +3,17 @@
 // ../spec/patches.json's corrections).
 //
 // SCOPE FROM THE DEMAND (../journeys/demand.json):
-// - emails sent singly and in batches (Dub, Twenty, Postiz, Twin), a sent email read (Twenty), the team's sent emails
+// - emails sent singly and in batches (Dub, Twenty, Twin), a sent email read (Twenty), the team's sent emails
 //   listed (Twin's platform reads its mail back; a vendor-backed root refreshes them);
-// - sending domains created, read, listed, updated, verified and removed (Dub, Twenty, the Postiz cookbook's seed);
+// - sending domains created, read, listed, updated, verified and removed (Dub, Twenty);
 // - a received email read, and its raw message downloaded (Twenty);
 // - the webhooks the applications take: email.sent, delivered, bounced, opened, complained and received (Dub, Twenty).
 // Handlers serve each (./semantics); every other operation (broadcasts, segments, topics, audiences and contacts, the
 // keys and webhooks APIs, contact properties, imports) is the gap, those the core could serve named in `unmodeled`.
 //
-// THE STATE: API keys (kept by their SHA-256, made on the API Keys page: a World door), domains and the records at their
-// owners' DNS hosts, emails and their lifecycle (a recipient's server takes or refuses them, a recipient opens or
+// THE STATE: the dashboard's people and their teams (Resend's sign-up), API keys (kept by their SHA-256, made on the API
+// Keys page: a World door), domains and the records at their owners' DNS hosts, emails and their lifecycle (handed to
+// each recipient's mailbox provider over SMTP, ctx.mail, whose server takes or refuses them; a recipient opens or
 // complains: doors), received emails, and webhook endpoints (made on the Webhooks page: a door) and what was sent to
 // them.
 //
@@ -46,7 +47,7 @@ export const manifest: DerivedManifest = {
   events: {
     scheme: { kind: 'webhook-id', prefix: 'svix', secretPrefix: 'whsec_' },
     headers: { 'content-type': 'application/json' },
-    types: { 'email.send': 'email.sent', 'email.deliver': 'email.delivered', 'email.bounce': 'email.bounced', 'email.open': 'email.opened', 'email.click': 'email.clicked', 'email.complain': 'email.complained', 'email.receive': 'email.received' },
+    types: { 'email.send': 'email.sent', 'email.deliver': 'email.delivered', 'email.bounce': 'email.bounced', 'email.delay': 'email.delivery_delayed', 'email.open': 'email.opened', 'email.complain': 'email.complained', 'email.receive': 'email.received' },
     envelope: { type: '$type', created_at: '$time.iso', data: '$data' },
     render: data,
     values,
@@ -60,11 +61,9 @@ export const manifest: DerivedManifest = {
     { id: 'appCredentials', method: 'POST', path: '/_twin/app-credentials', note: 'the key the World\'s application holds, as the runtime issues it at every boot' },
     { id: 'webhooks', method: 'POST', path: '/_twin/webhooks', note: '{ endpoint, events }: an endpoint added on the Webhooks page, its signing secret answered' },
     { id: 'dns', method: 'POST', path: '/_twin/dns', note: '{ name, type, value }: a record the domain\'s owner sets at their DNS host' },
-    { id: 'recipients', method: 'POST', path: '/_twin/recipients/{domain}', note: '{ rejects }: whether an outside mail server refuses mail for its domain' },
     { id: 'open', method: 'POST', path: '/_twin/mail/{email_id}/open', note: '{ to }: the recipient opens the email' },
     { id: 'complain', method: 'POST', path: '/_twin/mail/{email_id}/complain', note: '{ to }: the recipient marks it as spam' },
     { id: 'inbound', method: 'POST', path: '/_twin/inbound', note: '{ from, to, subject, text, html? }: mail sent from outside to an address at a receiving domain' },
-    { id: 'mail', method: 'GET', path: '/_twin/mail', note: '?to=<address>: what reached that address\'s inbox' },
     { id: 'deliveries', method: 'GET', path: '/_twin/deliveries', note: '?to=<url>[&type=][&email=]: the webhooks Resend sent there, oldest first' },
   ],
   screens: [{
@@ -75,6 +74,22 @@ export const manifest: DerivedManifest = {
     id: 'inbound-cdn', kind: 'content', host: 'inbound-cdn.resend.com', path: '/',
     demand: "Twenty downloads a received email's raw message at its pre-signed URL", status: 'done',
     source: 'https://resend.com/docs/api-reference/emails/retrieve-received-email',
+  }, {
+    // the sign-up (screens/signup.tsx): a person opens their organization's Resend account, its team, and is signed in;
+    // the act a World's generated seed performs for an organization's declared account (ADR 0033, the descriptor's seed)
+    id: 'signup', kind: 'flow', host: 'resend.com', path: '/signup',
+    demand: "a World's organization owner opens its Resend account (Dub's), whose team the deployment's key lands in", status: 'done',
+    controls: ['First name', 'Last name', 'Email', 'Password', 'Team name', 'Create account'], source: 'https://resend.com/docs/dashboard/settings/team',
+  }, {
+    // the sign-in (screens/login.tsx): where the Domains page sends a person who is not signed in
+    id: 'login', kind: 'flow', host: 'resend.com', path: '/login',
+    demand: 'a team member signs in to the dashboard', status: 'done',
+    controls: ['Email', 'Password', 'Log in'], source: 'https://resend.com/docs/dashboard/settings/team',
+  }, {
+    // the Domains page (screens/domains.tsx): the team's domains, Add Domain, each domain's records and its verification
+    id: 'domains', kind: 'workspace', host: 'resend.com', path: '/domains',
+    demand: "an organization's owner adds its sending domain (Dub's dub.co) and verifies it once its records are at its DNS host", status: 'done',
+    controls: ['Add Domain', 'Verify DNS Records'], source: 'https://resend.com/docs/dashboard/domains/manage-domains',
   }],
   // a vendor-backed World's root: the team's webhook endpoint at the World's ingest door, signed as Resend signs every
   // webhook (svix-id, svix-timestamp, svix-signature: the kernel's webhook-id scheme). An email event carries the email's
@@ -86,6 +101,7 @@ export const manifest: DerivedManifest = {
   // source: spec:/components/schemas/Email/properties/last_event "The status of the email."
   // source: spec:/components/schemas/EmailDeliveredEvent/properties/type "The event type."
   // source: spec:/components/schemas/EmailBouncedEvent/properties/type "The event type."
+  // source: spec:/components/schemas/EmailDeliveryDelayedEvent/properties/type "The event type."
   // source: spec:/components/schemas/EmailOpenedEvent/properties/type "The event type."
   // source: spec:/components/schemas/EmailComplainedEvent/properties/type "The event type."
   // source: spec:/components/schemas/EmailFailedEvent/properties/type "The event type."
@@ -96,6 +112,7 @@ export const manifest: DerivedManifest = {
     types: {
       'email.delivered': { resource: 'email', id: 'email_id', fields: { last_event: 'delivered' } },
       'email.bounced': { resource: 'email', id: 'email_id', fields: { last_event: 'bounced' } },
+      'email.delivery_delayed': { resource: 'email', id: 'email_id', fields: { last_event: 'delivery_delayed' } },
       'email.opened': { resource: 'email', id: 'email_id', fields: { last_event: 'opened' } },
       'email.complained': { resource: 'email', id: 'email_id', fields: { last_event: 'complained' } },
       'email.failed': { resource: 'email', id: 'email_id', fields: { last_event: 'failed' } },
@@ -114,7 +131,6 @@ export const manifest: DerivedManifest = {
   discovery: { twinOf: 'the Resend email API', stores: 'API keys, domains, sent and received emails, webhook endpoints and deliveries' },
   resources: {
     // keyed by their stored names: every served operation is a handler
-    team: { idPrefix: '', refresh: { none: 'the team and its members are dashboard account settings; the served API exposes its keys, mail and domains, not a team endpoint' } },
     email: { idPrefix: '', ...states.email, refresh: { list: 'emails/list', detail: 'emails/get' } },
     domain: { idPrefix: '', ...states.domain, refresh: { list: 'domains/list', detail: 'domains/get' } },
     _api_key: { idPrefix: '', ...states._api_key },
@@ -124,18 +140,22 @@ export const manifest: DerivedManifest = {
     _attachment_id: { idPrefix: '' },
     _webhook_delivery: { idPrefix: '' },
     _dns: { idPrefix: '' },
-    _recipient_domain: { idPrefix: '' },
+    _team: { idPrefix: '' },
   },
   descriptor: {
     protocol: '3',
     transport: 'rest',
     archetype: 'crud',
     bin: 'world-resend',
-    resources: ['team', 'email', 'domain', 'received'],
+    resources: ['email', 'domain', 'received'],
     specSource: "Resend's OpenAPI document (spec/, provenance in spec/SOURCE.md)",
     description: 'Resend email API twin — emails sent singly and in batches and their lifecycle, sending domains verified against their DNS, received emails, and svix-signed webhooks; keys and endpoints made on the dashboard.',
     adoption: { pypi: ['resend'], sdks: ['resend'], envStems: ['RESEND', 'NEXTPRIVATERESEND'] },
-    hosts: [{ host: 'api.resend.com' }, { host: 'inbound-cdn.resend.com' }, { host: 'resend.com', pathPattern: '^/emails(?:/|$)' }],
+    hosts: [{ host: 'api.resend.com' }, { host: 'inbound-cdn.resend.com' }, { host: 'resend.com', pathPattern: '^/(?:emails|domains|signup|login)(?:/|$)' }],
+    // the World's generated seed (ADR 0033 §3): an organization's owner signs up for its account at resend.com, adds its
+    // domain on the Domains page, sets its records at its DNS host (the one stand-in, at api.resend.com) and verifies it,
+    // which Resend settles ten minutes later on the World clock (./semantics/clock.ts)
+    seed: { signUp: 'https://resend.com/signup', domain: { add: 'https://resend.com/domains', record: 'https://api.resend.com/_twin/dns', verify: 'https://resend.com/domains/verify', settles: '10m' } },
     // the World's applications hold a key the API Keys page made (the keys door), never a fixture: the twin refuses any
     // key it did not issue
     credentialDoor: {

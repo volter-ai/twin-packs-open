@@ -3,9 +3,9 @@
   "decisions": [
     {
       "operation": "emails/send",
-      "demand": "Dub, Twenty, Postiz and Twin's platform send their mail",
+      "demand": "Dub, Twenty and Twin's platform send their mail",
       "mechanism": "handler",
-      "why": "an action: the send checked as Resend checks it (required fields, at most 50 recipients, the sender's verified domain or the testing domain to the team's own address), kept, and moved queued to sent (email.sent); the recipient's server takes or refuses it on the clock; Twenty attachments retain blob bytes and Dub scheduled_at waits on the vendor clock before sending"
+      "why": "an action: the send checked as Resend checks it (required fields, at most 50 recipients, the sender's verified domain or the testing domain to the team's own address), kept, and moved queued to sent (email.sent); the recipient's server takes or refuses it on the clock; Twenty attachments retain blob bytes and Dub scheduled_at waits on the vendor clock before sending; scheduled_at (ISO 8601 or the natural-language offset \"in 1 min\", at most 30 days ahead) waits as scheduled until its moment. The customer entry's resend.emails.send in journeys/first-use.json send-email.mjs asserts the answered id, then its stored subject, text, html, to, reply_to and tags through resend.emails.get"
     },
     {
       "operation": "emails/send-batch",
@@ -17,13 +17,13 @@
       "operation": "emails/get",
       "demand": "Twenty reads a sent email",
       "mechanism": "handler",
-      "why": "the team's own email only (another team's answers 404), shown as Resend answers it without the kernel's bookkeeping"
+      "why": "the team's own email only (another team's answers 404), shown as Resend answers it without the kernel's bookkeeping; the customer entry's resend.emails.get (first-use.json send-email.mjs and inspect-email.mjs) asserts the sent fields, and after the clock passes, last_event delivered on the resumed World"
     },
     {
       "operation": "emails/list",
       "demand": "The vendor's published List Emails example and the vendor-backed root's refresh of emails",
       "mechanism": "handler",
-      "why": "the team's emails newest first, paged by limit, after and before as Resend pages, each in the List Emails page's shape (no bodies, empty cc, bcc and reply_to as null)"
+      "why": "the team's emails newest first, paged by limit, after and before as Resend pages, each in the List Emails page's shape (no bodies, empty cc, bcc and reply_to as null); the customer entry's resend.emails.list({ limit: 1 }) (first-use.json inspect-email.mjs) asserts its email newest"
     },
     {
       "operation": "emails/get-receiving",
@@ -33,7 +33,7 @@
     },
     {
       "operation": "domains/create",
-      "demand": "Dub, Twenty and the Postiz cookbook add a sending domain",
+      "demand": "Dub and Twenty add a sending domain",
       "mechanism": "handler",
       "why": "an action: a name registered anywhere refused, the region checked, the DKIM, SPF (and tracking and receiving) records made for the owner's DNS host, status not_started"
     },
@@ -45,7 +45,7 @@
     },
     {
       "operation": "domains/list",
-      "demand": "Twenty and the Postiz cookbook find a domain by name; the vendor-backed root's refresh of domains",
+      "demand": "Twenty finds a domain by name; the vendor-backed root's refresh of domains",
       "mechanism": "handler",
       "why": "the team's domains newest first without their records, paged by limit, after and before"
     },
@@ -57,7 +57,7 @@
     },
     {
       "operation": "domains/verify",
-      "demand": "Dub, Twenty and the Postiz cookbook start a domain's verification",
+      "demand": "Dub and Twenty start a domain's verification",
       "mechanism": "handler",
       "why": "a state move: not_started, failed or pending to pending (a verified domain stays verified); the clock verifies it once its records are at the owner's DNS host, or fails it after 72 hours"
     },
@@ -93,15 +93,9 @@
     },
     {
       "operation": "door:dns",
-      "demand": "a domain's verification (Dub, Twenty, the Postiz cookbook)",
+      "demand": "a domain's verification (Dub, Twenty)",
       "mechanism": "door",
       "why": "the owner sets the domain's records at their DNS host, outside Resend"
-    },
-    {
-      "operation": "door:recipients",
-      "demand": "Dub's and Twenty's email.bounced",
-      "mechanism": "door",
-      "why": "whether an outside mail server refuses mail for its domain, outside Resend"
     },
     {
       "operation": "door:open",
@@ -120,12 +114,6 @@
       "demand": "Twenty's email.received and inbound reply",
       "mechanism": "door",
       "why": "mail sent from outside to an address at a receiving domain"
-    },
-    {
-      "operation": "door:mail",
-      "demand": "the Postiz cookbook's inbox, and every life step that reads what a recipient got",
-      "mechanism": "door",
-      "why": "what reached a recipient's inbox, outside Resend"
     },
     {
       "operation": "door:deliveries",

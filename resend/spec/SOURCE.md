@@ -26,6 +26,7 @@ following string scalars; all other uncompressed bytes are preserved. Unmodified
 | --- | --- | --- | --- |
 | `openapi.json.gz` | `/components/schemas/ShareEmailResponse/properties/url/example` | `https://resend.com/shared?token=<example-share-token>` | The captured share URL's bearer token is credential-shaped. The inert example keeps the URL's scheme, host, path and query field. |
 | `doc-examples.json` | `/62/output/url` | `https://resend.com/shared?token=<example-share-token>` | The API-reference answer repeats the captured share token. Its source URL and every other example field are retained. |
+| `doc-examples.json` | `/0/output/token` | `<RESEND_API_KEY>` | The Create API Key page's answer shows a key in Resend's live `re_` form. Its source URL and every other example field are retained. |
 
 These values are documentation examples. The email handlers do not load them as runtime credentials or responses.
 

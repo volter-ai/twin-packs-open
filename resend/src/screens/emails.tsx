@@ -13,8 +13,8 @@ export async function screen(ctx: HandlerContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '');
   const stored = ctx.rowsRaw(EMAIL).filter((email) => email.deleted !== true);
-  // Resend's team selector chooses a team already represented by this World's keys or emails. No team is fabricated.
-  const teams = [...new Set([...ctx.rowsRaw(KEY), ...stored].map((row) => String(row._team ?? '')).filter(Boolean))].sort();
+  // Resend's team selector chooses a team already represented by this World's keys, emails or sign-ups. No team is fabricated.
+  const teams = [...new Set([...ctx.rowsRaw(KEY), ...stored].map((row) => String(row._team ?? '')).concat(ctx.rowsRaw('_person').map((p) => String(p.team ?? ''))).filter(Boolean))].sort();
   const team = url.searchParams.get('team') || (teams.includes('World') ? 'World' : teams[0] ?? '');
   if (team && !teams.includes(team)) return page(ctx, 'Emails', teams, team, <p role="alert">Team not found</p>, 404);
   // The API's same kernel rows, ordering and vendor projection; no separate inbox, log fold or delivery inference.
@@ -97,14 +97,9 @@ function details(ctx: HandlerContext, url: URL, teams: string[], team: string, e
   </>, 200, <div className="re-email-heading"><span className="re-envelope"><Icon name="mail" size={24}/></span><div><p className="re-eyebrow">Email</p><h1>{addresses(email.to) || 'Email details'}</h1></div></div>);
 }
 
-function eventIcon(value: unknown): string {
-  switch (value) {
-    case 'queued': case 'scheduled': return 'clock';
-    case 'sent': return 'send';
-    case 'delivered': return 'circle-check';
-    case 'opened': return 'mail-open';
-    case 'clicked': return 'mouse-pointer-2';
-    case 'bounced': case 'complained': case 'failed': case 'suppressed': return 'circle-alert';
-    default: return 'mail';
-  }
-}
+// an event's icon by its status, mail for any other
+const EVENT_ICONS: Record<string, string> = {
+  queued: 'clock', scheduled: 'clock', sent: 'send', delivered: 'circle-check', opened: 'mail-open', clicked: 'mouse-pointer-2',
+  bounced: 'circle-alert', complained: 'circle-alert', failed: 'circle-alert', suppressed: 'circle-alert',
+};
+const eventIcon = (value: unknown): string => EVENT_ICONS[String(value)] ?? 'mail';

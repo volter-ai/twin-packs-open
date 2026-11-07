@@ -730,7 +730,8 @@
       ],
       "example": "emails/get-receiving#doc emails_retrieve-received-email",
       "exampleDiffers": {
-        "headers.return-path": "The page shows return-path of its example sender. This fixture submits an incoming message without a Return-Path header; the reference describes headers as the received email headers, not a required return-path field (https://resend.com/docs/api-reference/emails/retrieve-received-email)."
+        "headers.return-path": "The page shows return-path of its example sender. This fixture submits an incoming message without a Return-Path header; the reference describes headers as the received email headers, not a required return-path field (https://resend.com/docs/api-reference/emails/retrieve-received-email).",
+        "attachments.1.content_disposition": "The page's example attachment carries no disposition (null). This fixture's PDF arrives as an attachment, its MIME part's Content-Disposition attachment, which the retrieved email reports as it was received (https://resend.com/docs/api-reference/emails/retrieve-received-email)."
       },
       "undecided": {
         "text": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
@@ -808,6 +809,9 @@
         "data.0.bcc": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
         "data.0.cc": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture.",
         "data.0.reply_to": "The request/setup does not supply this value; its representation is generated or defaulted by the vendor, rather than decided by this fixture."
+      },
+      "exampleDiffers": {
+        "data.0.attachments.0.content_id": "The page's example attachment carries no content id (null). This fixture's PNG arrives inline with Content-ID img001, which the listed email reports as it was received (https://resend.com/docs/api-reference/emails/list-received-emails)."
       }
     },
     {
@@ -899,6 +903,245 @@
         {
           "path": "has_more",
           "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Schedule Email: the page's natural-language send, a minute from now",
+      "method": "POST",
+      "path": "/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Acme <onboarding@resend.dev>",
+        "to": [
+          "delivered@resend.dev"
+        ],
+        "subject": "hello world",
+        "html": "<p>it works!</p>",
+        "scheduled_at": "in 1 min"
+      },
+      "capture": {
+        "later": "id"
+      },
+      "example": "emails/send#doc schedule-email using natural language"
+    },
+    {
+      "name": "Setup: the scheduled send waits for its moment",
+      "method": "GET",
+      "path": "/emails/{later}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{later}"
+        },
+        {
+          "path": "last_event",
+          "equals": "scheduled"
+        },
+        {
+          "path": "scheduled_at",
+          "matches": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+00$"
+        }
+      ]
+    },
+    {
+      "name": "Setup: the scheduled minute passes, and delivery after it",
+      "wait": "2m"
+    },
+    {
+      "name": "Setup: released at its moment and delivered",
+      "method": "GET",
+      "path": "/emails/{later}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{later}"
+        },
+        {
+          "path": "last_event",
+          "equals": "delivered"
+        }
+      ]
+    },
+    {
+      "name": "Schedule Email: a send scheduled past the 30 days the page allows is refused",
+      "method": "POST",
+      "path": "/emails",
+      "status": 422,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Acme <onboarding@resend.dev>",
+        "to": [
+          "delivered@resend.dev"
+        ],
+        "subject": "hello world",
+        "html": "<p>it works!</p>",
+        "scheduled_at": "in 31 days"
+      },
+      "example": "emails/send#doc schedule-email up to 30 days in advance"
+    },
+    {
+      "name": "Setup: a domain whose records are never set at its DNS host",
+      "method": "POST",
+      "path": "/domains",
+      "status": 201,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "name": "example.com"
+      },
+      "capture": {
+        "unset": "id"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "not_started"
+        }
+      ]
+    },
+    {
+      "name": "Setup: verification starts with none of its records set",
+      "method": "POST",
+      "path": "/domains/{unset}/verify",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{unset}"
+        }
+      ]
+    },
+    {
+      "name": "Setup: 72 hours pass",
+      "wait": "4321m"
+    },
+    {
+      "name": "Retrieve Domain: failed, its records undetected within 72 hours",
+      "method": "GET",
+      "path": "/domains/{unset}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{unset}"
+        },
+        {
+          "path": "name",
+          "equals": "example.com"
+        },
+        {
+          "path": "status",
+          "equals": "failed"
+        }
+      ],
+      "example": "domains/get#doc manage-domains failed after 72 hours",
+      "undecided": {
+        "capabilities.sending": "The name-only request does not set capabilities; sending enabled is Resend's default for a new domain, as for the earlier one.",
+        "records.1.value": "The name-only request supplies no value here; Resend generates the domain's records for its default region and tracking subdomain, so the value coincides with an earlier domain's rather than being decided by this fixture.",
+        "records.3.name": "The name-only request supplies no value here; Resend generates the domain's records for its default region and tracking subdomain, so the value coincides with an earlier domain's rather than being decided by this fixture.",
+        "records.3.value": "The name-only request supplies no value here; Resend generates the domain's records for its default region and tracking subdomain, so the value coincides with an earlier domain's rather than being decided by this fixture.",
+        "open_tracking": "The name-only request does not set open tracking; false is Resend's default (\"Open and click tracking is disabled by default\", https://resend.com/docs/dashboard/domains/tracking), coinciding with the value the earlier update sent.",
+        "tracking_subdomain": "The name-only request names no tracking subdomain; links is the default Resend gives, coinciding with the value the earlier update sent."
+      }
+    },
+    {
+      "name": "Setup: Thursday 20 August 2026, 11:00, within the 30 days before the page's date",
+      "wait": "328964m"
+    },
+    {
+      "name": "Schedule Email: the page's ISO 8601 send",
+      "method": "POST",
+      "path": "/emails",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}",
+        "content-type": "application/json"
+      },
+      "body": {
+        "from": "Acme <onboarding@resend.dev>",
+        "to": [
+          "delivered@resend.dev"
+        ],
+        "subject": "hello world",
+        "html": "<p>it works!</p>",
+        "scheduled_at": "2026-08-20T11:52:01.858Z"
+      },
+      "capture": {
+        "dated": "id"
+      },
+      "example": "emails/send#doc schedule-email using date format"
+    },
+    {
+      "name": "Setup: the dated send waits for its moment",
+      "method": "GET",
+      "path": "/emails/{dated}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{dated}"
+        },
+        {
+          "path": "last_event",
+          "equals": "scheduled"
+        },
+        {
+          "path": "scheduled_at",
+          "equals": "2026-08-20 11:52:01.858000+00"
+        }
+      ]
+    },
+    {
+      "name": "Setup: its moment passes, and delivery after it",
+      "wait": "53m"
+    },
+    {
+      "name": "Setup: the dated send released and delivered",
+      "method": "GET",
+      "path": "/emails/{dated}",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "id",
+          "equals": "{dated}"
+        },
+        {
+          "path": "last_event",
+          "equals": "delivered"
+        },
+        {
+          "path": "scheduled_at",
+          "equals": "2026-08-20 11:52:01.858000+00"
         }
       ]
     }

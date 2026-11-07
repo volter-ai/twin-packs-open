@@ -1,0 +1,65 @@
+{
+  "about": "Gmail's receiving server's command decisions: the World's senders (ctx.mail) and RFC 5321 Appendix D; command semantics are the byte-stream front, not HTTP CRUD.",
+  "decisions": [
+    {
+      "operation": "CONNECTION ESTABLISHMENT",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The connection front (semantics/around.ts) answers the open with mx.google.com's 220 greeting; the World's senders (ctx.mail from the smtp relay and resend) wait for it before EHLO."
+    },
+    {
+      "operation": "EHLO",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front answers EHLO with the server's keywords (SIZE, 8BITMIME, ENHANCEDSTATUSCODES, PIPELINING, SMTPUTF8; no AUTH or STARTTLS: an MX asks none, and the side port has no certificate); ctx.mail greets with EHLO."
+    },
+    {
+      "operation": "HELO",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front answers HELO as RFC 5321 requires of a server; ctx.mail sends EHLO, an older sender HELO."
+    },
+    {
+      "operation": "MAIL",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front takes the sender (any, as an MX does) and its SIZE, BODY and SMTPUTF8 parameters; ctx.mail sends MAIL FROM with BODY=8BITMIME for 8-bit messages."
+    },
+    {
+      "operation": "RCPT",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front accepts a gmail.com address that is a Google account (googleoauth's _person and account, read through ownerReads) and refuses any other: 550 5.1.1 for no account, 550 5.7.1 for another domain; ctx.mail turns each reply into the sender's delivered or bounced."
+    },
+    {
+      "operation": "DATA",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front takes the message and keeps it in each accepted recipient's mailbox (semantics/shared.ts deliver), which the webmail (screens/mail.ts) lists."
+    },
+    {
+      "operation": "RSET",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front clears the transaction as RFC 5321 says."
+    },
+    {
+      "operation": "VRFY",
+      "demand": "RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front answers 502 5.5.1, as Gmail's server answers a command it does not take: it verifies no address."
+    },
+    {
+      "operation": "NOOP",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front answers 250 as RFC 5321 says."
+    },
+    {
+      "operation": "QUIT",
+      "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
+      "mechanism": "handler",
+      "why": "The front closes the session with 221; ctx.mail ends every transfer with QUIT."
+    }
+  ]
+}

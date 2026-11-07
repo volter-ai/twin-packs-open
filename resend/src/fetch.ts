@@ -7,8 +7,11 @@ import { around } from './semantics/around.ts';
 import { clock } from './semantics/clock.ts';
 import * as doors from './semantics/doors.ts';
 import { resendSemantics } from './semantics/index.ts';
+import { screen as screen_domains } from './screens/domains.tsx';
 import { screen as screen_emails } from './screens/emails.tsx';
 import { screen as screen_inbound_cdn } from './screens/inbound-cdn.ts';
+import { screen as screen_login } from './screens/login.tsx';
+import { screen as screen_signup } from './screens/signup.tsx';
 
 export function createResendFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
@@ -18,6 +21,6 @@ export function createResendFetch(options: PackFetchOptions = {}): DerivedFetch 
     doors,
     around,
     clock,
-    screens: { "emails": screen_emails, "inbound-cdn": screen_inbound_cdn },
+    screens: { "domains": screen_domains, "emails": screen_emails, "inbound-cdn": screen_inbound_cdn, "login": screen_login, "signup": screen_signup },
   }, options);
 }

@@ -5,10 +5,10 @@
 //   POST /_twin/service-accounts { client_email, client_id?, project_id? }         a service account and its key file
 //   POST /_twin/credentials { client_email, client?: { redirect_uris, name? }, account?: { sub, email, name? },
 //                             api_key?: { name? } }  the World's credentials: the service account, its OAuth client, its
-//                                                  person and its project's API key (the credential door)
-import type { HandlerContext } from '@volter/world-core';
-import { googleSubFor } from '../engine/google-account-id.ts';
-import { ACCOUNT, API_KEY, CLIENT, credential, serial, SERVICE_ACCOUNT, SERVICE_ACCOUNT_KEY, type Row } from './shared.ts';
+//                                                  person (the organization owner's own Google account where they made
+//                                                  one) and its project's API key (the credential door)
+import { personOf, type HandlerContext } from '@volter/world-core';
+import { ACCOUNT, accountBySub, accountSub, API_KEY, CLIENT, credential, serial, SERVICE_ACCOUNT, SERVICE_ACCOUNT_KEY, type Row } from './shared.ts';
 
 const bad = (error: string): Response => Response.json({ error }, { status: 400 });
 const bodyOf = (ctx: HandlerContext): Record<string, unknown> => (ctx.body && typeof ctx.body === 'object' ? ctx.body : {}) as Record<string, unknown>;
@@ -45,8 +45,7 @@ export async function serviceAccounts(ctx: HandlerContext): Promise<Response> {
   if (typeof b.client_email !== 'string' || !/^[^@\s]+@[^@\s]+$/.test(b.client_email)) return bad('client_email is required');
   const account = ctx.row(SERVICE_ACCOUNT, b.client_email) ?? await createServiceAccount(ctx, b.client_email, typeof b.project_id === 'string' ? b.project_id : b.client_email.split('@')[1]!.split('.')[0]!, typeof b.client_id === 'string' ? b.client_id : undefined);
   if (account instanceof Response) return account;
-  let key = ctx.rowsRaw(SERVICE_ACCOUNT_KEY).find((row) => row._service_account === account.id);
-  if (!key && typeof account.public_key === 'string') key = { ...account, _service_account: account.id, _key_label: `service-account:${String(account.client_email)}` };
+  const key = ctx.rowsRaw(SERVICE_ACCOUNT_KEY).find((row) => row._service_account === account.id);
   let credentials = key && await serviceAccountCredentials(ctx, account, key);
   if (!credentials) {
     const id = await makeServiceAccountKey(ctx, account);
@@ -88,9 +87,13 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
     const organizationId = await ctx.account();
     const organization = await ctx.organization();
     const memberEmail = organization.members[0]!.toLowerCase();
-    const memberSub = googleSubFor(memberEmail);
+    // the person who consents is the organization's owner, its first member: their own Google account where they made
+    // one (a World that declares them: ADR 0033 §6), else one made for them under the sub their sign-up would have
+    const owner = personOf(ctx, memberEmail);
+    const owned = typeof owner?.sub === 'string' ? accountBySub(ctx, owner.sub) : undefined;
+    const memberSub = owned ? String(owned.id) : await accountSub(ctx, memberEmail);
     const existingMember = ctx.row(ACCOUNT, memberSub);
-    const member = await ensureGoogleAccount(ctx, memberSub, { email: memberEmail, name: existingMember?.name ?? memberEmail, given_name: existingMember?.given_name ?? null, family_name: existingMember?.family_name ?? null, picture: existingMember?.picture ?? null });
+    const member = owned ?? await ensureGoogleAccount(ctx, memberSub, { email: memberEmail, name: existingMember?.name ?? memberEmail, given_name: existingMember?.given_name ?? null, family_name: existingMember?.family_name ?? null, picture: existingMember?.picture ?? null });
     if (member instanceof Response) return member;
     const project = await ctx.tenant('_project', async (organization) => {
       const label = typeof b.project_id === 'string' ? b.project_id : organization.id === 'default' ? 'world-project' : organization.id;
@@ -141,7 +144,8 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
       });
       Object.assign(out, { client_id: client.client_id, client_secret: secret.secret });
     }
-    const person = b.account && typeof b.account === 'object' ? b.account as Row : undefined;
+    const person = owned ? undefined : b.account && typeof b.account === 'object' ? b.account as Row : undefined;
+    if (owned) Object.assign(out, { sub: owned.id, email: owned.email });
     if (person) {
       if (typeof person.sub !== 'string' || !/^\d{21}$/.test(person.sub) || typeof person.email !== 'string') return bad('account.sub (a 21-digit Google account id) and account.email are required');
       const made = await ensureGoogleAccount(ctx, person.sub, { email: person.email.toLowerCase(), name: person.name ?? null, given_name: person.given_name ?? null, family_name: person.family_name ?? null, picture: person.picture ?? null });

@@ -1,9 +1,9 @@
 // The World's doors (docs/contributing/architecture.md, "Doors, screens and the gap"), each declared in the manifest's
-// `doors`: what the dashboard makes (keys, webhook endpoints), what the world outside Resend does (a DNS
-// host's records, a recipient server that refuses mail, a recipient who opens or complains, mail sent to a receiving
-// domain), and what the World reads back (an inbox, the webhooks sent).
+// `doors`: what the dashboard makes (keys, webhook endpoints), what the world outside Resend does (a DNS host's records,
+// a recipient who opens or complains, mail sent to a receiving domain), and what the World reads back (the webhooks
+// sent). A recipient's mailbox is their provider's twin, which Resend reaches over SMTP (shared.ts handOn).
 import { rawMessage } from '../engine/mime.ts';
-import type { HandlerContext } from '@volter/world-core';
+import { personOf, type HandlerContext } from '@volter/world-core';
 import { addressOf, DOMAIN, domainOf, EMAIL, KEY, keepAttachments, list, RECEIVED, type Row, stamp, TEAM } from './shared.ts';
 
 const bodyOf = (ctx: HandlerContext): Row => (ctx.body && typeof ctx.body === 'object' && !Array.isArray(ctx.body) ? (ctx.body as Row) : {});
@@ -30,14 +30,23 @@ export async function keys(ctx: HandlerContext): Promise<Response> {
   return Response.json(await makeKey(ctx, b.name, b.team, b.owner), { status: 201 });
 }
 
-/** A deployment's named API key, inside the customer's team and its shared mail/domain grants. */
+/** POST /_twin/app-credentials: a deployment's named API key, inside the organization's team and its shared mail and
+ *  domain grants, made the first time the runtime asks and the same at every boot after. */
 export async function appCredentials(ctx: HandlerContext): Promise<Response> {
+  // the organization's team is the one its owner (its first member) opened at Resend's sign-up (a World that declares
+  // it: ADR 0033 §6), so the key lands in their team and resend.dev sends to them; only where none did is one made here
+  const opened = async () => { const member = (await ctx.organization()).members[0]; return member === undefined ? undefined : personOf(ctx, member); };
   const team = await ctx.tenant(TEAM, async org => {
-    const fields = { name: org.label, owner: addressOf(org.members[0]), members: org.members, deleted: false };
-    return String((org.id === 'default' ? await ctx.write(TEAM, 'World', fields, 'team.create') : await ctx.create(TEAM, fields, 'team.create')).id);
+    const person = await opened();
+    if (typeof person?.team === 'string') return person.team;
+    const id = org.id === 'default' ? 'World' : ctx.mint(TEAM);
+    await ctx.record(TEAM, { name: org.label, owner: addressOf(org.members[0]), members: org.members }, id);
+    return id;
   });
+  const person = await opened();
+  const owner = typeof team.owner === 'string' ? team.owner : String(person?.email ?? 'owner@world.test');
   const key = await ctx.accountKey('api-key', KEY, {
-    make: async () => (await makeKey(ctx, ctx.deployment() || 'world', String(team.id), String(team.owner))).id,
+    make: async () => (await makeKey(ctx, ctx.deployment() || 'world', String(team.id), owner)).id,
     read: async row => {
       if (row._team !== team.id || row.status !== 'active' || row.deleted === true) return undefined;
       const value = await keyToken(ctx, String(row.id));
@@ -68,20 +77,15 @@ export async function webhooks(ctx: HandlerContext): Promise<Response> {
   return Response.json({ id, signing_secret: secret }, { status: 201 });
 }
 
-/** POST /_twin/dns {name, type, value}: a record the domain's owner sets at their DNS host. */
+/** POST /_twin/dns {name, type, value}: a record the domain's owner sets at their DNS host (the one stand-in a World's
+ *  seed calls, its `domain.record` door, until a DNS host has a twin). */
 export async function dns(ctx: HandlerContext): Promise<Response> {
-  const b = bodyOf(ctx);
+  // a JSON body, or the form a person's browser posts (the World's generated seed: ADR 0033 §3, `domain.record`)
+  const b = Object.keys(bodyOf(ctx)).length ? bodyOf(ctx) : Object.fromEntries(new URLSearchParams(ctx.text ?? '')) as Row;
   if (typeof b.name !== 'string' || typeof b.type !== 'string' || typeof b.value !== 'string') return bad('a name, a type and a value are required');
   const name = b.name.toLowerCase().replace(/\.$/, '');
   await ctx.record('_dns', { name, type: b.type.toUpperCase(), value: b.value, _set_at: ctx.occurredAt, deleted: false }, `${name}:${b.type.toUpperCase()}:${ctx.crypto.sha256(b.value).slice(0, 12)}`);
   return Response.json({ name, type: b.type.toUpperCase() }, { status: 201 });
-}
-
-/** POST /_twin/recipients/{domain} {rejects}: whether an outside mail server refuses mail for its domain. */
-export async function recipients(ctx: HandlerContext): Promise<Response> {
-  const domain = String(ctx.call.params.domain).toLowerCase();
-  await ctx.record('_recipient_domain', { rejects: bodyOf(ctx).rejects === true }, domain);
-  return Response.json({ domain, rejects: bodyOf(ctx).rejects === true });
 }
 
 async function recipientMove(ctx: HandlerContext, to: 'opened' | 'complained', operation: string): Promise<Response> {
@@ -132,14 +136,6 @@ export async function inbound(ctx: HandlerContext): Promise<Response> {
   const receivedFor = b.received_for === undefined ? [(/for\s+<?([^<>;\s]+@[^<>;\s]+)>?/i.exec(String(headers.received ?? ''))?.[1] ?? to[0])] : list(b.received_for);
   await ctx.write(RECEIVED, id, { id, attachments, received_for: receivedFor, object: 'email', html_format: 'data_uri', authentication: b.authentication ?? { spf: 'none', dkim: 'none', dmarc: 'none' }, from: b.from, to, subject: b.subject, text: b.text ?? null, html: b.html ?? null, headers, message_id: messageId, created_at: ctx.occurredAt, _raw_blob: `raw/${id}`, _team: domain._team }, 'email.receive');
   return Response.json({ id }, { status: 201 });
-}
-
-/** GET /_twin/mail?to=<address>: the emails delivered to that inbox, newest first. */
-export async function mail(ctx: HandlerContext): Promise<Response> {
-  const to = addressOf(new URL(ctx.call.request.url).searchParams.get('to'));
-  const got = ctx.rowsRaw(EMAIL).filter((e) => ['delivered', 'opened', 'clicked', 'complained'].includes(String(e.last_event)) && [...(e.to as string[]), ...((e.cc as string[]) ?? []), ...((e.bcc as string[]) ?? [])].map(addressOf).includes(to))
-    .sort((a, b) => String(b._created_iso).localeCompare(String(a._created_iso)));
-  return Response.json({ mail: got.map((e) => ({ id: e.id, from: e.from, subject: e.subject, html: e.html, text: e.text, received_at: e._delivered_at, attachments: ((e._attachments ?? []) as Row[]).map(({ _blob, ...metadata }) => metadata) })) });
 }
 
 /** GET /_twin/deliveries?to=<url>[&type=<event>][&email=<id>]: webhooks accepted there, oldest first, of one type

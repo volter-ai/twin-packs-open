@@ -9,7 +9,11 @@
 //   account       id = the account's sub  { email, name, given_name, family_name, picture }
 //   api_key       id = the key's SHA-256 (hex) { project, name, created }: a Cloud project's API key, as the console's
 //                                           Credentials page creates it; the key itself is answered once, never kept
-import type { HandlerContext } from '@volter/world-core';
+//   _person       id = person:<email>       { email, password_sha256, sub }: the person a Google sign-up made (world-core's
+//                                           recordPerson), whose account is `account` <sub>; gmail's mailboxes are these
+//   _web_session  id = websession:<token>   { token, email }: a signed-in browser, whose token is the `SID` cookie Google
+//                                           sets on .google.com (world-core's startBrowserSession); gmail's webmail reads it
+import { startBrowserSession, type HandlerContext } from '@volter/world-core';
 
 export type Row = Record<string, unknown>;
 type Reader = Pick<HandlerContext, 'row'>;
@@ -99,3 +103,39 @@ export function bearer(ctx: Reader & { call: HandlerContext['call']; occurredAt:
 /** The World's next number (a nonce in a secret's label, a numeric id), issued from the tree over `_serial` (ctx.issue),
  *  never a row count. */
 export const serial = async (ctx: Pick<HandlerContext, 'issue'>): Promise<number> => Number(await ctx.issue('_serial'));
+
+/** Google's session cookie, on `.google.com` so every Google property (mail.google.com) reads the sign-in; the name is the
+ *  contract gmail reads (above). */
+const SESSION_COOKIE = 'SID';
+
+export const esc = (v: unknown): string => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+/** A Google Accounts page: the card its sign-in and sign-up draw. */
+export function accountsPage(title: string, body: string, status = 200, headers: Record<string, string> = {}): Response {
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font:15px/1.5 Roboto,system-ui,sans-serif;margin:0;background:#f0f4f9}main{max-width:440px;margin:48px auto;background:#fff;border-radius:28px;padding:36px 40px}h1{font-size:28px;font-weight:400;margin:0 0 8px}label{display:block;margin:16px 0 4px;color:#444746;font-size:14px}input[type=text],input[type=email],input[type=password]{box-sizing:border-box;width:100%;font:inherit;padding:13px 15px;border:1px solid #747775;border-radius:4px}button{margin-top:24px;background:#0b57d0;color:#fff;border:0;border-radius:20px;padding:10px 24px;font:inherit;font-weight:500;cursor:pointer}[role=alert]{color:#b3261e;margin:12px 0 0}</style></head><body><main><div aria-hidden="true">Google</div>${body}</main></body></html>`, { status, headers: { 'content-type': 'text/html; charset=utf-8', ...headers } });
+}
+
+/** Where a Google page returns a person (`continue`): an https address on a Google host, else undefined. */
+export function continueTo(value: string | null | undefined): string | undefined {
+  if (!value || /[\\\x00-\x1f\x7f]/.test(value)) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && (url.hostname === 'google.com' || url.hostname.endsWith('.google.com')) ? url.toString() : undefined;
+  } catch { return undefined; }
+}
+
+/** A person signed in to Google: a session recorded and its `SID` cookie, on .google.com when the request came to a
+ *  Google host (at the twin's own address every page is one origin, and the cookie stays as the kernel scopes it). */
+export async function googleSession(ctx: HandlerContext, email: string): Promise<string> {
+  const cookie = await startBrowserSession(ctx, email, SESSION_COOKIE);
+  const host = (ctx.call.request.headers.get('x-volter-twin-original-host') ?? new URL(ctx.call.request.url).host).split(':')[0]!.toLowerCase();
+  return host === 'google.com' || host.endsWith('.google.com') ? `${cookie}; Domain=.google.com` : cookie;
+}
+
+/** A Google account's `sub`, 21 digits, drawn from a secret the World holds for its address (ctx.secret), so no one
+ *  computes it from the address. Where the documentation stops: Google documents only that the sub is unique and never
+ *  reused; the 21 digits are the form its ID tokens show. */
+export async function accountSub(ctx: Pick<HandlerContext, 'secret' | 'crypto'>, email: string): Promise<string> {
+  const hex = ctx.crypto.digest('sha256', await ctx.secret(`googleoauth:sub:${email.toLowerCase()}`), 'hex');
+  return `1${BigInt(`0x${hex.slice(0, 24)}`).toString().padStart(20, '0').slice(-20)}`;
+}

@@ -1,0 +1,839 @@
+{
+  "vendor": "smtp",
+  "author": "Contributor 68",
+  "about": "RFC 5321 Appendix D.1-D.4 client turns, against a relay configured through its operator door. Postfix reply text differs as RFC 5321 section 4.2 permits. D.3 replays the second hop explicitly; the twin captures mail and does not deliver to another server.",
+  "steps": [
+    {
+      "name": "Operator configures d1 preconditions from RFC Appendix D",
+      "method": "POST",
+      "path": "/_twin/relay",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "hostname": "foo.com",
+        "localRecipients": [
+          "Jones@foo.com",
+          "Brown@foo.com"
+        ]
+      },
+      "expect": [
+        {
+          "path": "hostname",
+          "equals": "foo.com"
+        }
+      ]
+    },
+    {
+      "name": "D.1: bar.com opens a connection to foo.com, where Jones and Brown have mailboxes and Green has none",
+      "on": "d1",
+      "connect": {},
+      "example": "D.1 A Typical SMTP Transaction Scenario#0 (connect)",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "foo.com ESMTP"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "RFC 5321 section 4.2 allows receiver-dependent reply text. This Postfix submission relay advertises ESMTP in its greeting; its hostname is the operator setting from this scenario."
+      }
+    },
+    {
+      "name": "bar.com greets foo.com",
+      "on": "d1",
+      "send": "EHLO bar.com",
+      "example": "D.1 A Typical SMTP Transaction Scenario#1 EHLO bar.com",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 250
+        },
+        {
+          "path": "lines.0",
+          "equals": "foo.com"
+        },
+        {
+          "path": "replies.0.lines.0",
+          "equals": "foo.com"
+        }
+      ],
+      "exampleDiffers": {
+        "lines": "RFC 5321 section 3.2 requires EHLO to list the extensions this server supports. The operator-selected hostname is the first line; this submission relay offers PIPELINING, SIZE, ENHANCEDSTATUSCODES, 8BITMIME and SMTPUTF8, without DSN or HELP."
+      },
+      "undecided": {
+        "lines": "Remaining capability keywords are the configured submission relay extensions, not the RFC scenario server's defaults."
+      }
+    },
+    {
+      "name": "Smith@bar.com is the sender",
+      "on": "d1",
+      "send": "MAIL FROM:<Smith@bar.com>",
+      "example": "D.1 A Typical SMTP Transaction Scenario#2 MAIL FROM:<Smith@bar.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.0 Ok\" (postfix/src/smtpd/smtpd.c mail_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "Jones@foo.com, who has a mailbox, is accepted",
+      "on": "d1",
+      "send": "RCPT TO:<Jones@foo.com>",
+      "example": "D.1 A Typical SMTP Transaction Scenario#3 RCPT TO:<Jones@foo.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.5 Ok\" (postfix/src/smtpd/smtpd.c rcpt_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "Green@foo.com has no mailbox at foo.com and is refused",
+      "on": "d1",
+      "send": "RCPT TO:<Green@foo.com>",
+      "status": 550,
+      "example": "D.1 A Typical SMTP Transaction Scenario#4 RCPT TO:<Green@foo.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "5.1.1 No such user here"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "RFC D.1 gives 550 No such user here; the relay adds the enhanced status class 5.1.1. The recipient is absent from the operator-configured local recipient table."
+      }
+    },
+    {
+      "name": "Brown@foo.com, who has a mailbox, is accepted",
+      "on": "d1",
+      "send": "RCPT TO:<Brown@foo.com>",
+      "example": "D.1 A Typical SMTP Transaction Scenario#5 RCPT TO:<Brown@foo.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.5 Ok\" (postfix/src/smtpd/smtpd.c rcpt_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "bar.com starts the message",
+      "on": "d1",
+      "send": "DATA",
+      "example": "D.1 A Typical SMTP Transaction Scenario#6 DATA",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 354
+        },
+        {
+          "path": "text",
+          "equals": "End data with <CR><LF>.<CR><LF>"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"Start mail input; end with <CRLF>.<CRLF>\"; the twin sends Postfix's \"354 End data with <CR><LF>.<CR><LF>\" (postfix/src/smtpd/smtpd.c data_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "The message is sent and queued",
+      "on": "d1",
+      "send": [
+        "Blah blah blah...",
+        "...etc. etc. etc.",
+        "."
+      ],
+      "example": "D.1 A Typical SMTP Transaction Scenario#7 Blah blah blah...",
+      "expect": [
+        {
+          "path": "text",
+          "matches": "^2.0.0 Ok: queued as [A-Z]+$"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.0.0 Ok: queued as %s\" (postfix/src/smtpd/smtpd.c receive_data_message). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      },
+      "undecided": {
+        "text": "The queue identifier is generated by the relay, not an example input."
+      }
+    },
+    {
+      "name": "bar.com closes the channel",
+      "on": "d1",
+      "send": "QUIT",
+      "example": "D.1 A Typical SMTP Transaction Scenario#8 QUIT",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 221
+        },
+        {
+          "path": "text",
+          "equals": "2.0.0 Bye"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"foo.com Service closing transmission channel\"; the twin sends Postfix's \"221 2.0.0 Bye\" (postfix/src/smtpd/smtpd.c quit_cmd: smtpd_chat_reply(state, \"221 2.0.0 Bye\")), which names no domain although RFC 5321 4.2.2 lists 221 as \"221 <domain> Service closing transmission channel\"."
+      }
+    },
+    {
+      "name": "Operator configures d2 preconditions from RFC Appendix D",
+      "method": "POST",
+      "path": "/_twin/relay",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "hostname": "foo.com",
+        "localRecipients": [
+          "Jones@foo.com",
+          "Brown@foo.com"
+        ]
+      },
+      "expect": [
+        {
+          "path": "hostname",
+          "equals": "foo.com"
+        }
+      ]
+    },
+    {
+      "name": "D.2: bar.com opens a connection to foo.com, where Jones and Brown have mailboxes and Green has none",
+      "on": "d2",
+      "connect": {},
+      "example": "D.2 Aborted SMTP Transaction Scenario#0 (connect)",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "foo.com ESMTP"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "RFC 5321 section 4.2 allows receiver-dependent reply text. This Postfix submission relay advertises ESMTP in its greeting; its hostname is the operator setting from this scenario."
+      }
+    },
+    {
+      "name": "bar.com greets foo.com",
+      "on": "d2",
+      "send": "EHLO bar.com",
+      "example": "D.2 Aborted SMTP Transaction Scenario#1 EHLO bar.com",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 250
+        },
+        {
+          "path": "lines.0",
+          "equals": "foo.com"
+        },
+        {
+          "path": "replies.0.lines.0",
+          "equals": "foo.com"
+        }
+      ],
+      "exampleDiffers": {
+        "lines": "RFC 5321 section 3.2 requires EHLO to list the extensions this server supports. The operator-selected hostname is the first line; this submission relay offers PIPELINING, SIZE, ENHANCEDSTATUSCODES, 8BITMIME and SMTPUTF8, without DSN or HELP."
+      },
+      "undecided": {
+        "lines": "Remaining capability keywords are the configured submission relay extensions, not the RFC scenario server's defaults."
+      }
+    },
+    {
+      "name": "Smith@bar.com is the sender",
+      "on": "d2",
+      "send": "MAIL FROM:<Smith@bar.com>",
+      "example": "D.2 Aborted SMTP Transaction Scenario#2 MAIL FROM:<Smith@bar.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.0 Ok\" (postfix/src/smtpd/smtpd.c mail_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "Jones@foo.com, who has a mailbox, is accepted",
+      "on": "d2",
+      "send": "RCPT TO:<Jones@foo.com>",
+      "example": "D.2 Aborted SMTP Transaction Scenario#3 RCPT TO:<Jones@foo.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.5 Ok\" (postfix/src/smtpd/smtpd.c rcpt_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "Green@foo.com has no mailbox at foo.com and is refused",
+      "on": "d2",
+      "send": "RCPT TO:<Green@foo.com>",
+      "status": 550,
+      "example": "D.2 Aborted SMTP Transaction Scenario#4 RCPT TO:<Green@foo.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "5.1.1 No such user here"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "RFC D.1 gives 550 No such user here; the relay adds the enhanced status class 5.1.1. The recipient is absent from the operator-configured local recipient table."
+      }
+    },
+    {
+      "name": "bar.com aborts the transaction",
+      "on": "d2",
+      "send": "RSET",
+      "example": "D.2 Aborted SMTP Transaction Scenario#5 RSET",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.0.0 Ok\" (postfix/src/smtpd/smtpd.c rset_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "bar.com closes the channel",
+      "on": "d2",
+      "send": "QUIT",
+      "example": "D.2 Aborted SMTP Transaction Scenario#6 QUIT",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 221
+        },
+        {
+          "path": "text",
+          "equals": "2.0.0 Bye"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"foo.com Service closing transmission channel\"; the twin sends Postfix's \"221 2.0.0 Bye\" (postfix/src/smtpd/smtpd.c quit_cmd: smtpd_chat_reply(state, \"221 2.0.0 Bye\")), which names no domain although RFC 5321 4.2.2 lists 221 as \"221 <domain> Service closing transmission channel\"."
+      }
+    },
+    {
+      "name": "Operator configures d3 preconditions from RFC Appendix D",
+      "method": "POST",
+      "path": "/_twin/relay",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "hostname": "foo.com",
+        "relayDomains": [
+          "xyz.com"
+        ]
+      },
+      "expect": [
+        {
+          "path": "hostname",
+          "equals": "foo.com"
+        }
+      ]
+    },
+    {
+      "name": "D.3 step 1: bar.com opens a connection to foo.com, a lower-preference MX for xyz.com that relays for it",
+      "on": "d3",
+      "connect": {},
+      "example": "D.3 Relayed Mail Scenario#0 (connect)",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "foo.com ESMTP"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "RFC 5321 section 4.2 allows receiver-dependent reply text. This Postfix submission relay advertises ESMTP in its greeting; its hostname is the operator setting from this scenario."
+      }
+    },
+    {
+      "name": "bar.com greets foo.com",
+      "on": "d3",
+      "send": "EHLO bar.com",
+      "example": "D.3 Relayed Mail Scenario#1 EHLO bar.com",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 250
+        },
+        {
+          "path": "lines.0",
+          "equals": "foo.com"
+        },
+        {
+          "path": "replies.0.lines.0",
+          "equals": "foo.com"
+        }
+      ],
+      "exampleDiffers": {
+        "lines": "RFC 5321 section 3.2 requires EHLO to list the extensions this server supports. The operator-selected hostname is the first line; this submission relay offers PIPELINING, SIZE, ENHANCEDSTATUSCODES, 8BITMIME and SMTPUTF8, without DSN or HELP."
+      },
+      "undecided": {
+        "lines": "Remaining capability keywords are the configured submission relay extensions, not the RFC scenario server's defaults."
+      }
+    },
+    {
+      "name": "JQP@bar.com is the sender",
+      "on": "d3",
+      "send": "MAIL FROM:<JQP@bar.com>",
+      "example": "D.3 Relayed Mail Scenario#2 MAIL FROM:<JQP@bar.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.0 Ok\" (postfix/src/smtpd/smtpd.c mail_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "Jones@XYZ.COM is accepted for relay to xyz.com",
+      "on": "d3",
+      "send": "RCPT TO:<Jones@XYZ.COM>",
+      "example": "D.3 Relayed Mail Scenario#3 RCPT TO:<Jones@XYZ.COM>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.5 Ok\" (postfix/src/smtpd/smtpd.c rcpt_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "bar.com starts the message",
+      "on": "d3",
+      "send": "DATA",
+      "example": "D.3 Relayed Mail Scenario#4 DATA",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 354
+        },
+        {
+          "path": "text",
+          "equals": "End data with <CR><LF>.<CR><LF>"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"Start mail input; end with <CRLF>.<CRLF>\"; the twin sends Postfix's \"354 End data with <CR><LF>.<CR><LF>\" (postfix/src/smtpd/smtpd.c data_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "The message to the board is sent and queued at foo.com",
+      "on": "d3",
+      "send": [
+        "Date: Thu, 21 May 1998 05:33:29 -0700",
+        "From: John Q. Public <JQP@bar.com>",
+        "Subject: The Next Meeting of the Board",
+        "To: Jones@xyz.com",
+        "",
+        "Bill:",
+        "The next meeting of the board of directors will be",
+        "on Tuesday.",
+        "John.",
+        "."
+      ],
+      "example": "D.3 Relayed Mail Scenario#5 Date: Thu, 21 May 1998 05:33:29 -0700",
+      "expect": [
+        {
+          "path": "text",
+          "matches": "^2.0.0 Ok: queued as [A-Z]+$"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.0.0 Ok: queued as %s\" (postfix/src/smtpd/smtpd.c receive_data_message). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      },
+      "undecided": {
+        "text": "The queue identifier is generated by the relay, not an example input."
+      }
+    },
+    {
+      "name": "bar.com closes the channel",
+      "on": "d3",
+      "send": "QUIT",
+      "example": "D.3 Relayed Mail Scenario#6 QUIT",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 221
+        },
+        {
+          "path": "text",
+          "equals": "2.0.0 Bye"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"foo.com Service closing transmission channel\"; the twin sends Postfix's \"221 2.0.0 Bye\" (postfix/src/smtpd/smtpd.c quit_cmd: smtpd_chat_reply(state, \"221 2.0.0 Bye\")), which names no domain although RFC 5321 4.2.2 lists 221 as \"221 <domain> Service closing transmission channel\"."
+      }
+    },
+    {
+      "name": "Operator configures xyz preconditions from RFC Appendix D",
+      "method": "POST",
+      "path": "/_twin/relay",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "hostname": "xyz.com",
+        "localRecipients": [
+          "Jones@xyz.com"
+        ]
+      },
+      "expect": [
+        {
+          "path": "hostname",
+          "equals": "xyz.com"
+        }
+      ]
+    },
+    {
+      "name": "D.3 step 2: foo.com opens a connection to xyz.com, where Jones has a mailbox",
+      "on": "xyz",
+      "connect": {},
+      "example": "D.3 Relayed Mail Scenario#7 (connect)",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "xyz.com ESMTP"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "RFC 5321 section 4.2 allows receiver-dependent reply text. This Postfix submission relay advertises ESMTP in its greeting; its hostname is the operator setting from this scenario."
+      }
+    },
+    {
+      "name": "foo.com greets xyz.com",
+      "on": "xyz",
+      "send": "EHLO foo.com",
+      "example": "D.3 Relayed Mail Scenario#8 EHLO foo.com",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 250
+        },
+        {
+          "path": "lines.0",
+          "equals": "xyz.com"
+        },
+        {
+          "path": "replies.0.lines.0",
+          "equals": "xyz.com"
+        }
+      ],
+      "exampleDiffers": {
+        "lines": "RFC 5321 section 3.2 requires EHLO to list the extensions this server supports. The operator-selected hostname is the first line; this submission relay offers PIPELINING, SIZE, ENHANCEDSTATUSCODES, 8BITMIME and SMTPUTF8, without DSN or HELP."
+      },
+      "undecided": {
+        "lines": "Remaining capability keywords are the configured submission relay extensions, not the RFC scenario server's defaults."
+      }
+    },
+    {
+      "name": "JQP@bar.com is the sender",
+      "on": "xyz",
+      "send": "MAIL FROM:<JQP@bar.com>",
+      "example": "D.3 Relayed Mail Scenario#9 MAIL FROM:<JQP@bar.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.0 Ok\" (postfix/src/smtpd/smtpd.c mail_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "Jones@XYZ.COM, whose mailbox is at xyz.com, is accepted",
+      "on": "xyz",
+      "send": "RCPT TO:<Jones@XYZ.COM>",
+      "example": "D.3 Relayed Mail Scenario#10 RCPT TO:<Jones@XYZ.COM>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.5 Ok\" (postfix/src/smtpd/smtpd.c rcpt_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "foo.com starts the message",
+      "on": "xyz",
+      "send": "DATA",
+      "example": "D.3 Relayed Mail Scenario#11 DATA",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 354
+        },
+        {
+          "path": "text",
+          "equals": "End data with <CR><LF>.<CR><LF>"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"Start mail input; end with <CRLF>.<CRLF>\"; the twin sends Postfix's \"354 End data with <CR><LF>.<CR><LF>\" (postfix/src/smtpd/smtpd.c data_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "The relayed message, carrying foo.com's Received line, is sent and queued at xyz.com",
+      "on": "xyz",
+      "send": [
+        "Received: from bar.com by foo.com ; Thu, 21 May 1998",
+        "    05:33:29 -0700",
+        "Date: Thu, 21 May 1998 05:33:22 -0700",
+        "From: John Q. Public <JQP@bar.com>",
+        "Subject:  The Next Meeting of the Board",
+        "To: Jones@xyz.com",
+        "",
+        "Bill:",
+        "The next meeting of the board of directors will be",
+        "on Tuesday.",
+        "                        John.",
+        "."
+      ],
+      "example": "D.3 Relayed Mail Scenario#12 Received: from bar.com by foo.com ; Thu, 21 May 1998",
+      "expect": [
+        {
+          "path": "text",
+          "matches": "^2.0.0 Ok: queued as [A-Z]+$"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.0.0 Ok: queued as %s\" (postfix/src/smtpd/smtpd.c receive_data_message). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      },
+      "undecided": {
+        "text": "The queue identifier is generated by the relay, not an example input."
+      }
+    },
+    {
+      "name": "foo.com closes the channel",
+      "on": "xyz",
+      "send": "QUIT",
+      "example": "D.3 Relayed Mail Scenario#13 QUIT",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 221
+        },
+        {
+          "path": "text",
+          "equals": "2.0.0 Bye"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"foo.com Service closing transmission channel\"; the twin sends Postfix's \"221 2.0.0 Bye\" (postfix/src/smtpd/smtpd.c quit_cmd: smtpd_chat_reply(state, \"221 2.0.0 Bye\")), which names no domain although RFC 5321 4.2.2 lists 221 as \"221 <domain> Service closing transmission channel\"."
+      }
+    },
+    {
+      "name": "Operator configures d4 preconditions from RFC Appendix D",
+      "method": "POST",
+      "path": "/_twin/relay",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "hostname": "foo.com"
+      },
+      "expect": [
+        {
+          "path": "hostname",
+          "equals": "foo.com"
+        }
+      ]
+    },
+    {
+      "name": "D.4: bar.com opens a connection to foo.com",
+      "on": "d4",
+      "connect": {},
+      "example": "D.4 Verifying and Sending Scenario#0 (connect)",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "foo.com ESMTP"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "RFC 5321 section 4.2 allows receiver-dependent reply text. This Postfix submission relay advertises ESMTP in its greeting; its hostname is the operator setting from this scenario."
+      }
+    },
+    {
+      "name": "bar.com greets foo.com",
+      "on": "d4",
+      "send": "EHLO bar.com",
+      "example": "D.4 Verifying and Sending Scenario#1 EHLO bar.com",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 250
+        },
+        {
+          "path": "lines.0",
+          "equals": "foo.com"
+        },
+        {
+          "path": "replies.0.lines.0",
+          "equals": "foo.com"
+        }
+      ],
+      "exampleDiffers": {
+        "lines": "RFC 5321 section 3.2 requires EHLO to list the extensions this server supports. The operator-selected hostname is the first line; this submission relay offers PIPELINING, SIZE, ENHANCEDSTATUSCODES, 8BITMIME and SMTPUTF8, without DSN or HELP."
+      },
+      "undecided": {
+        "lines": "Remaining capability keywords are the configured submission relay extensions, not the RFC scenario server's defaults."
+      }
+    },
+    {
+      "name": "The privacy-configured relay refuses mailbox verification",
+      "on": "d4",
+      "send": "VRFY Crispin",
+      "example": "D.4 Verifying and Sending Scenario#2 VRFY Crispin",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "5.5.1 VRFY command is disabled"
+        }
+      ],
+      "exampleDiffers": {
+        "status": "Postfix postconf(5) disable_vrfy_command disables VRFY. This submission relay uses that privacy policy, unlike D.4's verifying server; it refuses 502 and the following example supplies the already-known mailbox explicitly."
+      },
+      "status": 502
+    },
+    {
+      "name": "EAK@bar.com is the sender",
+      "on": "d4",
+      "send": "MAIL FROM:<EAK@bar.com>",
+      "example": "D.4 Verifying and Sending Scenario#3 MAIL FROM:<EAK@bar.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.0 Ok\" (postfix/src/smtpd/smtpd.c mail_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "Admin.MRC@foo.com is accepted",
+      "on": "d4",
+      "send": "RCPT TO:<Admin.MRC@foo.com>",
+      "example": "D.4 Verifying and Sending Scenario#4 RCPT TO:<Admin.MRC@foo.com>",
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 Ok"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.1.5 Ok\" (postfix/src/smtpd/smtpd.c rcpt_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "bar.com starts the message",
+      "on": "d4",
+      "send": "DATA",
+      "example": "D.4 Verifying and Sending Scenario#5 DATA",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 354
+        },
+        {
+          "path": "text",
+          "equals": "End data with <CR><LF>.<CR><LF>"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"Start mail input; end with <CRLF>.<CRLF>\"; the twin sends Postfix's \"354 End data with <CR><LF>.<CR><LF>\" (postfix/src/smtpd/smtpd.c data_cmd). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      }
+    },
+    {
+      "name": "The message is sent and queued",
+      "on": "d4",
+      "send": [
+        "Blah blah blah...",
+        "...etc. etc. etc.",
+        "."
+      ],
+      "example": "D.4 Verifying and Sending Scenario#6 Blah blah blah...",
+      "expect": [
+        {
+          "path": "text",
+          "matches": "^2.0.0 Ok: queued as [A-Z]+$"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"OK\"; the twin sends Postfix's \"250 2.0.0 Ok: queued as %s\" (postfix/src/smtpd/smtpd.c receive_data_message). RFC 5321 4.2: \"the text may be receiver dependent and context dependent, so there are likely to be varying texts for each reply code\"."
+      },
+      "undecided": {
+        "text": "The queue identifier is generated by the relay, not an example input."
+      }
+    },
+    {
+      "name": "bar.com closes the channel",
+      "on": "d4",
+      "send": "QUIT",
+      "example": "D.4 Verifying and Sending Scenario#7 QUIT",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 221
+        },
+        {
+          "path": "text",
+          "equals": "2.0.0 Bye"
+        }
+      ],
+      "exampleDiffers": {
+        "text": "The scenario's text is \"foo.com Service closing transmission channel\"; the twin sends Postfix's \"221 2.0.0 Bye\" (postfix/src/smtpd/smtpd.c quit_cmd: smtpd_chat_reply(state, \"221 2.0.0 Bye\")), which names no domain although RFC 5321 4.2.2 lists 221 as \"221 <domain> Service closing transmission channel\"."
+      }
+    }
+  ]
+}

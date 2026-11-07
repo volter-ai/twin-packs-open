@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://www.npmjs.com/package/nodemailer/v/10.0.1",
+  "about": "The unchanged nodemailer at Rallly's pin (^10.0.1, packages/emails/package.json at 3e63239dbdec) builds Rallly's SMTP transport from the SMTP_HOST, SMTP_PORT and SMTP_SECURE the World injects (no SMTP_USER or SMTP_PWD: the relay at boot asks no authentication), verifies it (EHLO, QUIT) and sends a finalized poll's invitation with html, text, reply-to, List-Unsubscribe headers and its calendar event to two recipients, asserting both accepted, none rejected and the data answered 250.",
+  "files": {
+    "package.json": "{\n  \"name\": \"smtp-rallly-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"nodemailer\": \"10.0.1\"\n  }\n}\n",
+    ".env.example": "SMTP_HOST=\nSMTP_PORT=\nSMTP_SECURE=false\n",
+    "send-invite.mjs": "import assert from 'node:assert/strict';\nimport { createTransport } from 'nodemailer';\n\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n// Rallly's SMTP transport (packages/emails/src/transport.ts), as its environment configures it\nconst hasAuth = Boolean(process.env.SMTP_USER && process.env.SMTP_PWD);\nconst transport = createTransport({\n  host: process.env.SMTP_HOST,\n  port: process.env.SMTP_PORT ? Number.parseInt(process.env.SMTP_PORT, 10) : undefined,\n  secure: process.env.SMTP_SECURE === 'true',\n  auth: hasAuth ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PWD } : undefined,\n  tls: { rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false', servername: process.env.SMTP_TLS_SERVERNAME },\n});\nassert.equal(await transport.verify(), true);\n// a finalized poll's invitation, as Rallly's dispatch sends it: html and text, a reply-to, the unsubscribe header and the event\nconst info = await transport.sendMail({\n  from: 'Rallly <noreply@rallly.world.test>',\n  to: ['ada@world.test', 'bo@world.test'],\n  replyTo: 'organizer@world.test',\n  subject: 'Finalized: Team offsite',\n  html: '<p>The date for <strong>Team offsite</strong> is set: Thursday 12 March, 10:00.</p>',\n  text: 'The date for Team offsite is set: Thursday 12 March, 10:00.',\n  headers: { 'List-Unsubscribe': '<https://rallly.world.test/unsubscribe>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },\n  icalEvent: { method: 'REQUEST', filename: 'invite.ics', content: 'BEGIN:VCALENDAR\\r\\nVERSION:2.0\\r\\nPRODID:-//Rallly//EN\\r\\nMETHOD:REQUEST\\r\\nBEGIN:VEVENT\\r\\nUID:team-offsite@rallly.world.test\\r\\nDTSTAMP:20260301T090000Z\\r\\nDTSTART:20260312T100000Z\\r\\nDTEND:20260312T110000Z\\r\\nSUMMARY:Team offsite\\r\\nEND:VEVENT\\r\\nEND:VCALENDAR\\r\\n' },\n});\nassert.deepEqual([...info.accepted].sort(), ['ada@world.test', 'bo@world.test']);\nassert.deepEqual(info.rejected, []);\nassert.match(info.response, /^250 /);\nassert.ok(info.messageId, 'the send answered no message id');\ntransport.close();\nconsole.log(JSON.stringify({ accepted: info.accepted, response: info.response, messageId: info.messageId }));\n"
+  },
+  "run": [
+    "node",
+    "send-invite.mjs"
+  ],
+  "retention": {
+    "none": "SMTP gives a client no command that reads accepted mail back (RFC 5321: the relay takes a message and answers 250, nothing more), and the applications read none back; the relay hands each message on to the recipient's mailbox provider (ADR 0032), where the person reads it."
+  }
+}

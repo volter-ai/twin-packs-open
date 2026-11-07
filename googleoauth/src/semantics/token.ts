@@ -16,9 +16,7 @@ export async function token(ctx: HandlerContext): Promise<Response> {
     if (!sa) return oauthError(400, 'invalid_grant', 'Invalid grant: account not found');
     // the assertion is signed with the account's key (the one its key file holds)
     const [h, pl, sig] = String(p.assertion ?? '').split('.');
-    const managed = ctx.rowsRaw(SERVICE_ACCOUNT_KEY, { withDeleted: true }).filter((row) => row._service_account === sa.id);
-    const keys = managed.filter((row) => row.deleted !== true);
-    if (typeof sa.public_key === 'string' && !managed.some((row) => row.private_key_id === sa.private_key_id)) keys.push(sa);
+    const keys = ctx.rowsRaw(SERVICE_ACCOUNT_KEY).filter((row) => row._service_account === sa.id && row.deleted !== true);
     if (!keys.some((key) => (!keyId || key.private_key_id === keyId) && typeof key.public_key === 'string' && ctx.crypto.verifyWith(key.public_key, `${h}.${pl}`, Buffer.from(String(sig ?? ''), 'base64url')))) return oauthError(400, 'invalid_grant', 'Invalid JWT Signature.');
     if (Number(claims.exp ?? 0) < nowSeconds(ctx)) return oauthError(400, 'invalid_grant', 'Invalid JWT: Token must be a short-lived token (60 minutes) and in a reasonable timeframe.');
     const access = await credential(ctx, 'ya29.c.', `sa:${String(claims.iss)}:${ctx.occurredAt}:${await serial(ctx)}`, 180);

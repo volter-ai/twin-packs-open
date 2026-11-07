@@ -2,7 +2,7 @@
 // Shared layout/type tokens remain; no vendor image, asset or script is shipped.
 import type { HandlerContext } from '@volter/world-core';
 import { flowPage } from '@volter/world-ui';
-import { list } from '../semantics/shared.ts';
+import { list, teamLabel } from '../semantics/shared.ts';
 
 export type Body = Parameters<typeof flowPage>[0]['body'];
 export const at = (ctx: HandlerContext, path: string): string => `${ctx.publicBase}${path}`;
@@ -23,14 +23,16 @@ export const dateLabel = (value: unknown): string => {
 export const Badge = ({ value }: { value: unknown }) => <span className={`re-badge re-${statusTone(value)}`}>{statusLabel(value) || '—'}</span>;
 export const Icon = ({ name, size = 18 }: { name: string; size?: number }) => <img className="re-icon" src={`https://brand.volter.ai/icon/${encodeURIComponent(name)}/svg?size=${size}&color=%23969aa0`} width={size} height={size} alt=""/>;
 
+// The sidebar's team name is always its team switcher, one team or several.
+// source: https://resend.com/docs/dashboard/settings/team "Click on the team name in the top left corner of any Resend page."
 export function page(ctx: HandlerContext, title: string, teams: string[], team: string, body: Body, status = 200, heading?: Body): Response {
   return flowPage({ title: `${title} | Resend`, css: [BRAND_CSS, RESEND_CSS, CSS], status,
     headers: { 'content-security-policy': "default-src 'none'; img-src https://brand.volter.ai; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; form-action 'self'" }, body:
     <div className="re-shell">
       <aside className="re-sidebar"><a className="re-wordmark" href={at(ctx, `/emails?${new URLSearchParams({ team })}`)}>Resend</a>
-        {teams.length > 1 ? <form className="re-team" method="get" action={at(ctx, '/emails')}>
-          <label htmlFor="team">Team</label><select id="team" name="team" defaultValue={team}>{teams.map((name) => <option key={name}>{name}</option>)}</select><button>Switch</button>
-        </form> : team ? <span className="re-team-name">{team}</span> : null}
+        {team ? <form className="re-team" method="get" action={at(ctx, '/emails')}>
+          <label htmlFor="team">Team</label><select id="team" name="team" defaultValue={team}>{teams.map((name) => <option key={name} value={name}>{teamLabel(ctx, name)}</option>)}</select><button>Switch</button>
+        </form> : null}
         <nav aria-label="Resend"><a href={at(ctx, `/emails?${new URLSearchParams({ team })}`)} aria-current="page"><Icon name="mail"/>Emails</a>
           {/* Public reference: https://resend.com/products/transactional-emails — official full Emails workspace image. Disabled destinations are an explicit screen gap. */}
           {[['Broadcasts', 'inbox'], ['Audiences', 'users'], ['Metrics', 'chart-no-axes-column'], ['Domains', 'globe'], ['Logs', 'logs'], ['API Keys', 'key-round'], ['Webhooks', 'arrow-down-up'], ['Settings', 'sliders-horizontal']].map(([label, icon]) => <span key={label} role="link" aria-disabled="true" title={`${label} UI is unavailable in this mirror`}><Icon name={icon!}/>{label}</span>)}
@@ -138,3 +140,22 @@ td a { display: block; }
 // The generated token declarations are served inline. Icons use the brand URLs above;
 // the email-content preview blocks external assets under its separate policy.
 export const BRAND_CSS = ":root {\n  --volter-surface-page: light-dark(#f7f6f1, #0f1a1f);\n  --volter-text-primary: light-dark(#16252c, #f3f2ec);\n  --volter-font-size-md: 14px;\n  --volter-font-ui: \"Geist\", \"Segoe UI\", system-ui, sans-serif;\n  --volter-surface-raised: light-dark(#fbfaf7, #16252c);\n  --volter-border-default: light-dark(#d9dad3, #2c3d45);\n  --volter-radius-control: 3px;\n  --volter-space-2: 8px;\n  --volter-space-3: 12px;\n  --volter-space-6: 24px;\n  --volter-space-4: 16px;\n  --volter-font-size-xl: 20px;\n  --volter-text-muted: light-dark(#5d6970, #a9b0ad);\n  --volter-font-size-sm: 12.5px;\n  --volter-space-8: 32px;\n  --volter-space-16: 64px;\n  --volter-font-size-3xl: 32px;\n  --volter-space-5: 20px;\n  --volter-border-subtle: light-dark(#e9e8e1, #223239);\n  --volter-space-1: 4px;\n  --volter-status-healthy-soft: light-dark(#e8f0e6, rgba(111, 191, 142, 0.14));\n  --volter-status-healthy-text: light-dark(#2f5f40, #93d3aa);\n  --volter-status-danger-soft: light-dark(#fbebe4, rgba(240, 118, 80, 0.14));\n  --volter-status-danger-text: light-dark(#9c3310, #f59a7d);\n  --volter-space-12: 48px;\n  --volter-font-data: \"Geist Mono\", ui-monospace, \"SF Mono\", Menlo, Consolas, monospace;\n  --volter-radius-panel: 4px;\n  --volter-font-size-2xl: 24px;\n}\n";
+
+// The dashboard's account pages: Resend's card, its fields and its notice, shared by the sign-up (./signup.tsx), the
+// sign-in (./login.tsx) and the Domains page (./domains.tsx).
+const ACCOUNT_CSS = `
+body{margin:0;background:var(--resend-surface-page);color:var(--resend-text-primary);font:14px/1.5 Inter,system-ui,sans-serif}
+.re-card{max-width:420px;margin:64px auto;padding:32px}.re-card.wide{max-width:880px}.re-card h1{font-size:24px;font-weight:600;margin:0 0 20px}
+.re-card label{display:block;margin:14px 0 6px;color:var(--resend-text-muted)}
+.re-card input{box-sizing:border-box;width:100%;font:inherit;padding:9px 12px;color:inherit;background:var(--resend-surface-raised);border:1px solid var(--resend-border-default);border-radius:6px}
+.re-card button{margin-top:18px;font:inherit;font-weight:600;padding:8px 16px;border:0;border-radius:6px;background:#fff;color:#000;cursor:pointer}
+.re-card [role=alert]{color:#ff6369;margin:0 0 12px}.re-card table{width:100%;border-collapse:collapse;margin:12px 0}.re-card td,.re-card th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--resend-border-default);overflow-wrap:anywhere}
+.re-card section{margin-top:28px}.re-card .status{color:var(--resend-text-muted)}
+`;
+
+export function accountPage(title: string, body: Body, status = 200, wide = false): Response {
+  return flowPage({ title: `${title} · Resend`, css: [RESEND_CSS, ACCOUNT_CSS], status, body: <main className={`re-card${wide ? ' wide' : ''}`}>{body}</main> });
+}
+
+/** Where a page returns a person: a path on the dashboard, else the Domains page. */
+export const nextOf = (value: string | null | undefined): string => (value?.startsWith('/') && !value.startsWith('//') && !/[\\\x00-\x1f]/.test(value) ? value : '/domains');
