@@ -21,16 +21,15 @@ with a key of its own:
 
 The World clock starts 2026-01-01.
 
-The partners, clients and staff Kadewerk mails read their mail at Gmail: each has a Google account at gmail.com, made at
-Google's sign-up when the year opens (the life's companions are googleoauth and gmail, twin-world ADR 0032), so Resend
-hands their mail to Gmail's receiving server and it is delivered. An address at a domain no twin in the World receives
-is refused there.
+The partners, clients and staff Kadewerk mails are addressed at Resend's testing domain, each by a label
+(`delivered+<name>@resend.dev`), which Resend delivers without a mailbox provider; the life runs on Resend alone. An
+address at a domain no twin in the World receives is refused there (twin-world ADR 0032).
 
 ## People and programs
 
 | who | holds | how |
 |---|---|---|
-| Hanne Peeters, CTO, the team's owner (hanne.kadewerk@gmail.com) | the dashboard | makes the keys and the webhook endpoints (World doors), sets DNS records at Kadewerk's DNS host (a door), reads the team's sent mail on the Emails page |
+| Hanne Peeters, CTO, the team's owner (delivered+hanne-kadewerk@resend.dev) | the dashboard | makes the keys and the webhook endpoints (World doors), sets DNS records at Kadewerk's DNS host (a door), reads the team's sent mail on the Emails page |
 | Dub | `RESEND_API_KEY` ("dub"), `RESEND_WEBHOOK_SECRET` | full-access API key, the resend SDK |
 | Twenty | its key ("twenty") and its webhook's signing secret | full-access API key, fetch to api.resend.com |
 | Scheduler | its key ("scheduler") | full-access API key, the resend SDK |
