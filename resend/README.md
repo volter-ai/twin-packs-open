@@ -21,7 +21,7 @@ Use Node 22.6 or newer.
 In an app that already uses this vendor, install this exact release and the product CLI:
 
 ```console
-npm install --save-dev --save-exact @volter/world@3.0.192 @volter/twin-resend@1.0.6
+npm install --save-dev --save-exact @volter/world@3.0.193 @volter/twin-resend@1.0.6
 ./node_modules/.bin/volter world init --name my-app --twins resend --source resend=@volter/twin-resend
 ```
 
@@ -59,9 +59,10 @@ world-resend serve [--port N] [--root DIR] [--read-only]
   - Everything a key does is its team's.
 - **Sending**:
   - `from`, `to` (at most 50), `subject` and a body are required.
-  - The sender must be at a verified domain of the team, or at `resend.dev` sending only to the team owner's address.
+  - The sender must be at a verified domain of the team, or at `resend.dev` sending only to the team owner's address and
+    Resend's testing addresses (twin-world ADR 0032 §3), across To, Cc and Bcc.
   - A batch of up to 100 is checked whole before any is sent.
-  - Attachment bytes are held in blobs and retained for inbox observation. Scheduled sends (an ISO 8601 date, as Dub sends, or a natural-language offset such as `in 1 min`, at most 30 days ahead) wait until their time before following the ordinary delivery lifecycle; natural language naming a day or a clock time is not read.
+  - Attachment bytes are held in blobs and retained for inbox observation. Scheduled sends (an ISO 8601 date, as Dub sends, or a natural-language offset such as `in 1 min`) wait until their time before following the ordinary delivery lifecycle; natural language naming a day or a clock time is not read.
 - **An email's life**: `queued`, then `sent` at once, when Resend hands it to each recipient's mailbox provider: over
   SMTP, through the kernel's `ctx.mail`, to the World's twin that receives the recipient's domain (twin-world ADR 0032;
   a `gmail.com` address to the gmail twin, where the person reads it). Five seconds later it is `delivered`, or
@@ -89,7 +90,7 @@ world-resend serve [--port N] [--root DIR] [--read-only]
 
 - `resend.com/signup`: a person opens their account and its team (named for their organization) and is signed in;
   the World's generated seed opens an organization's declared account here (ADR 0033), and the World's application
-  key then lands in that team, whose owner `resend.dev` sends to.
+  key then lands in that team, whose owner `resend.dev` sends to (besides Resend's testing addresses, ADR 0032 §3).
 - `resend.com/login`: a team member signs in.
 - `resend.com/domains`: the team's domains with their records; Add Domain, and Verify DNS Records.
 - `resend.com/emails`: the read-only Emails workspace.
