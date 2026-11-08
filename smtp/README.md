@@ -1,8 +1,9 @@
 # @volter/twin-smtp
 
-A local mail relay: the SMTP submission server nodemailer sends to, over raw TCP. Point `SMTP_HOST`/`SMTP_PORT` (or
-cal.com's `EMAIL_SERVER_HOST`/`EMAIL_SERVER_PORT`, or NextAuth's `EMAIL_SERVER`) at it and an unmodified client sends
-real SMTP. Every message it accepts is handed on to the World's twin of each recipient's mailbox provider (twin-world ADR
+A local mail relay: the SMTP submission server nodemailer sends to, over raw TCP. The World sets `SMTP_HOST`/`SMTP_PORT`
+(and cal.com's `EMAIL_SERVER_HOST`/`EMAIL_SERVER_PORT` and NextAuth's `EMAIL_SERVER`), this pack's declared endpoint
+templates, to its listener, on every path that installs a twin's environment, and an unmodified client sends real
+SMTP. Every message it accepts is handed on to the World's twin of each recipient's mailbox provider (twin-world ADR
 0032: a `gmail.com` address to the gmail twin, where the person reads it at mail.google.com). Nothing leaves the World:
 a domain no twin receives is refused there.
 

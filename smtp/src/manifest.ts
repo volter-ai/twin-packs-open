@@ -59,7 +59,15 @@ export const manifest: DerivedManifest = {
     description: 'SMTP relay twin — the submission server nodemailer sends to (EHLO, AUTH PLAIN/LOGIN, MAIL with SIZE, 8BITMIME and SMTPUTF8, RCPT, DATA, RSET, QUIT, with Postfix\'s replies), handing each accepted message to the World\'s twin of each recipient\'s mailbox provider (ctx.mail); nothing leaves the World.',
     adoption: { pypi: ['aiosmtplib'], sdks: ['nodemailer', 'nodemailer-smtp-transport', 'emailjs'], envStems: ['NEXTPRIVATESMTP'] },
     hostsNone: 'RAW-PROTOCOL pack: SMTP is a line protocol over a raw TCP socket, invisible to the http/fetch injector, and the relay is whatever host the operator names. The World injects SMTP_HOST/SMTP_PORT, EMAIL_SERVER_HOST/EMAIL_SERVER_PORT and EMAIL_SERVER at the twin\'s listener (world-runtime init.ts).',
-    endpointEnvNone: 'the relay is named by host and port settings the runtime injects as templates (world-runtime init.ts), not a base URL',
+    // the relay is named by host and port, not a base URL: SMTP is a raw TCP protocol the http/fetch injector never sees,
+    // with no fixed vendor host, so these settings ARE the interception. Each is a name a real client documents:
+    // SMTP_HOST/SMTP_PORT is nodemailer's transport config and the classic pair; EMAIL_SERVER_HOST/EMAIL_SERVER_PORT is
+    // Cal.com's split form; EMAIL_SERVER is NextAuth's connection URL (its Email provider's `server`). An app reads one.
+    endpointEnv: {
+      name: 'SMTP_HOST',
+      templates: { SMTP_HOST: '${host}', SMTP_PORT: '${port}', EMAIL_SERVER_HOST: '${host}', EMAIL_SERVER_PORT: '${port}', EMAIL_SERVER: 'smtp://${host}:${port}' },
+      note: "nodemailer's SMTP_HOST/SMTP_PORT, Cal.com's EMAIL_SERVER_HOST/EMAIL_SERVER_PORT and NextAuth's EMAIL_SERVER, pointed at the relay's listener; it hands each message on to the recipient's mailbox provider (twin-world ADR 0032)",
+    },
     // the relay's policy door, as its operator configures Postfix, on its own HTTP listener beside the SMTP one
     sidePorts: [{ name: 'policy', option: 'policyPort', flag: '--policy-port', path: '/_twin/relay', note: "the relay's policy door (POST /_twin/relay), where its operator sets its hostname, credentials, domains and size limit" }],
   },
