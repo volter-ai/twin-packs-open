@@ -12,7 +12,7 @@
 // Where the documentation stops: the five seconds and the ten minutes are the twin's.
 // source: https://resend.com/docs/add-a-domain "your domain will often verify within 15 minutes of adding the DNS records"
 import type { HandlerContext } from '@volter/world-core';
-import { DOMAIN, EMAIL, handOn, outcome, type Reply, type Row } from './shared.ts';
+import { DOMAIN, EMAIL, handOn, outcome, type Reply, type Row, testingAddress } from './shared.ts';
 
 const at = (iso: unknown, ms: number): number => Date.parse(String(iso)) + ms;
 
@@ -53,13 +53,25 @@ export async function clock(ctx: HandlerContext): Promise<void> {
     const of = (kind: ReturnType<typeof outcome>): string[] => replies.filter((r) => outcome(r) === kind).map((r) => r.to);
     const refusing = of('bounced'), delayed = of('delayed'), delivered = of('delivered');
     const state = delayed.length ? 'delivery_delayed' : refusing.length && !delivered.length ? 'bounced' : 'delivered';
-    // each recipient class announced once, the one that moves the state last
+    // Each recipient class is announced once, the one that moves the state last. Resend's complained@resend.dev testing
+    // address (each label, in To, Cc or Bcc) is delivered and then marks the email as spam, as a recipient does (ADR 0032
+    // §3): each delivered one complains right after the delivery announcement, whatever another recipient's reply. On a
+    // delivered email the last complaint moves the state; beside a delayed recipient the complaints come before the
+    // delay that moves it. Either way the event that moves the email's state is the latest.
+    const complaining = delivered.filter((to) => testingAddress(to) === 'complained');
     const announcements = [
       { state: 'bounced', to: refusing, fields: { _bounced_to: refusing }, operation: 'email.bounce' },
       { state: 'delivered', to: delivered, fields: { _delivered_to: delivered, _delivered_at: then.occurredAt }, operation: 'email.deliver' },
       { state: 'delivery_delayed', to: delayed, fields: { _delayed_to: delayed }, operation: 'email.delay' },
     ].filter((a) => a.to.length).sort((a, b) => Number(a.state === state) - Number(b.state === state));
-    for (const a of announcements) await then.write(EMAIL, String(e.id), a.state === state ? { last_event: state, ...a.fields } : a.fields, a.operation);
+    for (const a of announcements) {
+      await then.write(EMAIL, String(e.id), a.state === state ? { last_event: state, ...a.fields } : a.fields, a.operation);
+      if (a.state !== 'delivered') continue;
+      for (const [i, to] of complaining.entries()) {
+        const moves = state === 'delivered' && i === complaining.length - 1;
+        await then.write(EMAIL, String(e.id), moves ? { last_event: 'complained', _complained_by: to } : { _complained_by: to }, 'email.complain');
+      }
+    }
   }
   for (const d of ctx.rowsRaw(DOMAIN).filter((x) => x.status === 'pending' && x.deleted !== true)) {
     const records = d.records as Row[];

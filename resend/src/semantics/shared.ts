@@ -52,14 +52,21 @@ export function recordsOf(name: string, region: string, dkim: string, tracking?:
 export const sendingDomain = (ctx: Pick<HandlerContext, 'rowsRaw'>, team: string, from: unknown): Row | undefined =>
   ctx.rowsRaw(DOMAIN).find((d) => d._team === team && d.name === domainOf(from) && d.status === 'verified' && d.deleted !== true);
 
-/** Whether a send's sender may send: from the team's verified domain, or from Resend's testing domain to the team's own
- *  address only. */
+/** One of Resend's testing addresses (`delivered@`, `bounced@` or `complained@resend.dev`, each with an optional
+ *  `+label`), by the outcome it simulates, else undefined (ADR 0032 §3). */
+// source: https://resend.com/docs/dashboard/emails/send-test-emails "delivered@resend.dev"
+export const testingAddress = (address: unknown): 'delivered' | 'bounced' | 'complained' | undefined =>
+  /^(delivered|bounced|complained)(\+[^@\s]+)?@resend\.dev$/.exec(addressOf(address))?.[1] as 'delivered' | 'bounced' | 'complained' | undefined;
+
+/** Whether a send's sender may send to its delivery recipients (To, Cc and Bcc): from the team's verified domain, or
+ *  from Resend's testing domain to the team's own address or Resend's testing addresses, which any account may send to
+ *  (ADR 0032 §3). */
 // source: https://resend.com/docs/api-reference/errors "Please, add and verify your domain."
-export function senderRefusal(ctx: Pick<HandlerContext, 'rowsRaw'>, team: string, from: unknown, to: string[]): Response | undefined {
+export function senderRefusal(ctx: Pick<HandlerContext, 'rowsRaw'>, team: string, from: unknown, recipients: string[]): Response | undefined {
   const domain = domainOf(from);
   if (domain === 'resend.dev') {
     const owner = ctx.rowsRaw(KEY).find((k) => k._team === team)?._owner;
-    if (to.every((t) => addressOf(t) === owner)) return undefined;
+    if (recipients.every((t) => addressOf(t) === owner || testingAddress(t) !== undefined)) return undefined;
     return invalid(`You can only send testing emails to your own email address (${String(owner)}). To send emails to other recipients, please verify a domain at resend.com/domains, and change the \`from\` address to an email using this domain.`, 403);
   }
   const sending = sendingDomain(ctx, team, from);
@@ -150,14 +157,14 @@ async function outbound(ctx: HandlerContext, e: Row): Promise<string> {
 /** A sent email handed to each recipient's mailbox provider (ADR 0032 §3): its message, over SMTP through the kernel's
  *  ctx.mail, to the World's twin that receives each recipient's domain; every recipient's reply, which the clock turns
  *  into `delivered`, `bounced` or `delivery_delayed` by `outcome` (./clock.ts). Resend's testing addresses at resend.dev are its own: `bounced@` refuses,
- *  any other accepts. */
+ *  `complained@` is delivered and then complains (./clock.ts), any other accepts. */
 // source: https://resend.com/docs/api-reference/errors "Please, add and verify your domain."
 export async function handOn(ctx: HandlerContext, e: Row): Promise<Reply[]> {
   const recipients = [...list(e.to), ...list(e.cc), ...list(e.bcc)].map(addressOf);
   const testing = recipients.filter((r) => domainOf(r) === 'resend.dev');
   const outside = recipients.filter((r) => domainOf(r) !== 'resend.dev');
   // Where the documentation stops: the testing addresses' replies are the twin's words
-  const own: Reply[] = testing.map((to) => (to.startsWith('bounced@') ? { to, code: 550, reply: `550 5.1.1 <${to}>: Recipient address rejected` } : { to, code: 250, reply: '250 2.0.0 OK' }));
+  const own: Reply[] = testing.map((to) => (testingAddress(to) === 'bounced' ? { to, code: 550, reply: `550 5.1.1 <${to}>: Recipient address rejected` } : { to, code: 250, reply: '250 2.0.0 OK' }));
   const handed = outside.length ? await ctx.mail({ from: addressOf(e.from), to: outside, raw: await outbound(ctx, e) }) : [];
   return [...own, ...handed.map(({ to, code, reply }) => ({ to, code, reply }))];
 }

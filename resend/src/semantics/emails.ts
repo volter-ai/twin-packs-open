@@ -37,12 +37,10 @@ function checked(ctx: HandlerContext, team: string, p: Row): Response | undefine
   if (p.scheduled_at !== undefined) {
     const at = scheduledMoment(p.scheduled_at, ctx.occurredAt);
     if (at === undefined) return invalid('Invalid `scheduled_at`: expected natural language such as `in 1 min`, or an ISO 8601 date.');
-    // source: https://resend.com/docs/dashboard/emails/schedule-email "Emails can be scheduled up to 30 days in advance."
-    // Where the documentation stops: the refusal's words are the twin's, in Resend's validation_error.
-    if (Date.parse(at) - Date.parse(ctx.occurredAt) > 30 * DAY) return invalid('Invalid `scheduled_at`: emails can be scheduled up to 30 days in advance.');
   }
   if (p.attachments !== undefined && (!Array.isArray(p.attachments) || (p.attachments as Row[]).some((a) => !a || typeof a.filename !== 'string' || typeof a.content !== 'string'))) return invalid('Each attachment requires a filename and base64 content.');
-  return senderRefusal(ctx, team, p.from, list(p.to));
+  // every recipient the email is delivered to (To, Cc and Bcc; Reply-To receives nothing), as the sender policy reads them
+  return senderRefusal(ctx, team, p.from, [...list(p.to), ...list(p.cc), ...list(p.bcc)]);
 }
 
 /** One send kept and sent: its id, the message id Resend gives it. */

@@ -23,6 +23,8 @@ const lastEvent: StateField = {
     vendor(['sent'], 'delivery_delayed', EVENTS),
     external(['delivered'], 'opened', EVENTS),
     external(['delivered', 'opened'], 'complained', EVENTS),
+    // Resend's complained@resend.dev testing address complains of its own accord
+    vendor(['delivered'], 'complained', 'https://resend.com/docs/dashboard/emails/send-test-emails'),
   ],
 };
 
