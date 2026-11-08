@@ -1,10 +1,27 @@
 // Emails: one sent, a batch of up to 100 sent, a sent one read, a received one read. A send is checked as Resend checks
-// it (the required fields, the sender's verified domain), kept, and sent at once (`sent`, announced as email.sent);
-// the recipient's server takes or refuses it moments later (./clock.ts).
+// it (the required fields, the sender's verified domain), kept, and sent at once (`sent`, announced as email.sent): handed
+// to each recipient's mailbox provider through ctx.mail (shared.ts handOn), whose replies the clock turns into delivered,
+// bounced or delivery_delayed moments later (./clock.ts, by shared.ts outcome).
 import type { HandlerContext } from '@volter/world-core';
-import { EMAIL, emailView, invalid, keepAttachments, list, notFound, pageOf, RECEIVED, type Row, senderRefusal, stamp, teamOf } from './shared.ts';
+import { EMAIL, emailView, handOn, invalid, keepAttachments, list, notFound, pageOf, RECEIVED, type Row, senderRefusal, stamp, teamOf } from './shared.ts';
 
 const bodyOf = (ctx: HandlerContext): unknown => ctx.body;
+
+const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+const UNITS: Record<string, number> = { min: MINUTE, mins: MINUTE, minute: MINUTE, minutes: MINUTE, hour: HOUR, hours: HOUR, hr: HOUR, hrs: HOUR, day: DAY, days: DAY };
+
+/** A send's scheduled moment as an ISO instant: an ISO 8601 date, or the offset from now the pages write in natural
+ *  language ("in 1 min", "in 1 hour"); undefined when it is neither. Where the twin stops: natural language naming a
+ *  day or a clock time ("tomorrow at 9am", "Friday at 3pm ET") is not read, and is refused as unparsed. */
+// source: spec:/components/schemas/SendEmailRequest/properties/scheduled_at "The date should be in ISO 8601 format."
+// source: https://resend.com/docs/dashboard/emails/schedule-email "The date can be defined using natural language, such as"
+function scheduledMoment(value: unknown, now: string): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const offset = /^in\s+(\d+)\s*([a-z]+)$/i.exec(value.trim());
+  const unit = offset ? UNITS[offset[2]!.toLowerCase()] : undefined;
+  if (offset) return unit ? new Date(Date.parse(now) + Number(offset[1]) * unit).toISOString() : undefined;
+  return Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : undefined;
+}
 
 /** A send's refusal, or undefined. */
 // source: https://resend.com/docs/api-reference/errors "The request body is missing one or more required fields."
@@ -17,8 +34,13 @@ function checked(ctx: HandlerContext, team: string, p: Row): Response | undefine
   if (p.html === undefined && p.text === undefined) return invalid('Missing `html` or `text` field.', 422, 'missing_required_field');
   // source: spec:/components/schemas/SendEmailRequest/properties/to "Max 50."
   if (list(p.to).length > 50) return invalid('Too many recipients: `to` accepts at most 50 addresses.');
-  // source: spec:/components/schemas/SendEmailRequest/properties/scheduled_at "The date should be in ISO 8601 format."
-  if (p.scheduled_at !== undefined && (typeof p.scheduled_at !== 'string' || !Number.isFinite(Date.parse(p.scheduled_at)))) return invalid('Invalid `scheduled_at`: expected an ISO 8601 date.');
+  if (p.scheduled_at !== undefined) {
+    const at = scheduledMoment(p.scheduled_at, ctx.occurredAt);
+    if (at === undefined) return invalid('Invalid `scheduled_at`: expected natural language such as `in 1 min`, or an ISO 8601 date.');
+    // source: https://resend.com/docs/dashboard/emails/schedule-email "Emails can be scheduled up to 30 days in advance."
+    // Where the documentation stops: the refusal's words are the twin's, in Resend's validation_error.
+    if (Date.parse(at) - Date.parse(ctx.occurredAt) > 30 * DAY) return invalid('Invalid `scheduled_at`: emails can be scheduled up to 30 days in advance.');
+  }
   if (p.attachments !== undefined && (!Array.isArray(p.attachments) || (p.attachments as Row[]).some((a) => !a || typeof a.filename !== 'string' || typeof a.content !== 'string'))) return invalid('Each attachment requires a filename and base64 content.');
   return senderRefusal(ctx, team, p.from, list(p.to));
 }
@@ -27,16 +49,18 @@ function checked(ctx: HandlerContext, team: string, p: Row): Response | undefine
 async function sendOne(ctx: HandlerContext, team: string, p: Row): Promise<string> {
   const id = ctx.mint(EMAIL);
   const now = ctx.occurredAt;
+  // the moment a scheduled send is due, kept in the timestamp form Resend answers its dates in (created_at's)
+  const scheduled = p.scheduled_at === undefined ? undefined : scheduledMoment(p.scheduled_at, now);
   const attachments = await keepAttachments(ctx, id, (p.attachments ?? []) as Row[]);
   await ctx.write(EMAIL, id, {
     id, object: 'email', from: p.from, to: list(p.to), cc: list(p.cc), bcc: list(p.bcc), reply_to: list(p.reply_to), subject: p.subject,
     html: typeof p.html === 'string' ? p.html : null, text: typeof p.text === 'string' ? p.text : null, tags: Array.isArray(p.tags) ? p.tags : [],
-    scheduled_at: p.scheduled_at ?? null, _attachments: attachments.map(({ metadata, blob }) => ({ ...metadata, _blob: blob })), created_at: stamp(now), message_id: `<${id}@email.amazonses.com>`, last_event: 'queued',
+    scheduled_at: scheduled ? stamp(scheduled) : null, _attachments: attachments.map(({ metadata, blob }) => ({ ...metadata, _blob: blob })), created_at: stamp(now), message_id: `<${id}@email.amazonses.com>`, last_event: 'queued',
     _team: team, _created_iso: now,
   }, 'email.create');
-  if (p.scheduled_at !== undefined && Date.parse(String(p.scheduled_at)) > Date.parse(now)) return schedule(ctx, id, String(p.scheduled_at));
+  if (scheduled && Date.parse(scheduled) > Date.parse(now)) return schedule(ctx, id, scheduled);
   const refused = ctx.legal(EMAIL, 'last_event', 'email.send', 'queued', 'sent', id, 'vendor');
-  if (!refused) await ctx.write(EMAIL, id, { last_event: 'sent', _sent_at: now }, 'email.send');
+  if (!refused) await ctx.write(EMAIL, id, { last_event: 'sent', _sent_at: now, _replies: await handOn(ctx, ctx.rowsRaw(EMAIL).find((e) => e.id === id)!) }, 'email.send');
   return id;
 }
 
@@ -44,7 +68,7 @@ async function sendOne(ctx: HandlerContext, team: string, p: Row): Promise<strin
 // source: spec:/components/schemas/SendEmailRequest/properties/scheduled_at "Schedule email to be sent later."
 async function schedule(ctx: HandlerContext, id: string, at: string): Promise<string> {
   const refused = ctx.legal(EMAIL, 'last_event', 'email.schedule', 'queued', 'scheduled', id, 'vendor');
-  if (!refused) await ctx.write(EMAIL, id, { last_event: 'scheduled', _scheduled_at: new Date(at).toISOString() }, 'email.schedule');
+  if (!refused) await ctx.write(EMAIL, id, { last_event: 'scheduled', _scheduled_at: at }, 'email.schedule');
   return id;
 }
 

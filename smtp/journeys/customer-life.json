@@ -1,0 +1,1881 @@
+{
+ "vendor": "smtp",
+ "author": "Contributor 68",
+ "about": "Harbourline's relay for a year (journeys/customer-life.outline.md): Rallly's poll mail and Twenty's pooled invitations and a user's mailbox, sent with nodemailer through an open relay and then a locked-down one (authentication, a sender domain, a size limit), a rotated password, an oversize attachment refused, and the delivered mail handed on to the mailbox twin of each recipient.",
+ "steps": [
+  {
+   "name": "Monday 12 January, 09:00: Wout stands up the relay, open, for the first test",
+   "wait": "16380m"
+  },
+  {
+   "name": "Wout configures the relay: its hostname, nothing else (an open relay)",
+   "method": "POST",
+   "path": "/_twin/relay",
+   "status": 200,
+   "body": {
+    "hostname": "relay.harbourline.be"
+   },
+   "headers": {
+    "content-type": "application/json"
+   },
+   "expect": [
+    {
+     "path": "auth",
+     "equals": null
+    }
+   ]
+  },
+  {
+   "name": "Rallly connects",
+   "on": "r1",
+   "connect": {},
+   "expect": [
+    {
+     "path": "text",
+     "equals": "relay.harbourline.be ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: no AUTH advertised on an open relay",
+   "on": "r1",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "lines.0",
+     "equals": "relay.harbourline.be"
+    },
+    {
+     "path": "text",
+     "contains": "SIZE 10240000"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM with its size and 8BITMIME",
+   "on": "r1",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=708 BODY=8BITMIME",
+   "status": 250
+  },
+  {
+   "name": "RCPT TO the first client",
+   "on": "r1",
+   "send": "RCPT TO:<an@veldhoven-logistics.be>",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.5 Ok"
+    }
+   ]
+  },
+  {
+   "name": "DATA",
+   "on": "r1",
+   "send": "DATA",
+   "status": 354,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "End data with <CR><LF>.<CR><LF>"
+    }
+   ]
+  },
+  {
+   "name": "the invitation, text and HTML, then the dot",
+   "on": "r1",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: an@veldhoven-logistics.be",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Mon, 12 Jan 2026 09:00:00 +0000",
+    "Message-ID: <wk1@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/wk1",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/wk1\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "capture": {
+    "m1": "text:queued as ([A-Z]+)"
+   }
+  },
+  {
+   "name": "QUIT",
+   "on": "r1",
+   "send": "QUIT",
+   "status": 221,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.0.0 Bye"
+    }
+   ]
+  },
+  {
+   "name": "Wout starts his HELO-only socket health monitor before relying on relay delivery",
+   "on": "health",
+   "connect": {}
+  },
+  {
+   "name": "The legacy monitor identifies the box",
+   "on": "health",
+   "send": "HELO monitor.harbourline.be",
+   "status": 250
+  },
+  {
+   "name": "The monitor asks whether the live session is still responsive",
+   "on": "health",
+   "send": "NOOP",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.0.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "It probes the postmaster address: MAIL FROM",
+   "on": "health",
+   "send": "MAIL FROM:<monitor@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "RCPT TO postmaster, accepted",
+   "on": "health",
+   "send": "RCPT TO:<postmaster@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "and resets, sending nothing",
+   "on": "health",
+   "send": "RSET",
+   "status": 250
+  },
+  {
+   "name": "Then its hourly heartbeat to Wout: MAIL FROM",
+   "on": "health",
+   "send": "MAIL FROM:<monitor@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "RCPT TO Wout",
+   "on": "health",
+   "send": "RCPT TO:<wout@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "health",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the heartbeat, then the dot",
+   "on": "health",
+   "send": [
+    "From: monitor@harbourline.be",
+    "To: wout@harbourline.be",
+    "Subject: relay heartbeat",
+    "Date: Mon, 12 Jan 2026 09:30:00 +0000",
+    "Message-ID: <hb-0930@harbourline.be>",
+    "",
+    "relay.harbourline.be answers.",
+    "."
+   ],
+   "status": 250
+  },
+  {
+   "name": "The successful health probe closes",
+   "on": "health",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Wednesday 14 January, 10:00: submission locked down",
+   "wait": "2940m"
+  },
+  {
+   "name": "Wout requires authentication, accepts only harbourline.be senders, 10 MB",
+   "method": "POST",
+   "path": "/_twin/relay",
+   "status": 200,
+   "body": {
+    "hostname": "relay.harbourline.be",
+    "auth": {
+     "username": "relay@harbourline.be",
+     "password": "tide-7291-kade"
+    },
+    "senderDomains": [
+     "harbourline.be"
+    ],
+    "maxSize": 10240000
+   },
+   "headers": {
+    "content-type": "application/json"
+   },
+   "expect": [
+    {
+     "path": "auth.username",
+     "equals": "relay@harbourline.be"
+    }
+   ]
+  },
+  {
+   "name": "Before handing the credentials to Rallly, Wout checks them by hand over a raw connection",
+   "on": "hand",
+   "connect": {}
+  },
+  {
+   "name": "He mistypes the greeting",
+   "on": "hand",
+   "send": "EHOL wout-laptop",
+   "status": 500
+  },
+  {
+   "name": "and types it again",
+   "on": "hand",
+   "send": "EHLO wout-laptop",
+   "status": 250
+  },
+  {
+   "name": "His notes from the old mail server say CRAM-MD5, which this relay does not offer",
+   "on": "hand",
+   "send": "AUTH CRAM-MD5",
+   "status": 504
+  },
+  {
+   "name": "He uses LOGIN, giving the username with the command",
+   "on": "hand",
+   "send": "AUTH LOGIN cmVsYXlAaGFyYm91cmxpbmUuYmU=",
+   "status": 334,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "UGFzc3dvcmQ6"
+    }
+   ]
+  },
+  {
+   "name": "then the password: the credentials work",
+   "on": "hand",
+   "send": "dGlkZS03MjkxLWthZGU=",
+   "status": 235
+  },
+  {
+   "name": "QUIT",
+   "on": "hand",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Rallly connects, SMTP_USER still unset",
+   "on": "r2",
+   "connect": {}
+  },
+  {
+   "name": "EHLO: AUTH PLAIN LOGIN is now advertised",
+   "on": "r2",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "AUTH PLAIN LOGIN"
+    }
+   ]
+  },
+  {
+   "name": "MAIL without authenticating is refused",
+   "on": "r2",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=900 BODY=8BITMIME",
+   "status": 530,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "5.7.0 Authentication required"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "r2",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Rallly, its user and password set, connects to the relay",
+   "on": "r3",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "r3",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "r3",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "r3",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=708 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO an@veldhoven-logistics.be",
+   "on": "r3",
+   "send": "RCPT TO:<an@veldhoven-logistics.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "r3",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "r3",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: an@veldhoven-logistics.be",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Wed, 14 Jan 2026 10:00:00 +0000",
+    "Message-ID: <wk2@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/wk2",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/wk2\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "r3",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Rallly's default template's sender connects",
+   "on": "r4",
+   "connect": {}
+  },
+  {
+   "name": "EHLO",
+   "on": "r4",
+   "send": "EHLO meet.harbourline.be"
+  },
+  {
+   "name": "AUTH PLAIN: the first advertised mechanism",
+   "on": "r4",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM Rallly's default sender: not Harbourline's",
+   "on": "r4",
+   "send": "MAIL FROM:<noreply@rallly.co> SIZE=900 BODY=8BITMIME",
+   "status": 553,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "5.7.1 <noreply@rallly.co>: Sender address rejected: not owned by user relay@harbourline.be"
+    }
+   ]
+  },
+  {
+   "name": "the fixed sender",
+   "on": "r4",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=900 BODY=8BITMIME",
+   "status": 250
+  },
+  {
+   "name": "RCPT",
+   "on": "r4",
+   "send": "RCPT TO:<an@veldhoven-logistics.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "r4",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the poll-closed notice",
+   "on": "r4",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: an@veldhoven-logistics.be",
+    "Subject: The poll is closed",
+    "Date: Wed, 14 Jan 2026 10:00:00 +0000",
+    "Message-ID: <closed1@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "The workshop is on Thursday 29 January.",
+    "."
+   ],
+   "status": 250
+  },
+  {
+   "name": "QUIT",
+   "on": "r4",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Monday 9 February, 08:30: a poll for the Q1 workshop goes to four clients, one message each",
+   "wait": "37350m"
+  },
+  {
+   "name": "Rallly (invitation 1) connects to the relay",
+   "on": "p0",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "p0",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "p0",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "p0",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=710 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO an@veldhoven-logistics.be",
+   "on": "p0",
+   "send": "RCPT TO:<an@veldhoven-logistics.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "p0",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "p0",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: an@veldhoven-logistics.be",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Mon, 9 Feb 2026 08:30:00 +0000",
+    "Message-ID: <q1-0@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/q1-0",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/q1-0\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "p0",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Rallly (invitation 2) connects to the relay",
+   "on": "p1",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "p1",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "p1",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "p1",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=703 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO pieter@dokzicht.nl",
+   "on": "p1",
+   "send": "RCPT TO:<pieter@dokzicht.nl>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "p1",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "p1",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: pieter@dokzicht.nl",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Mon, 9 Feb 2026 08:30:00 +0000",
+    "Message-ID: <q1-1@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/q1-1",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/q1-1\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "p1",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Rallly (invitation 3) connects to the relay",
+   "on": "p2",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "p2",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "p2",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "p2",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=704 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO sara@scheldtrans.be",
+   "on": "p2",
+   "send": "RCPT TO:<sara@scheldtrans.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "p2",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "p2",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: sara@scheldtrans.be",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Mon, 9 Feb 2026 08:30:00 +0000",
+    "Message-ID: <q1-2@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/q1-2",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/q1-2\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "p2",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "The fourth invitation: the address was typed with a space",
+   "on": "p3",
+   "connect": {}
+  },
+  {
+   "name": "EHLO",
+   "on": "p3",
+   "send": "EHLO meet.harbourline.be"
+  },
+  {
+   "name": "AUTH",
+   "on": "p3",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235
+  },
+  {
+   "name": "MAIL",
+   "on": "p3",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=900 BODY=8BITMIME",
+   "status": 250
+  },
+  {
+   "name": "RCPT to \"lies @portmeer.be\" is refused",
+   "on": "p3",
+   "send": "RCPT TO:<lies @portmeer.be>",
+   "status": 501,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "5.1.3 Bad recipient address syntax"
+    }
+   ]
+  },
+  {
+   "name": "Rallly gives up on the message: RSET",
+   "on": "p3",
+   "send": "RSET",
+   "status": 250
+  },
+  {
+   "name": "QUIT",
+   "on": "p3",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Wednesday 11 February: Zoë votes, and the poll owner is told",
+   "wait": "3210m"
+  },
+  {
+   "name": "Rallly connects to the relay",
+   "on": "z1",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "z1",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "z1",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "z1",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=363 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO wout@harbourline.be",
+   "on": "z1",
+   "send": "RCPT TO:<wout@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "z1",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "z1",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: wout@harbourline.be",
+    "Subject: =?UTF-8?B?Wm/DqyBDbGFlcyB2b3RlZCBvbiB5b3VyIHBvbGw=?=",
+    "Date: Wed, 11 Feb 2026 14:00:00 +0000",
+    "Message-ID: <vote-1@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: quoted-printable",
+    "",
+    "Zo=C3=AB Claes chose Thursday 26 February.",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ],
+   "capture": {
+    "zoe": "text:queued as ([A-Z]+)"
+   }
+  },
+  {
+   "name": "QUIT",
+   "on": "z1",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Monday 16 February: an invitation to a Brazilian client, an accented local part",
+   "wait": "7020m"
+  },
+  {
+   "name": "Rallly connects",
+   "on": "u1",
+   "connect": {}
+  },
+  {
+   "name": "EHLO: SMTPUTF8 offered",
+   "on": "u1",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH",
+   "on": "u1",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235
+  },
+  {
+   "name": "MAIL FROM asks for SMTPUTF8",
+   "on": "u1",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=710 BODY=8BITMIME SMTPUTF8",
+   "status": 250
+  },
+  {
+   "name": "RCPT TO joão@portolog.com.br",
+   "on": "u1",
+   "send": "RCPT TO:<joão@portolog.com.br>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "u1",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the invitation",
+   "on": "u1",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: joão@portolog.com.br",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Mon, 16 Feb 2026 11:00:00 +0000",
+    "Message-ID: <q1-br@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/q1-br",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/q1-br\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250
+  },
+  {
+   "name": "QUIT",
+   "on": "u1",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Monday 2 March, 09:15: Twenty invites two colleagues, over one pooled connection",
+   "wait": "20055m"
+  },
+  {
+   "name": "Twenty's pool opens a connection",
+   "on": "tw",
+   "connect": {}
+  },
+  {
+   "name": "EHLO",
+   "on": "tw",
+   "send": "EHLO crm.harbourline.be"
+  },
+  {
+   "name": "AUTH",
+   "on": "tw",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235
+  },
+  {
+   "name": "MAIL (Elise)",
+   "on": "tw",
+   "send": "MAIL FROM:<noreply@harbourline.be> SIZE=357 BODY=8BITMIME",
+   "status": 250
+  },
+  {
+   "name": "RCPT",
+   "on": "tw",
+   "send": "RCPT TO:<elise@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "tw",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the invitation",
+   "on": "tw",
+   "send": [
+    "From: Twenty <noreply@harbourline.be>",
+    "To: elise@harbourline.be",
+    "Subject: Join Harbourline on Twenty",
+    "Date: Mon, 2 Mar 2026 09:15:00 +0000",
+    "Message-ID: <tw-1@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Wout invited you to the Harbourline workspace: https://crm.harbourline.be/invite/tw-1",
+    "."
+   ],
+   "status": 250
+  },
+  {
+   "name": "The pool resets the session for the next message",
+   "on": "tw",
+   "send": "RSET",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.0.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "MAIL (Ruben), still authenticated",
+   "on": "tw",
+   "send": "MAIL FROM:<noreply@harbourline.be> SIZE=357 BODY=8BITMIME",
+   "status": 250
+  },
+  {
+   "name": "RCPT",
+   "on": "tw",
+   "send": "RCPT TO:<ruben@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "tw",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the second invitation",
+   "on": "tw",
+   "send": [
+    "From: Twenty <noreply@harbourline.be>",
+    "To: ruben@harbourline.be",
+    "Subject: Join Harbourline on Twenty",
+    "Date: Mon, 2 Mar 2026 09:15:00 +0000",
+    "Message-ID: <tw-2@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Wout invited you to the Harbourline workspace: https://crm.harbourline.be/invite/tw-2",
+    "."
+   ],
+   "status": 250
+  },
+  {
+   "name": "The pool closes the idle connection",
+   "on": "tw",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Tuesday 3 March: Elise connects her mailbox; Twenty verifies her SMTP server",
+   "wait": "1665m"
+  },
+  {
+   "name": "verify(): connect",
+   "on": "v1",
+   "connect": {}
+  },
+  {
+   "name": "EHLO",
+   "on": "v1",
+   "send": "EHLO crm.harbourline.be"
+  },
+  {
+   "name": "AUTH with the password she mistyped",
+   "on": "v1",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWFkZQ==",
+   "status": 535,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "5.7.8 Error: authentication failed: authentication failure"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "v1",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "verify() again, corrected",
+   "on": "v2",
+   "connect": {}
+  },
+  {
+   "name": "EHLO",
+   "on": "v2",
+   "send": "EHLO crm.harbourline.be"
+  },
+  {
+   "name": "AUTH",
+   "on": "v2",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235
+  },
+  {
+   "name": "QUIT: the mailbox is connected",
+   "on": "v2",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Thursday 5 March: Elise emails a client from Twenty",
+   "wait": "2730m"
+  },
+  {
+   "name": "Twenty, for Elise, connects to the relay",
+   "on": "e1",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "e1",
+   "send": "EHLO crm.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "e1",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "e1",
+   "send": "MAIL FROM:<elise@harbourline.be> SIZE=382 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO pieter@dokzicht.nl",
+   "on": "e1",
+   "send": "RCPT TO:<pieter@dokzicht.nl>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "e1",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "e1",
+   "send": [
+    "From: Elise Maes <elise@harbourline.be>",
+    "To: pieter@dokzicht.nl",
+    "Subject: Follow-up: the Rotterdam lanes",
+    "Date: Thu, 5 Mar 2026 10:30:00 +0000",
+    "Message-ID: <el-1@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Pieter,",
+    "",
+    "As discussed, the proposal is attached as a link: https://crm.harbourline.be/f/rtm",
+    "..",
+    "",
+    "Elise",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ],
+   "capture": {
+    "el1": "text:queued as ([A-Z]+)"
+   }
+  },
+  {
+   "name": "QUIT",
+   "on": "e1",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Monday 6 April, 07:00: Wout rotates the relay password",
+   "wait": "45870m"
+  },
+  {
+   "name": "The new password",
+   "method": "POST",
+   "path": "/_twin/relay",
+   "status": 200,
+   "body": {
+    "hostname": "relay.harbourline.be",
+    "auth": {
+     "username": "relay@harbourline.be",
+     "password": "quay-4410-mast"
+    },
+    "senderDomains": [
+     "harbourline.be"
+    ],
+    "maxSize": 10240000
+   },
+   "headers": {
+    "content-type": "application/json"
+   }
+  },
+  {
+   "name": "Rallly's next send, with the old password",
+   "on": "x1",
+   "connect": {}
+  },
+  {
+   "name": "EHLO",
+   "on": "x1",
+   "send": "EHLO meet.harbourline.be"
+  },
+  {
+   "name": "AUTH is refused",
+   "on": "x1",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHRpZGUtNzI5MS1rYWRl",
+   "status": 535
+  },
+  {
+   "name": "QUIT",
+   "on": "x1",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Rallly, the new password set, connects to the relay",
+   "on": "x2",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "x2",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "x2",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHF1YXktNDQxMC1tYXN0",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "x2",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=704 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO sara@scheldtrans.be",
+   "on": "x2",
+   "send": "RCPT TO:<sara@scheldtrans.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "x2",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "x2",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: sara@scheldtrans.be",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Mon, 6 Apr 2026 07:00:00 +0000",
+    "Message-ID: <q2-0@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/q2-0",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/q2-0\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "x2",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Thursday 14 May, 15:00: a 12 MB scanned contract",
+   "wait": "55200m"
+  },
+  {
+   "name": "Twenty connects",
+   "on": "big",
+   "connect": {}
+  },
+  {
+   "name": "EHLO",
+   "on": "big",
+   "send": "EHLO crm.harbourline.be"
+  },
+  {
+   "name": "AUTH",
+   "on": "big",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHF1YXktNDQxMC1tYXN0",
+   "status": 235
+  },
+  {
+   "name": "MAIL declares 12,600,000 bytes: over the limit",
+   "on": "big",
+   "send": "MAIL FROM:<elise@harbourline.be> SIZE=12600000 BODY=8BITMIME",
+   "status": 552,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "5.3.4 Message size exceeds fixed limit"
+    }
+   ]
+  },
+  {
+   "name": "The email goes without it, a link instead",
+   "on": "big",
+   "send": "MAIL FROM:<elise@harbourline.be> SIZE=1200 BODY=8BITMIME",
+   "status": 250
+  },
+  {
+   "name": "RCPT",
+   "on": "big",
+   "send": "RCPT TO:<sara@scheldtrans.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "big",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the email with a link to the contract",
+   "on": "big",
+   "send": [
+    "From: Elise Maes <elise@harbourline.be>",
+    "To: sara@scheldtrans.be",
+    "Subject: Contract for signature",
+    "Date: Thu, 14 May 2026 15:00:00 +0000",
+    "Message-ID: <el-2@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Sara, the scanned contract: https://crm.harbourline.be/f/contract-2026",
+    "."
+   ],
+   "status": 250
+  },
+  {
+   "name": "QUIT",
+   "on": "big",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Monday 18 May: the signed contract comes back as a small PDF, which Elise forwards",
+   "wait": "5400m"
+  },
+  {
+   "name": "Twenty, for Elise, connects to the relay",
+   "on": "pdf",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "pdf",
+   "send": "EHLO crm.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "pdf",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHF1YXktNDQxMC1tYXN0",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "pdf",
+   "send": "MAIL FROM:<elise@harbourline.be> SIZE=724 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO wout@harbourline.be",
+   "on": "pdf",
+   "send": "RCPT TO:<wout@harbourline.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "pdf",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "pdf",
+   "send": [
+    "From: Elise Maes <elise@harbourline.be>",
+    "To: wout@harbourline.be",
+    "Subject: Signed: Scheldtrans contract",
+    "Date: Mon, 18 May 2026 09:00:00 +0000",
+    "Message-ID: <el-3@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/mixed; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Signed copy attached.",
+    "--hl-boundary-1",
+    "Content-Type: application/pdf; name=\"scheldtrans-signed.pdf\"",
+    "Content-Transfer-Encoding: base64",
+    "Content-Disposition: attachment; filename=\"scheldtrans-signed.pdf\"",
+    "",
+    "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq",
+    "CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq",
+    "CjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIg",
+    "NzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA1IDAgUiA+PiA+PiAvQ29udGVudHMgNCAw",
+    "IFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA5MSA+PgpzdHJlYW0KQlQgL0YxIDEyIFRm",
+    "IDcyIDcyMCBUZCAoU2NoZWxkdHJhbnMgY29udHJhY3QgLSBTaWduZWQgYnkgU2FyYSBhbmQgRWxp",
+    "c2UsIDE4IE1heSAyMDI2KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUg",
+    "L0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVm",
+    "CjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAw",
+    "MDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDM4",
+    "MiAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQ1",
+    "MgolJUVPRgo=",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ],
+   "capture": {
+    "pdf": "text:queued as ([A-Z]+)"
+   }
+  },
+  {
+   "name": "QUIT",
+   "on": "pdf",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Tuesday 30 June: before the release, Wout checks and deletes the tested mail",
+   "wait": "62400m"
+  },
+  {
+   "name": "Monday 14 December: the last invitation through the relay",
+   "wait": "240000m"
+  },
+  {
+   "name": "Rallly connects to the relay",
+   "on": "last",
+   "connect": {},
+   "expect": [
+    {
+     "path": "code",
+     "equals": 220
+    },
+    {
+     "path": "text",
+     "contains": "ESMTP"
+    }
+   ]
+  },
+  {
+   "name": "EHLO: the relay names its extensions",
+   "on": "last",
+   "send": "EHLO meet.harbourline.be",
+   "expect": [
+    {
+     "path": "text",
+     "contains": "SIZE"
+    },
+    {
+     "path": "text",
+     "contains": "8BITMIME"
+    },
+    {
+     "path": "text",
+     "contains": "SMTPUTF8"
+    }
+   ]
+  },
+  {
+   "name": "AUTH PLAIN, the first mechanism the relay advertises",
+   "on": "last",
+   "send": "AUTH PLAIN AHJlbGF5QGhhcmJvdXJsaW5lLmJlAHF1YXktNDQxMC1tYXN0",
+   "status": 235,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.7.0 Authentication successful"
+    }
+   ]
+  },
+  {
+   "name": "MAIL FROM, its size declared",
+   "on": "last",
+   "send": "MAIL FROM:<polls@harbourline.be> SIZE=720 BODY=8BITMIME",
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "2.1.0 Ok"
+    }
+   ]
+  },
+  {
+   "name": "RCPT TO an@veldhoven-logistics.be",
+   "on": "last",
+   "send": "RCPT TO:<an@veldhoven-logistics.be>",
+   "status": 250
+  },
+  {
+   "name": "DATA",
+   "on": "last",
+   "send": "DATA",
+   "status": 354
+  },
+  {
+   "name": "the message, then the lone dot: queued",
+   "on": "last",
+   "send": [
+    "From: Harbourline Polls <polls@harbourline.be>",
+    "To: an@veldhoven-logistics.be",
+    "Subject: Harbourline workshop: pick a date",
+    "Date: Mon, 14 Dec 2026 09:00:00 +0000",
+    "Message-ID: <q4-last@harbourline.be>",
+    "MIME-Version: 1.0",
+    "Content-Type: multipart/alternative; boundary=\"hl-boundary-1\"",
+    "",
+    "--hl-boundary-1",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "Hi,",
+    "",
+    "Please pick the dates that suit you: https://meet.harbourline.be/invite/q4-last",
+    "",
+    "-- Harbourline",
+    "--hl-boundary-1",
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    "<p>Hi,</p><p>Please pick the dates that suit you: <a href=\"https://meet.harbourline.be/invite/q4-last\">open the poll</a></p>",
+    "--hl-boundary-1--",
+    "."
+   ],
+   "status": 250,
+   "expect": [
+    {
+     "path": "text",
+     "contains": "Ok: queued as"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "last",
+   "send": "QUIT",
+   "status": 221
+  },
+  {
+   "name": "Wout checks why the retiring relay cannot verify the replacement provider mailbox",
+   "on": "vr",
+   "connect": {}
+  },
+  {
+   "name": "Mailbox verification is deliberately disabled on the retiring submission relay",
+   "on": "vr",
+   "send": "VRFY wout",
+   "status": 502,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "5.5.1 VRFY command is disabled"
+    }
+   ]
+  },
+  {
+   "name": "The replacement requires STARTTLS: the old no-certificate relay refuses the diagnostic",
+   "on": "vr",
+   "send": "STARTTLS",
+   "status": 454,
+   "expect": [
+    {
+     "path": "text",
+     "equals": "4.7.0 TLS not available due to local problem"
+    }
+   ]
+  },
+  {
+   "name": "QUIT",
+   "on": "vr",
+   "send": "QUIT",
+   "status": 221
+  }
+ ]
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "source": "https://www.npmjs.com/package/resend/v/6.6.0",
+  "about": "The unchanged resend SDK at Dub's pin (6.6.0) sends Resend's quickstart email from its testing domain to the account's own address with the key the World's credential door issues as RESEND_API_KEY, with the reply-to and tags Dub sends, and reads it back; after the frozen clock passes its delivery, a resumed World reads it delivered and newest in the team's list without sending again.",
+  "files": {
+    "package.json": "{\n  \"name\": \"resend-dub-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"resend\": \"6.6.0\"\n  }\n}\n",
+    ".env.example": "RESEND_API_KEY=\n",
+    "send-email.mjs": "import assert from 'node:assert/strict';\nimport { writeFileSync } from 'node:fs';\nimport { Resend } from 'resend';\n\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst resend = new Resend(process.env.RESEND_API_KEY);\n// Resend's quickstart send from its testing domain to the account's own address, with the fields Dub sends\nconst email = {\n  from: 'Dub <onboarding@resend.dev>',\n  to: ['owner@world.test'],\n  subject: 'Your Dub login code',\n  text: 'Your login code is 482913.',\n  html: '<p>Your login code is <strong>482913</strong>.</p>',\n  replyTo: 'support@dub.co',\n  tags: [{ name: 'type', value: 'login' }],\n};\nconst sent = await resend.emails.send(email);\nassert.equal(sent.error, null, JSON.stringify(sent.error));\nassert.ok(sent.data?.id, 'the send answered no id');\nconst saved = await resend.emails.get(sent.data.id);\nassert.equal(saved.error, null, JSON.stringify(saved.error));\nassert.equal(saved.data.id, sent.data.id);\nassert.equal(saved.data.subject, email.subject);\nassert.equal(saved.data.text, email.text);\nassert.equal(saved.data.html, email.html);\nassert.deepEqual(saved.data.to, email.to);\nassert.deepEqual(saved.data.reply_to, [email.replyTo]);\nassert.deepEqual(saved.data.tags, email.tags);\nwriteFileSync('last-email.json', JSON.stringify({ id: sent.data.id }) + '\\n');\nconsole.log(JSON.stringify({ sent: sent.data.id, last_event: saved.data.last_event }));\n",
+    "inspect-email.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync } from 'node:fs';\nimport { Resend } from 'resend';\n\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst { id } = JSON.parse(readFileSync('last-email.json', 'utf8'));\nconst resend = new Resend(process.env.RESEND_API_KEY);\nconst saved = await resend.emails.get(id);\nassert.equal(saved.error, null, JSON.stringify(saved.error));\nassert.equal(saved.data.subject, 'Your Dub login code');\nassert.equal(saved.data.last_event, 'delivered');\nconst listed = await resend.emails.list({ limit: 1 });\nassert.equal(listed.error, null, JSON.stringify(listed.error));\nassert.equal(listed.data.data[0]?.id, id);\nconsole.log(JSON.stringify({ retained: id, last_event: saved.data.last_event }));\n"
+  },
+  "run": [
+    "node",
+    "send-email.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "inspect-email.mjs"
+    ]
+  },
+  "clock": {
+    "at": "2026-10-06T12:00:00Z",
+    "advanceAfterRun": "10s"
+  }
+}

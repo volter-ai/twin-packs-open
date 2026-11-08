@@ -6,8 +6,10 @@ const vendor = (from: string[], to: string, source: string): Transition => ({ ac
 const external = (from: string[], to: string, source: string): Transition => ({ actor: 'external', from, to, source });
 
 /** An email's `last_event`: Resend takes it (`queued`) and sends it (`sent`); the recipient's server takes it
- *  (`delivered`) or refuses it (`bounced`); a recipient opens it (`opened`, on a domain with open tracking), follows a
- *  tracked link (`clicked`) or marks it as spam (`complained`). */
+ *  (`delivered`), refuses it (`bounced`) or answers only for now (`delivery_delayed`, not final; the twin retries nothing),
+ *  the email moving once from all its recipients' replies (./clock.ts); a recipient opens it (`opened`, on a domain with open tracking) or marks it
+ *  as spam (`complained`). Where the twin stops: it rewrites no link for click tracking and no door follows one (Dub
+ *  turns click tracking off; no application here turns it on), so it declares no `clicked` move. */
 // source: spec:/components/schemas/Email/properties/last_event "The status of the email."
 const EVENTS = 'spec:/components/schemas/Email/properties/last_event "The status of the email."';
 const lastEvent: StateField = {
@@ -18,17 +20,17 @@ const lastEvent: StateField = {
     { actor: 'time', from: ['scheduled'], to: 'queued', source: 'spec:/components/schemas/SendEmailRequest/properties/scheduled_at "Schedule email to be sent later."' },
     vendor(['sent'], 'delivered', EVENTS),
     vendor(['sent'], 'bounced', EVENTS),
+    vendor(['sent'], 'delivery_delayed', EVENTS),
     external(['delivered'], 'opened', EVENTS),
-    external(['delivered', 'opened'], 'clicked', EVENTS),
-    external(['delivered', 'opened', 'clicked'], 'complained', EVENTS),
+    external(['delivered', 'opened'], 'complained', EVENTS),
   ],
 };
 
 /** A domain's `status`: `not_started` when added; verifying marks it `pending` and Resend checks its records at the
  *  owner's DNS host, finding them (`verified`) or, after 72 hours without them, not (`failed`); a failed domain may be
  *  verified again. */
-// source: https://resend.com/docs/add-a-domain "If verification has not completed after 72 hours"
-const DOMAINS = 'https://resend.com/docs/add-a-domain';
+// source: https://resend.com/docs/dashboard/domains/manage-domains "Resend was unable to detect the DNS records within 72 hours."
+const DOMAINS = 'https://resend.com/docs/dashboard/domains/manage-domains';
 const domainStatus: StateField = {
   initial: 'not_started',
   transitions: [

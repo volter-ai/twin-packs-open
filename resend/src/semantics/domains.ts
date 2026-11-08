@@ -1,39 +1,16 @@
 // Sending domains: added (its records to set at the owner's DNS host), read, listed, verified and removed, each the
 // team's own. Verifying marks it pending; Resend then finds its records at the owner's DNS host (./clock.ts).
 import type { HandlerContext } from '@volter/world-core';
-import { DOMAIN, invalid, notFound, pageOf, recordsOf, type Row, stamp, teamOf } from './shared.ts';
+import { createDomain, DOMAIN, domainView, invalid, notFound, pageOf, type Row, recordsOf, teamOf, verifyDomain } from './shared.ts';
 
-const REGIONS = ['us-east-1', 'eu-west-1', 'sa-east-1', 'ap-northeast-1'];
 const bodyOf = (ctx: HandlerContext): Row => (ctx.body && typeof ctx.body === 'object' && !Array.isArray(ctx.body) ? (ctx.body as Row) : {});
-const view = (d: Row): Row => ({ object: 'domain', id: d.id, name: d.name, status: d.status, created_at: d.created_at, region: d.region, open_tracking: d.open_tracking, click_tracking: d.click_tracking, ...(d.tracking_subdomain ? { tracking_subdomain: d.tracking_subdomain } : {}), capabilities: d.capabilities, records: d.records });
+const view = domainView;
 const own = (ctx: HandlerContext): Row | undefined => ctx.rowsRaw(DOMAIN).find((d) => d.id === ctx.call.params.domain_id && d._team === teamOf(ctx) && d.deleted !== true);
 
 /** POST /domains */
 // source: spec:domains/create "Create a new domain"
 export async function domains_create(ctx: HandlerContext): Promise<Response> {
-  const p = bodyOf(ctx);
-  const name = typeof p.name === 'string' ? p.name.trim().toLowerCase() : '';
-  if (!name) return invalid('Missing `name` field.', 422, 'missing_required_field');
-  const region = typeof p.region === 'string' ? p.region : 'us-east-1';
-  if (!REGIONS.includes(region)) return invalid(`Invalid \`region\`. Possible values are ${REGIONS.join(' | ')}.`);
-  // source: https://resend.com/docs/api-reference/errors "domain has been registered already."
-  if (ctx.rowsRaw(DOMAIN).some((d) => d.name === name && d.deleted !== true)) return invalid(`The ${name} domain has been registered already.`, 403);
-  const caps = (p.capabilities ?? {}) as Row;
-  const receiving = caps.receiving === 'enabled';
-  // source: https://resend.com/docs/api-reference/domains/create-domain "tracking_subdomain"
-  const tracking = typeof p.tracking_subdomain === 'string' && p.tracking_subdomain ? p.tracking_subdomain : 'links';
-  const id = ctx.mint(DOMAIN);
-  const dkim = (await ctx.secret(`resend-dkim:${id}`)).replace(/[-_]/g, 'A').slice(0, 172);
-  // source: https://resend.com/docs/api-reference/domains/create-domain "tracking_subdomain"
-  // The published default response includes the Tracking CNAME even with click_tracking false.
-  const row: Row = {
-    id, object: 'domain', name, status: 'not_started', created_at: stamp(ctx.occurredAt), region, open_tracking: p.open_tracking === true, click_tracking: p.click_tracking === true,
-    ...(tracking ? { tracking_subdomain: tracking } : {}), capabilities: { sending: caps.sending === 'disabled' ? 'disabled' : 'enabled', receiving: receiving ? 'enabled' : 'disabled' },
-    records: recordsOf(name, region, dkim, tracking, receiving), _team: teamOf(ctx),
-  };
-  await ctx.write(DOMAIN, id, row, 'domain.create');
-  const { object: _o, ...created } = view({ ...row, id });
-  return Response.json(created, { status: 201 });
+  return createDomain(ctx, teamOf(ctx), bodyOf(ctx));
 }
 
 /** GET /domains/{domain_id} */
@@ -79,13 +56,7 @@ export async function domains_update(ctx: HandlerContext): Promise<Response> {
 // source: spec:domains/verify "Verify an existing domain"
 export async function domains_verify(ctx: HandlerContext): Promise<Response> {
   const d = own(ctx);
-  if (!d) return notFound('Domain');
-  if (d.status !== 'verified') {
-    const refused = ctx.legal(DOMAIN, 'status', 'domains/verify', d.status, 'pending');
-    if (refused) return invalid(refused.message, refused.status);
-    await ctx.write(DOMAIN, String(d.id), { status: 'pending', records: (d.records as Row[]).map((r) => ({ ...r, status: 'pending' })), _verify_at: ctx.occurredAt }, 'domain.verify');
-  }
-  return Response.json({ object: 'domain', id: d.id });
+  return d ? verifyDomain(ctx, d) : notFound('Domain');
 }
 
 /** DELETE /domains/{domain_id} */

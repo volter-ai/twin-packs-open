@@ -22,6 +22,17 @@ export const manifest: DerivedManifest = {
     id: 'choose', kind: 'flow', host: 'accounts.google.com', path: '/o/oauth2/v2/auth',
     demand: 'every sign-in with Google chooses an account and consents here', status: 'done',
     controls: ['Choose an account', 'Continue'], source: 'https://developers.google.com/identity/protocols/oauth2/web-server',
+  }, {
+    // Google's sign-up (screens/signup.ts): a person makes their Google account and is signed in, the act a World's
+    // generated seed performs for each declared person whose address Google hosts (ADR 0033, the descriptor's `seed`)
+    id: 'signup', kind: 'flow', host: 'accounts.google.com', path: '/signup',
+    demand: "a World's people make their Google accounts (their gmail.com mailboxes) and stay signed in", status: 'done',
+    controls: ['First name', 'Last name (optional)', 'Email', 'Password', 'Next'], source: 'https://support.google.com/accounts/answer/27441',
+  }, {
+    // Google's sign-in (screens/signin.ts): where Gmail sends a person whose browser holds no Google session
+    id: 'signin', kind: 'flow', host: 'accounts.google.com', path: '/ServiceLogin',
+    demand: 'a person signs in to their Google account to read their mail', status: 'done',
+    controls: ['Email', 'Enter your password', 'Next'], source: 'https://support.google.com/accounts/answer/27441',
   }],
   // the World's doors (./semantics/doors.ts): what Google's console and account sign-up do outside the API
   doors: [
@@ -56,13 +67,16 @@ export const manifest: DerivedManifest = {
     // twin answers 404 is not claimed, except `/device/code`, which the discovery document advertises (unclaimed, a
     // client following it would leave the World)
     hosts: [
-      { host: 'accounts.google.com', pathPattern: '^/(o/oauth2/v2/auth(/oauthchooseaccount|/choose)?|o/oauth2/auth|o/oauth2/token|signin/oauth/error|\\.well-known/openid-configuration)/?$' },
+      { host: 'accounts.google.com', pathPattern: '^/(o/oauth2/v2/auth(/oauthchooseaccount|/choose)?|o/oauth2/auth|o/oauth2/token|signin/oauth/error|signup|ServiceLogin|\\.well-known/openid-configuration)/?$' },
       { host: 'accounts.google.com', pathPattern: '^/_twin/' },
       { host: 'oauth2.googleapis.com', pathPattern: '^/(token|oauth2/v4/token|revoke|tokeninfo|device/code)/?$' },
       { host: 'www.googleapis.com', pathPattern: '^/(oauth2/(v1/certs|v3/(certs|userinfo)|v2/userinfo)|userinfo/v2/me)/?$' },
       { host: 'openidconnect.googleapis.com' },
     ],
     endpointEnvNone: 'Google\'s OAuth libraries read no base-URL variable: the endpoints are the discovery document\'s, claimed by the host rules.',
+    // the World's generated seed signs each declared person up for their Google account at Google's own sign-up page
+    // (ADR 0033 §3; screens/signup.ts), which leaves their browser signed in
+    seed: { signUp: 'https://accounts.google.com/signup' },
     // the World's service account, whose key file Google's client libraries read (google-auth-library's application default
     // credentials), and the application's OAuth client with the World's person, who signs in on the account chooser and
     // consents to the scopes an application asks for (its installed-app loopback redirect registered), and the project's

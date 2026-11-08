@@ -6,6 +6,8 @@ import { manifest } from './manifest.ts';
 import * as doors from './semantics/doors.ts';
 import { googleoauthSemantics } from './semantics/index.ts';
 import { screen as screen_choose } from './screens/choose.ts';
+import { screen as screen_signin } from './screens/signin.ts';
+import { screen as screen_signup } from './screens/signup.ts';
 
 export function createGoogleoauthFetch(options: PackFetchOptions = {}): DerivedFetch {
   return createPackFetch({
@@ -13,6 +15,6 @@ export function createGoogleoauthFetch(options: PackFetchOptions = {}): DerivedF
     surface: surface as DerivedSurface,
     handlers: googleoauthSemantics,
     doors,
-    screens: { "choose": screen_choose },
+    screens: { "choose": screen_choose, "signin": screen_signin, "signup": screen_signup },
   }, options);
 }
