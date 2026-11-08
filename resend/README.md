@@ -14,6 +14,34 @@ The sidebar follows Resend's published Emails workspace: destinations outside th
 shown as disabled labels. Their presence does not add those dashboard features. Sidebar icons
 use `brand.volter.ai`; the email-content preview continues to block all external assets.
 
+## Use with an existing app
+
+Use Node 22.6 or newer.
+
+In an app that already uses this vendor, install this exact release and the product CLI:
+
+```console
+npm install --save-dev --save-exact @volter/world@3.0.193 @volter/twin-resend@1.0.6
+./node_modules/.bin/volter world init --name my-app --twins resend --source resend=@volter/twin-resend
+```
+
+Run the local executable from this app’s folder; if it is missing, complete the installation here before continuing.
+
+Review the detected vendor and generated bindings before booting. Read the credential names and limitations below; the World supplies throwaway credentials. Then run your app's own command through the World:
+
+```console
+./node_modules/.bin/volter world up
+./node_modules/.bin/volter world run -- npm test
+./node_modules/.bin/volter world log
+./node_modules/.bin/volter world down
+```
+
+Here `npm test` is your app's existing command; replace it with your app or test command. `down` retains state.
+A later `up` resumes it; do not reset or initialize again merely to return.
+
+Publisher and catalog contribution instructions: [the public publisher guide](https://github.com/volter-ai/twin-catalog-open/blob/main/docs/contributing.md).
+
+
 A Protocol 3 pack ([architecture](https://github.com/volter-ai/twin-world/blob/main/docs/contributing/architecture.md), "Protocol 3"). Its surface is generated
 from Resend's OpenAPI document (`spec/`). Handlers
 are in `src/semantics/<family>.ts`, the key front in `src/semantics/around.ts`, the lifecycle in
