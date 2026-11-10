@@ -46,16 +46,23 @@ The workflow keeps its registered `.github/workflows/release.yml` identity. It r
 
 The upload reads the exact registry version once before publishing. If identical bytes are already present it records that fact without uploading. Different bytes refuse; an unreadable registry is not absence. Before npm is invoked, the workflow retains `upload-started.json` on the preparation release without overwriting an existing marker. A later dispatch seeing that marker refuses another upload even if propagation still answers 404. Workflow reruns only read the exact version and cannot upload. Successful upload acceptance and confirmed registry propagation are separate states; `upload-accepted.json` and the workflow summary retain package, source, integrity, preparation digest, publication branch, workflow revision, run identity and the authorization reference. Repository contents permission is used only for these durable receipts. Keep every run, including failed and timed-out attempts. Never overwrite an immutable npm version or start another publication while an earlier upload's outcome is unresolved.
 
-## Confirm and propose outside CI
+## Confirm, submit and assess: the release admits itself
 
-Install the exact registered `@volter/twin-catalog` bootstrap version into an operator-owned directory with scripts disabled, retaining its lock. Set `CATALOG_CLI` to that installation's `bin/twin-catalog.mjs`. The catalog's bounded read-only registry policy owns confirmation; propagation waiting stays outside CI.
+Publishing a twin and admitting it to the catalog are one release act. A release is not done when npm holds its bytes: it is done when the catalog has assessed them ready, or it fails loudly, naming why, with nothing left open. Everything here runs outside CI.
+
+Install the exact registered `@volter/twin-catalog` bootstrap version into an operator-owned directory with scripts disabled, retaining its lock. Set `CATALOG_CLI` to that installation's `bin/twin-catalog.mjs`. Set `CATALOG_CHECKOUT` to a clean checkout of `volter-ai/twin-catalog-open` the command moves to the catalog's current `main` (its policy, evaluator pins and controller); `DOCKER_HOST` to a Docker that runs `linux/amd64` containers (an ARM64 host uses its emulation; on a Colima VM, the folders it bind-mounts, `TMPDIR` included, under a path the VM mounts). `GH_TOKEN` is the operator's existing GitHub sign-in, never printed.
 
 ```sh
 PACK_VENDOR=polar node scripts/publish.mjs --confirm-only <permitted-preparation-sha256>
-PACK_VENDOR=polar node scripts/prepare-submission.mjs
-node "$CATALOG_CLI" propose --repository volter-ai/twin-catalog-open --from release/polar/catalog-submissions --send
+PACK_VENDOR=polar node scripts/release-to-catalog.mjs
 ```
 
-Confirmation requires the same retained preparation and registry integrity, and writes `publication.json`. Submission preparation requires that confirmation and checks the proposed integrity again. `CATALOG_SUBMISSIONS_OUT` may select another operator-owned output directory. A failed submission or proposal is retried from retained files without another upload. New bytes require a new version, source, qualification and sweep.
+`publish.mjs --confirm-only` reads the registry back and writes `publication.json`. `release-to-catalog.mjs` then, as one command:
 
-Catalog operators assess the immutable registry bytes outside CI using their own registered authority; an authenticated durable assessment receipt and a separately authorized maintainer admission complete the process. A publisher's qualification is not independent evidence. Historical catalog Actions receipts retain their original identities. The catalog owns recommendation, revocation, contributor rules and the released reader; this repository neither approves nor merges a submission.
+1. prepares the submission (`twin-catalog submit --confirm-published`, the integrity checked against the confirmed upload) and proposes it (`propose --send`): one submission per catalog PR, as the catalog requires;
+2. assesses that PR with the catalog's own controller (`assess-pr`, its checkout at the PR's base), on this operator's Docker;
+3. on any status but `ready` (`changes-needed`, a failed phase, a superseded head), closes the PR with the report's phase and error as its reason, retains the report, and exits non-zero naming them: the release has failed, the npm version stays published but unadmitted, and its fix is a new version. A `ready` report is retained as `release/<vendor>/catalog-assessment.json` with the PR's number and head.
+
+What cannot be the same act, and why: the catalog admits only an assessment recorded by its registered assessment authority (its `policy.json` `assessmentAuthorities`, one account, held on one machine that never lends its sign-in), and only a separately authorized maintainer merges. So a `ready` release ends by printing the one `record-assessment --report <report> --send` command for that authority, and the merge is the maintainer's; neither identity moves to the publisher. Until both run, the release is assessed but not admitted, and says so.
+
+A failed submission or proposal is retried from retained files without another upload. New bytes require a new version, source, qualification and sweep. The catalog owns recommendation, revocation, contributor rules and the released reader; this repository neither records an assessment nor merges a submission.
