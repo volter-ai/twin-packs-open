@@ -9,7 +9,8 @@
 // vendor that carries Redis over HTTP.
 //
 // SCOPE FROM THE DEMAND AND THE LIFE (../journeys/demand.json, ../journeys/customer-life.json): the commands Dub sends
-// through @upstash/redis, its lock's script and @upstash/ratelimit, and those the life sends, are served
+// through @upstash/redis, its lock's script and @upstash/ratelimit, Rallly's limiter's SCRIPT LOAD, and those the life
+// sends, are served
 // (./semantics/shared.ts, SERVED); every other command of the table is the gap, refused as Upstash refuses a command it
 // does not have. Each served command is decided in ../journeys/decisions.json.
 //

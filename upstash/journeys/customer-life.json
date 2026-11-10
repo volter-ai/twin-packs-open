@@ -4013,6 +4013,93 @@
       ]
     },
     {
+      "name": "The studio's Rallly: Nadia adds her dates to Terra's glaze-workshop poll; its limiter (@upstash/ratelimit 1.2.1, add_participant's sliding window of 5 a minute) has no SHA yet, so it loads its script first",
+      "method": "POST",
+      "path": "https://{endpoint}.upstash.io/pipeline",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rest_token}",
+        "content-type": "application/json",
+        "upstash-encoding": "base64"
+      },
+      "body": [
+        [
+          "script",
+          "load",
+          "\n  local currentKey  = KEYS[1]           -- identifier including prefixes\n  local previousKey = KEYS[2]           -- key of the previous bucket\n  local tokens      = tonumber(ARGV[1]) -- tokens per window\n  local now         = ARGV[2]           -- current timestamp in milliseconds\n  local window      = ARGV[3]           -- interval in milliseconds\n  local incrementBy = ARGV[4]           -- increment rate per request at a given value, default is 1\n\n  local requestsInCurrentWindow = redis.call(\"GET\", currentKey)\n  if requestsInCurrentWindow == false then\n    requestsInCurrentWindow = 0\n  end\n\n  local requestsInPreviousWindow = redis.call(\"GET\", previousKey)\n  if requestsInPreviousWindow == false then\n    requestsInPreviousWindow = 0\n  end\n  local percentageInCurrent = ( now % window ) / window\n  -- weighted requests to consider from the previous window\n  requestsInPreviousWindow = math.floor(( 1 - percentageInCurrent ) * requestsInPreviousWindow)\n  if requestsInPreviousWindow + requestsInCurrentWindow >= tokens then\n    return -1\n  end\n\n  local newValue = redis.call(\"INCRBY\", currentKey, incrementBy)\n  if newValue == tonumber(incrementBy) then\n    -- The first time this key is set, the value will be equal to incrementBy.\n    -- So we only need the expire command once\n    redis.call(\"PEXPIRE\", currentKey, window * 2 + 1000) -- Enough time to overlap with a new window + 1 second\n  end\n  return tokens - ( newValue + requestsInPreviousWindow )\n"
+        ]
+      ],
+      "view": "decoded",
+      "expect": [
+        {
+          "path": "0.result",
+          "equals": "e1391e429b699c780eb0480350cd5b7280fd9213"
+        }
+      ]
+    },
+    {
+      "name": "and runs it by that SHA for 198.51.100.23, its now the request's own clock (19:00:00.000 UTC): 4 left",
+      "method": "POST",
+      "path": "https://{endpoint}.upstash.io/pipeline",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rest_token}",
+        "content-type": "application/json",
+        "upstash-encoding": "base64"
+      },
+      "body": [
+        [
+          "evalsha",
+          "e1391e429b699c780eb0480350cd5b7280fd9213",
+          2,
+          "@upstash/ratelimit:add_participant:198.51.100.23:29470740",
+          "@upstash/ratelimit:add_participant:198.51.100.23:29470739",
+          5,
+          1768244400000,
+          60000,
+          1
+        ]
+      ],
+      "view": "decoded",
+      "expect": [
+        {
+          "path": "0.result",
+          "equals": 4
+        }
+      ]
+    },
+    {
+      "name": "Okon adds his from another address: the limiter holds the SHA and runs the script by it at once: 4 left for him",
+      "method": "POST",
+      "path": "https://{endpoint}.upstash.io/pipeline",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {rest_token}",
+        "content-type": "application/json",
+        "upstash-encoding": "base64"
+      },
+      "body": [
+        [
+          "evalsha",
+          "e1391e429b699c780eb0480350cd5b7280fd9213",
+          2,
+          "@upstash/ratelimit:add_participant:203.0.113.57:29470740",
+          "@upstash/ratelimit:add_participant:203.0.113.57:29470739",
+          5,
+          1768244400000,
+          60000,
+          1
+        ]
+      ],
+      "view": "decoded",
+      "expect": [
+        {
+          "path": "0.result",
+          "equals": 4
+        }
+      ]
+    },
+    {
       "name": "13 January, 02:00 PST",
       "wait": "15h"
     },

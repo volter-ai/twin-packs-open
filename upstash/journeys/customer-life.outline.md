@@ -33,6 +33,7 @@ days, DLQ kept 7 days), of which Looplinks sends a few hundred messages a month.
 |---|---|---|---|
 | Priya Nair | co-founder, in Portland; owns the studio's Upstash account | her Upstash console login (priya@emberstreet.co and a password) | the console: its Redis pages, where she creates Kiln's database, reads its endpoint and tokens, and deletes it; its QStash page, whose Quickstart shows `QSTASH_URL`, `QSTASH_TOKEN` and the two signing keys, with "Reset token" (https://upstash.com/docs/qstash/howto/reset-token) and "Roll keys" |
 | the Kiln site | Kiln's Next.js app on Vercel, using `@upstash/redis` and `@upstash/ratelimit` | the database's Standard REST token, as `UPSTASH_REDIS_REST_TOKEN` in Kiln's Vercel project | "Standard token has full privilege over the database, can execute any command" (restapi page) |
+| the studio's Rallly | the self-hosted Rallly its teachers schedule workshops with, on Vercel: `@upstash/redis` under Vercel KV's names and `@upstash/ratelimit` 1.2.1, as Rallly ships them | the same Standard token and REST URL, as `KV_REST_API_TOKEN` and `KV_REST_API_URL` in its Vercel project | the same |
 | Kiln's nightly job | a Vercel cron route of the same app, declared in its `vercel.json` with the schedule `0 10 * * *` (UTC): 02:00 PST, and 03:00 PDT from 8 March | the same Standard token, from the same environment | the same |
 | Tomás Reyes | co-founder, in Portland, runs Kiln: its scripts from his laptop (the monthly schedule load, corrections, housekeeping, the export) | the same Standard token, from Kiln's `.env.local` | the same |
 | the Looplinks app | Looplinks' Next.js app on Vercel: its server code calls QStash through `@upstash/qstash` (jobs, the payout run) and `@upstash/workflow`'s `Client` (triggers); its monthly payout route is a Vercel cron (`vercel.json`, `0 8 1 * *`, as Dub's crons are) | `QSTASH_TOKEN` in Looplinks' Vercel project | the token "is used to interact with the QStash API. You need it to publish messages as well as create, read, update or delete other resources" (reset-token page): every API call |
@@ -136,6 +137,13 @@ January's and February's sessions are over. Tomás's script walks `session:*` wi
 time (HGET), and deletes every session that started before 1 March with its waitlist and view counter (DEL). It also
 removes one domain from the blocked set that a customer showed is a real university's (SREM). The March load (K2) runs
 after it.
+
+#### K11. The workshop poll (Mon 12 Jan, 11:00 PST)
+Terra schedules February's glaze workshop with a poll on the studio's Rallly. Rallly limits adding a participant per
+address, `@upstash/ratelimit` 1.2.1's sliding window of 5 a minute; that release loads its script with SCRIPT LOAD before
+its first call and then runs it by the SHA it was given (EVALSHA), loading it again only on NOSCRIPT. Nadia adds her
+dates: the limiter loads its script, then runs it (4 left for her). Okon adds his from another address a moment later:
+the limiter holds the SHA and runs the script by it at once.
 
 ### Looplinks
 
