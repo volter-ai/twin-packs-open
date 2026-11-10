@@ -18,12 +18,18 @@ export const REST_RESTRICTED = new Set(['AUTH', 'MULTI', 'EXEC', 'DISCARD', 'WAT
 const restricted = (name: string): string => `ERR Command "${name.toUpperCase()}" is not allowed in REST or it has a special context path`;
 
 /** The commands the twin serves: those the demand calls (Dub's, through @upstash/redis, the scripts of its lock and of
- *  @upstash/ratelimit, and ratelimit's analytics: ../../journeys/demand.json) and those the life calls (HINCRBY, ZRANGE:
+ *  @upstash/ratelimit, and ratelimit's analytics; Rallly's @upstash/ratelimit 1.2.1, which loads its script with SCRIPT
+ *  LOAD and runs it by EVALSHA: ../../journeys/demand.json) and those the life calls (HINCRBY, ZRANGE:
  *  ../../journeys/customer-life.json), each decided in ../../journeys/decisions.json. Every other command of Upstash's
  *  table is the gap, answered as Upstash answers a command it does not have, in a request and in a script alike. */
 // The vendored command table is an array at /commands (type.json and ttl.json supply these entries).
 // source: spec:/commands "Determines the type of value stored at a key."
 // source: spec:/commands "Returns the expiration time in seconds of a key."
+// SCRIPT is the kernel core's container command (its subcommands LOAD, EXISTS and FLUSH, script-*.json's entries), its
+// scripts the ones EVAL caches, kept as the database's `db:<id>:script:<sha1>`:
+// source: spec:/commands "Loads a server-side Lua script to the script cache."
+// source: spec:/commands "Determines whether server-side Lua scripts exist in the script cache."
+// source: spec:/commands "Removes all server-side Lua scripts from the script cache."
 export const SERVED = new Set([
   'SET', 'GET', 'GETDEL', 'DEL', 'EXISTS', 'EXPIRE', 'PEXPIRE', 'INCR', 'INCRBY', 'RENAME',
   'HSET', 'HSETNX', 'HGET', 'HGETALL', 'HMGET', 'HDEL', 'HINCRBY',
@@ -31,8 +37,10 @@ export const SERVED = new Set([
   'SADD', 'SREM', 'SMEMBERS', 'SISMEMBER', 'SMISMEMBER',
   'ZINCRBY', 'ZRANGE',
   'XADD', 'XRANGE', 'XREVRANGE', 'XDEL',
-  'SCAN', 'TYPE', 'TTL', 'EVAL', 'EVALSHA',
+  'SCAN', 'TYPE', 'TTL', 'EVAL', 'EVALSHA', 'SCRIPT',
 ]);
+/** SCRIPT's subcommands the twin serves, the core's; another (SCRIPT KILL: no script runs long in a twin) is the gap. */
+const SCRIPT_SUBCOMMANDS = new Set(['LOAD', 'EXISTS', 'FLUSH']);
 
 /** The dialect adds no command of its own (`commands` is empty), so the core never runs one through it: a guard. */
 function noCommandsOfItsOwn(_space: unknown, argv: string[]): never {
@@ -46,6 +54,7 @@ export const DIALECT: redis.RedisDialect = {
   shapeError: (argv) => {
     const name = (argv[0] ?? '').toUpperCase();
     if (REST_RESTRICTED.has(name)) return restricted(name);
+    if (name === 'SCRIPT' && argv[1] !== undefined && !SCRIPT_SUBCOMMANDS.has(argv[1].toUpperCase())) return unavailable(name);
     const arity = SERVED.has(name) ? redis.SERVED_COMMANDS[name] : undefined;
     if (arity === undefined) return unavailable(name);
     const n = argv.length - 1;

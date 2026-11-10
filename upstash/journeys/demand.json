@@ -112,6 +112,11 @@
           "call": "Redis HTTP cache, session/token storage and rate limiting",
           "operation": "POST /",
           "evidence": "apps/web/src/lib/kv.ts:5-13; apps/web/.env.sample:38-41"
+        },
+        {
+          "call": "@upstash/ratelimit 1.2.1's fixed window on @upstash/redis 1.36.2's Redis (auto-pipelined, base64 answers) at KV_REST_API_URL, the tRPC rate-limit middleware's limiter: its safeEval loads the script once (SCRIPT LOAD) and runs it by its SHA (EVALSHA), loading it again on NOSCRIPT; INCRBY and PEXPIRE inside it. At the bench's task commit (195877a38de4) the same limiter is the sliding window through @vercel/kv 3.0.0 (the same client and the same SCRIPT LOAD and EVALSHA; GET, INCRBY and PEXPIRE inside it)",
+          "operation": "SCRIPT LOAD; EVALSHA; INCRBY; PEXPIRE",
+          "evidence": "apps/web/src/lib/rate-limit/index.ts:63-66; apps/web/src/lib/kv.ts:10-13; apps/web/src/trpc/trpc.ts:222; @upstash/ratelimit@1.2.1:dist/index.js:164; @upstash/ratelimit@1.2.1:dist/index.js:176; @upstash/ratelimit@1.2.1:dist/index.js:178; @upstash/ratelimit@1.2.1:dist/index.js:1059; @upstash/ratelimit@1.2.1:dist/index.js:1063"
         }
       ],
       "frontend": [],
@@ -244,7 +249,7 @@
     },
     {
       "name": "lukevella/rallly",
-      "client": "@upstash/redis under Vercel KV's names (SET, GET, DEL) and @upstash/ratelimit's fixed window (EVALSHA, EVAL)",
+      "client": "@upstash/redis under Vercel KV's names (SET, GET, DEL) and @upstash/ratelimit's fixed window (SCRIPT LOAD, then EVALSHA)",
       "backend": [],
       "commit": "3e63239dbdec",
       "gate": "The shipped KV/cache and rate limiter use the Redis HTTP client once credentials are supplied; the sample actually provides local Redis HTTP credentials (apps/web/.env.sample:38-41; apps/web/src/lib/kv.ts:5-13).",

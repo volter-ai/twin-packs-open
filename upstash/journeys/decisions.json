@@ -402,9 +402,48 @@
     },
     {
       "operation": "EVALSHA",
-      "demand": "@upstash/ratelimit's first try of its script",
+      "demand": "@upstash/ratelimit's first try of its script (Dub's 2.0.6); Rallly's 1.2.1, after SCRIPT LOAD",
       "mechanism": "handler",
       "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: a cached script by its SHA-1, NOSCRIPT when not cached; cached source retains its full header and runs the same flag restrictions as EVAL"
+    },
+    {
+      "operation": "SCRIPT LOAD",
+      "demand": "Rallly's @upstash/ratelimit 1.2.1 (through @vercel/kv 3.0.0's @upstash/redis 1.36.2): its sliding window loads its script once, then runs it by EVALSHA (its safeEval)",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the kernel library's SCRIPT LOAD: the script's header checked as EVAL checks it, the script kept as the database's db:<id>:script:<sha1>, its SHA-1 answered; a Read Only token's LOAD is refused as a write (NOPERM). No second Lua or command implementation: the core's, as EVAL's",
+      "sourceRules": [
+        {
+          "source": "spec:/commands",
+          "quote": "Loads a server-side Lua script to the script cache.",
+          "means": "The vendored Redis command table declares SCRIPT LOAD (spec/commands/script-load.json); Upstash's command reference lists it."
+        }
+      ]
+    },
+    {
+      "operation": "SCRIPT EXISTS",
+      "demand": "none of the demand's applications calls it; served as the kernel core serves SCRIPT, the subcommand Upstash's command reference lists beside LOAD (@upstash/redis's scriptExists)",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the kernel library's SCRIPT EXISTS: 1 or 0 for each SHA-1, by the database's cached scripts; a read, so a Read Only token may call it",
+      "sourceRules": [
+        {
+          "source": "spec:/commands",
+          "quote": "Determines whether server-side Lua scripts exist in the script cache.",
+          "means": "The vendored Redis command table declares SCRIPT EXISTS (spec/commands/script-exists.json)."
+        }
+      ]
+    },
+    {
+      "operation": "SCRIPT FLUSH",
+      "demand": "none of the demand's applications calls it; served as the kernel core serves SCRIPT, the subcommand Upstash's command reference lists beside LOAD (@upstash/redis's scriptFlush); a flush is why @upstash/ratelimit's safeEval loads its script again on NOSCRIPT",
+      "mechanism": "handler",
+      "why": "the REST front (src/semantics/around.ts) reads the command from Upstash's forms and runs it with the kernel's Redis core (@volter/world-core redis) under Upstash's dialect (src/semantics/shared.ts); a command is not a stored resource the derived core could serve: the kernel library's SCRIPT FLUSH: the database's cached scripts removed, OK answered, so a later EVALSHA answers NOSCRIPT. SCRIPT KILL, the subcommand no twin script needs (none runs long), stays the gap, answered as Upstash answers a command it does not have",
+      "sourceRules": [
+        {
+          "source": "spec:/commands",
+          "quote": "Removes all server-side Lua scripts from the script cache.",
+          "means": "The vendored Redis command table declares SCRIPT FLUSH (spec/commands/script-flush.json)."
+        }
+      ]
     },
     {
       "operation": "post_v2_publish_destination",
