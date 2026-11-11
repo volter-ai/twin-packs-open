@@ -5,8 +5,9 @@
 //
 //   node scripts/export-from-p3.mjs --p3 <twin-packs-p3 checkout> --commit <sha on p3 main> <vendor> [<vendor>…]
 //
-// Run from this repository's root with a clean tree. BUN names the Bun binary when `bun` on PATH is not the declared
-// version (package.json packageManager). Nothing is published: preparation and release follow (README).
+// Run from this repository's root with a clean tree. A vendor whose directory here holds content the export would delete
+// or change beyond the package shape is refused, its files listed, before anything is written (README). BUN names the
+// Bun binary when `bun` on PATH is not the declared version (package.json packageManager). Nothing is published: preparation and release follow (README).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -71,10 +72,55 @@ function publisherShape(pkg, vendor) {
   return out;
 }
 
+// refusal: publisher-only content. The export deletes and rewrites <vendor>/ wholesale, so a vendor whose directory here
+// holds a file p3 lacks, or content p3's differs from beyond what the publisher shape itself changes (package.json's
+// shape fields and version, the README's install pins), is refused before anything is written, its files listed. Such
+// content is resolved into p3 first (p3 is the line); a vendor whose directory p3 already holds passes. Only tracked
+// files count (the tree is clean): dist/ and node_modules are build output, not content held here.
+const trackedBlobs = (cwd, rev, dir) => {
+  const out = new Map();
+  for (const entry of git(['ls-tree', '-r', '-z', rev, '--', `${dir}/`], cwd).split('\0').filter(Boolean)) {
+    const tab = entry.indexOf('\t');
+    const [, type, blob] = entry.slice(0, tab).split(' ');
+    if (type === 'blob') out.set(entry.slice(tab + 1), blob);
+  }
+  return out;
+};
+const canonical = (value) => Array.isArray(value) ? value.map(canonical)
+  : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map((k) => [k, canonical(value[k])])) : value;
+const unpinned = (text, name) => text.replace(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}@\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?`, 'g'), `${name}@<release>`);
+const refusals = [];
+for (const vendor of vendors) {
+  try { git(['rev-parse', `${sha}:${vendor}`], p3Root); } catch { fail(`${vendor} is no directory of twin-packs-p3 at ${sha}`); }
+  try { git(['cat-file', '-e', `${sha}:${vendor}/package.json`], p3Root); } catch { fail(`${vendor} at ${sha} has no package.json`); }
+  const ours = trackedBlobs(root, 'HEAD', vendor);
+  if (ours.size === 0) continue; // a vendor new here holds nothing the export could lose
+  const theirs = trackedBlobs(p3Root, sha, vendor);
+  const p3Text = (path) => execFileSync('git', ['cat-file', 'blob', theirs.get(path)], { cwd: p3Root, encoding: 'utf8', maxBuffer: 1 << 26 });
+  const ourText = (path) => readFileSync(join(root, path), 'utf8');
+  const name = JSON.parse(p3Text(`${vendor}/package.json`)).name;
+  const held = [];
+  for (const [path, blob] of ours) {
+    if (!theirs.has(path)) { held.push(`${path} (p3 has no such file: the export deletes it)`); continue; }
+    if (theirs.get(path) === blob) continue;
+    if (path === `${vendor}/package.json`) {
+      const here = JSON.parse(ourText(path));
+      const shaped = publisherShape({ ...JSON.parse(p3Text(path)), version: here.version }, vendor);
+      if (JSON.stringify(canonical(shaped)) === JSON.stringify(canonical(here))) continue;
+      const keys = [...new Set([...Object.keys(here), ...Object.keys(shaped)])].filter((k) => JSON.stringify(canonical(here[k])) !== JSON.stringify(canonical(shaped[k])));
+      held.push(`${path} (beyond the publisher shape: ${keys.join(', ')})`);
+      continue;
+    }
+    if (path === `${vendor}/README.md` && unpinned(ourText(path), name) === unpinned(p3Text(path), name)) continue;
+    held.push(`${path} (content differs from p3's)`);
+  }
+  if (held.length) refusals.push(`${vendor}: the publisher holds content p3 lacks at ${sha.slice(0, 8)}, which a wholesale export would delete or change; resolve it into p3 first:\n${held.map((h) => `  ${h}`).join('\n')}`);
+}
+if (refusals.length) fail(`refused, nothing written:\n${refusals.join('\n')}`);
+
 const exported = [];
 for (const vendor of vendors) {
-  const tree = (() => { try { return git(['rev-parse', `${sha}:${vendor}`], p3Root); } catch { return fail(`${vendor} is no directory of twin-packs-p3 at ${sha}`); } })();
-  try { git(['cat-file', '-e', `${sha}:${vendor}/package.json`], p3Root); } catch { fail(`${vendor} at ${sha} has no package.json`); }
+  const tree = git(['rev-parse', `${sha}:${vendor}`], p3Root);
   // wholesale: the publisher's directory goes, and p3's at the commit takes its place (git archive, no working tree)
   rmSync(join(root, vendor), { recursive: true, force: true });
   const archive = spawnSync('git', ['archive', '--format=tar', sha, vendor], { cwd: p3Root, maxBuffer: 1 << 30 });

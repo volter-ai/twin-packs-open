@@ -10,6 +10,10 @@ This repository publishes immutable Protocol 3 packages using released World and
 
 A pack enters this publisher only by `scripts/export-from-p3.mjs`, never by an edit here. It replaces `<vendor>/` wholesale with twin-packs-p3's at a commit on p3's main, read from git (`git archive`), deleting every file p3 does not have; gives it this publisher's package shape (`exports` and `bin` built under `dist/`, `files` shipping `dist` and `generated`, this repository's `repository`, `homepage` and `bugs`, no `packageManager` or `devEngines`); sets its version to the one after npm's (p3's own where npm holds none) and its README install pins to it; regenerates `bun.lock` with the declared Bun; and commits with `Exported-From: twin-packs-p3@<sha>` and each pack's tree. It refuses a dirty tree here and a commit not on p3's main.
 
+twin-packs-p3 holds each pack's release form, including [ADR 0001](docs/adr/0001-packaged-public-values.md)'s inert replacements of upstream documentation samples with their `SOURCE.md` records, whose originals p3 keeps outside every package (twin-packs-p3 #95), so the wholesale export carries them.
+
+The tool refuses a vendor whose directory here holds anything the export would delete or change beyond the package shape itself: a tracked file p3's tree lacks, or content that differs from p3's other than `package.json`'s shape fields and version and the README's install pins of the package. It lists those files and writes nothing. Publisher-only content is resolved per vendor into p3 before that vendor's first wholesale export; once p3 holds it, the vendor passes.
+
 ```sh
 node scripts/export-from-p3.mjs --p3 <twin-packs-p3 checkout> --commit <sha on p3 main> <vendor> [<vendor>…]
 ```
