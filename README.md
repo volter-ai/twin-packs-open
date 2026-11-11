@@ -6,6 +6,14 @@ This repository publishes immutable Protocol 3 packages using released World and
 
 [ADR 0001](docs/adr/0001-packaged-public-values.md) defines provenance for authored fixtures, upstream documentation samples and byte-identical public upstream code in release archives.
 
+## Export a pack from twin-packs-p3
+
+A pack enters this publisher only by `scripts/export-from-p3.mjs`, never by an edit here. It replaces `<vendor>/` wholesale with twin-packs-p3's at a commit on p3's main, read from git (`git archive`), deleting every file p3 does not have; gives it this publisher's package shape (`exports` and `bin` built under `dist/`, `files` shipping `dist` and `generated`, this repository's `repository`, `homepage` and `bugs`, no `packageManager` or `devEngines`); sets its version to the one after npm's (p3's own where npm holds none) and its README install pins to it; regenerates `bun.lock` with the declared Bun; and commits with `Exported-From: twin-packs-p3@<sha>` and each pack's tree. It refuses a dirty tree here and a commit not on p3's main.
+
+```sh
+node scripts/export-from-p3.mjs --p3 <twin-packs-p3 checkout> --commit <sha on p3 main> <vendor> [<vendor>…]
+```
+
 ## Prepare outside CI
 
 Main integrates reviewed source and never publishes. Build and qualify explicitly after construction is complete. Use the committed Bun 1.4.2 lock and existing credentials; all candidate execution goes through a task-owned World. Select the vendor directory with `PACK_VENDOR` (the retained default is Tavily).
