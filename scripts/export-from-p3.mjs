@@ -5,9 +5,10 @@
 //
 //   node scripts/export-from-p3.mjs --p3 <twin-packs-p3 checkout> --commit <sha on p3 main> <vendor> [<vendor>…]
 //
-// Run from this repository's root with a clean tree. A vendor whose directory here holds content the export would delete
-// or change beyond the package shape is refused, its files listed, before anything is written (README). BUN names the
-// Bun binary when `bun` on PATH is not the declared version (package.json packageManager). Nothing is published: preparation and release follow (README).
+// Run from this repository's root with a clean tree. A vendor whose directory here holds content p3's history never held,
+// which the export would delete or change beyond the package shape, is refused, its files listed, before anything is
+// written (README). BUN names the Bun binary when `bun` on PATH is not the declared version (package.json
+// packageManager). Nothing is published: preparation and release follow (README).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -72,10 +73,13 @@ function publisherShape(pkg, vendor) {
   return out;
 }
 
-// refusal: publisher-only content. The export deletes and rewrites <vendor>/ wholesale, so a vendor whose directory here
-// holds a file p3 lacks, or content p3's differs from beyond what the publisher shape itself changes (package.json's
-// shape fields and version, the README's install pins), is refused before anything is written, its files listed. Such
-// content is resolved into p3 first (p3 is the line); a vendor whose directory p3 already holds passes. Only tracked
+// refusal: publisher-only content. The export deletes and rewrites <vendor>/ wholesale. A tracked file here that p3 at
+// the commit lacks or holds with other bytes is fine when p3 held exactly these bytes at that path somewhere in the
+// commit's history: p3 is newer there, and the export rightly replaces or removes it. A file p3's history never held,
+// at that path with those bytes, is publisher-only content, and its vendor is refused before anything is written, its
+// files listed; it is resolved into p3 first (p3 is the line), after which the vendor passes. package.json counts as
+// held when it equals one of the path's p3 versions in the publisher shape (the version set aside), and README.md when it
+// equals one but for the package's install pins: the shape and the pins are what the export itself writes. Only tracked
 // files count (the tree is clean): dist/ and node_modules are build output, not content held here.
 const trackedBlobs = (cwd, rev, dir) => {
   const out = new Map();
@@ -83,6 +87,21 @@ const trackedBlobs = (cwd, rev, dir) => {
     const tab = entry.indexOf('\t');
     const [, type, blob] = entry.slice(0, tab).split(' ');
     if (type === 'blob') out.set(entry.slice(tab + 1), blob);
+  }
+  return out;
+};
+// every blob each path under <dir>/ has held in the history of rev (the trees only: a blob:none clone fetches nothing)
+const historyBlobs = (cwd, rev, dir) => {
+  const out = new Map();
+  const tokens = execFileSync('git', ['log', '--format=', '--raw', '-z', '--no-abbrev', '--no-renames', rev, '--', `${dir}/`], { cwd, encoding: 'utf8', maxBuffer: 1 << 30 }).split('\0');
+  for (let i = 0; i < tokens.length; i++) {
+    const meta = tokens[i].replace(/^\s+/, '');
+    if (!meta.startsWith(':')) continue;
+    const path = tokens[++i];
+    const [, , before, after] = meta.slice(1).split(' ');
+    const held = out.get(path) ?? new Set();
+    for (const blob of [before, after]) if (!/^0+$/.test(blob)) held.add(blob);
+    out.set(path, held);
   }
   return out;
 };
@@ -96,25 +115,31 @@ for (const vendor of vendors) {
   const ours = trackedBlobs(root, 'HEAD', vendor);
   if (ours.size === 0) continue; // a vendor new here holds nothing the export could lose
   const theirs = trackedBlobs(p3Root, sha, vendor);
-  const p3Text = (path) => execFileSync('git', ['cat-file', 'blob', theirs.get(path)], { cwd: p3Root, encoding: 'utf8', maxBuffer: 1 << 26 });
+  const history = historyBlobs(p3Root, sha, vendor);
+  const p3Blob = (blob) => execFileSync('git', ['cat-file', 'blob', blob], { cwd: p3Root, encoding: 'utf8', maxBuffer: 1 << 26 });
   const ourText = (path) => readFileSync(join(root, path), 'utf8');
-  const name = JSON.parse(p3Text(`${vendor}/package.json`)).name;
+  const name = JSON.parse(p3Blob(theirs.get(`${vendor}/package.json`))).name;
   const held = [];
   for (const [path, blob] of ours) {
-    if (!theirs.has(path)) { held.push(`${path} (p3 has no such file: the export deletes it)`); continue; }
     if (theirs.get(path) === blob) continue;
+    const versions = history.get(path) ?? new Set();
+    if (versions.has(blob)) continue; // an older p3 version: p3 is newer
     if (path === `${vendor}/package.json`) {
       const here = JSON.parse(ourText(path));
-      const shaped = publisherShape({ ...JSON.parse(p3Text(path)), version: here.version }, vendor);
-      if (JSON.stringify(canonical(shaped)) === JSON.stringify(canonical(here))) continue;
+      const same = (pkg) => JSON.stringify(canonical(publisherShape({ ...pkg, version: here.version }, vendor))) === JSON.stringify(canonical(here));
+      if ([...versions].some((v) => same(JSON.parse(p3Blob(v))))) continue;
+      const shaped = publisherShape({ ...JSON.parse(p3Blob(theirs.get(path))), version: here.version }, vendor);
       const keys = [...new Set([...Object.keys(here), ...Object.keys(shaped)])].filter((k) => JSON.stringify(canonical(here[k])) !== JSON.stringify(canonical(shaped[k])));
-      held.push(`${path} (beyond the publisher shape: ${keys.join(', ')})`);
+      held.push(`${path} (no p3 version of it in the publisher shape matches; against p3's at the commit: ${keys.join(', ')})`);
       continue;
     }
-    if (path === `${vendor}/README.md` && unpinned(ourText(path), name) === unpinned(p3Text(path), name)) continue;
-    held.push(`${path} (content differs from p3's)`);
+    if (path === `${vendor}/README.md`) {
+      const text = unpinned(ourText(path), name);
+      if ([...versions].some((v) => unpinned(p3Blob(v), name) === text)) continue;
+    }
+    held.push(theirs.has(path) ? `${path} (content p3 never held: the export would change it)` : `${path} (${versions.size ? 'content' : 'a file'} p3 never held: the export would delete it)`);
   }
-  if (held.length) refusals.push(`${vendor}: the publisher holds content p3 lacks at ${sha.slice(0, 8)}, which a wholesale export would delete or change; resolve it into p3 first:\n${held.map((h) => `  ${h}`).join('\n')}`);
+  if (held.length) refusals.push(`${vendor}: the publisher holds content p3's history at ${sha.slice(0, 8)} never held, which a wholesale export would delete or change; resolve it into p3 first:\n${held.map((h) => `  ${h}`).join('\n')}`);
 }
 if (refusals.length) fail(`refused, nothing written:\n${refusals.join('\n')}`);
 

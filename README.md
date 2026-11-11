@@ -12,7 +12,7 @@ A pack enters this publisher only by `scripts/export-from-p3.mjs`, never by an e
 
 twin-packs-p3 holds each pack's release form, including [ADR 0001](docs/adr/0001-packaged-public-values.md)'s inert replacements of upstream documentation samples with their `SOURCE.md` records, whose originals p3 keeps outside every package (twin-packs-p3 #95), so the wholesale export carries them.
 
-The tool refuses a vendor whose directory here holds anything the export would delete or change beyond the package shape itself: a tracked file p3's tree lacks, or content that differs from p3's other than `package.json`'s shape fields and version and the README's install pins of the package. It lists those files and writes nothing. Publisher-only content is resolved per vendor into p3 before that vendor's first wholesale export; once p3 holds it, the vendor passes.
+The tool refuses a vendor whose directory here holds content p3 never held: a tracked file that p3 at the commit lacks or holds with other bytes, where p3's history up to that commit never held exactly those bytes at that path. `package.json` counts as held when it equals one of that path's p3 versions in the publisher shape (its version set aside), and `README.md` when it equals one but for the package's install pins. A file the publisher holds as an older p3 version passes, since the export rightly replaces or removes it. The tool lists the refused files and writes nothing. Publisher-only content is resolved per vendor into p3 before that vendor's first wholesale export; once p3 holds it, the vendor passes.
 
 ```sh
 node scripts/export-from-p3.mjs --p3 <twin-packs-p3 checkout> --commit <sha on p3 main> <vendor> [<vendor>…]
