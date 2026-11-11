@@ -71,7 +71,7 @@ export const manifest: DerivedManifest = {
     // a video's comment thread: its top-level comment and its replies
     // source: https://developers.google.com/youtube/v3/docs/commentThreads/list "The videoId parameter instructs the API to return comment threads associated with the specified video ID."
     // Where the documentation stops: a thread's id is opaque; the World's are 26 characters, the top-level comment's id.
-    CommentThread: { storedAs: 'commentThread', idPrefix: '', ids: '{ksuid:26}', parent: { resource: 'Channel', field: '_channel', param: 'channel' }, refresh: { list: 'youtube.commentThreads.list', items: 'items', complete: false, query: { part: 'id,snippet,replies', allThreadsRelatedToChannelId: '{channel}' }, next: 'nextPageToken', cursor: 'pageToken' } },
+    CommentThread: { storedAs: 'commentThread', idPrefix: '', ids: '{ksuid:26}', parent: { resource: 'Channel', field: '_channel', param: 'allThreadsRelatedToChannelId' }, refresh: { list: 'youtube.commentThreads.list', items: 'items', complete: false, query: { part: 'id,snippet,replies' }, next: 'nextPageToken', cursor: 'pageToken' } },
     // a comment: a thread's top-level comment (the thread's id), or a reply (<thread id>.<its own>)
     // source: https://developers.google.com/youtube/v3/docs/comments "The ID that YouTube uses to uniquely identify the comment."
     Comment: { storedAs: 'comment', idPrefix: '', ids: '{ksuid:22}', ...states.Comment, refresh: { none: "a comment is read back inside its thread (commentThreads.list's replies part), which the thread's refresh reads" } },
