@@ -1,0 +1,44 @@
+{
+  "measured": "Application calls and optional settings are recorded below at the cited commits.",
+  "applications": [],
+  "optional": [
+    {
+      "application": "lukevella/rallly",
+      "what": "a deleted account's person erased: GET /api/projects/<id>/persons/?distinct_id=, then DELETE /api/projects/<id>/persons/<id>/?delete_events=true, by fetch with a personal API key",
+      "setting": "Configuration: operator instrumentation is a setting that turns the reporting provider on; operator analytics and its cleanup run only with PostHog keys; browser initialization/server captures are skipped by default (packages/posthog/src/client.ts:51; apps/web/src/lib/posthog.ts:12,130-142).",
+      "evidence": "apps/web/src/lib/posthog.ts:152",
+      "commit": "3e63239dbdec9949ea0b4c82e28828c5498464a0"
+    },
+    {
+      "application": "calcom/cal.diy",
+      "what": "the App Store's PostHog app: PostHog's snippet on an event type's booking pages, which loads array.js from the assets host and captures with the owner's project token; posthog.init then makes posthog-js's startup flags request, POST /flags/?v=2&config=true with a base64 form (evaluateFlags). Cal.diy's own web app imports posthog-js 1.274.1 and calls posthog.capture (apps/web/package.json:120; apps/web/modules/signup-view.tsx:243) but never calls posthog.init at the scanned commit, so those captures send nothing",
+      "setting": "Install (2), instrumentation: add the PostHog App Store snippet to an event type; no default user installation (packages/app-store/posthog/config.json:12-24; packages/app-store/posthog/components/EventTypeAppCardInterface.tsx:15-17).",
+      "evidence": "packages/app-store/posthog/config.json:17",
+      "commit": "54343aa685ae8f33159d2f485ec4a57bad5c574a",
+      "client": "posthog-js@1.274.1:lib/src/posthog-featureflags.js:379 (the version apps/web/package.json:120 pins; the snippet loads the assets host's current array.js)"
+    }
+  ],
+  "platform": [
+    {
+      "application": "volter-ai/twin-world (the World as a bench)",
+      "commit": "002c903b",
+      "what": "The bench runs Rallly with its PostHog analytics configured; its posthog-node capture and person erasure reach the World's PostHog, and the bench's evidence adapter exports the stored events and identities.",
+      "operations": "captureBatch; events_list; events_retrieve; persons_list; persons_retrieve; persons_destroy",
+      "evidence": "docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "application": "volter-ai/twin-world (the World as a bench)",
+      "commit": "6f877a1d",
+      "what": "The bench's evidence adapter reads a PostHog `$exception` event as an exception with its `$exception_fingerprint` (posthog-node captureException's `$exception_list`, kept as sent).",
+      "operations": "captureBatch; events_list",
+      "evidence": "docs/contributing/architecture.md:3306"
+    },
+    {
+      "application": "lukevella/rallly (the bench's rallly-2061 task)",
+      "commit": "65fb5510",
+      "what": "Rallly's pages start posthog-js with the project token (`posthog.init`, with `disable_session_recording: true`); posthog-js 1.290.0, Rallly's locked version, without `__preview_remote_config` first POSTs `/flags/?v=2&config=true`.",
+      "operations": "evaluateFlags",
+      "evidence": "packages/posthog/src/client.tsx:10"
+    }
+  ]
+}

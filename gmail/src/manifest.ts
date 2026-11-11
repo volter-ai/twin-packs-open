@@ -36,6 +36,15 @@ export const manifest: DerivedManifest = {
   deleted: {},
   vendorBacked: { none: 'Mail reaches Gmail over SMTP from a sending twin inside the World; there is no derived HTTP perform or vendor resource refresh (the Gmail API is a later card).' },
   unmodeled: ['EXPN', 'HELP'],
+  // who a message's records name (ADR 0036, "Replicating an issue"): its mailbox, the Google account it was kept for,
+  // and its envelope's addresses; the recipient as Gmail delivers it, where `local+tag@gmail.com` is the mailbox
+  // `local@gmail.com` labelled (shared.ts accountOf), so a fork keeps the tag on the mailbox's pseudonym (`email+`)
+  privacy: {
+    identifiers: {
+      message: { mailbox: 'email', 'envelope.to': 'email+', 'envelope.from': 'email', receivedAt: 'time' },
+    },
+    questions: [],
+  },
   ownerReads: [
     { owner: 'googleoauth', resource: '_person' },
     { owner: 'googleoauth', resource: 'account' },
