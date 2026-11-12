@@ -1,0 +1,171 @@
+{
+ "patches": [
+  {
+   "op": "add",
+   "path": "/paths/~1api~1projects~1{project_id}~1persons~1{id}~1/delete",
+   "value": {
+    "operationId": "persons_destroy",
+    "summary": "Delete a person",
+    "description": "Use this endpoint to delete individual persons. For bulk deletion, use the bulk_delete endpoint instead.",
+    "tags": [
+     "persons"
+    ],
+    "parameters": [
+     {
+      "in": "path",
+      "name": "id",
+      "schema": {
+       "type": "string"
+      },
+      "description": "A unique value identifying this person. Accepts both numeric ID and UUID.",
+      "required": true
+     },
+     {
+      "name": "delete_events",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean"
+      },
+      "description": "If true, a task to delete all events associated with this person will be created and queued."
+     },
+     {
+      "name": "delete_recordings",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean"
+      }
+     },
+     {
+      "name": "keep_person",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean"
+      }
+     }
+    ],
+    "security": [
+     {
+      "PersonalAPIKeyAuth": [
+       "person:read"
+      ]
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "The person is deleted"
+     },
+     "404": {
+      "description": "No such person"
+     }
+    }
+   },
+   "why": "Inbox Zero and Rallly delete a person at DELETE /persons/{id}/?delete_events=true; PostHog serves it and leaves it out of the document on purpose, to steer callers to bulk_delete.",
+   "source": {
+    "url": "https://raw.githubusercontent.com/PostHog/posthog/80d277a5cd28d8d7bb4f8a44fc20b756d14a48c4/posthog/api/person.py",
+    "quote": "exclude=True,  # NOTE: We exclude as we want to push people to use the more powerful bulk_delete endpoint"
+   }
+  },
+  {
+   "op": "replace",
+   "path": "/components/schemas/PersonListRecord/properties/id",
+   "value": {
+    "type": "string",
+    "format": "uuid",
+    "readOnly": true,
+    "description": "Person UUID, as the serialized actors list returns."
+   },
+   "why": "Page says numeric; server serialized actors uses UUID (RECIPE server-wire rule).",
+   "source": {
+    "url": "https://raw.githubusercontent.com/PostHog/posthog/80d277a5cd28d8d7bb4f8a44fc20b756d14a48c4/posthog/hogql_queries/serialized_actors.py",
+    "quote": "matched_recordings"
+   }
+  },
+  {
+   "op": "add",
+   "path": "/components/schemas/PersonListRecord/properties/type",
+   "value": {
+    "type": "string"
+   },
+   "why": "Person list wire uses serialized actors; fields omitted by reference schema.",
+   "source": {
+    "url": "https://raw.githubusercontent.com/PostHog/posthog/80d277a5cd28d8d7bb4f8a44fc20b756d14a48c4/posthog/hogql_queries/serialized_actors.py",
+    "quote": "matched_recordings"
+   }
+  },
+  {
+   "op": "add",
+   "path": "/components/schemas/PersonListRecord/properties/is_identified",
+   "value": {
+    "type": "boolean"
+   },
+   "why": "Person list wire uses serialized actors; fields omitted by reference schema.",
+   "source": {
+    "url": "https://raw.githubusercontent.com/PostHog/posthog/80d277a5cd28d8d7bb4f8a44fc20b756d14a48c4/posthog/hogql_queries/serialized_actors.py",
+    "quote": "matched_recordings"
+   }
+  },
+  {
+   "op": "add",
+   "path": "/components/schemas/PersonListRecord/properties/matched_recordings",
+   "value": {
+    "type": "array",
+    "items": {}
+   },
+   "why": "Person list wire uses serialized actors; fields omitted by reference schema.",
+   "source": {
+    "url": "https://raw.githubusercontent.com/PostHog/posthog/80d277a5cd28d8d7bb4f8a44fc20b756d14a48c4/posthog/hogql_queries/serialized_actors.py",
+    "quote": "matched_recordings"
+   }
+  },
+  {
+   "op": "add",
+   "path": "/components/schemas/PersonListRecord/properties/value_at_data_point",
+   "value": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "why": "Person list wire uses serialized actors; fields omitted by reference schema.",
+   "source": {
+    "url": "https://raw.githubusercontent.com/PostHog/posthog/80d277a5cd28d8d7bb4f8a44fc20b756d14a48c4/posthog/hogql_queries/serialized_actors.py",
+    "quote": "matched_recordings"
+   }
+  },
+  {
+   "op": "replace",
+   "path": "/paths/~1api~1projects~1{project_id}~1groups~1/get/responses/200/content/application~1json/schema",
+   "value": {
+    "type": "object",
+    "properties": {
+     "next": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "previous": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "results": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Group"
+      }
+     }
+    }
+   },
+   "why": "Reference says array; server groups.list returns keyset envelope.",
+   "source": {
+    "url": "https://raw.githubusercontent.com/PostHog/posthog/80d277a5cd28d8d7bb4f8a44fc20b756d14a48c4/ee/clickhouse/views/groups.py",
+    "quote": "Uses forward-only keyset pagination"
+   }
+  }
+ ]
+}

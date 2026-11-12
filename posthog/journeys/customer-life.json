@@ -1,0 +1,952 @@
+{
+  "vendor": "posthog",
+  "host": "us.posthog.com",
+  "author": "Contributor 94",
+  "about": "Harbourline runs Rallly with its PostHog analytics on: the server's posthog-node batches with a guest merged into a new account, the World bench's export of events and persons, and the account's erasure with its events deleted at the weekly run; a visitor's browser loading the project's flags (none) and the bench's posthog-node exception read back with its fingerprint.",
+  "steps": [
+    {
+      "name": "Monday 5 January, 09:00: Harbourline turns on Rallly's PostHog analytics",
+      "wait": "6300m"
+    },
+    {
+      "name": "Harbourline signs up: its project, project token and a personal API key with person:write",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "token": "project_token",
+        "key": "personal_api_key",
+        "project": "project_id"
+      },
+      "expect": [
+        {
+          "path": "project_token",
+          "matches": "^phc_[A-Za-z0-9]+$"
+        },
+        {
+          "path": "personal_api_key",
+          "matches": "^phx_[A-Za-z0-9]+$"
+        }
+      ],
+      "evidence": "posthog/src/manifest.ts:credentialDoor"
+    },
+    {
+      "name": "Tuesday 6 January, 10:00: a guest comments, then signs up as Ada and sets up her space",
+      "wait": "1500m"
+    },
+    {
+      "name": "Rallly's server flushes its posthog-node queue: the guest's personless comment, Ada's register with her $set, the guest merged into her, her login and space setup",
+      "method": "POST",
+      "path": "https://us.i.posthog.com/batch/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "content-encoding": "gzip",
+        "user-agent": "posthog-node/5.46.1"
+      },
+      "encode": "gzip",
+      "body": {
+        "api_key": "{token}",
+        "batch": [
+          {
+            "distinct_id": "anon_4kq9w2",
+            "event": "poll_comment_add",
+            "properties": {
+              "is_guest": true,
+              "$process_person_profile": false,
+              "$groups": {
+                "poll": "pz7q"
+              },
+              "$lib": "posthog-node",
+              "$lib_version": "5.46.1",
+              "$geoip_disable": true
+            },
+            "timestamp": "2026-01-06T09:59:50.000Z",
+            "uuid": "019b9295-0001-7000-8000-000000000001"
+          },
+          {
+            "distinct_id": "usr_ada01",
+            "event": "register",
+            "properties": {
+              "method": "email-otp",
+              "$set": {
+                "name": "Ada Okafor",
+                "email": "ada@harbourline.test",
+                "tier": "hobby",
+                "timeZone": "Europe/London",
+                "locale": "en"
+              },
+              "$process_person_profile": true,
+              "$lib": "posthog-node",
+              "$lib_version": "5.46.1",
+              "$geoip_disable": true
+            },
+            "timestamp": "2026-01-06T09:59:55.000Z",
+            "uuid": "019b9295-0002-7000-8000-000000000002"
+          },
+          {
+            "distinct_id": "usr_ada01",
+            "event": "$merge_dangerously",
+            "properties": {
+              "alias": "anon_4kq9w2",
+              "$lib": "posthog-node",
+              "$lib_version": "5.46.1",
+              "$geoip_disable": true
+            },
+            "timestamp": "2026-01-06T09:59:56.000Z",
+            "uuid": "019b9295-0003-7000-8000-000000000003"
+          },
+          {
+            "distinct_id": "usr_ada01",
+            "event": "login",
+            "properties": {
+              "method": "email-otp",
+              "$process_person_profile": true,
+              "$lib": "posthog-node",
+              "$lib_version": "5.46.1",
+              "$geoip_disable": true
+            },
+            "timestamp": "2026-01-06T09:59:57.000Z",
+            "uuid": "019b9295-0004-7000-8000-000000000004"
+          },
+          {
+            "distinct_id": "usr_ada01",
+            "event": "space_setup",
+            "properties": {
+              "space_type": "personal",
+              "$set": {
+                "name": "Ada Okafor",
+                "timeZone": "Europe/London",
+                "job_title": "Engineer"
+              },
+              "$process_person_profile": true,
+              "$groups": {
+                "space": "spc_ada"
+              },
+              "$lib": "posthog-node",
+              "$lib_version": "5.46.1",
+              "$geoip_disable": true
+            },
+            "timestamp": "2026-01-06T09:59:59.000Z",
+            "uuid": "019b9295-0005-7000-8000-000000000005"
+          }
+        ],
+        "sent_at": "2026-01-06T10:00:00.000Z"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "Ok"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/src/lib/posthog.ts:48",
+      "client": "posthog-node@5.46.1 (@posthog/core@1.45.1:dist/posthog-core-stateless.mjs:663)"
+    },
+    {
+      "name": "Wednesday 7 January, 09:00: the bench exports the run's analytics",
+      "wait": "1380m"
+    },
+    {
+      "name": "Ada's events, newest first, each with the properties Rallly sent",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?distinct_id=usr_ada01&after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results.0.event",
+          "equals": "space_setup"
+        },
+        {
+          "path": "results.0.id",
+          "equals": "019b9295-0005-7000-8000-000000000005"
+        },
+        {
+          "path": "results.0.timestamp",
+          "equals": "2026-01-06T09:59:59+00:00"
+        },
+        {
+          "path": "results.1.event",
+          "equals": "login"
+        },
+        {
+          "path": "results.2.event",
+          "equals": "$merge_dangerously"
+        },
+        {
+          "path": "results.2.properties.alias",
+          "equals": "anon_4kq9w2"
+        },
+        {
+          "path": "results.3.event",
+          "equals": "register"
+        },
+        {
+          "path": "results.3.properties.$set",
+          "equals": {
+            "name": "Ada Okafor",
+            "email": "ada@harbourline.test",
+            "tier": "hobby",
+            "timeZone": "Europe/London",
+            "locale": "en"
+          }
+        },
+        {
+          "path": "results.3.person",
+          "equals": null
+        },
+        {
+          "path": "results.4",
+          "exists": false
+        },
+        {
+          "path": "next",
+          "equals": null
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "The guest's comment, kept personless as it was sent",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?distinct_id=anon_4kq9w2&after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results.0.event",
+          "equals": "poll_comment_add"
+        },
+        {
+          "path": "results.0.properties.$process_person_profile",
+          "equals": false
+        },
+        {
+          "path": "results.0.properties.$groups",
+          "equals": {
+            "poll": "pz7q"
+          }
+        },
+        {
+          "path": "results.1",
+          "exists": false
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "The register event with its person: identified, its first distinct id, its email and name",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?event=register&include_person=true&after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results.0.distinct_id",
+          "equals": "usr_ada01"
+        },
+        {
+          "path": "results.0.person",
+          "equals": {
+            "is_identified": true,
+            "distinct_ids": [
+              "usr_ada01"
+            ],
+            "properties": {
+              "email": "ada@harbourline.test",
+              "name": "Ada Okafor"
+            }
+          }
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "The guest's distinct id now names Ada's person: both ids, her properties merged",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/persons/?distinct_id=anon_4kq9w2",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "capture": {
+        "person": "results.0.uuid"
+      },
+      "expect": [
+        {
+          "path": "results.0.distinct_ids",
+          "equals": [
+            "usr_ada01",
+            "anon_4kq9w2"
+          ]
+        },
+        {
+          "path": "results.0.is_identified",
+          "equals": true
+        },
+        {
+          "path": "results.0.properties",
+          "equals": {
+            "name": "Ada Okafor",
+            "email": "ada@harbourline.test",
+            "tier": "hobby",
+            "timeZone": "Europe/London",
+            "locale": "en",
+            "job_title": "Engineer"
+          }
+        },
+        {
+          "path": "results.0.name",
+          "equals": "ada@harbourline.test"
+        },
+        {
+          "path": "results.1",
+          "exists": false
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "The person by its UUID",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/persons/{person}/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "uuid",
+          "equals": "{person}"
+        },
+        {
+          "path": "distinct_ids",
+          "equals": [
+            "usr_ada01",
+            "anon_4kq9w2"
+          ]
+        },
+        {
+          "path": "created_at",
+          "equals": "2026-01-06T09:59:55+00:00"
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "One event by its uuid: the space setup's $set",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/019b9295-0005-7000-8000-000000000005/",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "properties.$set.job_title",
+          "equals": "Engineer"
+        },
+        {
+          "path": "properties.$lib",
+          "equals": "posthog-node"
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "Thursday 8 January, 16:00: Ada deletes her account",
+      "wait": "1860m"
+    },
+    {
+      "name": "Rallly's erasure looks her person up by her distinct id",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/persons/?distinct_id=usr_ada01",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "capture": {
+        "ada": "results.0.id"
+      },
+      "expect": [
+        {
+          "path": "results.0.id",
+          "equals": "{person}"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/src/lib/posthog.ts:153"
+    },
+    {
+      "name": "and deletes it with its events",
+      "method": "DELETE",
+      "path": "https://us.posthog.com/api/projects/{project}/persons/{ada}/?delete_events=true",
+      "status": 202,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/src/lib/posthog.ts:171"
+    },
+    {
+      "name": "Rallly records the deletion personless under its system id",
+      "method": "POST",
+      "path": "https://us.i.posthog.com/batch/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "content-encoding": "gzip",
+        "user-agent": "posthog-node/5.46.1"
+      },
+      "encode": "gzip",
+      "body": {
+        "api_key": "{token}",
+        "batch": [
+          {
+            "distinct_id": "server_system_event",
+            "event": "account_deletion_complete",
+            "properties": {
+              "$process_person_profile": false,
+              "$lib": "posthog-node",
+              "$lib_version": "5.46.1",
+              "$geoip_disable": true
+            },
+            "timestamp": "2026-01-08T15:59:58.000Z",
+            "uuid": "019b9295-0006-7000-8000-000000000006"
+          }
+        ],
+        "sent_at": "2026-01-08T16:00:00.000Z"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "Ok"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:apps/web/src/app/[locale]/(space)/settings/profile/actions.ts:119",
+      "client": "posthog-node@5.46.1 (@posthog/core@1.45.1:dist/posthog-core-stateless.mjs:663)"
+    },
+    {
+      "name": "Her distinct ids name no person now",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/persons/?distinct_id=anon_4kq9w2",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        },
+        {
+          "path": "next",
+          "equals": null
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "Her events wait for the weekly deletion: still listed",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?distinct_id=usr_ada01&after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results.3.event",
+          "equals": "register"
+        },
+        {
+          "path": "results.4",
+          "exists": false
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "Sunday 11 January, 05:01: the deletion has run",
+      "wait": "3661m"
+    },
+    {
+      "name": "Her events are gone",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?distinct_id=usr_ada01&after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "and the guest comment merged into her",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?distinct_id=anon_4kq9w2&after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results",
+          "equals": []
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "The system's personless record of the deletion stays",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results.0.event",
+          "equals": "account_deletion_complete"
+        },
+        {
+          "path": "results.0.distinct_id",
+          "equals": "server_system_event"
+        },
+        {
+          "path": "results.1",
+          "exists": false
+        }
+      ],
+      "evidence": "volter-ai/twin-world@002c903b:docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:146"
+    },
+    {
+      "name": "Monday 12 January, 09:00: Ben, a visitor, opens Rallly's landing page in his browser",
+      "wait": "1679m"
+    },
+    {
+      "name": "Rallly's posthog-js starts: it loads the project's remote config script, the project's settings as PostHog keeps them for it",
+      "method": "GET",
+      "path": "https://us-assets.i.posthog.com/array/{token}/config.js",
+      "status": 200,
+      "headers": {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+        "origin": "https://rallly.co"
+      },
+      "capture": {
+        "configJs": "text:config: (\\{.*\\}),\\n"
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "application/javascript"
+        },
+        {
+          "header": "cache-control",
+          "equals": "public, max-age=300"
+        },
+        {
+          "path": "",
+          "contains": "window._POSTHOG_REMOTE_CONFIG['{token}'] = {"
+        },
+        {
+          "path": "",
+          "contains": "\"hasFeatureFlags\":false"
+        },
+        {
+          "path": "",
+          "contains": "siteApps: []"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:packages/posthog/src/client.ts:64",
+      "client": "posthog-js@1.434.11 (packages/browser/src/remote-config.ts: RemoteConfigLoader.load)"
+    },
+    {
+      "name": "The same config as JSON, which a client without the script loader reads: no flag, so posthog-js asks /flags only when a flag is read",
+      "method": "GET",
+      "path": "https://us-assets.i.posthog.com/array/{token}/config",
+      "status": 200,
+      "headers": {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+        "origin": "https://rallly.co"
+      },
+      "expect": [
+        {
+          "header": "content-type",
+          "equals": "application/json"
+        },
+        {
+          "path": "supportedCompression",
+          "equals": [
+            "gzip",
+            "gzip-js"
+          ]
+        },
+        {
+          "path": "hasFeatureFlags",
+          "equals": false
+        },
+        {
+          "path": "capturePerformance",
+          "equals": {
+            "network_timing": true,
+            "web_vitals": false,
+            "web_vitals_allowed_metrics": null
+          }
+        },
+        {
+          "path": "analytics",
+          "equals": {
+            "endpoint": "/i/v0/e/"
+          }
+        },
+        {
+          "path": "sessionRecording",
+          "equals": false
+        },
+        {
+          "path": "heatmaps",
+          "equals": false
+        },
+        {
+          "path": "surveys",
+          "equals": false
+        },
+        {
+          "path": "defaultIdentifiedOnly",
+          "equals": true
+        },
+        {
+          "path": "siteAppsJS",
+          "exists": false
+        },
+        {
+          "path": "token",
+          "exists": false
+        },
+        {
+          "path": "siteApps",
+          "equals": []
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:packages/posthog/src/client.ts:64",
+      "client": "posthog-js@1.434.11 (packages/browser/src/remote-config.ts: RemoteConfigLoader.load)"
+    },
+    {
+      "name": "A token that names no project has no config",
+      "method": "GET",
+      "path": "https://us-assets.i.posthog.com/array/phc_notaprojecttoken000000000000000000000000/config.js",
+      "status": 404,
+      "expect": [
+        {
+          "path": "",
+          "equals": ""
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:packages/posthog/src/client.ts:64"
+    },
+    {
+      "name": "When Rallly's page reads a flag, posthog-js loads the project's flags for Ben's anonymous id",
+      "method": "POST",
+      "path": "https://us.i.posthog.com/flags/?v=2",
+      "status": 200,
+      "headers": {
+        "content-type": "text/plain",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+        "origin": "https://rallly.co"
+      },
+      "encode": "gzip",
+      "body": {
+        "token": "{token}",
+        "distinct_id": "019bb1a0-0000-7000-8000-00000000b0b1",
+        "groups": {},
+        "person_properties": {
+          "$initial_referrer": "$direct",
+          "$initial_referring_domain": "$direct",
+          "$initial_current_url": "https://rallly.co/",
+          "$initial_host": "rallly.co",
+          "$initial_pathname": "/",
+          "$lib": "web",
+          "$lib_version": "1.434.11"
+        },
+        "group_properties": {},
+        "timezone": "Europe/London",
+        "$device_id": "019bb1a0-0000-7000-8000-00000000b0b1",
+        "sent_at": "2026-01-12T09:00:00.000Z"
+      },
+      "expect": [
+        {
+          "path": "flags",
+          "equals": {}
+        },
+        {
+          "path": "errorsWhileComputingFlags",
+          "equals": false
+        },
+        {
+          "path": "requestId",
+          "matches": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        {
+          "path": "evaluatedAt",
+          "equals": 1768208400000
+        },
+        {
+          "path": "sessionRecording",
+          "exists": false
+        },
+        {
+          "path": "featureFlags",
+          "exists": false
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:packages/posthog/src/client.ts:64",
+      "client": "posthog-js@1.434.11 (lib/src/posthog-featureflags.js:979,1069; lib/src/remote-config.js:99)"
+    },
+    {
+      "name": "The same request with the SDK configuration asked for (config=true): the project's remote config passed through, the same fields",
+      "method": "POST",
+      "path": "https://us.i.posthog.com/flags/?v=2&config=true",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "api_key": "{token}",
+        "distinct_id": "019bb1a0-0000-7000-8000-00000000b0b1",
+        "groups": {}
+      },
+      "expect": [
+        {
+          "path": "flags",
+          "equals": {}
+        },
+        {
+          "path": "supportedCompression",
+          "equals": [
+            "gzip",
+            "gzip-js"
+          ]
+        },
+        {
+          "path": "hasFeatureFlags",
+          "equals": false
+        },
+        {
+          "path": "capturePerformance",
+          "equals": {
+            "network_timing": true,
+            "web_vitals": false,
+            "web_vitals_allowed_metrics": null
+          }
+        },
+        {
+          "path": "analytics",
+          "equals": {
+            "endpoint": "/i/v0/e/"
+          }
+        },
+        {
+          "path": "sessionRecording",
+          "equals": false
+        },
+        {
+          "path": "heatmaps",
+          "equals": false
+        },
+        {
+          "path": "surveys",
+          "equals": false
+        },
+        {
+          "path": "defaultIdentifiedOnly",
+          "equals": true
+        },
+        {
+          "path": "siteAppsJS",
+          "exists": false
+        },
+        {
+          "path": "token",
+          "exists": false
+        },
+        {
+          "path": "isAuthenticated",
+          "exists": false
+        }
+      ],
+      "evidence": "volter-ai/twin-world@6f877a1d:docs/contributing/architecture.md:3306"
+    },
+    {
+      "name": "A key that names no project is refused",
+      "method": "POST",
+      "path": "https://us.i.posthog.com/flags/?v=2",
+      "status": 401,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "api_key": "phc_notaprojecttoken000000000000000000000000",
+        "distinct_id": "019bb1a0-0000-7000-8000-00000000b0b1"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "equals": "authentication_error"
+        },
+        {
+          "path": "code",
+          "equals": "authentication_failed"
+        }
+      ],
+      "evidence": "volter-ai/twin-world@6f877a1d:docs/contributing/architecture.md:3306"
+    },
+    {
+      "name": "A token outside the token alphabet is refused before any read",
+      "method": "GET",
+      "path": "https://us-assets.i.posthog.com/array/phc.not.a.token/config",
+      "status": 400,
+      "expect": [
+        {
+          "path": "",
+          "equals": "Invalid token format"
+        }
+      ],
+      "evidence": "lukevella/rallly@3e63239dbdec:packages/posthog/src/client.ts:64"
+    },
+    {
+      "name": "Monday 12 January, 09:05: the bench's server reports an error with posthog-node's captureException and its own fingerprint",
+      "wait": "5m"
+    },
+    {
+      "name": "posthog-node flushes the $exception: its exception list and fingerprint as built, personless under a fresh id",
+      "method": "POST",
+      "path": "https://us.i.posthog.com/batch/",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "content-encoding": "gzip",
+        "user-agent": "posthog-node/5.46.1"
+      },
+      "encode": "gzip",
+      "body": {
+        "api_key": "{token}",
+        "batch": [
+          {
+            "distinct_id": "019bb1a5-0000-7000-8000-0000000e0001",
+            "event": "$exception",
+            "properties": {
+              "$exception_list": [
+                {
+                  "type": "RateLimitStoreError",
+                  "value": "rate limit store unavailable",
+                  "mechanism": {
+                    "type": "generic",
+                    "handled": true,
+                    "synthetic": false
+                  },
+                  "stacktrace": {
+                    "type": "raw",
+                    "frames": [
+                      {
+                        "filename": "/app/apps/web/.next/server/app/api/middleware/rate-limit.js",
+                        "function": "checkRateLimit",
+                        "lineno": 223,
+                        "colno": 21,
+                        "in_app": true,
+                        "platform": "node:javascript"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "$exception_level": "error",
+              "$exception_fingerprint": "rallly-rate-limit-store",
+              "$process_person_profile": false,
+              "$lib": "posthog-node",
+              "$lib_version": "5.46.1",
+              "$geoip_disable": true
+            },
+            "timestamp": "2026-01-12T09:04:58.000Z",
+            "uuid": "019bb1a5-0007-7000-8000-000000000007"
+          }
+        ],
+        "sent_at": "2026-01-12T09:05:00.000Z"
+      },
+      "expect": [
+        {
+          "path": "status",
+          "equals": "Ok"
+        }
+      ],
+      "evidence": "volter-ai/twin-world@6f877a1d:docs/contributing/architecture.md:3306",
+      "client": "posthog-node@5.46.1 (dist/extensions/error-tracking/index.mjs:19-33; @posthog/core@1.45.1:dist/error-tracking/error-properties-builder.mjs:20-23,64-80)"
+    },
+    {
+      "name": "The bench's exception evidence: the $exception read back with its exception list and fingerprint as sent",
+      "method": "GET",
+      "path": "https://us.posthog.com/api/projects/{project}/events/?event=%24exception&after=2026-01-01T00:00:00Z",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {key}"
+      },
+      "expect": [
+        {
+          "path": "results.0.id",
+          "equals": "019bb1a5-0007-7000-8000-000000000007"
+        },
+        {
+          "path": "results.0.properties.$exception_list",
+          "equals": [
+            {
+              "type": "RateLimitStoreError",
+              "value": "rate limit store unavailable",
+              "mechanism": {
+                "type": "generic",
+                "handled": true,
+                "synthetic": false
+              },
+              "stacktrace": {
+                "type": "raw",
+                "frames": [
+                  {
+                    "filename": "/app/apps/web/.next/server/app/api/middleware/rate-limit.js",
+                    "function": "checkRateLimit",
+                    "lineno": 223,
+                    "colno": 21,
+                    "in_app": true,
+                    "platform": "node:javascript"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "path": "results.0.properties.$exception_fingerprint",
+          "equals": "rallly-rate-limit-store"
+        },
+        {
+          "path": "results.0.properties.$exception_level",
+          "equals": "error"
+        },
+        {
+          "path": "results.1",
+          "exists": false
+        }
+      ],
+      "evidence": "volter-ai/twin-world@6f877a1d:docs/contributing/architecture.md:3306"
+    }
+  ]
+}
