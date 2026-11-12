@@ -229,7 +229,7 @@ async function operate(argv: string[], lifetime: Lifetime, operation: Operation)
       mkdirSync(work);
       const config = join(work, 'world.json');
       const id = 'catalog-publisher-' + (process.env.PACK_VENDOR ?? 'tavily') + '-' + mode;
-      writeFileSync(config, JSON.stringify({ id, services: [], network: { egress: [] } }));
+      writeFileSync(config, JSON.stringify({ schemaVersion: 2, metadata: { id }, services: [], runtime: { network: { egress: [] } } }));
       worldMayHaveStarted = true;
       // a disposable run: the CLI boots its own instance, runs the command in it and retires it
       const result = await command(process.execPath, [cli, 'world', 'run', '--ephemeral', '--world', work, '--', ...consumer], { cwd, stdio: 'inherit' });
