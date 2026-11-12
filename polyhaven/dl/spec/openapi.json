@@ -1,0 +1,43 @@
+{
+ "openapi": "3.0.2",
+ "info": {
+  "title": "Poly Haven downloads",
+  "version": "1.0.0",
+  "description": "The two hosts the api lane's documents point at: dl.polyhaven.org, a Backblaze B2 bucket (ph-assets) served by file name, where every file url of /files/{id} lives; and cdn.polyhaven.com, where an asset's thumbnail_url lives. Written from the api document's file and thumbnail_url fields and Backblaze's b2_download_file_by_name page (spec/SOURCE.md)."
+ },
+ "servers": [{ "url": "https://dl.polyhaven.org" }, { "url": "https://cdn.polyhaven.com" }],
+ "paths": {
+  "/file/{bucket}/{fileName}": {
+   "get": {
+    "operationId": "downloadFileByName",
+    "summary": "Downloads one file using a bucket name and file name",
+    "description": "To this base, you add file/, your bucket name, a /, and then the name of the file. The file name may itself include more / characters. The response contains the headers Content-Length, Content-Type, X-Bz-File-Name and X-Bz-Content-Sha1.",
+    "parameters": [
+     { "name": "bucket", "in": "path", "required": true, "schema": { "type": "string" }, "example": "ph-assets" },
+     { "name": "fileName", "in": "path", "required": true, "schema": { "type": "string" }, "description": "The file name, which may itself include more / characters.", "example": "Models/gltf/1k/ArmChair_01/ArmChair_01_1k.gltf" }
+    ],
+    "responses": {
+     "200": { "description": "The file's bytes.", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+     "404": { "description": "File with such name does not exist.", "content": { "application/json": { "schema": { "type": "object", "properties": { "code": { "type": "string", "example": "not_found" }, "message": { "type": "string" }, "status": { "type": "integer" } } } } } }
+    }
+   }
+  },
+  "/asset_img/thumbs/{file}": {
+   "get": {
+    "operationId": "getThumbnail",
+    "summary": "The preview image thumbnail for an asset",
+    "description": "The URL of the preview image thumbnail for this asset, as an asset's thumbnail_url names it (asset_img/thumbs/<id>.png, with width, height and v as query parameters).",
+    "parameters": [
+     { "name": "file", "in": "path", "required": true, "schema": { "type": "string" }, "example": "ArmChair_01.png" },
+     { "name": "width", "in": "query", "schema": { "type": "integer" } },
+     { "name": "height", "in": "query", "schema": { "type": "integer" } },
+     { "name": "v", "in": "query", "schema": { "type": "string" } }
+    ],
+    "responses": {
+     "200": { "description": "The image.", "content": { "image/png": { "schema": { "type": "string", "format": "binary" } } } },
+     "404": { "description": "No such image." }
+    }
+   }
+  }
+ }
+}
