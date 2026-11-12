@@ -1,0 +1,308 @@
+{
+  "patches": [
+    {
+      "op": "remove",
+      "path": "/paths/~1v2~1namespaces~1{namespace}?stainless_overload=branchFrom",
+      "why": "`?stainless_overload=branchFrom` is how the spec's generator (Stainless) gives one path and method a second client method; it is not a parameter of turbopuffer's. Turbopuffer's documentation names no such parameter and branches a namespace with a `branch_from_namespace` field in the body of POST /v2/namespaces/:namespace (https://turbopuffer.com/docs/branching.md, the page as turbopuffer publishes it for readers other than a browser, whose curl example posts that body to the plain path), which the spec's own Write body already has (`BranchFromNamespaceParams`). The official client sends the key with that same body, `{ branch_from_namespace: body }` (https://raw.githubusercontent.com/turbopuffer/turbopuffer-typescript/v2.8.0/src/resources/namespaces.ts, `branchFrom`), so the twin serves it as the write operation and ignores the key. That turbopuffer's server ignores the key too is inferred from the documentation, not observed.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/branching.md",
+        "quote": "curl https://gcp-us-central1.turbopuffer.com/v2/namespaces/branching-example-curl"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/CopyFromNamespaceConfig/properties/dest_encryption",
+      "value": {
+        "description": "(Optional) The encryption configuration for the destination namespace.",
+        "$ref": "#/components/schemas/Encryption"
+      },
+      "why": "The spec's copyFrom overload (removed below) says a copy's body carries `dest_encryption` beside `source_namespace`, and the official client sends the whole of it inside `copy_from_namespace` (https://raw.githubusercontent.com/turbopuffer/turbopuffer-typescript/v2.8.0/src/resources/namespaces.ts, `copyFrom`: `body: { copy_from_namespace: body }`); the Write body's `CopyFromNamespaceConfig` lacks it, so it moves there before the overload goes.",
+      "source": {
+        "spec": "/paths/~1v2~1namespaces~1{namespace}?stainless_overload=copyFrom/post/requestBody",
+        "quote": "dest_encryption"
+      }
+    },
+    {
+      "op": "remove",
+      "path": "/paths/~1v2~1namespaces~1{namespace}?stainless_overload=copyFrom",
+      "why": "As for branchFrom: `?stainless_overload=copyFrom` is the spec generator's device, not a turbopuffer parameter. Turbopuffer copies a namespace with a `copy_from_namespace` field in the body of POST /v2/namespaces/:namespace (https://turbopuffer.com/docs/write: \"The client libraries expose a copy_from() / copyFrom() convenience method that wraps this parameter\"; its curl example posts that body to the plain path), which the spec's Write body already has (`CopyFromNamespaceParams`). The official client sends the key with that body (https://raw.githubusercontent.com/turbopuffer/turbopuffer-typescript/v2.8.0/src/resources/namespaces.ts, `copyFrom`), so the twin serves it as the write operation and ignores the key. That turbopuffer's server ignores the key is inferred from the documentation, not observed.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/write",
+        "quote": "The client libraries expose a copy_from() / copyFrom() convenience method that wraps this parameter."
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1v2~1namespaces~1{namespace}~1query/post/requestBody/content/application~1json/schema",
+      "value": {
+        "anyOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QueryConfig"
+              },
+              {
+                "$ref": "#/components/schemas/Query"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QueryConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "queries"
+                ],
+                "properties": {
+                  "queries": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Query"
+                    }
+                  },
+                  "rerank_by": {
+                    "description": "How to combine the rows returned by each sub-query into a single ranked list.",
+                    "x-stainless-any": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "why": "Turbopuffer's query endpoint takes a multi-query in its own body: \"You can provide multiple query objects to be executed simultaneously on a namespace\", with a curl example posting `{\"queries\": [...]}` to POST /v2/namespaces/:namespace/query (https://turbopuffer.com/docs/query.md, the page as turbopuffer publishes it for readers other than a browser; its HTML renders the Python example first). The spec gives that body to a pseudo-path `?stainless_overload=multiQuery` (removed below) that the official client sends it to (https://raw.githubusercontent.com/turbopuffer/turbopuffer-typescript/v2.8.0/src/resources/namespaces.ts, `multiQuery`), so the query operation takes either body.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/query.md",
+        "quote": "curl https://gcp-us-central1.turbopuffer.com/v2/namespaces/query-multi-example-curl/query"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1v2~1namespaces~1{namespace}~1query/post/responses/200/content/application~1json/schema",
+      "value": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/QueryResult"
+          },
+          {
+            "$ref": "#/components/schemas/MultiQueryResult"
+          }
+        ]
+      },
+      "why": "A multi-query sent to the query endpoint answers its results per sub-query (the spec's MultiQueryResult, which the multiQuery pseudo-path answered); a single query answers QueryResult (https://turbopuffer.com/docs/query).",
+      "source": {
+        "url": "https://turbopuffer.com/docs/query",
+        "quote": "Individual sub-queries can vary their parameters independently"
+      }
+    },
+    {
+      "op": "remove",
+      "path": "/paths/~1v2~1namespaces~1{namespace}~1query?stainless_overload=multiQuery",
+      "why": "`?stainless_overload=multiQuery` is the spec generator's device for a second client method on one path, not a turbopuffer parameter (https://turbopuffer.com/docs/query names none, and posts a multi-query to the plain path). Its body and answer now belong to the query operation (the two patches above); the official client still sends the key (https://raw.githubusercontent.com/turbopuffer/turbopuffer-typescript/v2.8.0/src/resources/namespaces.ts, `multiQuery`), and the twin ignores it. That turbopuffer's server ignores the key is inferred from the documentation, not observed.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/query",
+        "quote": "Multi-queries offer better performance than issuing independent queries to the same namespace."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v1~1namespaces~1{namespace}~1metadata/get",
+      "value": {
+        "description": "Get metadata about a namespace.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/namespace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The metadata of the namespace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceMetadata"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "turbopuffer's Namespace metadata page documents the read at GET /v1/namespaces/:namespace/metadata, and its curl example reads it there; the spec has only GET /v2/namespaces/{namespace}/metadata (which the client sends) beside PATCH at the /v1 path. Both paths answer the same metadata.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/metadata.md",
+        "quote": "GET /v1/namespaces/:namespace/metadata"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/NamespaceMetadata/properties/last_write_at",
+      "value": {
+        "type": "string",
+        "format": "date-time",
+        "description": "The timestamp when the namespace's data was last modified."
+      },
+      "why": "The Namespace metadata page answers `last_write_at`, \"The timestamp when the namespace's data was last modified\", beside `updated_at` (data or schema); the spec's NamespaceMetadata omits it.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/metadata.md",
+        "quote": "The timestamp when the namespace's data was last modified, in ISO 8601 format."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/NamespaceMetadata/properties/branching",
+      "value": {
+        "type": "object",
+        "description": "The state of branching for the namespace. Only present for branched namespaces.",
+        "properties": {
+          "parent": {
+            "type": "string",
+            "description": "The namespace this was branched from."
+          }
+        }
+      },
+      "why": "The Namespace metadata page answers `branching` for a branched namespace (`parent`, the namespace it was branched from); the spec's NamespaceMetadata omits it.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/metadata.md",
+        "quote": "The namespace this was branched from."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/QueryPerformance/properties/last_included_write_at",
+      "value": {
+        "type": "string",
+        "format": "date-time",
+        "description": "The timestamp of the last write operation that the query observed."
+      },
+      "why": "The Query page's response lists `last_included_write_at` among a query's performance fields; the spec's QueryPerformance omits it.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/query.md",
+        "quote": "the timestamp of the last write operation that the query observed"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v1~1namespaces~1{namespace}~1operations~1{token}",
+      "value": {
+        "get": {
+          "description": "Poll an asynchronous operation.",
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/namespace"
+            },
+            {
+              "name": "token",
+              "in": "path",
+              "required": true,
+              "description": "The operation's token.",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "The operation's status, and its result once it has finished.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "status"
+                    ],
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "running",
+                          "finished"
+                        ]
+                      },
+                      "progress": {
+                        "type": "string"
+                      },
+                      "result": {
+                        "type": "object",
+                        "properties": {
+                          "success": {
+                            "$ref": "#/components/schemas/WriteResult"
+                          },
+                          "error": {
+                            "type": "object",
+                            "properties": {
+                              "status_code": {
+                                "type": "integer"
+                              },
+                              "detail": {
+                                "$ref": "#/components/schemas/ErrorResponse"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "An error response.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "turbopuffer's API overview documents asynchronous requests: a Prefer: respond-async request is answered 202 with a Location to poll, `GET /v1/namespaces/<ns>/operations/<token>` in its curl example, whose answers are `{\"status\": \"running\"}` or `{\"status\": \"finished\", \"result\": {\"success\": …} | {\"error\": {\"status_code\", \"detail\"}}}` (the Write page's copy-progress example adds `progress`). The vendored spec has no such path.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/api-overview.md",
+        "quote": "Poll that location to check on progress"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v2~1namespaces~1{namespace}/post/responses/202",
+      "value": {
+        "description": "The operation was started in the background (Prefer: respond-async).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "token"
+              ],
+              "properties": {
+                "token": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "A copy_from_namespace write sent with Prefer: respond-async is answered `202 Accepted` with a `Location` header and `{\"token\": \"tpuf-abc123\"}` (the API overview's example); the spec gives the write no 202.",
+      "source": {
+        "url": "https://turbopuffer.com/docs/api-overview.md",
+        "quote": "The server returns `202 Accepted` with a `Location` header pointing to the operation."
+      }
+    }
+  ]
+}
