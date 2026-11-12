@@ -1,0 +1,185 @@
+{
+  "vendor": "volteridentity",
+  "author": "Contributor 91",
+  "host": "id.volter.ai",
+  "about": "Published native redirect and Basic authentication rules, the OAuth unsupported-grant refusal, and member-role rules in the pinned vendor server source; setup uses only served operations and account doors.",
+  "steps": [
+    {
+      "name": "Volter's operator has a Volter identity",
+      "method": "POST",
+      "path": "/_twin/users",
+      "status": 201,
+      "body": {
+        "email": "operator@volter.test",
+        "name": "Volter Operator"
+      }
+    },
+    {
+      "name": "Published-rule World admin setting",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 200,
+      "capture": {
+        "admin": "admin_token"
+      }
+    },
+    {
+      "name": "The operator signs in for client registration",
+      "method": "POST",
+      "path": "https://id.volter.ai/login",
+      "status": 303,
+      "body": "authorize=&email=operator%40volter.test",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "capture": {
+        "op_session": "header:set-cookie:volter-id\\.session_token=([^;]+)"
+      }
+    },
+    {
+      "name": "A native client registers the documented private-use redirect",
+      "method": "POST",
+      "path": "https://id.volter.ai/admin/clients",
+      "status": 201,
+      "example": "adminCreateClient#doc native private-use redirect",
+      "view": "clientAuthentication",
+      "body": {
+        "application_type": "native",
+        "redirect_uris": [
+          "com.example.app:/callback"
+        ],
+        "grant_types": [
+          "authorization_code",
+          "client_credentials"
+        ],
+        "client_credentials_scopes": [
+          "organizations"
+        ],
+        "skip_consent": true
+      },
+      "headers": {
+        "cookie": "volter-id.session_token={op_session}",
+        "authorization": "Bearer {admin}"
+      },
+      "capture": {
+        "example_client": "client_id",
+        "example_basic": "view:basic"
+      },
+      "expect": [
+        {
+          "path": "redirect_uris",
+          "members": [
+            "com.example.app:/callback"
+          ]
+        },
+        {
+          "path": "application_type",
+          "equals": "native"
+        },
+        {
+          "path": "token_endpoint_auth_method",
+          "equals": "client_secret_basic"
+        },
+        {
+          "path": "grant_types",
+          "members": [
+            "authorization_code",
+            "client_credentials"
+          ]
+        },
+        {
+          "path": "client_credentials_scopes",
+          "members": [
+            "organizations"
+          ]
+        },
+        {
+          "path": "skip_consent",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "The reserved file scheme is refused for a native client",
+      "method": "POST",
+      "path": "https://id.volter.ai/admin/clients",
+      "status": 400,
+      "example": "adminCreateClient#doc reserved native URI scheme",
+      "body": {
+        "application_type": "native",
+        "redirect_uris": [
+          "file:/callback"
+        ]
+      },
+      "headers": {
+        "cookie": "volter-id.session_token={op_session}",
+        "authorization": "Bearer {admin}"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "invalid_redirect_uri"
+        }
+      ]
+    },
+    {
+      "name": "The operator links the example client to the organizations resource",
+      "method": "POST",
+      "path": "https://id.volter.ai/admin/clients/{example_client}/resources",
+      "status": 201,
+      "body": {
+        "resource": "https://id.volter.ai/organizations"
+      },
+      "headers": {
+        "cookie": "volter-id.session_token={op_session}",
+        "authorization": "Bearer {admin}"
+      }
+    },
+    {
+      "name": "The registered Basic-auth client receives its organizations token",
+      "method": "POST",
+      "path": "https://id.volter.ai/api/auth/oauth2/token",
+      "status": 200,
+      "example": "post_api_auth_oauth2_token#doc Basic client authentication",
+      "body": "grant_type=client_credentials&scope=organizations&resource=https%3A%2F%2Fid.volter.ai%2Forganizations",
+      "headers": {
+        "authorization": "{example_basic}",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "capture": {
+        "example_orgs": "access_token"
+      },
+      "expect": [
+        {
+          "path": "scope",
+          "equals": "organizations"
+        },
+        {
+          "path": "token_type",
+          "equals": "Bearer"
+        }
+      ]
+    },
+    {
+      "name": "An unknown grant type receives the published OAuth refusal",
+      "method": "POST",
+      "path": "https://id.volter.ai/api/auth/oauth2/token",
+      "status": 400,
+      "example": "post_api_auth_oauth2_token#doc unsupported grant",
+      "body": "grant_type=not-a-grant",
+      "headers": {
+        "authorization": "{example_basic}",
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "expect": [
+        {
+          "path": "error",
+          "equals": "unsupported_grant_type"
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "get_api_auth_oauth2_authorize#doc consent-dependent authorization": "Separate flow behind authorize: a client configured without skip_consent needs consent; every demanded first-party client skips it. No demanded application registers this setting or calls the consent operation, which is unmodeled."
+  }
+}

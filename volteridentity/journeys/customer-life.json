@@ -1,0 +1,2295 @@
+{
+ "vendor": "volteridentity",
+ "author": "Contributor 91",
+ "about": "Volter products use their actual OIDC requests, GitHub and Google social callbacks, linked GitHub funder claims, organization management and device flows; RH2's native Apple sign-in receives the missing-provider token-verification refusal.",
+ "steps": [
+  {
+   "name": "Monday 5 January, 09:00: Volter registers its products with its identity service",
+   "wait": "6300m"
+  },
+  {
+   "name": "Volter's operator has a Volter identity",
+   "method": "POST",
+   "path": "/_twin/users",
+   "status": 201,
+   "body": {
+    "email": "operator@volter.test",
+    "name": "Volter Operator"
+   }
+  },
+  {
+   "name": "Kenji's GitHub account, made on GitHub's sign-up page",
+   "method": "POST",
+   "path": "https://api.github.com/_twin/users",
+   "status": 201,
+   "body": {
+    "login": "kenjimori",
+    "email": "kenji@orbitapps.test",
+    "name": "Kenji Mori",
+    "password": "orbit-kenji-password"
+   },
+   "capture": {
+    "kenji_github_id": "id"
+   }
+  },
+  {
+   "name": "Volter's OAuth app registered on GitHub's settings page",
+   "method": "POST",
+   "path": "https://api.github.com/_twin/oauth_apps",
+   "status": 201,
+   "body": {
+    "owner": "kenjimori",
+    "name": "Volter Identity",
+    "callback_url": "https://id.volter.ai/api/auth/callback/github"
+   },
+   "capture": {
+    "github_client": "client_id",
+    "github_secret": "client_secret"
+   }
+  },
+  {
+   "name": "The identity operator configures the GitHub app credentials (worker/src/auth.ts)",
+   "method": "POST",
+   "path": "/_twin/social",
+   "status": 201,
+   "body": {
+    "provider": "github",
+    "client_id": "{github_client}",
+    "client_secret": "{github_secret}"
+   }
+  },
+  {
+   "name": "Volter's OAuth app registered in Google's console",
+   "method": "POST",
+   "path": "https://accounts.google.com/_twin/clients",
+   "status": 201,
+   "body": {
+    "client_id": "482716093455-volteridentity.apps.googleusercontent.com",
+    "client_secret": "GOCSPX-world-volteridentity",
+    "redirect_uris": [
+     "https://id.volter.ai/api/auth/callback/google"
+    ],
+    "name": "Volter Identity"
+   }
+  },
+  {
+   "name": "The identity operator configures the Google app credentials (worker/src/auth.ts)",
+   "method": "POST",
+   "path": "/_twin/social",
+   "status": 201,
+   "body": {
+    "provider": "google",
+    "client_id": "482716093455-volteridentity.apps.googleusercontent.com",
+    "client_secret": "GOCSPX-world-volteridentity"
+   }
+  },
+  {
+   "name": "Priya's Google account, made outside the identity API",
+   "method": "POST",
+   "path": "https://accounts.google.com/_twin/accounts",
+   "status": 201,
+   "body": {
+    "sub": "112093847561029384756",
+    "email": "priya@orbitapps.test",
+    "name": "Priya Shah"
+   }
+  },
+  {
+   "name": "The identity operator accepts RH2's iOS app audience (APPLE_APP_IDS)",
+   "method": "POST",
+   "path": "/_twin/social",
+   "status": 201,
+   "body": {
+    "provider": "apple",
+    "client_id": "com.volter.runhuman"
+   }
+  },
+  {
+   "name": "Open Autonomy's GitHub platform token, issued in its operator's account settings",
+   "method": "POST",
+   "path": "https://api.github.com/_twin/users/kenjimori/tokens",
+   "status": 201,
+   "body": {
+    "note": "giving platform",
+    "scopes": [
+     "read:user"
+    ]
+   },
+   "capture": {
+    "platform_github_token": "token"
+   }
+  },
+  {
+   "name": "first_github: the identity page opens GitHub sign-in (worker/ui/identity.ts:126)",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/sign-in/social",
+   "status": 200,
+   "body": {
+    "provider": "github",
+    "callbackURL": "https://id.volter.ai/"
+   },
+   "capture": {
+    "first_github_url": "url",
+    "first_github_state": "text:state=([^&\" ]+)"
+   },
+   "expect": [
+    {
+     "path": "redirect",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "GitHub asks Kenji to sign in",
+   "method": "GET",
+   "path": "{first_github_url}",
+   "status": 302
+  },
+  {
+   "name": "Kenji gives GitHub his username and password",
+   "method": "POST",
+   "path": "https://github.com/session",
+   "status": 302,
+   "body": "login=kenjimori&password=orbit-kenji-password&return_to=%2Flogin%2Foauth%2Fauthorize%3Fclient_id%3D{github_client}%26redirect_uri%3Dhttps%253A%252F%252Fid.volter.ai%252Fapi%252Fauth%252Fcallback%252Fgithub%26scope%3Dread%253Auser%2520user%253Aemail%26state%3D{first_github_state}",
+   "capture": {
+    "github_session": "header:set-cookie:user_session=([^;]+)"
+   },
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   }
+  },
+  {
+   "name": "first_github: Kenji reads the GitHub permissions",
+   "method": "GET",
+   "path": "{first_github_url}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Authorize Volter Identity"
+    }
+   ],
+   "headers": {
+    "cookie": "user_session={github_session}"
+   }
+  },
+  {
+   "name": "Kenji declines until he has checked why sign-in asks for email access",
+   "method": "POST",
+   "path": "https://github.com/login/oauth/authorize",
+   "status": 302,
+   "body": "client_id={github_client}&redirect_uri=https%3A%2F%2Fid.volter.ai%2Fapi%2Fauth%2Fcallback%2Fgithub&scope=read%3Auser%20user%3Aemail&state={first_github_state}&authorize=0",
+   "capture": {
+    "declined_callback": "header:location"
+   },
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "user_session={github_session}"
+   }
+  },
+  {
+   "name": "The identity callback passes GitHub's cancellation to its error page",
+   "method": "GET",
+   "path": "{declined_callback}",
+   "status": 302,
+   "capture": {
+    "declined_error": "header:location"
+   }
+  },
+  {
+   "name": "Kenji reads that sign-in was denied; he checks the scopes before trying again",
+   "method": "GET",
+   "path": "{declined_error}",
+   "status": 400,
+   "expect": [
+    {
+     "path": "",
+     "contains": "access_denied"
+    }
+   ]
+  },
+  {
+   "name": "retry_github: the identity page opens GitHub sign-in (worker/ui/identity.ts:126)",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/sign-in/social",
+   "status": 200,
+   "body": {
+    "provider": "github",
+    "callbackURL": "https://id.volter.ai/"
+   },
+   "capture": {
+    "retry_github_url": "url",
+    "retry_github_state": "text:state=([^&\" ]+)"
+   },
+   "expect": [
+    {
+     "path": "redirect",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "retry_github: Kenji reads the GitHub permissions",
+   "method": "GET",
+   "path": "{retry_github_url}",
+   "status": 200,
+   "headers": {
+    "cookie": "user_session={github_session}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "Authorize Volter Identity"
+    }
+   ]
+  },
+  {
+   "name": "retry_github: Kenji authorizes the identity app",
+   "method": "POST",
+   "path": "https://github.com/login/oauth/authorize",
+   "status": 302,
+   "body": "client_id={github_client}&redirect_uri=https%3A%2F%2Fid.volter.ai%2Fapi%2Fauth%2Fcallback%2Fgithub&scope=read%3Auser%20user%3Aemail&state={retry_github_state}&authorize=1",
+   "capture": {
+    "retry_github_callback": "header:location"
+   },
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "user_session={github_session}"
+   }
+  },
+  {
+   "name": "retry_github: the identity callback trades the code at the GitHub twin and keeps the linked account",
+   "method": "GET",
+   "path": "{retry_github_callback}",
+   "status": 302,
+   "capture": {
+    "kenji_session": "header:set-cookie:volter-id\\.session_token=([^;]+)",
+    "retry_github_continue": "header:location"
+   }
+  },
+  {
+   "name": "The World holds the service's admin token, the operator's setting",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 200,
+   "capture": {
+    "admin": "admin_token"
+   },
+   "expect": [
+    {
+     "path": "admin_token",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "The operator signs in at id.volter.ai",
+   "method": "POST",
+   "path": "https://id.volter.ai/login",
+   "status": 303,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "authorize=&email=operator%40volter.test",
+   "capture": {
+    "op_session": "header:set-cookie:volter-id\\.session_token=([^;]+)"
+   }
+  },
+  {
+   "name": "The operator registers Twin's console: confidential, the code, refresh and client_credentials grants, the organizations scope",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/clients",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "client_name": "Volter World",
+    "redirect_uris": [
+     "https://platform.volter.ai/auth/callback"
+    ],
+    "token_endpoint_auth_method": "client_secret_post",
+    "grant_types": [
+     "authorization_code",
+     "refresh_token",
+     "client_credentials"
+    ],
+    "client_credentials_scopes": [
+     "organizations"
+    ],
+    "skip_consent": true,
+    "scope": "openid profile email"
+   },
+   "capture": {
+    "plat_id": "client_id",
+    "plat_secret": "client_secret"
+   },
+   "expect": [
+    {
+     "path": "client_secret_expires_at",
+     "equals": 0
+    },
+    {
+     "path": "token_endpoint_auth_method",
+     "equals": "client_secret_post"
+    },
+    {
+     "path": "response_types",
+     "members": [
+      "code"
+     ]
+    },
+    {
+     "path": "client_credentials_scopes",
+     "members": [
+      "organizations"
+     ]
+    },
+    {
+     "header": "cache-control",
+     "equals": "no-store"
+    }
+   ]
+  },
+  {
+   "name": "and links it to the organizations door",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/clients/{plat_id}/resources",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "resource": "https://id.volter.ai/organizations"
+   },
+   "expect": [
+    {
+     "path": "linked",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Open Autonomy's giving page, as its World registers it: native, client_secret_post, no consent page",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/clients",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "client_name": "Open Autonomy",
+    "redirect_uris": [
+     "https://open-autonomy.org/give/callback"
+    ],
+    "token_endpoint_auth_method": "client_secret_post",
+    "application_type": "native",
+    "skip_consent": true,
+    "scope": "openid profile email"
+   },
+   "capture": {
+    "oa_id": "client_id",
+    "oa_secret": "client_secret"
+   },
+   "expect": [
+    {
+     "path": "grant_types",
+     "members": [
+      "authorization_code"
+     ]
+    },
+    {
+     "path": "application_type",
+     "equals": "native"
+    }
+   ]
+  },
+  {
+   "name": "RH2's pilot, a first-party confidential client whose console and desktop widget sign people in",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/clients",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "client_name": "Runhuman",
+    "redirect_uris": [
+     "https://pilot.runhuman.com/api/v3/identity-providers/volter/callback"
+    ],
+    "token_endpoint_auth_method": "client_secret_post",
+    "grant_types": [
+     "authorization_code",
+     "refresh_token",
+     "urn:ietf:params:oauth:grant-type:device_code"
+    ],
+    "skip_consent": true,
+    "scope": "openid profile email offline_access"
+   },
+   "capture": {
+    "rh_id": "client_id",
+    "rh_secret": "client_secret"
+   }
+  },
+  {
+   "name": "Substrate's gateway, for a share's pages and visitors",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/clients",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "client_name": "Volter Share",
+    "redirect_uris": [
+     "https://share.volter.app/api/auth/volter/callback",
+     "https://share.volter.app/api/auth/volter/callback/visit"
+    ],
+    "token_endpoint_auth_method": "client_secret_post",
+    "grant_types": [
+     "authorization_code",
+     "refresh_token"
+    ],
+    "skip_consent": true,
+    "scope": "openid profile email offline_access"
+   },
+   "capture": {
+    "gw_id": "client_id",
+    "gw_secret": "client_secret"
+   }
+  },
+  {
+   "name": "The gateway's origin is a resource its tokens may name",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/resources",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "identifier": "https://share.volter.app",
+    "name": "Volter Share"
+   },
+   "expect": [
+    {
+     "path": "identifier",
+     "equals": "https://share.volter.app"
+    },
+    {
+     "path": "disabled",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "name": "and the gateway is linked to it",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/clients/{gw_id}/resources",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "resource": "https://share.volter.app"
+   }
+  },
+  {
+   "name": "The shared client every Volter tool on a machine signs in with, under the id @volter/identity publishes",
+   "method": "POST",
+   "path": "/_twin/shared-client",
+   "status": 201,
+   "expect": [
+    {
+     "path": "client_id",
+     "equals": "{shared_client}"
+    }
+   ],
+   "capture": {
+    "shared_client": "client_id"
+   }
+  },
+  {
+   "name": "Orbit Apps' Teams server is a resource",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/resources",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "identifier": "https://teams.orbitapps.test"
+   }
+  },
+  {
+   "name": "and the shared client is linked to it",
+   "method": "POST",
+   "path": "https://id.volter.ai/admin/clients/{shared_client}/resources",
+   "status": 201,
+   "headers": {
+    "cookie": "volter-id.session_token={op_session}",
+    "authorization": "Bearer {admin}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "resource": "https://teams.orbitapps.test"
+   }
+  },
+  {
+   "name": "Tuesday 6 January, 10:00: Priya signs in to the platform",
+   "wait": "1500m"
+  },
+  {
+   "name": "The platform reads the discovery document",
+   "method": "GET",
+   "path": "https://id.volter.ai/.well-known/openid-configuration",
+   "status": 200,
+   "expect": [
+    {
+     "path": "issuer",
+     "equals": "https://id.volter.ai"
+    },
+    {
+     "path": "token_endpoint",
+     "equals": "https://id.volter.ai/api/auth/oauth2/token"
+    },
+    {
+     "path": "device_authorization_endpoint",
+     "equals": "https://id.volter.ai/api/auth/device/code"
+    },
+    {
+     "path": "code_challenge_methods_supported",
+     "contains": "S256"
+    }
+   ]
+  },
+  {
+   "name": "It sends her to authorize with PKCE; with no session, to the sign-in page",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/authorize?response_type=code&client_id={plat_id}&redirect_uri=https%3A%2F%2Fplatform.volter.ai%2Fauth%2Fcallback&scope=openid+profile+email&state=st-plat-0106&code_challenge=CExA0LhYP74qv2XIzcW7d89Va9DI48zXJf95cCZr1FM&code_challenge_method=S256",
+   "status": 302,
+   "expect": [
+    {
+     "header": "location",
+     "contains": "https://id.volter.ai/login?"
+    }
+   ],
+   "capture": {
+    "plat_login_url": "header:location"
+   }
+  },
+  {
+   "name": "The sign-in page offers her identity",
+   "method": "GET",
+   "path": "{plat_login_url}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "Continue with Google"
+    }
+   ]
+  },
+  {
+   "name": "platform_google: Priya chooses Google on the identity sign-in page (worker/ui/identity.ts:126)",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/sign-in/social",
+   "status": 200,
+   "body": {
+    "provider": "google",
+    "callbackURL": "https://id.volter.ai/api/auth/oauth2/authorize?response_type=code&client_id={plat_id}&redirect_uri=https%3A%2F%2Fplatform.volter.ai%2Fauth%2Fcallback&scope=openid+profile+email&state=st-plat-0106&code_challenge=CExA0LhYP74qv2XIzcW7d89Va9DI48zXJf95cCZr1FM&code_challenge_method=S256"
+   },
+   "capture": {
+    "platform_google_url": "url",
+    "platform_google_state": "text:state=([^&\" ]+)"
+   },
+   "expect": [
+    {
+     "path": "redirect",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "platform_google: Google shows Priya the account chooser",
+   "method": "GET",
+   "path": "{platform_google_url}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "priya@orbitapps.test"
+    }
+   ]
+  },
+  {
+   "name": "platform_google: Priya selects her Google account",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "body": "request=client_id%3D482716093455-volteridentity.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Fid.volter.ai%252Fapi%252Fauth%252Fcallback%252Fgoogle%26scope%3Demail%2520profile%2520openid%26state%3D{platform_google_state}%26response_type%3Dcode%26prompt%3Dselect_account&sub=112093847561029384756",
+   "capture": {
+    "platform_google_callback": "header:location"
+   },
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   }
+  },
+  {
+   "name": "platform_google: the identity callback exchanges the code and verifies Google keys through its twin",
+   "method": "GET",
+   "path": "{platform_google_callback}",
+   "status": 302,
+   "capture": {
+    "priya_session": "header:set-cookie:volter-id\\.session_token=([^;]+)",
+    "platform_google_continue": "header:location",
+    "plat_continue_url": "header:location"
+   }
+  },
+  {
+   "name": "Authorize, signed in, sends her back to the platform with a code",
+   "method": "GET",
+   "path": "{plat_continue_url}",
+   "status": 302,
+   "headers": {
+    "cookie": "volter-id.session_token={priya_session}"
+   },
+   "capture": {
+    "plat_code": "redirect.code"
+   },
+   "expect": [
+    {
+     "path": "redirect.state",
+     "equals": "st-plat-0106"
+    },
+    {
+     "path": "redirect.iss",
+     "equals": "https://id.volter.ai"
+    }
+   ]
+  },
+  {
+   "name": "The platform exchanges the code, client_secret_post with its verifier",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={plat_code}&redirect_uri=https%3A%2F%2Fplatform.volter.ai%2Fauth%2Fcallback&client_id={plat_id}&client_secret={plat_secret}&code_verifier=8Sf-JimpZswbg76422XZSAps6JvUg7XEUmpoW9ExttU-verifier-platform-priya-0106",
+   "capture": {
+    "plat_access": "access_token"
+   },
+   "expect": [
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    },
+    {
+     "path": "id_token",
+     "exists": true
+    },
+    {
+     "path": "refresh_token",
+     "exists": false
+    },
+    {
+     "header": "cache-control",
+     "equals": "no-store"
+    }
+   ]
+  },
+  {
+   "name": "Userinfo names the Google-signed-in person as Twin reads it (apps/platform/src/identity.ts:239)",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {plat_access}"
+   },
+   "expect": [
+    {
+     "path": "sub",
+     "equals": "{priya}"
+    },
+    {
+     "path": "email",
+     "equals": "priya@orbitapps.test"
+    },
+    {
+     "path": "name",
+     "equals": "Priya Shah"
+    }
+   ],
+   "capture": {
+    "priya": "sub"
+   }
+  },
+  {
+   "name": "The platform reads the same signed-in person through the World alias http://127.0.0.1:8765",
+   "method": "GET",
+   "path": "http://127.0.0.1:8765/api/auth/oauth2/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {plat_access}"
+   },
+   "expect": [
+    {
+     "path": "sub",
+     "equals": "{priya}"
+    },
+    {
+     "path": "email",
+     "equals": "priya@orbitapps.test"
+    },
+    {
+     "path": "name",
+     "equals": "Priya Shah"
+    }
+   ]
+  },
+  {
+   "name": "The platform reads the same signed-in person through the World alias http://localhost:8765",
+   "method": "GET",
+   "path": "http://localhost:8765/api/auth/oauth2/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {plat_access}"
+   },
+   "expect": [
+    {
+     "path": "sub",
+     "equals": "{priya}"
+    },
+    {
+     "path": "email",
+     "equals": "priya@orbitapps.test"
+    },
+    {
+     "path": "name",
+     "equals": "Priya Shah"
+    }
+   ]
+  },
+  {
+   "name": "The platform's own token for the organizations API (client_credentials, client_secret_post)",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=client_credentials&client_id={plat_id}&client_secret={plat_secret}&scope=organizations&resource=https%3A%2F%2Fid.volter.ai%2Forganizations",
+   "capture": {
+    "orgs": "access_token"
+   },
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "organizations"
+    },
+    {
+     "path": "id_token",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "It finds Priya by her email",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/people?email=priya%40orbitapps.test",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{priya}"
+    }
+   ],
+   "capture": {
+    "priya": "id"
+   }
+  },
+  {
+   "name": "She creates Orbit Apps; she is its owner",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/organizations",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "name": "Orbit Apps",
+    "slug": "orbit-apps",
+    "createdBy": "{priya}"
+   },
+   "capture": {
+    "org": "id"
+   },
+   "expect": [
+    {
+     "path": "role",
+     "equals": "owner"
+    }
+   ]
+  },
+  {
+   "name": "Twin finds Kenji by email before adding his identity (apps/platform/src/directory.ts:70)",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/people?email=kenji%40orbitapps.test",
+   "status": 200,
+   "capture": {
+    "kenji": "id"
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Kenji Mori"
+    }
+   ],
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   }
+  },
+  {
+   "name": "She adds Kenji as a member",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/members",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "userId": "{kenji}",
+    "role": "member"
+   }
+  },
+  {
+   "name": "and makes him an admin",
+   "method": "PATCH",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/members/{kenji}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "role": "admin"
+   },
+   "expect": [
+    {
+     "path": "role",
+     "equals": "admin"
+    }
+   ]
+  },
+  {
+   "name": "Kenji opens the organization dashboard to see the team he joined",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/organizations/{org}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{org}"
+    },
+    {
+     "path": "slug",
+     "equals": "orbit-apps"
+    },
+    {
+     "path": "name",
+     "equals": "Orbit Apps"
+    }
+   ]
+  },
+  {
+   "name": "Twin reads its organization using the same signed resource token through http://127.0.0.1:8765",
+   "method": "GET",
+   "path": "http://127.0.0.1:8765/api/organizations/{org}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{org}"
+    },
+    {
+     "path": "slug",
+     "equals": "orbit-apps"
+    },
+    {
+     "path": "name",
+     "equals": "Orbit Apps"
+    }
+   ]
+  },
+  {
+   "name": "Twin reads its organization using the same signed resource token through http://localhost:8765",
+   "method": "GET",
+   "path": "http://localhost:8765/api/organizations/{org}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{org}"
+    },
+    {
+     "path": "slug",
+     "equals": "orbit-apps"
+    },
+    {
+     "path": "name",
+     "equals": "Orbit Apps"
+    }
+   ]
+  },
+  {
+   "name": "The members: Priya the owner, Kenji an admin",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/organizations/{org}/members",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "0.email",
+     "equals": "priya@orbitapps.test"
+    },
+    {
+     "path": "0.role",
+     "equals": "owner"
+    },
+    {
+     "path": "1.role",
+     "equals": "admin"
+    }
+   ]
+  },
+  {
+   "name": "She invites Lena, who has no Volter identity yet, for a week",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/invitations",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "email": "lena@orbitapps.test",
+    "role": "member",
+    "inviterId": "{priya}"
+   },
+   "capture": {
+    "inv": "id"
+   },
+   "expect": [
+    {
+     "path": "expiresAt",
+     "contains": "2026-01-13T"
+    }
+   ]
+  },
+  {
+   "name": "The pending invitations",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/invitations",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "0.email",
+     "equals": "lena@orbitapps.test"
+    }
+   ]
+  },
+  {
+   "name": "Thursday 8 January, 10:00: Lena has accepted a role elsewhere; Priya updates the team",
+   "wait": "2880m"
+  },
+  {
+   "name": "The platform renews its expired organizations token before updating the team",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=client_credentials&client_id={plat_id}&client_secret={plat_secret}&scope=organizations&resource=https%3A%2F%2Fid.volter.ai%2Forganizations",
+   "capture": {
+    "orgs": "access_token"
+   },
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "organizations"
+    },
+    {
+     "path": "id_token",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Lena joins another team; Priya cancels the invitation",
+   "method": "DELETE",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/invitations/{inv}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "cancelled",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "No invitation is pending",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/invitations",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "She renames the organization",
+   "method": "PATCH",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "name": "Orbit Apps Inc."
+   },
+   "expect": [
+    {
+     "path": "name",
+     "equals": "Orbit Apps Inc."
+    }
+   ]
+  },
+  {
+   "name": "Away all next week, Priya makes Kenji a second owner",
+   "method": "PATCH",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/members/{kenji}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "role": "owner"
+   },
+   "expect": [
+    {
+     "path": "role",
+     "equals": "owner"
+    }
+   ]
+  },
+  {
+   "name": "Kenji's organizations, with his role",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/people/{kenji}/organizations",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "0.slug",
+     "equals": "orbit-apps"
+    },
+    {
+     "path": "0.role",
+     "equals": "owner"
+    },
+    {
+     "path": "0.name",
+     "equals": "Orbit Apps Inc."
+    }
+   ]
+  },
+  {
+   "name": "Kenji by his id",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/people/{kenji}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "email",
+     "equals": "kenji@orbitapps.test"
+    }
+   ]
+  },
+  {
+   "name": "Friday 9 January, 09:30: Kenji signs supercode in on his laptop",
+   "wait": "1410m"
+  },
+  {
+   "name": "@volter/identity opens his browser to authorize, its callback on a port the system picked",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/authorize?response_type=code&client_id={shared_client}&redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback&scope=openid+profile+email+offline_access&state=st-cli-0107&code_challenge=FLHJTv0yzIKWTf8MZaEozKGvWh_-khLFr_pYPrFWbpY&code_challenge_method=S256",
+   "status": 302,
+   "expect": [
+    {
+     "header": "location",
+     "contains": "https://id.volter.ai/login?"
+    }
+   ]
+  },
+  {
+   "name": "harness_github: the identity page opens GitHub sign-in (worker/ui/identity.ts:126)",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/sign-in/social",
+   "status": 200,
+   "body": {
+    "provider": "github",
+    "callbackURL": "https://id.volter.ai/api/auth/oauth2/authorize?response_type=code&client_id={shared_client}&redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback&scope=openid+profile+email+offline_access&state=st-cli-0107&code_challenge=FLHJTv0yzIKWTf8MZaEozKGvWh_-khLFr_pYPrFWbpY&code_challenge_method=S256"
+   },
+   "capture": {
+    "harness_github_url": "url",
+    "harness_github_state": "text:state=([^&\" ]+)"
+   },
+   "expect": [
+    {
+     "path": "redirect",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "harness_github: Kenji reads the GitHub permissions",
+   "method": "GET",
+   "path": "{harness_github_url}",
+   "status": 302,
+   "headers": {
+    "cookie": "user_session={github_session}"
+   },
+   "capture": {
+    "harness_github_callback": "header:location"
+   }
+  },
+  {
+   "name": "harness_github: the identity callback trades the code at the GitHub twin and keeps the linked account",
+   "method": "GET",
+   "path": "{harness_github_callback}",
+   "status": 302,
+   "capture": {
+    "kenji_session": "header:set-cookie:volter-id\\.session_token=([^;]+)",
+    "harness_github_continue": "header:location",
+    "cli_continue_url": "header:location"
+   }
+  },
+  {
+   "name": "and the browser returns to the loopback callback with a code",
+   "method": "GET",
+   "path": "{cli_continue_url}",
+   "status": 302,
+   "headers": {
+    "cookie": "volter-id.session_token={kenji_session}"
+   },
+   "capture": {
+    "cli_code": "redirect.code"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "http://127.0.0.1:53682/callback"
+    },
+    {
+     "path": "redirect.state",
+     "equals": "st-cli-0107"
+    }
+   ]
+  },
+  {
+   "name": "The shared client exchanges it with no secret, its verifier the proof",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={cli_code}&redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback&client_id={shared_client}&code_verifier=LBC-AXebkXeIBk5rEOxGON0zNCZrKFboA2QlbKtdbyM-verifier-supercode-kenji-0107",
+   "capture": {
+    "cli_access": "access_token",
+    "cli_refresh": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "scope",
+     "equals": "openid profile email offline_access"
+    }
+   ]
+  },
+  {
+   "name": "No ID token names his email, so @volter/identity asks userinfo who signed in",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {cli_access}"
+   },
+   "expect": [
+    {
+     "path": "sub",
+     "equals": "{kenji}"
+    },
+    {
+     "path": "email",
+     "equals": "kenji@orbitapps.test"
+    },
+    {
+     "path": "",
+     "contains": "\"https://volter.ai/github_id\":\"{kenji_github_id}\""
+    }
+   ]
+  },
+  {
+   "name": "The Teams server verifies Kenji's token against the issuer's keys",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/jwks",
+   "status": 200,
+   "expect": [
+    {
+     "path": "keys.0.kty",
+     "equals": "OKP"
+    }
+   ]
+  },
+  {
+   "name": "Friday 9 January, 11:00: the hour is up; supercode refreshes",
+   "wait": "90m"
+  },
+  {
+   "name": "tokenFor refreshes for Orbit Apps' Teams server, the audience it verifies",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={cli_refresh}&client_id={shared_client}&resource=https%3A%2F%2Fteams.orbitapps.test",
+   "capture": {
+    "cli_refresh2": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "refresh_token",
+     "exists": true
+    },
+    {
+     "path": "token_type",
+     "equals": "Bearer"
+    }
+   ]
+  },
+  {
+   "name": "Saturday 10 January, 15:00: supercode on a build machine with no browser",
+   "wait": "1680m"
+  },
+  {
+   "name": "It asks for a device code",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/device/code",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={shared_client}&scope=openid+profile+email+offline_access",
+   "capture": {
+    "dev": "device_code",
+    "ucode": "user_code",
+    "device_link": "verification_uri_complete"
+   },
+   "expect": [
+    {
+     "path": "verification_uri",
+     "equals": "https://id.volter.ai/device"
+    },
+    {
+     "path": "interval",
+     "equals": 5
+    },
+    {
+     "path": "expires_in",
+     "equals": 600
+    }
+   ]
+  },
+  {
+   "name": "and polls: not yet approved",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&device_code={dev}&client_id={shared_client}",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "authorization_pending"
+    }
+   ]
+  },
+  {
+   "name": "Kenji opens the link, which carries the code",
+   "method": "GET",
+   "path": "{device_link}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "{ucode}"
+    }
+   ],
+   "headers": {
+    "cookie": "volter-id.session_token={kenji_session}"
+   }
+  },
+  {
+   "name": "and approves it",
+   "method": "POST",
+   "path": "https://id.volter.ai/device",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "volter-id.session_token={kenji_session}"
+   },
+   "body": "user_code={ucode}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Device approved"
+    }
+   ]
+  },
+  {
+   "name": "Wait the documented five-second device polling interval",
+   "wait": "5s"
+  },
+  {
+   "name": "The next poll answers the tokens",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&device_code={dev}&client_id={shared_client}",
+   "expect": [
+    {
+     "path": "refresh_token",
+     "exists": true
+    },
+    {
+     "path": "id_token",
+     "exists": true
+    }
+   ],
+   "capture": {
+    "cli_device_refresh": "refresh_token"
+   }
+  },
+  {
+   "name": "The laptop replays its rotated predecessor; the zero-grace issuer invalidates this shared-client family",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={cli_refresh}&client_id={shared_client}",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "invalid_grant"
+    }
+   ]
+  },
+  {
+   "name": "The laptop successor is refused after family invalidation",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={cli_refresh2}&client_id={shared_client}",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "invalid_grant"
+    }
+   ]
+  },
+  {
+   "name": "The other device grant of the same person and shared client is refused too",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={cli_device_refresh}&client_id={shared_client}",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "invalid_grant"
+    }
+   ]
+  },
+  {
+   "name": "Kenji starts an ordinary new device sign-in after the family refusal",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/device/code",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={shared_client}&scope=openid+profile+email+offline_access",
+   "capture": {
+    "recovery_dev": "device_code",
+    "recovery_ucode": "user_code"
+   }
+  },
+  {
+   "name": "Kenji approves only the new device code through the normal device page",
+   "method": "POST",
+   "path": "https://id.volter.ai/device",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded",
+    "cookie": "volter-id.session_token={kenji_session}"
+   },
+   "body": "user_code={recovery_ucode}",
+   "expect": [
+    {
+     "path": "",
+     "contains": "Device approved"
+    }
+   ]
+  },
+  {
+   "name": "The new device sign-in issues a fresh grant after invalidation",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&device_code={recovery_dev}&client_id={shared_client}",
+   "capture": {
+    "recovery_refresh": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "refresh_token",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "The newly signed-in device can refresh for its linked Teams resource",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={recovery_refresh}&client_id={shared_client}&resource=https%3A%2F%2Fteams.orbitapps.test",
+   "capture": {
+    "recovery_refresh2": "refresh_token"
+   }
+  },
+  {
+   "name": "Monday 12 January, 16:00: Priya opens a share of Kenji's work",
+   "wait": "176395s"
+  },
+  {
+   "name": "A share's page sends her through the gateway to authorize; her session still holds, so she is back at once",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/authorize?client_id={gw_id}&response_type=code&redirect_uri=https%3A%2F%2Fshare.volter.app%2Fapi%2Fauth%2Fvolter%2Fcallback&scope=openid+profile+email+offline_access&state=st-share-0112&code_challenge=bIz2Of_dGXdIhLmqx63K3TQbE4rouUEPzRTpK9vjzqQ&code_challenge_method=S256",
+   "status": 302,
+   "headers": {
+    "cookie": "volter-id.session_token={priya_session}"
+   },
+   "capture": {
+    "gw_code": "redirect.code"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "https://share.volter.app/api/auth/volter/callback?"
+    },
+    {
+     "path": "redirect.state",
+     "equals": "st-share-0112"
+    }
+   ]
+  },
+  {
+   "name": "The gateway trades the page's code with its secret, for tokens whose audience is the gateway",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={gw_code}&code_verifier=gw-page-verifier-priya-0112-6d1c0a3e8b7f4a2c9e5d1b0a7c3f2e8d&redirect_uri=https%3A%2F%2Fshare.volter.app%2Fapi%2Fauth%2Fvolter%2Fcallback&resource=https%3A%2F%2Fshare.volter.app&client_id={gw_id}&client_secret={gw_secret}",
+   "capture": {
+    "gw_refresh": "refresh_token"
+   },
+   "expect": [
+    {
+     "path": "id_token",
+     "exists": true
+    },
+    {
+     "path": "refresh_token",
+     "exists": true
+    },
+    {
+     "path": "expires_in",
+     "equals": 3600
+    }
+   ]
+  },
+  {
+   "name": "and verifies them against the issuer's keys",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/jwks",
+   "status": 200,
+   "expect": [
+    {
+     "path": "keys.0.alg",
+     "equals": "EdDSA"
+    }
+   ]
+  },
+  {
+   "name": "An hour passes while Priya uses the shared page",
+   "wait": "60m"
+  },
+  {
+   "name": "An hour on, the page's refresh token is traded the same way",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=refresh_token&refresh_token={gw_refresh}&resource=https%3A%2F%2Fshare.volter.app&client_id={gw_id}&client_secret={gw_secret}",
+   "expect": [
+    {
+     "path": "refresh_token",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "A shared app's visitor link sends her to authorize as a visitor; she is signed in, so she is back at once",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/authorize?client_id={gw_id}&response_type=code&redirect_uri=https%3A%2F%2Fshare.volter.app%2Fapi%2Fauth%2Fvolter%2Fcallback%2Fvisit&scope=openid+profile+email&state=app7f3.n0112&code_challenge=IWicYkr2fnkY5aaCtSrZuufRm08j66cnZVIM__kJsC0&code_challenge_method=S256",
+   "status": 302,
+   "headers": {
+    "cookie": "volter-id.session_token={priya_session}"
+   },
+   "capture": {
+    "gwv_code": "redirect.code"
+   },
+   "expect": [
+    {
+     "path": "redirect.state",
+     "equals": "app7f3.n0112"
+    }
+   ]
+  },
+  {
+   "name": "The gateway trades the visit's code",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={gwv_code}&code_verifier=gw-visit-verifier-priya-0112-2a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d&redirect_uri=https%3A%2F%2Fshare.volter.app%2Fapi%2Fauth%2Fvolter%2Fcallback%2Fvisit&client_id={gw_id}&client_secret={gw_secret}",
+   "capture": {
+    "gwv_access": "access_token"
+   },
+   "expect": [
+    {
+     "path": "id_token",
+     "exists": true
+    },
+    {
+     "path": "refresh_token",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "and reads her email and name from userinfo, which the ID token keeps out",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {gwv_access}"
+   },
+   "expect": [
+    {
+     "path": "sub",
+     "equals": "{priya}"
+    },
+    {
+     "path": "email",
+     "equals": "priya@orbitapps.test"
+    },
+    {
+     "path": "name",
+     "equals": "Priya Shah"
+    }
+   ]
+  },
+  {
+   "name": "Tuesday 13 January, 11:00: Kenji gives to a project on Open Autonomy",
+   "wait": "1080m"
+  },
+  {
+   "name": "The giving page reads the discovery document",
+   "method": "GET",
+   "path": "https://id.volter.ai/.well-known/openid-configuration",
+   "status": 200,
+   "expect": [
+    {
+     "path": "issuer",
+     "equals": "https://id.volter.ai"
+    },
+    {
+     "path": "jwks_uri",
+     "equals": "https://id.volter.ai/api/auth/jwks"
+    }
+   ]
+  },
+  {
+   "name": "It sends him to authorize with PKCE; he is signed in, so he is back with a code",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/authorize?client_id={oa_id}&response_type=code&redirect_uri=https%3A%2F%2Fopen-autonomy.org%2Fgive%2Fcallback&scope=openid+profile&state=st-give-0113&code_challenge=hEM6_fDRtzikiX7-6W1i3Kk4GHb-MUJFyKRPoMduMe0&code_challenge_method=S256",
+   "status": 302,
+   "headers": {
+    "cookie": "volter-id.session_token={kenji_session}"
+   },
+   "capture": {
+    "oa_code": "redirect.code"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "https://open-autonomy.org/give/callback?"
+    },
+    {
+     "path": "redirect.iss",
+     "equals": "https://id.volter.ai"
+    }
+   ]
+  },
+  {
+   "name": "The page trades the code with its secret",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=authorization_code&code={oa_code}&code_verifier=oa-give-verifier-kenji-0113-7e2d9c4b1a0f8e6d5c3b2a19f8e7d6c5b4a3&redirect_uri=https%3A%2F%2Fopen-autonomy.org%2Fgive%2Fcallback&client_id={oa_id}&client_secret={oa_secret}",
+   "expect": [
+    {
+     "path": "/https:~1~1volter.ai~1github_id",
+     "equals": "{kenji_github_id}"
+    },
+    {
+     "path": "sub",
+     "equals": "{kenji}"
+    },
+    {
+     "path": "aud",
+     "equals": "{oa_id}"
+    },
+    {
+     "path": "iss",
+     "equals": "https://id.volter.ai"
+    }
+   ],
+   "view": "jwt:id_token",
+   "capture": {
+    "oa_github_id": "view:/https:~1~1volter.ai~1github_id"
+   }
+  },
+  {
+   "name": "and verifies the ID token, whose linked GitHub account names the funder, against the issuer's keys",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/jwks",
+   "status": 200,
+   "expect": [
+    {
+     "path": "keys.0.kty",
+     "equals": "OKP"
+    },
+    {
+     "path": "keys.0.use",
+     "equals": "sig"
+    }
+   ]
+  },
+  {
+   "name": "Open Autonomy reads the linked GitHub id's current login (apps/platform/src/give-auth.ts:103)",
+   "method": "GET",
+   "path": "https://api.github.com/user/{oa_github_id}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "id",
+     "equals": "{kenji_github_id}"
+    },
+    {
+     "path": "login",
+     "equals": "kenjimori"
+    }
+   ],
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "open-autonomy",
+    "authorization": "Bearer {platform_github_token}"
+   }
+  },
+  {
+   "name": "Wednesday 14 January, 09:00: Priya signs in to Runhuman's console",
+   "wait": "1320m"
+  },
+  {
+   "name": "RH2 reads the discovery document, the device grant's endpoint among it",
+   "method": "GET",
+   "path": "https://id.volter.ai/.well-known/openid-configuration",
+   "status": 200,
+   "expect": [
+    {
+     "path": "device_authorization_endpoint",
+     "equals": "https://id.volter.ai/api/auth/device/code"
+    },
+    {
+     "path": "userinfo_endpoint",
+     "equals": "https://id.volter.ai/api/auth/oauth2/userinfo"
+    }
+   ]
+  },
+  {
+   "name": "Signing in as someone else, RH2 asks again with prompt=login: her session does not answer, the sign-in page does",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/authorize?client_id={rh_id}&code_challenge=zO4zNeRcTui6vpDi2lfZ7aMVzYs6y8_4ZhdaGIi5x10&code_challenge_method=S256&nonce=n-rh2-0114-5f1e&redirect_uri=https%3A%2F%2Fpilot.runhuman.com%2Fapi%2Fv3%2Fidentity-providers%2Fvolter%2Fcallback&response_type=code&scope=openid+email+profile&state=st-rh2-0114&prompt=login",
+   "status": 302,
+   "headers": {
+    "cookie": "volter-id.session_token={priya_session}"
+   },
+   "expect": [
+    {
+     "header": "location",
+     "contains": "https://id.volter.ai/login?"
+    }
+   ]
+  },
+  {
+   "name": "rh_google: Priya continues with Google on the identity screen",
+   "method": "POST",
+   "path": "https://id.volter.ai/login/social",
+   "status": 303,
+   "body": "provider=google&authorize=client_id%3D{rh_id}%26code_challenge%3DzO4zNeRcTui6vpDi2lfZ7aMVzYs6y8_4ZhdaGIi5x10%26code_challenge_method%3DS256%26nonce%3Dn-rh2-0114-5f1e%26redirect_uri%3Dhttps%253A%252F%252Fpilot.runhuman.com%252Fapi%252Fv3%252Fidentity-providers%252Fvolter%252Fcallback%26response_type%3Dcode%26scope%3Dopenid%2Bemail%2Bprofile%26state%3Dst-rh2-0114",
+   "capture": {
+    "rh_google_url": "header:location",
+    "rh_google_state": "header:location:state=([^&]+)"
+   },
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   }
+  },
+  {
+   "name": "rh_google: Google shows Priya the account chooser",
+   "method": "GET",
+   "path": "{rh_google_url}",
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "contains": "priya@orbitapps.test"
+    }
+   ]
+  },
+  {
+   "name": "rh_google: Priya selects her Google account",
+   "method": "POST",
+   "path": "https://accounts.google.com/o/oauth2/v2/auth/choose",
+   "status": 302,
+   "body": "request=client_id%3D482716093455-volteridentity.apps.googleusercontent.com%26redirect_uri%3Dhttps%253A%252F%252Fid.volter.ai%252Fapi%252Fauth%252Fcallback%252Fgoogle%26scope%3Demail%2520profile%2520openid%26state%3D{rh_google_state}%26response_type%3Dcode%26prompt%3Dselect_account&sub=112093847561029384756",
+   "capture": {
+    "rh_google_callback": "header:location"
+   },
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   }
+  },
+  {
+   "name": "rh_google: the identity callback exchanges the code and verifies Google keys through its twin",
+   "method": "GET",
+   "path": "{rh_google_callback}",
+   "status": 302,
+   "capture": {
+    "priya_session2": "header:set-cookie:volter-id\\.session_token=([^;]+)",
+    "rh_google_continue": "header:location",
+    "rh_continue_url": "header:location"
+   }
+  },
+  {
+   "name": "Authorize sends her back to RH2 with a code",
+   "method": "GET",
+   "path": "{rh_continue_url}",
+   "status": 302,
+   "headers": {
+    "cookie": "volter-id.session_token={priya_session2}"
+   },
+   "capture": {
+    "rh_code": "redirect.code"
+   },
+   "expect": [
+    {
+     "path": "redirect.state",
+     "equals": "st-rh2-0114"
+    }
+   ]
+  },
+  {
+   "name": "RH2 trades the code with its secret",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={rh_id}&client_secret={rh_secret}&code={rh_code}&code_verifier=rh2-console-verifier-priya-0114-c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fpilot.runhuman.com%2Fapi%2Fv3%2Fidentity-providers%2Fvolter%2Fcallback",
+   "capture": {
+    "rh_access": "access_token"
+   },
+   "expect": [
+    {
+     "path": "id_token",
+     "exists": true
+    },
+    {
+     "path": "access_token",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "verifies the ID token (its nonce, audience and expiry) against the keys",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/jwks",
+   "status": 200,
+   "expect": [
+    {
+     "path": "keys.0.alg",
+     "equals": "EdDSA"
+    }
+   ]
+  },
+  {
+   "name": "and reads her verified address from userinfo",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/oauth2/userinfo",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {rh_access}"
+   },
+   "expect": [
+    {
+     "path": "sub",
+     "equals": "{priya}"
+    },
+    {
+     "path": "email",
+     "equals": "priya@orbitapps.test"
+    },
+    {
+     "path": "email_verified",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "Wednesday 14 January, 14:00: the desktop widget signs her in on her phone",
+   "wait": "300m"
+  },
+  {
+   "name": "The widget's RH2 asks for a device code, authenticated with its secret",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/device/code",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={rh_id}&client_secret={rh_secret}&scope=openid+email+profile",
+   "capture": {
+    "rh_dev": "device_code",
+    "rh_ucode": "user_code"
+   },
+   "expect": [
+    {
+     "path": "verification_uri_complete",
+     "contains": "/device?user_code="
+    },
+    {
+     "path": "interval",
+     "equals": 5
+    }
+   ]
+  },
+  {
+   "name": "and polls with its secret: not yet approved",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 400,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={rh_id}&client_secret={rh_secret}&device_code={rh_dev}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+   "expect": [
+    {
+     "path": "error",
+     "equals": "authorization_pending"
+    }
+   ]
+  },
+  {
+   "name": "RH2's iOS Apple sign-in is refused when the World cannot fetch Apple's keys (apps/rh2-mobile/apple.ts:41,46; Better Auth sign-in.ts:293)",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/sign-in/social",
+   "status": 401,
+   "body": {
+    "provider": "apple",
+    "idToken": {
+     "nonce": "rh2-ios-0114",
+     "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InN5bnRoZXRpYy1hcHBsZS1rZXkifQ.eyJpYXQiOjE3NjgzOTkyMDAsImV4cCI6MTc2ODQwMjgwMCwibmJmIjoxNzY4Mzk5MjAwLCJpc3MiOiJodHRwczovL2FwcGxlaWQuYXBwbGUuY29tIiwiYXVkIjoiY29tLnZvbHRlci5ydW5odW1hbiIsInN1YiI6InN5bnRoZXRpYy1hcHBsZS1wcml5YSIsImVtYWlsIjoicHJpeWEtYXBwbGVAcHJpdmF0ZXJlbGF5LmFwcGxlaWQuY29tIiwiZW1haWxfdmVyaWZpZWQiOiJ0cnVlIiwibm9uY2UiOiJkOWMxZGEyYmI0NWU5NzQ0YmM3MGIyY2NkZDI2YWJkNGE5YjY1YzI0MzNiMzU4NjA0YzIzZmMyMzBhZTJjODQ4In0.synthetic-signature",
+     "user": {
+      "name": {
+       "firstName": "Priya",
+       "lastName": "Shah"
+      },
+      "email": "priya-apple@privaterelay.appleid.com"
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": "INVALID_TOKEN"
+    },
+    {
+     "path": "message",
+     "equals": "Invalid token"
+    }
+   ],
+   "headers": {
+    "content-type": "application/json",
+    "origin": "https://id.volter.ai"
+   }
+  },
+  {
+   "name": "The iOS app falls back to the Google session Priya started earlier today: it opens the widget's code, claiming it for her",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/auth/device?user_code={rh_ucode}",
+   "status": 200,
+   "headers": {
+    "cookie": "volter-id.session_token={priya_session2}"
+   },
+   "expect": [
+    {
+     "path": "status",
+     "equals": "pending"
+    },
+    {
+     "path": "client_id",
+     "equals": "{rh_id}"
+    }
+   ]
+  },
+  {
+   "name": "and she approves it in the app",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/device/approve",
+   "status": 200,
+   "headers": {
+    "cookie": "volter-id.session_token={priya_session2}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "userCode": "{rh_ucode}"
+   },
+   "expect": [
+    {
+     "path": "success",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The widget waits its five-second interval",
+   "wait": "5s"
+  },
+  {
+   "name": "and its next poll answers the tokens",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "client_id={rh_id}&client_secret={rh_secret}&device_code={rh_dev}&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+   "expect": [
+    {
+     "path": "id_token",
+     "exists": true
+    },
+    {
+     "path": "access_token",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "Monday 2 February, 10:00: Kenji leaves Orbit Apps",
+   "wait": "1627195s"
+  },
+  {
+   "name": "The platform renews its expired organizations token before removing Kenji",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=client_credentials&client_id={plat_id}&client_secret={plat_secret}&scope=organizations&resource=https%3A%2F%2Fid.volter.ai%2Forganizations",
+   "capture": {
+    "orgs": "access_token"
+   }
+  },
+  {
+   "name": "First the platform returns him to a plain member, taking back the owner's rights he held",
+   "method": "PATCH",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/members/{kenji}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "role": "member"
+   },
+   "expect": [
+    {
+     "path": "role",
+     "equals": "member"
+    }
+   ]
+  },
+  {
+   "name": "The platform removes him from the organization",
+   "method": "DELETE",
+   "path": "https://id.volter.ai/api/organizations/orbit-apps/members/{kenji}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "removed",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "He belongs to no organization of the platform",
+   "method": "GET",
+   "path": "https://id.volter.ai/api/people/{kenji}/organizations",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "Priya opens a separate organization for a proposed spring client pilot, keeping its access apart from Orbit Apps",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/organizations",
+   "status": 201,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "body": {
+    "name": "Orbit Apps Spring Pilot",
+    "slug": "orbit-apps-spring-pilot",
+    "createdBy": "{priya}"
+   },
+   "capture": {
+    "pilot_org": "id"
+   },
+   "expect": [
+    {
+     "path": "role",
+     "equals": "owner"
+    }
+   ]
+  },
+  {
+   "name": "Monday 2 March, 10:00: the client declines the spring pilot; Priya keeps Orbit Apps and retires the separate pilot",
+   "wait": "40320m"
+  },
+  {
+   "name": "The platform obtains a current organizations token to retire the separate pilot",
+   "method": "POST",
+   "path": "https://id.volter.ai/api/auth/oauth2/token",
+   "status": 200,
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+   },
+   "body": "grant_type=client_credentials&client_id={plat_id}&client_secret={plat_secret}&scope=organizations&resource=https%3A%2F%2Fid.volter.ai%2Forganizations",
+   "capture": {
+    "orgs": "access_token"
+   }
+  },
+  {
+   "name": "Priya deletes the pilot organization she owns, keeping Orbit Apps for the team",
+   "method": "DELETE",
+   "path": "https://id.volter.ai/api/organizations/{pilot_org}",
+   "status": 200,
+   "headers": {
+    "authorization": "Bearer {orgs}"
+   },
+   "expect": [
+    {
+     "path": "deleted",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "name": "The local identity operator configures the permanent ISSUER before Open Autonomy registers its client",
+   "method": "POST",
+   "path": "/_twin/settings",
+   "body": {
+    "ISSUER": "http://127.0.0.1:8765/"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "ISSUER",
+     "equals": "http://127.0.0.1:8765"
+    }
+   ]
+  },
+  {
+   "name": "Open Autonomy rehearses with its local identity installation and checks the configured issuer",
+   "method": "GET",
+   "path": "http://127.0.0.1:8765/.well-known/openid-configuration",
+   "status": 200,
+   "expect": [
+    {
+     "path": "issuer",
+     "equals": "http://127.0.0.1:8765"
+    },
+    {
+     "path": "token_endpoint",
+     "equals": "http://127.0.0.1:8765/api/auth/oauth2/token"
+    }
+   ]
+  },
+  {
+   "name": "Discovery retains the configured issuer when reached through http://localhost:8765",
+   "method": "GET",
+   "path": "http://localhost:8765/.well-known/openid-configuration",
+   "status": 200,
+   "expect": [
+    {
+     "path": "issuer",
+     "equals": "http://127.0.0.1:8765"
+    },
+    {
+     "path": "token_endpoint",
+     "equals": "http://127.0.0.1:8765/api/auth/oauth2/token"
+    }
+   ]
+  },
+  {
+   "name": "Discovery retains the configured issuer when reached through https://id.volter.ai",
+   "method": "GET",
+   "path": "https://id.volter.ai/.well-known/openid-configuration",
+   "status": 200,
+   "expect": [
+    {
+     "path": "issuer",
+     "equals": "http://127.0.0.1:8765"
+    },
+    {
+     "path": "token_endpoint",
+     "equals": "http://127.0.0.1:8765/api/auth/oauth2/token"
+    }
+   ]
+  }
+ ],
+ "host": "id.volter.ai",
+ "companions": [
+  "github",
+  "googleoauth"
+ ]
+}

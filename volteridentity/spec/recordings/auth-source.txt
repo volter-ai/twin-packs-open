@@ -1,0 +1,166 @@
+// The Volter identity service's Better Auth instance (ADR-0001). One place
+// decides how a person is proven (GitHub, Google, an emailed code, a passkey;
+// never a password), when two proofs are one person (section 2), and how
+// products learn who someone is (an OpenID Connect provider, with the device
+// grant for command-line tools).
+
+import { betterAuth } from "better-auth";
+import { emailOTP, jwt, lastLoginMethod, organization } from "better-auth/plugins";
+import { oauthDeviceAuthorization, oauthProvider } from "@better-auth/oauth-provider";
+import { passkey } from "@better-auth/passkey";
+import { dash } from "@better-auth/infra";
+import { organizationsResource } from "./product.js";
+
+/** Cloudflare Email Service's Worker binding (`send_email`), as the service sends transactional mail. */
+interface EmailBinding {
+  send(message: { to: string; from: string; subject: string; text: string; html?: string }): Promise<unknown>;
+}
+
+export interface IdentityEnv {
+  DB: D1Database;
+  /** The nightly export's bucket (backup.ts). */
+  BACKUPS: R2Bucket;
+  ASSETS: Fetcher;
+  /** The permanent issuer, `https://id.volter.ai` in production. */
+  ISSUER: string;
+  /** Comma-separated APIs a token may be issued for (RFC 8707); each gets a JWT access token whose audience is it. */
+  RESOURCES?: string;
+  /** Better Auth's secret for signing its own cookies and codes. */
+  BETTER_AUTH_SECRET: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  /** Comma-separated iOS apps (bundle ids) whose Sign in with Apple this service accepts: the app signs the person in
+   * with Apple on the phone and hands this service Apple's ID token. Absent, Apple is not offered. */
+  APPLE_APP_IDS?: string;
+  /** Cloudflare Email Service; absent, the emailed-code sign-in is not offered. */
+  EMAIL?: EmailBinding;
+  /** The address codes come from, on a domain onboarded to Email Service (`sign-in@notify.volter.ai`). */
+  EMAIL_FROM?: string;
+  /** Registers product clients through `/admin/clients`; absent, registration is closed. */
+  IDENTITY_ADMIN_TOKEN?: string;
+  /** Better Auth Infrastructure (dashboard, abuse detection, audit logs); optional. */
+  BETTER_AUTH_API_KEY?: string;
+}
+
+const HOUR = 60 * 60;
+
+function appleApps(env: IdentityEnv): string[] {
+  return (env.APPLE_APP_IDS ?? "").split(",").map((app) => app.trim()).filter(Boolean);
+}
+
+function withoutProviderTokens<T extends Record<string, unknown>>(account: T): T {
+  return { ...account, accessToken: null, refreshToken: null, idToken: null, accessTokenExpiresAt: null, refreshTokenExpiresAt: null };
+}
+
+/** The linked accounts a product may need to recognise a person by (ADR-0001 §3): GitHub's numeric id today. */
+async function linkedClaims(env: IdentityEnv, userId: string | undefined): Promise<Record<string, unknown>> {
+  if (!userId) return {};
+  const row = await env.DB.prepare(
+    `select a.accountId as githubId, u.githubLogin as githubLogin from "user" u left join account a on a.userId = u.id and a.providerId = 'github' where u.id = ? limit 1`,
+  ).bind(userId).first<{ githubId: string | null; githubLogin: string | null }>();
+  return {
+    ...(row?.githubId ? { "https://volter.ai/github_id": row.githubId } : {}),
+    ...(row?.githubLogin ? { "https://volter.ai/github_login": row.githubLogin } : {}),
+  };
+}
+
+export function createAuth(env: IdentityEnv) {
+  const issuer = env.ISSUER.replace(/\/$/u, "");
+  return betterAuth({
+    appName: "Volter",
+    baseURL: issuer,
+    basePath: "/api/auth",
+    // A failed sign-in lands on this service's own page, in its words.
+    onAPIError: { errorURL: `${issuer}/error` },
+    secret: env.BETTER_AUTH_SECRET,
+    database: env.DB,
+    // No passwords (ADR-0001 §1): the email-and-password method stays off.
+    emailAndPassword: { enabled: false },
+    socialProviders: {
+      ...(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+        ? { github: { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET, mapProfileToUser: (profile) => ({ githubLogin: profile.login }) } }
+        : {}),
+      ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+        ? { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, prompt: "select_account" } }
+        : {}),
+      // Apple for the apps it signs a person into (Sign in with Apple, which the App Store asks of an app offering Google):
+      // the app's ID token only, checked against Apple's keys with the app as its audience. No web redirect, so no
+      // client secret; the sign-in page does not offer it.
+      ...(appleApps(env).length > 0 ? { apple: { clientId: appleApps(env), audience: appleApps(env) } } : {}),
+    },
+    account: {
+      // ADR-0001 §2: a provider joins an existing identity implicitly only
+      // when it vouches for the email and the identity's own email is
+      // verified; otherwise the person links it while signed in.
+      accountLinking: { enabled: true, trustedProviders: ["github", "google"] },
+    },
+    // ADR-0001 §6: a provider's tokens serve the sign-in that got them and are
+    // never kept. Better Auth writes them to the account row by default.
+    databaseHooks: {
+      account: {
+        create: { before: async (account) => ({ data: withoutProviderTokens(account) }) },
+        update: { before: async (account) => ({ data: withoutProviderTokens(account) }) },
+      },
+    },
+    // The GitHub login a person signed in with, so a product can match a people list by username.
+    user: { additionalFields: { githubLogin: { type: "string", required: false, input: false } } },
+    session: { expiresIn: 30 * 24 * HOUR, updateAge: 24 * HOUR },
+    advanced: { cookiePrefix: "volter-id", useSecureCookies: issuer.startsWith("https://") },
+    trustedOrigins: [issuer],
+    plugins: [
+      // The sign-in page marks the way a person signed in last, from a cookie of this origin.
+      lastLoginMethod(),
+      emailOTP({
+        otpLength: 6,
+        expiresIn: 10 * 60,
+        allowedAttempts: 5,
+        async sendVerificationOTP({ email, otp }) {
+          if (!env.EMAIL || !env.EMAIL_FROM) throw new Error("This Volter identity service has no mail sender; sign in another way.");
+          await env.EMAIL.send({
+            to: email,
+            from: env.EMAIL_FROM,
+            subject: `${otp} is your Volter sign-in code`,
+            text: `Your Volter sign-in code is ${otp}.\n\nIt expires in 10 minutes. If you did not try to sign in, you can ignore this email.\n`,
+            html: `<p>Your Volter sign-in code is</p><p style="font-size:24px;font-weight:600;letter-spacing:4px">${otp}</p><p>It expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p>`,
+          });
+        },
+      }),
+      passkey({ rpID: new URL(issuer).hostname, rpName: "Volter", origin: issuer }),
+      // Organizations a product keeps here (ADR-0002); an invitation lasts a week.
+      organization({ invitationExpiresIn: 7 * 24 * HOUR }),
+      // The issuer is the bare origin, so discovery is where clients look for it (`/.well-known/openid-configuration`).
+      jwt({ jwt: { issuer, audience: issuer } }),
+      oauthProvider({
+        loginPage: "/login",
+        consentPage: "/consent",
+        // The sign-in page names the product that sent the person there; only
+        // a signed authorization request may ask, and only public fields answer.
+        allowPublicClientPrelogin: true,
+        accessTokenExpiresIn: HOUR,
+        idTokenExpiresIn: HOUR,
+        refreshTokenExpiresIn: 30 * 24 * HOUR,
+        // Products are registered by us; nobody registers a client on their own.
+        allowDynamicClientRegistration: false,
+        resources: [organizationsResource(issuer), ...(env.RESOURCES ?? "").split(",").map((resource) => resource.trim()).filter(Boolean)],
+        // `organizations` is a product's own scope (client_credentials, ADR-0002), granted by the operator alone.
+        scopes: ["openid", "profile", "email", "offline_access", "organizations"],
+        clientPrivileges: ({ headers }) => Boolean(env.IDENTITY_ADMIN_TOKEN) && headers.get("Authorization") === `Bearer ${env.IDENTITY_ADMIN_TOKEN}`,
+        customIdTokenClaims: ({ user }) => linkedClaims(env, user?.id),
+        // A resource (a product's gateway) names the person without a userinfo call per request
+        // (RFC 9068 §2.2.1): the email and name when those scopes were granted.
+        customAccessTokenClaims: async ({ user, scopes }) => ({
+          ...await linkedClaims(env, user?.id ?? undefined),
+          ...(user && scopes.includes("email") ? { email: user.email, email_verified: user.emailVerified } : {}),
+          ...(user && scopes.includes("profile") && user.name ? { name: user.name } : {}),
+        }),
+        customUserInfoClaims: ({ user }) => linkedClaims(env, user?.id),
+      }),
+      oauthDeviceAuthorization({ verificationUri: `${issuer}/device`, expiresIn: "10m", interval: "5s" }),
+      ...(env.BETTER_AUTH_API_KEY ? [dash({ apiKey: env.BETTER_AUTH_API_KEY })] : []),
+    ],
+  });
+}
+
+export type IdentityAuth = ReturnType<typeof createAuth>;

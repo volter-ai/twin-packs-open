@@ -1,0 +1,364 @@
+// The identity service's pages, driven by Better Auth's browser client. The
+// OAuth provider's client plugin carries the authorization request that sent
+// a person to `/login` through their sign-in, so signing in continues to the
+// product that asked; the Worker renders only a shell naming the page and the
+// sign-in methods it is configured for.
+
+import { createAuthClient } from "better-auth/client";
+import { emailOTPClient, lastLoginMethodClient, organizationClient } from "better-auth/client/plugins";
+import { oauthDeviceAuthorizationClient, oauthProviderClient } from "@better-auth/oauth-provider/client";
+import { passkeyClient } from "@better-auth/passkey/client";
+
+const client = createAuthClient({
+  basePath: "/api/auth",
+  plugins: [emailOTPClient(), lastLoginMethodClient(), organizationClient(), passkeyClient(), oauthProviderClient(), oauthDeviceAuthorizationClient()],
+});
+
+const app = document.getElementById("app")!;
+const methods = new Set((app.dataset.methods ?? "").split(",").filter(Boolean));
+const query = new URLSearchParams(location.search);
+
+const ICONS = {
+  github: `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`,
+  google: `<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>`,
+  passkey: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>`,
+  email: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/></svg>`,
+};
+const PROVIDERS = { github: "GitHub", google: "Google" } as const;
+
+type Result = { data?: unknown; error?: { message?: string; error_description?: string } | null };
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...children: (Node | string)[]): HTMLElementTagNameMap[K] {
+  const node = Object.assign(document.createElement(tag), props);
+  for (const child of children) node.append(child);
+  return node;
+}
+
+function icon(name: keyof typeof ICONS): SVGElement {
+  const holder = document.createElement("span");
+  holder.innerHTML = ICONS[name];
+  return holder.firstElementChild as SVGElement;
+}
+
+function render(title: string, lede: Node | string | undefined, ...children: Node[]): void {
+  renderFor(undefined, title, lede, ...children);
+}
+
+function renderFor(product: Product | undefined, title: string, lede: Node | string | undefined, ...children: Node[]): void {
+  app.replaceChildren(...productRow(product), el("h1", {}, title), ...(lede === undefined ? [] : [el("p", { className: "lede" }, lede)]), ...children);
+  document.title = `${title} · Volter`;
+}
+
+function note(): HTMLParagraphElement {
+  return el("p", { className: "note", role: "status" });
+}
+
+function say(target: HTMLElement, text: string, kind: "error" | "info" | "ok" = "info"): void {
+  target.textContent = text;
+  target.className = `note ${kind}`;
+}
+
+/** Follows a redirect Better Auth answers with, and reports an error in the page. */
+function settle(result: Result, target: HTMLElement): boolean {
+  if (result.error) { say(target, result.error.message ?? result.error.error_description ?? "Something went wrong.", "error"); return false; }
+  const data = result.data as { url?: string; redirect?: boolean; uri?: string } | undefined;
+  const next = data?.url ?? data?.uri;
+  if (next) { location.href = next; return true; }
+  return false;
+}
+
+/** Runs a button's action with the button showing it is working, and leaves it pressable again if nothing navigated. */
+async function busy(button: HTMLButtonElement, working: string, action: () => Promise<boolean | void>): Promise<void> {
+  const label = [...button.childNodes];
+  button.disabled = true;
+  button.lastChild!.textContent = working;
+  let navigating = false;
+  try { navigating = (await action()) === true; }
+  finally {
+    if (!navigating) { button.replaceChildren(...label); button.disabled = false; }
+  }
+}
+
+function labelled(text: string, iconName?: keyof typeof ICONS): (Node | string)[] {
+  return [...(iconName ? [icon(iconName)] : []), el("span", {}, text)];
+}
+
+interface Product { name: string; logo?: string }
+
+/** The product that sent the person here, from its registration (name, and its logo when it registered one). The client plugin signs the request with the page's query. */
+async function requestingProduct(): Promise<Product | undefined> {
+  const clientId = query.get("client_id");
+  if (!clientId) return;
+  const answer = await client.$fetch<{ client_name?: string; logo_uri?: string }>("/oauth2/public-client-prelogin", { method: "POST", body: { client_id: clientId } }).catch(() => undefined);
+  const name = answer?.data?.client_name;
+  if (!name) return;
+  const logo = answer.data?.logo_uri;
+  return { name, ...(logo && /^https:\/\//u.test(logo) ? { logo } : {}) };
+}
+
+/** Who is asking, above the heading, when the product registered a logo; without one the lede names it. */
+function productRow(product: Product | undefined): Node[] {
+  if (!product?.logo) return [];
+  return [el("div", { className: "product" },
+    el("img", { src: product.logo, alt: "", referrerPolicy: "no-referrer" }),
+    el("span", { className: "label" }, product.name))];
+}
+
+/** The small mark on the way this browser signed in last. */
+function lastUsed(method: string, target: HTMLElement): void {
+  if (client.isLastUsedLoginMethod(method)) target.append(el("span", { className: "last-used", textContent: "Last used" }));
+}
+
+async function signInPage(): Promise<void> {
+  // Where to land after a plain sign-in; an OAuth request continues on its own.
+  const callbackURL = query.get("return_to") ?? "/";
+  // Someone already signed in, with no product waiting, has nothing to do here.
+  if (!query.has("client_id") && (await client.getSession()).data) { location.replace(callbackURL); return; }
+  const product = await requestingProduct();
+  const lede = product ? el("span", {}, "to continue to ", el("b", {}, product.name)) : "with your Volter account";
+  const status = note();
+
+  const providers: Node[] = [];
+  for (const provider of ["github", "google"] as const) {
+    if (!methods.has(provider)) continue;
+    const button = el("button", { type: "button", className: "provider" }, ...labelled(`Continue with ${PROVIDERS[provider]}`, provider));
+    lastUsed(provider, button);
+    button.addEventListener("click", () => void busy(button, `Opening ${PROVIDERS[provider]}…`, async () => settle(await client.signIn.social({ provider, callbackURL }), status)));
+    providers.push(button);
+  }
+
+  const parts: Node[] = [status];
+  if (providers.length) parts.push(el("div", { className: "stack" }, ...providers));
+
+  if (methods.has("email")) {
+    if (providers.length) parts.push(el("div", { className: "or", textContent: "or" }));
+    // `webauthn` lets the browser offer a saved passkey right in this field.
+    const email = el("input", { type: "email", id: "email", name: "email", placeholder: "you@company.com", autocomplete: "email webauthn", required: true });
+    const submit = el("button", { type: "submit", className: "primary" }, el("span", {}, "Continue with email"));
+    lastUsed("email-otp", submit);
+    const form = el("form", { className: "stack" }, el("div", {}, el("label", { htmlFor: "email", textContent: "Email" }), email), submit);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void busy(submit, "Sending a code…", async () => {
+        const address = email.value.trim();
+        const result = await client.emailOtp.sendVerificationOtp({ email: address, type: "sign-in" });
+        if (result.error) { settle(result, status); return; }
+        codeStep(address, callbackURL, product);
+      });
+    });
+    parts.push(form);
+  }
+
+  if (methods.has("passkey")) {
+    const passkey = el("button", { type: "button", className: "link" }, ...labelled("Sign in with a passkey"));
+    lastUsed("passkey", passkey);
+    passkey.addEventListener("click", () => void busy(passkey, "Waiting for your passkey…", async () => {
+      const result = await client.signIn.passkey();
+      if (settle(result, status)) return true;
+      if (!result.error) { location.href = callbackURL; return true; }
+    }));
+    parts.push(el("div", { className: "links" }, passkey));
+  }
+
+  renderFor(product, "Sign in", lede, ...parts);
+  (app.querySelector<HTMLElement>("#email") ?? app.querySelector<HTMLElement>("button"))?.focus();
+  // A saved passkey is offered in the email field's autofill (conditional mediation); choosing it signs in.
+  if (methods.has("passkey") && await PublicKeyCredential?.isConditionalMediationAvailable?.().catch(() => false)) {
+    // It waits silently: an autofill nobody chose, or one the explicit passkey sign-in replaced, is no error.
+    void client.signIn.passkey({ autoFill: true }).then((result) => {
+      if (result.error) return;
+      if (!settle(result, status)) location.href = callbackURL;
+    }, () => undefined);
+  }
+}
+
+/** The second step of an emailed code: its own screen, with a way back and a way to send again. */
+function codeStep(address: string, callbackURL: string, product: Product | undefined): void {
+  const status = note();
+  const code = el("input", { id: "code", className: "code", inputMode: "numeric", autocomplete: "one-time-code", maxLength: 6, pattern: "[0-9]{6}", placeholder: "••••••", required: true });
+  const submit = el("button", { type: "submit", className: "primary" }, el("span", {}, product ? `Continue to ${product.name}` : "Sign in"));
+  const form = el("form", { className: "stack" }, el("div", {}, el("label", { htmlFor: "code", textContent: "Code" }), code), submit);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void busy(submit, "Signing in…", async () => {
+      const result = await client.signIn.emailOtp({ email: address, otp: code.value.trim() });
+      if (settle(result, status)) return true;
+      if (!result.error) { location.href = callbackURL; return true; }
+    });
+  });
+  // Six digits typed or pasted is the whole answer.
+  code.addEventListener("input", () => { code.value = code.value.replace(/\D/gu, "").slice(0, 6); if (code.value.length === 6) form.requestSubmit(); });
+  const again = el("button", { type: "button", className: "link" }, el("span", {}, "Send a new code"));
+  again.addEventListener("click", () => void busy(again, "Sending…", async () => {
+    const result = await client.emailOtp.sendVerificationOtp({ email: address, type: "sign-in" });
+    if (result.error) settle(result, status); else say(status, `A new code is on its way to ${address}.`, "ok");
+  }));
+  const back = el("button", { type: "button", className: "link" }, el("span", {}, "Use a different email"));
+  back.addEventListener("click", () => void signInPage());
+  renderFor(product, "Check your email", el("span", {}, "We sent a 6-digit code to ", el("b", {}, address), ". It expires in 10 minutes."), status, form, el("div", { className: "links" }, back, again));
+  code.focus();
+}
+
+async function consentPage(): Promise<void> {
+  const status = note();
+  const scopes = (query.get("scope") ?? "openid").split(" ").filter(Boolean);
+  const product = await requestingProduct();
+  const name = product?.name ?? query.get("client_id") ?? "An application";
+  const words: Record<string, string> = {
+    openid: "Know who you are",
+    profile: "See your name and picture",
+    email: "See your email address",
+    offline_access: "Stay signed in until you sign out",
+  };
+  const allow = el("button", { type: "button", className: "primary" }, el("span", {}, "Allow"));
+  const deny = el("button", { type: "button" }, el("span", {}, "Deny"));
+  allow.addEventListener("click", () => void busy(allow, "Allowing…", async () => settle(await client.oauth2.consent({ accept: true }), status)));
+  deny.addEventListener("click", () => void busy(deny, "Denying…", async () => settle(await client.oauth2.consent({ accept: false }), status)));
+  renderFor(product, "Allow access", el("span", {}, el("b", {}, name), " would like to:"),
+    status, el("ul", { className: "scopes" }, ...scopes.map((scope) => el("li", {}, words[scope] ?? scope))),
+    el("div", { className: "row" }, deny, allow));
+}
+
+async function devicePage(): Promise<void> {
+  const status = note();
+  const session = await client.getSession();
+  if (!session.data) { location.href = `/login?return_to=${encodeURIComponent(location.pathname + location.search)}`; return; }
+  const input = el("input", { id: "user-code", className: "code", placeholder: "ABCD-EFGH", value: query.get("user_code") ?? "", autocomplete: "off", required: true });
+  const approve = el("button", { type: "submit", className: "primary" }, el("span", {}, "Sign in this device"));
+  const deny = el("button", { type: "button" }, el("span", {}, "Deny"));
+  const form = el("form", { className: "stack" }, el("div", {}, el("label", { htmlFor: "user-code", textContent: "Code" }), input), el("div", { className: "row" }, deny, approve));
+  const userCode = (): string => input.value.trim().toUpperCase();
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void busy(approve, "Signing in…", async () => {
+      // The signed-in person claims the code first (GET /device), then approves it.
+      const claimed = await client.device({ query: { user_code: userCode() } });
+      if (claimed.error) { settle(claimed, status); return; }
+      const result = await client.device.approve({ userCode: userCode() });
+      if (!settle(result, status) && !result.error) render("Device signed in", "You can go back to the app or terminal that asked.");
+    });
+  });
+  deny.addEventListener("click", () => void busy(deny, "Denying…", async () => {
+    const claimed = await client.device({ query: { user_code: userCode() } });
+    if (claimed.error) { settle(claimed, status); return; }
+    const result = await client.device.deny({ userCode: userCode() });
+    if (!settle(result, status) && !result.error) render("Device refused", "Nothing was signed in.");
+  }));
+  render("Sign in a device", el("span", {}, "Signed in as ", el("b", {}, session.data.user.email), ". Enter the code the app or terminal shows."), status, form);
+  input.focus();
+}
+
+async function accountPage(): Promise<void> {
+  const session = await client.getSession();
+  if (!session.data) { location.href = "/login"; return; }
+  const user = session.data.user;
+  const status = note();
+  const accounts = await client.listAccounts();
+  const linked = new Set((accounts.data ?? []).map((account) => account.providerId));
+  const rows: Node[] = [];
+  for (const provider of ["github", "google"] as const) {
+    if (!methods.has(provider)) continue;
+    if (linked.has(provider)) { rows.push(el("li", {}, icon(provider), el("span", { className: "label" }, PROVIDERS[provider]), el("span", { className: "chip" }, "linked"))); continue; }
+    const link = el("button", { type: "button", className: "small" }, el("span", {}, "Link"));
+    link.addEventListener("click", () => void busy(link, "Opening…", async () => settle(await client.linkSocial({ provider, callbackURL: "/" }), status)));
+    rows.push(el("li", {}, icon(provider), el("span", { className: "label" }, PROVIDERS[provider]), link));
+  }
+  if (methods.has("email")) rows.push(el("li", {}, icon("email"), el("span", { className: "label" }, "Emailed code"), el("span", { className: "chip" }, "on")));
+  const addPasskey = el("button", { type: "button", className: "small" }, el("span", {}, "Add"));
+  addPasskey.addEventListener("click", () => void busy(addPasskey, "Waiting…", async () => {
+    const result = await client.passkey.addPasskey();
+    if (result?.error) settle(result, status); else say(status, "Passkey added. You can sign in with it next time.", "ok");
+  }));
+  rows.push(el("li", {}, icon("passkey"), el("span", { className: "label" }, "Passkey"), addPasskey));
+  const signOut = el("button", { type: "button" }, el("span", {}, "Sign out"));
+  signOut.addEventListener("click", () => void busy(signOut, "Signing out…", async () => { await client.signOut(); location.href = "/login"; return true; }));
+  // Without a picture of their own, the person gets the brand's placeholder, seeded by their id so it stays theirs.
+  const picture = user.image || `https://brand.volter.ai/runner/svg?seed=${encodeURIComponent(user.id)}`;
+  const avatar = el("div", { className: "avatar" }, el("img", { src: picture, alt: "" }));
+  render("Your account", undefined,
+    el("div", { className: "who" }, avatar, el("div", {}, el("div", { className: "name" }, user.name || user.email), el("div", { className: "email" }, user.email))),
+    el("h2", {}, "Ways to sign in"), status, el("ul", { className: "methods" }, ...rows),
+    el("div", { className: "stack spaced" }, signOut));
+}
+
+/** An invitation a product sent through this service (ADR-0002): the invited person, signed in with that address, accepts or declines. */
+async function invitationPage(): Promise<void> {
+  const id = query.get("id") ?? "";
+  const session = await client.getSession();
+  if (!session.data) { location.href = `/login?return_to=${encodeURIComponent(location.pathname + location.search)}`; return; }
+  const status = note();
+  const found = await client.organization.getInvitation({ query: { id } });
+  if (found.error || !found.data) {
+    render("Invitation not found", el("span", {}, "It may have expired or been withdrawn, or it was sent to another address than ", el("b", {}, session.data.user.email), "."));
+    return;
+  }
+  const invitation = found.data as { organizationName?: string; role?: string; inviterEmail?: string };
+  const organization = invitation.organizationName ?? "an organization";
+  const accept = el("button", { type: "button", className: "primary" }, el("span", {}, "Accept"));
+  const decline = el("button", { type: "button" }, el("span", {}, "Decline"));
+  accept.addEventListener("click", () => void busy(accept, "Joining…", async () => {
+    const result = await client.organization.acceptInvitation({ invitationId: id });
+    if (!settle(result, status) && !result.error) render(`You joined ${organization}`, "Go back to the product that invited you; it shows the organization now.");
+  }));
+  decline.addEventListener("click", () => void busy(decline, "Declining…", async () => {
+    const result = await client.organization.rejectInvitation({ invitationId: id });
+    if (!settle(result, status) && !result.error) render("Invitation declined", "Nothing was joined.");
+  }));
+  render(`Join ${organization}`, el("span", {}, invitation.inviterEmail ? `${invitation.inviterEmail} invited ` : "You're invited as ", el("b", {}, session.data.user.email), invitation.role ? ` as ${invitation.role}.` : "."),
+    status, el("div", { className: "row" }, decline, accept));
+}
+
+/** Better Auth sends a failed sign-in here with its code: said in words, with the way back. */
+async function errorPage(): Promise<void> {
+  const code = query.get("error") ?? "unknown";
+  const words: Record<string, string> = {
+    state_mismatch: "This sign-in expired, or was finished in another window. Go back to the app and sign in again.",
+    state_not_found: "This sign-in expired, or was finished in another window. Go back to the app and sign in again.",
+    please_restart_the_process: "This sign-in expired. Go back to the app and sign in again.",
+    access_denied: "The sign-in was cancelled, so nothing was shared.",
+    account_not_linked: "That account's email already belongs to a Volter account that signs in another way. Sign in the usual way, then link it from your account.",
+    unable_to_link_account: "That account could not be linked to your Volter account.",
+    email_not_found: "That provider did not share a verified email address, which a Volter account needs.",
+    invalid_code: "The provider's answer had expired. Sign in again.",
+  };
+  const back = el("a", { className: "button", href: "/login" } as Partial<HTMLAnchorElement>, "Back to sign in");
+  render("Sign-in didn't finish", words[code] ?? "Something went wrong while signing you in. Go back to the app and try again.",
+    el("div", { className: "stack" }, back),
+    el("p", { className: "code-note" }, "Error code: ", el("code", {}, code)));
+}
+
+/**
+ * The brand's artwork, made by a rule rather than drawn (Plotter Logic): a
+ * grid of short strokes turning around a moving centre, a few squares for the
+ * agents in it, and a rare orange stroke. Seeded by the day, so it holds still
+ * while a person signs in and differs tomorrow. Its colours are the brand's roles, set by
+ * identity.css on the strokes, the squares and the orange stroke's class.
+ */
+function drawArt(): void {
+  const svg = document.getElementById("art");
+  if (!svg || !svg.parentElement || getComputedStyle(svg.parentElement).display === "none") return;
+  const { width, height } = svg.getBoundingClientRect();
+  let seed = Math.floor(Date.now() / 86_400_000) * 2654435761 >>> 0;
+  const random = (): number => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const cx = width * (0.55 + random() * 0.2), cy = height * (0.35 + random() * 0.2), spin = 0.6 + random() * 0.8;
+  const step = 18, parts: string[] = [];
+  for (let y = step; y < height - step * 2.5; y += step) {
+    for (let x = step; x < width - step; x += step) {
+      const dx = x - cx, dy = y - cy, distance = Math.hypot(dx, dy);
+      if (distance < 46) continue;
+      const angle = Math.atan2(dy, dx) + Math.PI / 2 + spin * Math.exp(-distance / 260) + (random() - 0.5) * 0.25;
+      const length = 5 + 7 * Math.min(1, 140 / distance);
+      const orange = random() < 0.012;
+      const x2 = (x + Math.cos(angle) * length).toFixed(1), y2 = (y + Math.sin(angle) * length).toFixed(1);
+      parts.push(`<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}"${orange ? ' class="hot"' : ""} stroke-width="${orange ? 1.4 : 0.8}" stroke-linecap="square"/>`);
+      if (random() < 0.018) parts.push(`<rect x="${x - 3}" y="${y - 3}" width="6" height="6"/>`);
+    }
+  }
+  parts.push(`<line x1="${cx - 30}" y1="${cy}" x2="${cx + 30}" y2="${cy}" stroke-width=".6" stroke-dasharray="3 3"/><line x1="${cx}" y1="${cy - 30}" x2="${cx}" y2="${cy + 30}" stroke-width=".6" stroke-dasharray="3 3"/>`);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = parts.join("");
+}
+drawArt();
+
+const pages: Record<string, () => Promise<void>> = { "/": accountPage, "/login": signInPage, "/consent": consentPage, "/device": devicePage, "/error": errorPage, "/invitations": invitationPage };
+void (pages[app.dataset.page ?? "/"] ?? accountPage)();

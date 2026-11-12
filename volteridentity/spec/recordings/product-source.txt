@@ -1,0 +1,169 @@
+// A product's organizations (ADR-0002): the door a product's server uses with
+// its own `client_credentials` token for `<issuer>/organizations`. It acts only
+// on the organizations that product created (`metadata.product`), finds people
+// by id or email, and leaves who may do what to the product, as Clerk's secret
+// key did for the Worlds console. Better Auth's organization tables are the
+// store; the signed-in person's own endpoints under /api/auth stay as they are.
+
+import { createLocalJWKSet, jwtVerify, type JSONWebKeySet } from "jose";
+import type { createAuth, IdentityEnv } from "./auth.js";
+
+type Auth = ReturnType<typeof createAuth>;
+type Org = { id: string; slug: string; name: string; metadata: string | null };
+
+const INVITATION_DAYS = 7;
+const ROLES = new Set(["owner", "admin", "member"]);
+
+export const organizationsResource = (issuer: string): string => `${issuer}/organizations`;
+
+const json = (body: unknown, status = 200): Response => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+const refused = (status: number, message: string): Response => json({ error: message }, status);
+const newId = (): string => crypto.randomUUID().replaceAll("-", "");
+const now = (): string => new Date().toISOString();
+
+/** The product a request speaks for: the client of a verified `organizations` token for this resource. */
+async function productOf(request: Request, auth: Auth, issuer: string): Promise<string | undefined> {
+  const token = /^Bearer\s+(\S+)$/iu.exec(request.headers.get("Authorization") ?? "")?.[1];
+  if (!token) return undefined;
+  try {
+    const keys = createLocalJWKSet(await auth.api.getJwks() as JSONWebKeySet);
+    const { payload } = await jwtVerify(token, keys, { issuer, audience: organizationsResource(issuer) });
+    const scopes = typeof payload.scope === "string" ? payload.scope.split(" ") : [];
+    const client = typeof payload.azp === "string" ? payload.azp : typeof payload.client_id === "string" ? payload.client_id : undefined;
+    return scopes.includes("organizations") ? client : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const productOfOrg = (org: Org): string | undefined => {
+  try { return (JSON.parse(org.metadata ?? "{}") as { product?: string }).product; } catch { return undefined; }
+};
+
+export async function productApi(request: Request, env: IdentityEnv, auth: Auth, issuer: string): Promise<Response | undefined> {
+  const url = new URL(request.url);
+  const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+  if (parts[0] !== "api" || (parts[1] !== "organizations" && parts[1] !== "people")) return undefined;
+  const product = await productOf(request, auth, issuer);
+  if (!product) return refused(401, "a product's organizations token is required");
+  const db = env.DB;
+  const body = async <T>(): Promise<T> => await request.json().catch(() => ({})) as T;
+  const method = request.method;
+
+  const person = (where: string, value: string) => db.prepare(`select id, email, name, image from "user" where ${where} = ? limit 1`).bind(value).first<{ id: string; email: string; name: string; image: string | null }>();
+  // An organization of this product, by id or slug.
+  const orgOf = async (ref: string): Promise<Org | undefined> => {
+    const org = await db.prepare(`select id, slug, name, metadata from organization where id = ? or slug = ? limit 1`).bind(ref, ref).first<Org>();
+    return org && productOfOrg(org) === product ? org : undefined;
+  };
+  const view = (org: Org, role?: string) => ({ id: org.id, slug: org.slug, name: org.name, ...(role ? { role } : {}) });
+
+  // ── people ──
+  if (parts[1] === "people") {
+    if (parts.length === 2 && method === "GET") {
+      const email = url.searchParams.get("email")?.trim().toLowerCase();
+      if (!email) return refused(400, "an email is required");
+      const found = await person("lower(email)", email);
+      return found ? json(found) : refused(404, "no Volter identity has that email");
+    }
+    if (parts.length === 3 && method === "GET") {
+      const found = await person("id", parts[2]!);
+      return found ? json(found) : refused(404, "no such person");
+    }
+    if (parts.length === 4 && parts[3] === "organizations" && method === "GET") {
+      const rows = await db.prepare(`select o.id, o.slug, o.name, o.metadata, m.role from member m join organization o on o.id = m.organizationId where m.userId = ? order by o.slug`).bind(parts[2]!).all<Org & { role: string }>();
+      return json(rows.results.filter((org) => productOfOrg(org) === product).map((org) => view(org, org.role)));
+    }
+    return refused(404, "not found");
+  }
+
+  // ── organizations ──
+  if (parts.length === 2 && method === "POST") {
+    const { name, slug, createdBy } = await body<{ name?: string; slug?: string; createdBy?: string }>();
+    if (!name?.trim() || !slug || !/^[a-z0-9][a-z0-9-]{0,47}$/u.test(slug)) return refused(400, "a name and a lowercase slug are required");
+    if (!createdBy || !await person("id", createdBy)) return refused(400, "createdBy must name a Volter identity");
+    if (await db.prepare(`select 1 from organization where slug = ?`).bind(slug).first()) return refused(409, "that slug is taken");
+    const org: Org = { id: newId(), slug, name: name.trim(), metadata: JSON.stringify({ product }) };
+    await db.batch([
+      db.prepare(`insert into organization (id, name, slug, createdAt, metadata) values (?, ?, ?, ?, ?)`).bind(org.id, org.name, org.slug, now(), org.metadata),
+      db.prepare(`insert into member (id, organizationId, userId, role, createdAt) values (?, ?, ?, 'owner', ?)`).bind(newId(), org.id, createdBy, now()),
+    ]);
+    return json(view(org, "owner"), 201);
+  }
+  const org = parts[2] ? await orgOf(parts[2]) : undefined;
+  if (!org) return refused(404, "no such organization");
+
+  if (parts.length === 3) {
+    if (method === "GET") return json(view(org));
+    if (method === "PATCH") {
+      const { name } = await body<{ name?: string }>();
+      if (!name?.trim()) return refused(400, "a name is required");
+      await db.prepare(`update organization set name = ? where id = ?`).bind(name.trim(), org.id).run();
+      return json(view({ ...org, name: name.trim() }));
+    }
+    if (method === "DELETE") {
+      await db.prepare(`delete from organization where id = ?`).bind(org.id).run();
+      return json({ deleted: true });
+    }
+  }
+
+  if (parts[3] === "members") {
+    if (parts.length === 4 && method === "GET") {
+      const rows = await db.prepare(`select m.id, m.userId, u.email, u.name, m.role from member m join "user" u on u.id = m.userId where m.organizationId = ? order by m.createdAt`).bind(org.id).all();
+      return json(rows.results);
+    }
+    if (parts.length === 4 && method === "POST") {
+      const { userId, role = "member" } = await body<{ userId?: string; role?: string }>();
+      if (!userId || !await person("id", userId)) return refused(400, "userId must name a Volter identity");
+      if (!ROLES.has(role) || role === "owner") return refused(400, "role is admin or member");
+      if (await db.prepare(`select 1 from member where organizationId = ? and userId = ?`).bind(org.id, userId).first()) return refused(409, "already a member");
+      const id = newId();
+      await db.prepare(`insert into member (id, organizationId, userId, role, createdAt) values (?, ?, ?, ?, ?)`).bind(id, org.id, userId, role, now()).run();
+      return json({ id, userId, role }, 201);
+    }
+    const userId = parts[4];
+    if (parts.length === 5 && userId && method === "PATCH") {
+      const { role } = await body<{ role?: string }>();
+      if (!role || !ROLES.has(role)) return refused(400, "role is owner, admin or member");
+      const changed = await db.prepare(`update member set role = ? where organizationId = ? and userId = ?`).bind(role, org.id, userId).run();
+      return changed.meta.changes ? json({ userId, role }) : refused(404, "not a member");
+    }
+    if (parts.length === 5 && userId && method === "DELETE") {
+      const removed = await db.prepare(`delete from member where organizationId = ? and userId = ?`).bind(org.id, userId).run();
+      return removed.meta.changes ? json({ removed: true }) : refused(404, "not a member");
+    }
+  }
+
+  if (parts[3] === "invitations") {
+    if (parts.length === 4 && method === "GET") {
+      const rows = await db.prepare(`select id, email, role, createdAt, expiresAt from invitation where organizationId = ? and status = 'pending' and expiresAt > ? order by createdAt`).bind(org.id, now()).all();
+      return json(rows.results);
+    }
+    if (parts.length === 4 && method === "POST") {
+      const { email: raw, role = "member", inviterId } = await body<{ email?: string; role?: string; inviterId?: string }>();
+      const email = raw?.trim().toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)) return refused(400, "an email is required");
+      if (!ROLES.has(role) || role === "owner") return refused(400, "role is admin or member");
+      if (!inviterId || !await person("id", inviterId)) return refused(400, "inviterId must name a Volter identity");
+      const invitation = { id: newId(), email, role, createdAt: now(), expiresAt: new Date(Date.now() + INVITATION_DAYS * 86_400_000).toISOString() };
+      await db.prepare(`insert into invitation (id, organizationId, email, role, status, expiresAt, createdAt, inviterId) values (?, ?, ?, ?, 'pending', ?, ?, ?)`)
+        .bind(invitation.id, org.id, email, role, invitation.expiresAt, invitation.createdAt, inviterId).run();
+      if (env.EMAIL && env.EMAIL_FROM) {
+        const link = `${issuer}/invitations?id=${invitation.id}`;
+        await env.EMAIL.send({
+          to: email,
+          from: env.EMAIL_FROM,
+          subject: `You're invited to ${org.name}`,
+          text: `You're invited to join ${org.name}.\n\nAccept with your Volter account (${email}): ${link}\n\nThe invitation expires in ${INVITATION_DAYS} days.\n`,
+        });
+      }
+      return json(invitation, 201);
+    }
+    const invitationId = parts[4];
+    if (parts.length === 5 && invitationId && method === "DELETE") {
+      const cancelled = await db.prepare(`update invitation set status = 'canceled' where id = ? and organizationId = ? and status = 'pending'`).bind(invitationId, org.id).run();
+      return cancelled.meta.changes ? json({ cancelled: true }) : refused(404, "no such pending invitation");
+    }
+  }
+  return refused(404, "not found");
+}

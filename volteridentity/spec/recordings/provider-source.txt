@@ -1,0 +1,244 @@
+Pinned @better-auth/oauth-provider 1.7.5 source excerpts, from the package identified in SOURCE.md.
+
+authorize-riRRCSbC.mjs:5551-5597
+	const client = await getClient(ctx, opts, query.client_id);
+	if (!client) return handleRedirect(ctx, getErrorURL(ctx, "invalid_client", "client_id is required"));
+	if (client.disabled) return handleRedirect(ctx, getErrorURL(ctx, "client_disabled", "client is disabled"));
+	if (!clientAllowsGrant(client, "authorization_code")) return handleRedirect(ctx, getErrorURL(ctx, "unauthorized_client", "client is not authorized to use the authorization_code grant"));
+	if (!findRegisteredRedirectUri(client.redirectUris, query.redirect_uri) || !query.redirect_uri) return handleRedirect(ctx, getErrorURL(ctx, "invalid_redirect", "invalid redirect uri"));
+	let requestedScopes = query.scope?.split(" ").filter((s) => s);
+	if (requestedScopes) {
+		const validScopes = new Set(client.scopes ?? opts.scopes);
+		const invalidScopes = requestedScopes.filter((scope) => {
+			return !validScopes?.has(scope);
+		});
+		if (invalidScopes.length) return handleRedirect(ctx, formatErrorURL(query.redirect_uri, "invalid_scope", `The following scopes are invalid: ${invalidScopes.join(", ")}`, query.state, getIssuer(ctx, opts)));
+	}
+	if (!requestedScopes) {
+		requestedScopes = client.scopes ?? opts.scopes ?? [];
+		query.scope = requestedScopes.join(" ");
+	}
+	const openidRequested = requestedScopes.includes("openid");
+	if (query.claims !== void 0 && !openidRequested) return handleRedirect(ctx, formatErrorURL(query.redirect_uri, "invalid_request", "openid scope must be requested when using the claims parameter", query.state, getIssuer(ctx, opts)));
+	if (openidRequested && !isValidOidcClaimsRequest(query.claims)) return handleRedirect(ctx, formatErrorURL(query.redirect_uri, "invalid_request", "claims must be a valid Claims request object", query.state, getIssuer(ctx, opts)));
+	if (openidRequested && !canSatisfyEssentialAcrRequest(query.claims, "0")) return handleRedirect(ctx, formatErrorURL(query.redirect_uri, "access_denied", "essential acr requirement cannot be met", query.state, getIssuer(ctx, opts)));
+	const requestedUserInfoClaims = getRequestedUserInfoClaims(query.claims, getSupportedClaims(opts));
+	if (query.resource !== void 0) try {
+		await resolveResourcePolicy(ctx, opts, {
+			resource: query.resource,
+			clientId: client.clientId,
+			requestedScopes
+		});
+	} catch (err) {
+		if (err instanceof APIError$1) {
+			const error = err.body?.error ?? "invalid_target";
+			const description = err.body?.error_description ?? "requested resource invalid";
+			return handleRedirect(ctx, formatErrorURL(query.redirect_uri, error, description, query.state, getIssuer(ctx, opts)));
+		}
+		throw err;
+	}
+	const pkceRequired = isPKCERequired(client, {
+		scopes: requestedScopes,
+		nonce: query.nonce
+	});
+	if (pkceRequired) {
+		if (!query.code_challenge || !query.code_challenge_method) return handleRedirect(ctx, formatErrorURL(query.redirect_uri, "invalid_request", pkceRequired.valueOf(), query.state, getIssuer(ctx, opts)));
+	}
+	if (query.code_challenge || query.code_challenge_method) {
+		if (!query.code_challenge || !query.code_challenge_method) return handleRedirect(ctx, formatErrorURL(query.redirect_uri, "invalid_request", "code_challenge and code_challenge_method must both be provided", query.state, getIssuer(ctx, opts)));
+		if (!["S256"].includes(query.code_challenge_method)) return handleRedirect(ctx, formatErrorURL(query.redirect_uri, "invalid_request", "invalid code_challenge method, only S256 is supported", query.state, getIssuer(ctx, opts)));
+	}
+
+authorize-riRRCSbC.mjs:5649-5687
+		scopes: requestedScopes
+	});
+	if (client.skipConsent) return redirectWithAuthorizationCode(ctx, opts, {
+		query,
+		clientId: client.clientId,
+		userId: session.user.id,
+		sessionId: session.session.id,
+		authTime: new Date(session.session.createdAt).getTime(),
+		referenceId,
+		resource: requestedResources
+	});
+	const consent = await ctx.context.adapter.findOne({
+		model: "oauthConsent",
+		where: [
+			{
+				field: "clientId",
+				value: client.clientId
+			},
+			{
+				field: "userId",
+				value: session.user.id
+			},
+			...referenceId ? [{
+				field: "referenceId",
+				value: referenceId
+			}] : []
+		]
+	});
+	if (!consent || !requestedScopes.every((val) => consent.scopes.includes(val)) || !requestedUserInfoClaims.every((claim) => (consent.requestedUserInfoClaims ?? []).includes(claim))) {
+		if (promptNone) return redirectWithPromptNoneError(ctx, opts, query, "consent_required", "End-User consent is required");
+		return redirectWithPromptCode(ctx, opts, "consent", { sessionId: session.session.id });
+	}
+	const consentedResources = consent?.resources ?? [];
+	if (requestedResources.some((requestedResource) => !consentedResources.includes(requestedResource))) {
+		if (promptNone) return redirectWithPromptNoneError(ctx, opts, query, "consent_required", "End-User consent is required");
+		return redirectWithPromptCode(ctx, opts, "consent", { sessionId: session.session.id });
+	}
+	return redirectWithAuthorizationCode(ctx, opts, {
+		query,
+
+introspect-njKASm3q.mjs:1375-1433
+/**
+* Computes an OIDC hash (at_hash, c_hash) per OIDC Core §3.1.3.6.
+* Hashes the token, takes the left half, and base64url-encodes it.
+*/
+async function computeOidcHash(token, signingAlg) {
+	let hashAlg;
+	if (signingAlg === "EdDSA") hashAlg = "SHA-512";
+	else if (signingAlg.endsWith("384")) hashAlg = "SHA-384";
+	else if (signingAlg.endsWith("512")) hashAlg = "SHA-512";
+	else hashAlg = "SHA-256";
+	const digest = new Uint8Array(await crypto.subtle.digest(hashAlg, new TextEncoder().encode(token)));
+	return base64url.encode(digest.slice(0, digest.length / 2));
+}
+/**
+* Creates a user id token in code_authorization with scope of 'openid'
+* and hybrid/implicit (not yet implemented) flows
+*/
+async function createIdToken(ctx, opts, user, client, scopes, nonce, sessionId, authTime, accessToken, extraClaims) {
+	const iat = Math.floor(Date.now() / 1e3);
+	const exp = iat + (opts.idTokenExpiresIn ?? 36e3);
+	const resolvedSub = await resolveSubjectIdentifier(user.id, client, opts);
+	const authTimeSec = authTime != null ? Math.floor(authTime.getTime() / 1e3) : void 0;
+	const customClaims = stripReservedIdTokenClaims(opts.customIdTokenClaims ? await opts.customIdTokenClaims({
+		user,
+		scopes,
+		metadata: parseClientMetadata(client.metadata)
+	}) : void 0);
+	const jwtPluginOptions = opts.disableJwtPlugin ? void 0 : getJwtPlugin(ctx.context).options;
+	const resolvedKey = !opts.disableJwtPlugin && !jwtPluginOptions?.jwt?.sign ? await resolveSigningKey(ctx, jwtPluginOptions) : void 0;
+	const signingAlg = opts.disableJwtPlugin ? "HS256" : resolvedKey?.alg ?? jwtPluginOptions?.jwks?.keyPairConfig?.alg;
+	const atHash = accessToken ? await computeOidcHash(accessToken, signingAlg) : void 0;
+	const emitSid = Boolean(client.enableEndSession || client.backchannelLogoutUri);
+	const payload = {
+		...ID_TOKEN_SCOPE_CLAIM_GUARDS,
+		auth_time: authTimeSec,
+		acr: "0",
+		...customClaims,
+		at_hash: atHash,
+		iss: jwtPluginOptions?.jwt?.issuer ?? ctx.context.baseURL,
+		sub: resolvedSub,
+		aud: client.clientId,
+		nonce,
+		iat,
+		exp,
+		sid: emitSid ? sessionId : void 0
+	};
+	const additiveClaims = stripReservedIdTokenClaims(extraClaims);
+	Object.assign(payload, pickClaims(additiveClaims, payload));
+	if (opts.disableJwtPlugin && !client.clientSecret) return;
+	const idToken = opts.disableJwtPlugin ? await new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).sign(new TextEncoder().encode(await decryptStoredClientSecret(ctx, opts.storeClientSecret, client.clientSecret))) : await signJWT(ctx, {
+		options: jwtPluginOptions,
+		payload,
+		resolvedKey: resolvedKey ?? void 0
+	});
+	if (idToken && atHash && jwtPluginOptions?.jwt?.sign) {
+		const header = decodeProtectedHeader(idToken);
+		if (header.alg !== signingAlg) throw new APIError("INTERNAL_SERVER_ERROR", {
+			error_description: `ID token signed with "${header.alg}" but at_hash was computed for "${signingAlg}". Ensure jwt.sign uses the algorithm declared in keyPairConfig.alg.`,
+			error: "server_error"
+
+introspect-njKASm3q.mjs:1800-1870
+	const isJwtAccessToken = audienceClaim && !opts.disableJwtPlugin;
+	const isIdToken = user && effectiveScopes.includes("openid");
+	const metadata = parseClientMetadata(client.metadata);
+	const additionalIdTokenClaims = isIdToken && user ? {
+		...await collectExtensionIdTokenClaims(opts, {
+			ctx,
+			opts,
+			user,
+			client,
+			scopes: effectiveScopes,
+			grantType,
+			referenceId,
+			sessionId,
+			resources: params.resources,
+			metadata
+		}),
+		...params.idTokenClaims ?? {}
+	} : void 0;
+	const customFields = opts.customTokenResponseFields ? await opts.customTokenResponseFields({
+		grantType,
+		user,
+		scopes: effectiveScopes,
+		metadata,
+		verificationValue
+	}) : void 0;
+	const refreshResources = grantIssuance.refreshResources;
+	const confirmation = params.confirmation ?? await resolveDpopTokenBinding(ctx, opts, {
+		client,
+		grantIssuance,
+		verificationValue,
+		refreshToken: existingRefreshToken
+	});
+	const requestedUserInfoClaims = params.requestedUserInfoClaims ?? existingRefreshToken?.requestedUserInfoClaims ?? [];
+	const earlyRefreshToken = isRefreshToken && user && !isJwtAccessToken ? await createRefreshToken(ctx, opts, user, referenceId, params.authorizationCodeId, client, effectiveScopes, {
+		iat,
+		exp: refreshTokenExp,
+		sid: sessionId
+	}, existingRefreshToken, authTime, refreshResources, confirmation, requestedUserInfoClaims) : void 0;
+	const accessTokenClaims = isJwtAccessToken ? await resolveAccessTokenClaims({
+		ctx,
+		opts,
+		user,
+		client,
+		scopes: effectiveScopes,
+		grantType,
+		sessionId,
+		resources: params.resources,
+		referenceId,
+		metadata,
+		perRequestClaims: params.accessTokenClaims,
+		resourcePolicyClaims: grantIssuance.resourceCustomClaims
+	}) : void 0;
+	const [accessToken, refreshToken] = await Promise.all([isJwtAccessToken ? createJwtAccessToken(ctx, opts, user, client, audienceClaim, effectiveScopes, {
+		iat,
+		exp,
+		sid: sessionId,
+		signingAlgorithm: grantIssuance.signingAlgorithm,
+		signingKeyId: grantIssuance.signingKeyId,
+		accessTokenClaims,
+		confirmation
+	}) : createOpaqueAccessToken(ctx, opts, user, client, effectiveScopes, {
+		iat,
+		exp,
+		sid: sessionId
+	}, params?.resources, referenceId, params.authorizationCodeId, earlyRefreshToken?.id, confirmation, requestedUserInfoClaims), earlyRefreshToken ? earlyRefreshToken : isRefreshToken && user ? createRefreshToken(ctx, opts, user, referenceId, params.authorizationCodeId, client, effectiveScopes, {
+		iat,
+		exp: refreshTokenExp,
+		sid: sessionId
+	}, existingRefreshToken, authTime, refreshResources, confirmation, requestedUserInfoClaims) : void 0]);
+	const idToken = isIdToken ? await createIdToken(ctx, opts, user, client, effectiveScopes, nonce, sessionId, authTime, accessToken, additionalIdTokenClaims) : void 0;
+	const responseBody = {
+
+utils-CWjOhEQb.mjs:831-848
+*
+* Returns false if PKCE is not required, or the reason it is required.
+*
+* @internal
+*/
+function isPKCERequired(client, request) {
+	if (client.tokenEndpointAuthMethod === "none") return "pkce is required for public clients";
+	const requestScopes = request?.scopes ?? [];
+	const isOpenIdRequest = requestScopes.includes("openid");
+	const hasNonce = typeof request?.nonce === "string" && request.nonce.length > 0;
+	const hasOidcNonce = isOpenIdRequest && hasNonce;
+	if (requestScopes.includes("offline_access") && !hasOidcNonce) return "pkce or OIDC nonce is required when requesting offline_access scope";
+	if (client.requirePKCE ?? true) return "pkce is required for this client";
+	return false;
+}
+//#endregion
+export { collectExtensionAccessTokenClaims as A, validateOAuthProviderExtensions as B, storeToken as C, validateClientScopes as D, validateClientCredentials as E, getExtensionGrantHandler as F, getSupportedAuthMethods as I, getSupportedGrantTypes as L, collectExtensionUserInfoClaims as M, extendOAuthProvider as N, verifyOAuthQueryParams as O, getClientDiscoveries as P, hasUserInfoClaimExtension as R, storeClientSecret as S, toResourceList as T, removeMaxAgeFromQuery as _, getClient as a, resolveSubjectIdentifier as b, getStoredToken as c, mergeDiscoveryMetadata as d, normalizeClientAuthenticationParameters as f, parsePrompt as g, parseClientMetadata as h, extractClientCredentials as i, collectExtensionIdTokenClaims as j, applyOAuthProviderMetadataExtensions as k, isPKCERequired as l, parseBearerToken as m, decryptStoredClientSecret as n, getJwtPlugin as o, normalizeTimestampValue as p, destructureCredentials as r, getOAuthProviderPlugin as s, clientAllowsGrant as t, isSessionFreshForSignedQuery as u, removePromptFromQuery as v, toAudienceClaim as w, searchParamsToQuery as x, resolveSessionAuthTime as y, isExtensionTokenEndpointAuthMethod as z };
