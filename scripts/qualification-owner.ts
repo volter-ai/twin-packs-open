@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { runOwnedCommand } from './commands.mjs';
@@ -131,27 +131,37 @@ async function settledNode(executable: string, argv: string[], env: NodeJS.Proce
     child.once('close', (code, signal) => done({ code, signal }));
   });
   if (failure) throw failure;
-  if (result.code !== 0) throw new Error(`Native qualification ${argv[0] === '-e' ? 'cleanup' : argv[1]} failed (${result.signal ?? result.code})`);
+  if (result.code !== 0) throw new Error(`Native qualification ${argv[0] === '-e' ? 'cleanup' : argv.slice(1, 3).join(' ')} failed (${result.signal ?? result.code})`);
   return output;
 }
 
 type Claim = { world: string; root: string; instanceCreatedAt: string };
-type Inventory = { worlds: Claim[]; legacyRecords: unknown[]; warnings: string[] };
-async function retireSession(session: string, runtime: string, env: NodeJS.ProcessEnv): Promise<void> {
+type Inventory = { worlds: Claim[]; warnings: string[] };
+
+/** The installed product CLI (`@volter/world`'s `volter` bin): the one command surface that starts, inventories and
+ *  stops a World. */
+function productCli(runtimeRoot: string): string {
+  const pkg = join(runtimeRoot, 'node_modules/@volter/world');
+  const bin = (JSON.parse(readFileSync(join(pkg, 'package.json'), 'utf8')) as { bin?: Record<string, string> }).bin?.volter;
+  if (!bin) throw new Error('The installed @volter/world names no volter bin');
+  return join(pkg, bin);
+}
+
+async function retireSession(session: string, world: string, cli: string, env: NodeJS.ProcessEnv): Promise<void> {
   const sessionRoot = realpathSync(session);
   const problems: string[] = [];
-  const native = (argv: string[]) => settledNode(process.execPath, [runtime, ...argv], env);
+  const native = (argv: string[]) => settledNode(process.execPath, [cli, 'world', ...argv], env);
   const inventory = async (): Promise<Inventory> => {
-    const report = JSON.parse(await native(['resources', '--json', '--root', sessionRoot]));
-    if (!Array.isArray(report?.worlds) || !Array.isArray(report.legacyRecords) || !Array.isArray(report.warnings)) {
-      throw new Error('Installed runtime returned an unknown lifecycle inventory; session retained');
+    const report = JSON.parse(await native(['prune', '--json', '--world', world]))?.inventory;
+    if (!Array.isArray(report?.worlds) || !Array.isArray(report.warnings)) {
+      throw new Error('Installed CLI returned an unknown lifecycle inventory; session retained');
     }
     return report;
   };
   const before = await inventory();
   if (before.warnings.length) problems.push(`Native lifecycle inventory warnings: ${before.warnings.join('; ')}`);
-  if (before.legacyRecords.length) problems.push('Native lifecycle inventory contains legacy ownership; use its pinned runtime for teardown');
-  // The empty private HOME belongs to this session, but a root outside it is never ours to stop.
+  // The empty private HOME belongs to this session, so every lifecycle it records is this session's; a root outside the
+  // session is never ours to stop. The disposable run retires its own World: a claim left here is one it did not.
   for (const claim of before.worlds) {
     try {
       if (typeof claim?.root !== 'string' || typeof claim.world !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(claim.world)
@@ -159,20 +169,21 @@ async function retireSession(session: string, runtime: string, env: NodeJS.Proce
       const root = realpathSync(claim.root);
       const offset = relative(sessionRoot, root);
       if (isAbsolute(offset) || offset.split(sep)[0] === '..') throw new Error(`Lifecycle root is outside the owned session: ${root}`);
-      const rawStatus = await native(['status', claim.world, '--root', root, '--json']);
+      // a name does not establish ownership: stop only the instance this claim records, by its token
+      const rawStatus = await native(['status', '--json', '--world', root, '--branch', claim.world]);
       let status;
       try { status = JSON.parse(rawStatus); }
       catch { throw new Error(`Native status is unreadable for ${claim.world}; session retained`); }
-      if (status?.name !== claim.world || typeof status.root !== 'string' || realpathSync(status.root) !== root || status.createdAt !== claim.instanceCreatedAt
+      if (status?.world !== claim.world || typeof status.root !== 'string' || realpathSync(status.root) !== root || status.usage?.createdAt !== claim.instanceCreatedAt
         || typeof status.instance !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(status.instance)) {
         throw new Error(`Lifecycle generation cannot be confirmed for ${claim.world}`);
       }
-      await native(['down', claim.world, '--root', root, '--if-instance', status.instance]);
+      await native(['down', '--world', root, '--branch', claim.world, '--if-instance', status.instance]);
     } catch (error) { problems.push(error instanceof Error ? error.message : String(error)); }
   }
   const after = await inventory();
-  if (after.worlds.length || after.legacyRecords.length || after.warnings.length) {
-    problems.push(`Native lifecycle ownership remains after retirement (${after.worlds.length} Worlds, ${after.legacyRecords.length} legacy records, ${after.warnings.length} warnings)`);
+  if (after.worlds.length || after.warnings.length) {
+    problems.push(`Native lifecycle ownership remains after retirement (${after.worlds.length} Worlds, ${after.warnings.length} warnings)`);
   }
   if (problems.length) throw new Error(problems.join('\n'));
 }
@@ -197,7 +208,8 @@ async function operate(argv: string[], lifetime: Lifetime, operation: Operation)
     throw new Error(`Another vendor owns qualification; inspect ${join(active, 'owner.json')} before resuming`);
   }
   let session: string | undefined;
-  let runtime: string | undefined;
+  let cli: string | undefined;
+  let work: string | undefined;
   let worldMayHaveStarted = false;
   let worldCommandCompleted = false;
   let status = 1;
@@ -220,14 +232,15 @@ async function operate(argv: string[], lifetime: Lifetime, operation: Operation)
       assertContinuing(lifetime);
       if (!isAbsolute(runtimeRoot)) throw new Error('Qualification must identify its exact installed runtime before starting a World');
       if (worldMayHaveStarted) throw new Error('Qualification already started its owning World');
-      runtime = join(runtimeRoot, 'node_modules/@volter/world-runtime/src/cli.ts');
-      const work = join(session!, 'world');
+      cli = productCli(runtimeRoot);
+      work = join(session!, 'world');
       mkdirSync(work);
       const config = join(work, 'world.json');
-      const owner = 'catalog-publisher-' + (process.env.PACK_VENDOR ?? 'tavily') + '-' + mode;
-      writeFileSync(config, JSON.stringify({ id: owner, services: [], network: { egress: [] } }));
+      const id = 'catalog-publisher-' + (process.env.PACK_VENDOR ?? 'tavily') + '-' + mode;
+      writeFileSync(config, JSON.stringify({ schemaVersion: 2, metadata: { id }, services: [], runtime: { network: { egress: [] } } }));
       worldMayHaveStarted = true;
-      const result = await command(process.execPath, [runtime, 'run', config, '--root', work, '--env-out', join(work, 'world.env'), '--owner', owner, '--', ...consumer], { cwd, stdio: 'inherit' });
+      // a disposable run: the CLI boots its own instance, runs the command in it and retires it
+      const result = await command(process.execPath, [cli, 'world', 'run', '--ephemeral', '--world', work, '--', ...consumer], { cwd, stdio: 'inherit' });
       worldCommandCompleted = !result.error && Number.isInteger(result.exitCode) && result.signal === null;
       if (result.error) throw result.error;
       return result.status ?? 1;
@@ -239,8 +252,8 @@ async function operate(argv: string[], lifetime: Lifetime, operation: Operation)
     lifetime.retiring = true;
     try {
       if (worldMayHaveStarted) {
-        if (!session || !runtime) throw new Error('The exact runtime for native retirement is unknown');
-        await retireSession(session, runtime, candidateEnv);
+        if (!session || !cli || !work) throw new Error('The exact CLI for native retirement is unknown');
+        await retireSession(session, work, cli, candidateEnv);
         if (!worldCommandCompleted) throw new Error('World CLI completion was not confirmed; its lifetime worker may still be retiring');
       }
       // Removing active is conditional on successful session removal. No lifecycle record is edited here.
