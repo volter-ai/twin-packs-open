@@ -1,0 +1,23 @@
+{
+  "about": "Dub's logger (@axiomhq/logging 0.1.5 over @axiomhq/js 1.3.1) as the World bench runs it, with the World's Axiom token and dataset: its batches land through the legacy ingest and each event is kept as the vendor's record; the account's datasets are read back by the dataset list; every other operation is the gap.",
+  "decisions": [
+    {
+      "operation": "ingestIntoDataset",
+      "mechanism": "handler",
+      "demand": "Dub's logger flushes each batch (apps/web/lib/axiom/server.ts:31, AxiomJSTransport; @axiomhq/js@1.3.1:dist/esm/client.js:43 POST /v1/datasets/<dataset>/ingest, application/x-ndjson); the World bench's evidence reads the stored events (twin-world ADR 0036, What changes).",
+      "why": "Reads the body by its Content-Type (JSON, NDJSON, CSV), applies event labels, the timestamp field and format, reserved-name renames and field limits, refuses an unknown dataset (404), a token without access to it (403) and an all-rejected request (400), and keeps each accepted event as an `event` (_time, _sysTime, _rowId, data) under its dataset. Answers IngestStatus: ingested, failed, failures, processedBytes, blocksCreated, walLength; the SDK reads none of them but a 4xx's message (fetchClient.js:38). journeys/first-use.json asserts the status's ingested count and the dataset in the list."
+    },
+    {
+      "operation": "getDatasets",
+      "mechanism": "core",
+      "demand": "Vendor-backed resource refresh (DatasetSpec.refresh).",
+      "why": "The spec names DatasetSpec as its answer and the derived core lists the account's datasets as stored (id, name, description, who, created); journeys/first-use.json's readback lists the dataset the World issued."
+    },
+    {
+      "operation": "door:appCredentials",
+      "mechanism": "door",
+      "demand": "World account credentials for app logging (AXIOM_TOKEN, AXIOM_DATASET).",
+      "why": "Account bootstrap: the dataset the application ingests into and a basic API token with ingest access to it, as Axiom's console makes them (Datasets > New dataset; Settings > API tokens), the same at every boot."
+    }
+  ]
+}

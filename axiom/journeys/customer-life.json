@@ -1,0 +1,278 @@
+{
+  "vendor": "axiom",
+  "host": "api.axiom.co",
+  "author": "Contributor 98",
+  "about": "Harbourline runs Dub with its Axiom logging on, as the World bench runs it: the World issues the token and dataset, Dub's route, job and error loggers flush their NDJSON batches to the legacy ingest, the bench reads the account's datasets back, and the ingest's partial and whole refusals and its credential and dataset refusals are met.",
+  "steps": [
+    {
+      "name": "Tuesday 6 January, 09:00: Harbourline's operator turns on Dub's Axiom logging",
+      "wait": "7740m"
+    },
+    {
+      "name": "Harbourline signs up to Axiom: the dataset Dub logs into and a basic API token that ingests into it",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "token": "token",
+        "dataset": "dataset"
+      },
+      "expect": [
+        {
+          "path": "token",
+          "matches": "^xaat-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        {
+          "path": "dataset",
+          "equals": "logs"
+        }
+      ],
+      "evidence": "axiom/src/manifest.ts:credentialDoor"
+    },
+    {
+      "name": "Dub's Resend webhook route finishes and withAxiom's logger flushes its request line (apps/web/app/api/resend/webhook/route.ts:1; @axiomhq/nextjs 0.1.6 routeHandler.js transformRouteHandlerSuccessResult)",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"level\":\"info\",\"message\":\"POST /api/resend/webhook 200 in 42ms\",\"_time\":\"2026-01-06T09:00:00.000Z\",\"fields\":{},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"lambda\",\"request\":{\"startTime\":1767689999958,\"endTime\":1767690000000,\"path\":\"/api/resend/webhook\",\"method\":\"POST\",\"host\":\"app.dub.co\",\"userAgent\":\"Resend-Webhook/1.0\",\"scheme\":\"https\",\"ip\":\"203.0.113.7\",\"statusCode\":200}}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        },
+        {
+          "path": "failures",
+          "equals": []
+        },
+        {
+          "path": "processedBytes",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "09:05: a QStash job arrives with a broken envelope; Dub logs jobs.invalid_envelope and a debug line in one batch (apps/web/app/api/jobs/process/[jobName]/route.ts:38)",
+      "wait": "5m"
+    },
+    {
+      "name": "Dub's job logger flushes both lines in one NDJSON batch",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"level\":\"error\",\"message\":\"jobs.invalid_envelope\",\"_time\":\"2026-01-06T09:05:00.000Z\",\"fields\":{\"error\":\"Required at \\\"jobName\\\"\"},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"server-log\"}\n{\"level\":\"info\",\"message\":\"POST /api/jobs/process/sync-partner 200 in 3ms\",\"_time\":\"2026-01-06T09:05:00.003Z\",\"fields\":{},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"lambda\",\"request\":{\"startTime\":1767690300000,\"endTime\":1767690300003,\"path\":\"/api/jobs/process/sync-partner\",\"method\":\"POST\",\"host\":\"app.dub.co\",\"userAgent\":\"Resend-Webhook/1.0\",\"scheme\":\"https\",\"ip\":\"203.0.113.7\",\"statusCode\":200}}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "09:10: a server component throws; Next's onRequestError hands it to Axiom's logger (apps/web/instrumentation.ts:2; @axiomhq/nextjs 0.1.6 instrumentation.js transformOnRequestError)",
+      "wait": "5m"
+    },
+    {
+      "name": "Dub's onRequestError logger flushes the error with its stack and digest",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"level\":\"error\",\"message\":\"Cannot read properties of undefined (reading 'slug')\",\"_time\":\"2026-01-06T09:10:00.000Z\",\"fields\":{\"error\":\"TypeError\",\"stack\":\"TypeError: Cannot read properties of undefined (reading 'slug')\\n    at LinkPage (apps/web/app/app.dub.co/(dashboard)/[slug]/links/page.tsx:41:22)\",\"digest\":\"2317684519\",\"context\":{\"routerKind\":\"App Router\",\"routePath\":\"/[slug]/links\",\"routeType\":\"render\"}},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"error.tsx\",\"request\":{\"path\":\"/acme/links\",\"method\":\"GET\",\"headers\":{}}}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 7 January, 08:00: the World restarts Dub, and its sign-up door issues the same token and dataset again",
+      "wait": "1370m"
+    },
+    {
+      "name": "The restarted World's credential door answers the token Dub already holds",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "expect": [
+        {
+          "path": "token",
+          "equals": "{token}"
+        },
+        {
+          "path": "dataset",
+          "equals": "{dataset}"
+        }
+      ],
+      "evidence": "axiom/src/manifest.ts:credentialDoor"
+    },
+    {
+      "name": "The bench reads Harbourline's datasets back, as a vendor-backed root refreshes them",
+      "method": "GET",
+      "path": "https://api.axiom.co/v1/datasets",
+      "status": 200,
+      "headers": {
+        "authorization": "Bearer {token}"
+      },
+      "expect": [
+        {
+          "path": "0.id",
+          "equals": "{dataset}"
+        },
+        {
+          "path": "0.name",
+          "equals": "{dataset}"
+        },
+        {
+          "path": "0.who",
+          "exists": true
+        },
+        {
+          "path": "0.created",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "A batch whose clock-skewed line is two days ahead: Axiom keeps the valid line and lists the other in failures",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"level\":\"info\",\"message\":\"GET /api/links 200 in 9ms\",\"_time\":\"2026-01-07T08:00:01.000Z\",\"fields\":{},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"lambda\"}\n{\"level\":\"info\",\"message\":\"GET /api/links 200 in 7ms\",\"_time\":\"2026-01-09T08:00:01.000Z\",\"fields\":{},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"lambda\"}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 1
+        },
+        {
+          "path": "failures.0.error",
+          "exists": true
+        },
+        {
+          "path": "failures.0.timestamp",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "A batch of only a far-future line is refused whole",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"level\":\"info\",\"message\":\"GET /api/links 200 in 7ms\",\"_time\":\"2026-01-10T00:00:00.000Z\",\"fields\":{},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"lambda\"}",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 400
+        },
+        {
+          "path": "message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "08:10: the operator corrects the skewed host's clock, and its next batch lands",
+      "wait": "10m"
+    },
+    {
+      "name": "The corrected host's batch is ingested whole",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"level\":\"info\",\"message\":\"GET /api/links 200 in 7ms\",\"_time\":\"2026-01-07T08:10:00.000Z\",\"fields\":{},\"@app\":{\"axiom-logging-version\":\"0.1.5\",\"axiom-nextjs-version\":\"0.1.6\"},\"source\":\"lambda\"}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "A misconfigured deployment sends its batch without the token",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 401,
+      "headers": {
+        "content-type": "application/x-ndjson"
+      },
+      "body": "{\"level\":\"info\",\"message\":\"boot\",\"_time\":\"2026-01-07T08:10:02.000Z\",\"fields\":{}}",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 401
+        },
+        {
+          "path": "message",
+          "equals": "Unauthorized"
+        }
+      ]
+    },
+    {
+      "name": "A deployment whose AXIOM_DATASET names a dataset the account does not have",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/dub-logs/ingest",
+      "status": 404,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"level\":\"info\",\"message\":\"boot\",\"_time\":\"2026-01-07T08:10:02.000Z\",\"fields\":{}}",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 404
+        },
+        {
+          "path": "message",
+          "equals": "Dataset not found"
+        }
+      ]
+    }
+  ]
+}

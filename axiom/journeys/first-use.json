@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://axiom.co/docs/restapi/ingest",
+  "about": "Dub's Axiom logging (dubinc/dub 7e010136, apps/web/lib/axiom/server.ts; @axiomhq/logging 0.1.5 over @axiomhq/js 1.3.1, the versions apps/web/package.json resolves) on the World-issued AXIOM_TOKEN and AXIOM_DATASET: its logger flushes a request line and a job refusal, an unbatched ingest reads its status, and the account's dataset list holds the dataset. Readback after resume lists the dataset without writing.",
+  "files": {
+    "package.json": "{\n  \"name\": \"axiom-dub-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@axiomhq/js\": \"1.3.1\",\n    \"@axiomhq/logging\": \"0.1.5\"\n  }\n}\n",
+    ".env.example": "AXIOM_TOKEN=\nAXIOM_DATASET=\n",
+    "dub.mjs": "import assert from 'node:assert/strict';\nimport { Axiom, AxiomWithoutBatching } from '@axiomhq/js';\nimport { AxiomJSTransport, Logger } from '@axiomhq/logging';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n// Dub's Axiom logging (dubinc/dub 7e010136, apps/web/lib/axiom/axiom.ts and server.ts), on the token and dataset the\n// World issued: AXIOM_TOKEN and AXIOM_DATASET.\nassert.match(process.env.AXIOM_TOKEN ?? '', /^xaat-/);\nassert.ok(process.env.AXIOM_DATASET);\nconst axiomClient = new Axiom({ token: process.env.AXIOM_TOKEN });\nconst logger = new Logger({ transports: [new AxiomJSTransport({ axiom: axiomClient, dataset: process.env.AXIOM_DATASET })] });\n// the account's datasets, as a vendor-backed root reads them\nconst datasets = async () => (await new AxiomWithoutBatching({ token: process.env.AXIOM_TOKEN }).datasets.list()).map((d) => d.name);\n\nif (process.argv[2] === 'readback') {\n  // after the World resumes: the dataset is still the account's, read without writing\n  assert.ok((await datasets()).includes(process.env.AXIOM_DATASET));\n  console.log(JSON.stringify({ readback: process.env.AXIOM_DATASET }));\n} else {\n  const errors = [];\n  axiomClient.onError = (e) => errors.push(e);\n  // a route's request line and a job's refusal, flushed as Dub's handlers flush them\n  logger.info('POST /api/resend/webhook 200 in 42ms', { route: '/api/resend/webhook' });\n  logger.error('jobs.invalid_envelope', { error: 'Required at \"jobName\"' });\n  await logger.flush();\n  assert.deepEqual(errors, [], 'the batch was ingested');\n  // the same ingest without batching answers its status: what the batch above was told\n  const status = await new AxiomWithoutBatching({ token: process.env.AXIOM_TOKEN }).ingest(process.env.AXIOM_DATASET, [{ level: 'info', message: 'GET /api/links 200 in 7ms' }]);\n  assert.equal(status.ingested, 1);\n  assert.equal(status.failed, 0);\n  assert.ok((await datasets()).includes(process.env.AXIOM_DATASET));\n  console.log(JSON.stringify({ dataset: process.env.AXIOM_DATASET, ingested: status.ingested }));\n}\n"
+  },
+  "run": [
+    "node",
+    "dub.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "dub.mjs",
+      "readback"
+    ]
+  }
+}

@@ -1,0 +1,448 @@
+{
+  "vendor": "axiom",
+  "host": "api.axiom.co",
+  "author": "Contributor 98",
+  "about": "Axiom's published ingest examples replayed against one World-issued dataset and basic token: each format, timestamp option and compression, asserted by what the ingest status counts.",
+  "steps": [
+    {
+      "name": "Bootstrap the example account: the dataset and a basic API token that ingests into it",
+      "method": "POST",
+      "path": "/_twin/app-credentials",
+      "status": 201,
+      "body": {},
+      "capture": {
+        "token": "token",
+        "dataset": "dataset"
+      }
+    },
+    {
+      "name": "The reference request: one JSON event",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "message": "hello from Axiom",
+        "status": 200
+      },
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        }
+      ],
+      "example": "ingestIntoDataset#doc Legacy reference request",
+      "exampleBindings": {
+        "DATASET_NAME": "{dataset}"
+      }
+    },
+    {
+      "name": "A JSON array of two events is two events",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer {token}"
+      },
+      "body": [
+        {
+          "message": "first"
+        },
+        {
+          "message": "second"
+        }
+      ],
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        }
+      ],
+      "example": "ingestIntoDataset#doc JSON array"
+    },
+    {
+      "name": "NDJSON, one event a line",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"message\":\"first\"}\n{\"message\":\"second\"}\n{\"message\":\"third\"}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 3
+        }
+      ],
+      "example": "ingestIntoDataset#doc NDJSON"
+    },
+    {
+      "name": "NDJSON sent as application/json is read as NDJSON",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"message\":\"first\"}\n{\"message\":\"second\"}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        }
+      ],
+      "example": "ingestIntoDataset#doc NDJSON with JSON media type"
+    },
+    {
+      "name": "CSV: the first line names the fields, so two rows are two events",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "text/csv",
+        "authorization": "Bearer {token}"
+      },
+      "body": "message,status\n\"hello, \"\"world\"\"\",200\nworld,404\n",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        }
+      ],
+      "example": "ingestIntoDataset#doc CSV header row"
+    },
+    {
+      "name": "CSV with X-Axiom-CSV-Fields and a semicolon delimiter: every line is a row, and _time is read from its column",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest?csv-delimiter=%3B",
+      "status": 200,
+      "headers": {
+        "content-type": "text/csv",
+        "authorization": "Bearer {token}",
+        "x-axiom-csv-fields": "_time,message"
+      },
+      "body": "2026-01-01T00:00:00Z;kept\n1960-01-01T00:00:00Z;before the epoch\n2026-01-01T00:00:01Z;kept too\n",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        },
+        {
+          "path": "failed",
+          "equals": 1
+        }
+      ],
+      "example": "ingestIntoDataset#doc CSV fields and delimiter"
+    },
+    {
+      "name": "timestamp-field names the field the time is read from",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest?timestamp-field=ts",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"message\":\"on time\",\"ts\":\"2026-01-01T00:00:00Z\"}\n{\"message\":\"before the epoch\",\"ts\":\"1960-01-01T00:00:00Z\"}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 1
+        }
+      ],
+      "example": "ingestIntoDataset#doc Timestamp field"
+    },
+    {
+      "name": "timestamp-format reads a time in Go's reference layout",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest?timestamp-field=ts&timestamp-format=02%2F01%2F2006%2015%3A04%3A05%20-0700",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"message\":\"day first\",\"ts\":\"31/12/2025 23:30:00 +0100\"}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        }
+      ],
+      "example": "ingestIntoDataset#doc Timestamp format"
+    },
+    {
+      "name": "Event labels are added to every event: a shipper stamps the batch's time as a label, and timestamp-field reads it; stamped before the epoch, both events are refused",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest?timestamp-field=batch_time",
+      "status": 400,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}",
+        "x-axiom-event-labels": "{\"batch_time\":\"1960-01-01T00:00:00Z\",\"shipper\":\"vector\"}"
+      },
+      "body": "{\"message\":\"first\"}\n{\"message\":\"second\"}",
+      "expect": [
+        {
+          "path": "code",
+          "equals": 400
+        }
+      ],
+      "example": "ingestIntoDataset#doc Event labels"
+    },
+    {
+      "name": "An event without _time takes the ingest's time",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "message": "no time of its own"
+      },
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        }
+      ],
+      "example": "ingestIntoDataset#doc Missing timestamp"
+    },
+    {
+      "name": "A Unix epoch _time is a time",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer {token}"
+      },
+      "body": [
+        {
+          "message": "seconds",
+          "_time": 1767225600
+        },
+        {
+          "message": "milliseconds",
+          "_time": 1767225600000
+        }
+      ],
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        }
+      ],
+      "example": "ingestIntoDataset#doc Unix timestamp"
+    },
+    {
+      "name": "An RFC 3339 _time is a valid time",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer {token}"
+      },
+      "body": {
+        "message": "rfc3339",
+        "_time": "2026-01-01T00:00:00.000Z"
+      },
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        }
+      ],
+      "example": "ingestIntoDataset#doc Valid timestamp requirement"
+    },
+    {
+      "name": "A batch compressed with gzip is read after decoding",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}",
+        "content-encoding": "gzip"
+      },
+      "bodyBase64": "H4sIAAAAAAAAE6tWyk0tLk5MT1WyUkrOzy0oSi0uTk1RKM8syVBIr8osUNJRii/JzAVJGxkYmekaGOoaGIYYGFiBkZ6BgUGUUi1XNZIpxanJ+XkpCjmZeak6hI0whBoBADK/6lCIAAAA",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        },
+        {
+          "path": "processedBytes",
+          "equals": 136
+        }
+      ],
+      "example": "ingestIntoDataset#doc Compression gzip"
+    },
+    {
+      "name": "A batch compressed with br is read after decoding",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}",
+        "content-encoding": "br"
+      },
+      "bodyBase64": "G4MAUCwO7DYv7yKRDIaj4jFfoRaBUdjbX2JjfcBDFgsmv2RJxrzJpQhLm05OLxc6kH0LMCjBtgQjyA1OgoDDtMSTUc6TBfVXneEE27CqHGgV5PVeFOd1fYoE",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        },
+        {
+          "path": "processedBytes",
+          "equals": 132
+        }
+      ],
+      "example": "ingestIntoDataset#doc Compression br"
+    },
+    {
+      "name": "A batch compressed with deflate is read after decoding",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}",
+        "content-encoding": "deflate"
+      },
+      "bodyBase64": "eJyrVspNLS5OTE9VslJKzs8tKEotLk5NUSjPLMlQSElNy0ksSVXSUYovycwFqTAyMDLTNTDUNTAMMTCwAiM9AwODKKVarmokg4pTk/PzUhRyMvNSdYgyxRBqCgBasil5",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        },
+        {
+          "path": "processedBytes",
+          "equals": 142
+        }
+      ],
+      "example": "ingestIntoDataset#doc Compression deflate"
+    },
+    {
+      "name": "A batch compressed with zstd is read after decoding",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}",
+        "content-encoding": "zstd"
+      },
+      "bodyBase64": "KLUv/SCIzQIAEkUSGHDFOgAtW9i5TENRw1xf1afJDmuf+n93cXXb/6QOS4iYJ6fjDuq2/4n9gzpSR8L6ipASe/bRBpiDwsU87mYlidMtWzaKbo4bCAQARjgpCczpWl2s6gk=",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 2
+        },
+        {
+          "path": "failed",
+          "equals": 0
+        },
+        {
+          "path": "processedBytes",
+          "equals": 136
+        }
+      ],
+      "example": "ingestIntoDataset#doc Compression zstd"
+    },
+    {
+      "name": "Without a token the ingest is refused",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 401,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "message": "no token"
+      },
+      "expect": [
+        {
+          "path": "code",
+          "equals": 401
+        },
+        {
+          "path": "message",
+          "equals": "Unauthorized"
+        }
+      ],
+      "example": "ingestIntoDataset#doc Legacy missing credential"
+    },
+    {
+      "name": "The SDK's ingest and flush: one NDJSON event",
+      "method": "POST",
+      "path": "https://api.axiom.co/v1/datasets/{dataset}/ingest",
+      "status": 200,
+      "headers": {
+        "content-type": "application/x-ndjson",
+        "authorization": "Bearer {token}"
+      },
+      "body": "{\"foo\":\"bar\"}",
+      "expect": [
+        {
+          "path": "ingested",
+          "equals": 1
+        }
+      ],
+      "example": "ingestIntoDataset#doc Node ingest and flush"
+    }
+  ],
+  "notReplayed": {
+    "gap#doc Grouped events": "The published request is the separate edge operation /v1/ingest/DATASET_NAME on AXIOM_DOMAIN, not the legacy /v1/datasets/{dataset_name}/ingest that the pinned application clients use. Neither the life nor refresh calls this edge operation; it stays the gap.",
+    "gap#doc Edge introduction": "This is the separate edge-ingestion operation /v1/ingest/DATASET_NAME on a configured edge domain. Neither the application clients pinned here nor the life uses that operation; it is the gap. The legacy reference states its own /v1/datasets/{dataset_name}/ingest wire.",
+    "gap#doc Edge direct NDJSON": "This is the separate edge-ingestion operation /v1/ingest/DATASET_NAME on a configured edge domain. Neither the application clients pinned here nor the life uses that operation; it is the gap. The legacy reference states its own /v1/datasets/{dataset_name}/ingest wire.",
+    "gap#doc Nested arrays": "The published request is the separate edge operation /v1/ingest/DATASET_NAME on AXIOM_DOMAIN, not the legacy /v1/datasets/{dataset_name}/ingest that the pinned application clients use. Neither the life nor refresh calls this edge operation; it stays the gap.",
+    "gap#doc Objects strings and arrays": "The published request is the separate edge operation /v1/ingest/DATASET_NAME on AXIOM_DOMAIN, not the legacy /v1/datasets/{dataset_name}/ingest that the pinned application clients use. Neither the life nor refresh calls this edge operation; it stays the gap.",
+    "gap#doc Edge NDJSON": "The published request is the separate edge operation /v1/ingest/DATASET_NAME on AXIOM_DOMAIN, not the legacy /v1/datasets/{dataset_name}/ingest that the pinned application clients use. Neither the life nor refresh calls this edge operation; it stays the gap.",
+    "gap#doc Edge CSV": "The published request is the separate edge operation /v1/ingest/DATASET_NAME on AXIOM_DOMAIN, not the legacy /v1/datasets/{dataset_name}/ingest that the pinned application clients use. Neither the life nor refresh calls this edge operation; it stays the gap.",
+    "ingestIntoDataset#doc Reserved field rename": "The rename lands on the stored event, which only a query reads (queryDataset, queryApl: the gap; no demanded application or refresh calls them); the ingest status does not name fields. Served in datasets.ts.",
+    "ingestIntoDataset#doc Dataset access": "Reaching it needs a second dataset the token was not given, which only createDataset makes (the gap: no demanded application or the bench creates a dataset); the World's door makes the one dataset the application's env names. The refusal is served in datasets.ts."
+  }
+}
