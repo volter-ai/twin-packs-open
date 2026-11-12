@@ -22,4 +22,4 @@ const result = spawnSync('gh', ['release', 'create', tag, ...assets, '--repo', p
 assert.equal(result.status, 0, 'Preparation recording failed; inspect its release before retrying');
 console.log(JSON.stringify({ tag, sourceCommit: preparation.sourceCommit, preparationSha256: digest,
   publicationRef, publicationWorkflow, managerAuthorization,
-  next: `gh workflow run release.yml --repo ${preparation.repository} --ref publish -f vendor=${preparation.vendor} -f preparation_tag=${tag} -f preparation_sha256=${digest} -f manager_authorization="$PACK_MANAGER_AUTHORIZATION"` }, null, 2));
+  next: `gh workflow run release.yml --repo ${preparation.repository} --ref publish -f vendor=${preparation.vendor} -f preparation_tag=${tag} -f preparation_sha256=${digest} -f manager_authorization="$PACK_MANAGER_AUTHORIZATION" -f dist_tag="$PACK_DIST_TAG"` }, null, 2));
