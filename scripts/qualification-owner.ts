@@ -135,7 +135,7 @@ async function settledNode(executable: string, argv: string[], env: NodeJS.Proce
   return output;
 }
 
-type Claim = { world: string; root: string };
+type Claim = { world: string; root: string; instanceCreatedAt: string };
 type Inventory = { worlds: Claim[]; warnings: string[] };
 
 /** The installed product CLI (`@volter/world`'s `volter` bin): the one command surface that starts, inventories and
@@ -164,13 +164,21 @@ async function retireSession(session: string, world: string, cli: string, env: N
   // session is never ours to stop. The disposable run retires its own World: a claim left here is one it did not.
   for (const claim of before.worlds) {
     try {
-      if (typeof claim?.root !== 'string' || typeof claim.world !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(claim.world)) {
-        throw new Error('Unrecognized lifecycle identity');
-      }
+      if (typeof claim?.root !== 'string' || typeof claim.world !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(claim.world)
+        || typeof claim.instanceCreatedAt !== 'string') throw new Error('Unrecognized lifecycle identity');
       const root = realpathSync(claim.root);
       const offset = relative(sessionRoot, root);
       if (isAbsolute(offset) || offset.split(sep)[0] === '..') throw new Error(`Lifecycle root is outside the owned session: ${root}`);
-      await native(['down', '--world', root, '--branch', claim.world]);
+      // a name does not establish ownership: stop only the instance this claim records, by its token
+      const rawStatus = await native(['status', '--json', '--world', root, '--branch', claim.world]);
+      let status;
+      try { status = JSON.parse(rawStatus); }
+      catch { throw new Error(`Native status is unreadable for ${claim.world}; session retained`); }
+      if (status?.world !== claim.world || typeof status.root !== 'string' || realpathSync(status.root) !== root || status.usage?.createdAt !== claim.instanceCreatedAt
+        || typeof status.instance !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(status.instance)) {
+        throw new Error(`Lifecycle generation cannot be confirmed for ${claim.world}`);
+      }
+      await native(['down', '--world', root, '--branch', claim.world, '--if-instance', status.instance]);
     } catch (error) { problems.push(error instanceof Error ? error.message : String(error)); }
   }
   const after = await inventory();
