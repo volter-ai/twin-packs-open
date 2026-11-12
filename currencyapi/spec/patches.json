@@ -1,0 +1,86 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/components/schemas/Error/properties/error",
+      "value": {
+        "type": "object",
+        "description": "The machine-readable envelope of a 401 or 429: a stable code and its message.",
+        "properties": {
+          "code": { "type": "string", "description": "missing_api_key, invalid_api_key or rate_limit_exceeded" },
+          "message": { "type": "string" }
+        },
+        "required": ["code", "message"]
+      },
+      "why": "The spec's Error schema names only `message` and `info`, but currencyapi's status-code page says 401 and 429 answers carry an `error` object with a stable `code` and `message` (https://currencyapi.com/docs/status-codes, \"Error response body\"), and its own 401 example prints one; a request with no key to the API's /v3/latest answered it on 2026-09-27 (`\"error\":{\"code\":\"missing_api_key\",\"message\":\"No API key found in request\"}`).",
+      "source": { "url": "https://currencyapi.com/docs/status-codes", "quote": "responses instead carry a machine-readable envelope" }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/Error/properties/actions",
+      "value": {
+        "type": "object",
+        "description": "Next-step URLs for a 401 or 429 (get_free_api_key, sign_up, docs).",
+        "additionalProperties": { "type": "string" }
+      },
+      "why": "The same page: 401 and 429 answers carry \"an `actions` object with next-step URLs\", and its 401 example prints `get_free_api_key`, `sign_up` and `docs` (https://currencyapi.com/docs/status-codes); the live 401 of 2026-09-27 carried the same three.",
+      "source": { "url": "https://currencyapi.com/docs/status-codes", "quote": "object with next-step URLs" }
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/Error/properties/quota",
+      "value": {
+        "type": "object",
+        "description": "A monthly-quota 429's account of the month: its limit, what is used and remaining, and when it resets.",
+        "properties": {
+          "limit": { "type": "integer" },
+          "used": { "type": "integer" },
+          "remaining": { "type": "integer" },
+          "resets_at": { "type": "string", "format": "date-time" }
+        },
+        "required": ["limit", "used", "remaining", "resets_at"]
+      },
+      "why": "The same page: \"Monthly-quota `429` responses additionally include a `quota` object with `limit`, `used`, `remaining` and `resets_at`; minute rate-limit `429` responses do not\" (https://currencyapi.com/docs/status-codes). The spec's Error schema lacks it.",
+      "source": { "url": "https://currencyapi.com/docs/status-codes", "quote": "responses additionally include a" }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v3~1historical/get/responses/404",
+      "value": { "$ref": "#/components/responses/NoData" },
+      "why": "currencyapi's status-code page: \"The rates endpoints also return a 404 when there is no data for your requested timeframe and accuracy\" (https://currencyapi.com/docs/status-codes); historical data starts in 1999 (https://currencyapi.com/docs/historical: \"Data are available all the way back to 1999\"). The spec lists no 404 for the rates endpoints.",
+      "source": { "url": "https://currencyapi.com/docs/status-codes", "quote": "We sadly do not have any data in this timeframe for the selected accuracy." }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v3~1convert/get/responses/404",
+      "value": { "$ref": "#/components/responses/NoData" },
+      "why": "As for historical: a convert against a date with no data answers the rates endpoints' 404 (https://currencyapi.com/docs/status-codes).",
+      "source": { "url": "https://currencyapi.com/docs/status-codes", "quote": "The rates endpoints also return a 404 when there is no data for your requested timeframe and accuracy" }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v3~1range/get/responses/404",
+      "value": { "$ref": "#/components/responses/NoData" },
+      "why": "As for historical: a range with no data for its timeframe and accuracy answers the rates endpoints' 404 (https://currencyapi.com/docs/status-codes).",
+      "source": { "url": "https://currencyapi.com/docs/status-codes", "quote": "The rates endpoints also return a 404 when there is no data for your requested timeframe and accuracy" }
+    },
+    {
+      "op": "add",
+      "path": "/components/responses/NoData",
+      "value": {
+        "description": "No data for the requested timeframe and accuracy.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "message": "We sadly do not have any data in this timeframe for the selected accuracy.",
+              "info": "For more information, see documentation: https://currencyapi.com/docs/status-codes#_404"
+            }
+          }
+        }
+      },
+      "why": "The 404 the three patches above name: its message is the status-code page's words, and \"`403`, `404` and `422` responses produced by the API endpoints additionally carry an `info` link pointing back to this page\" (https://currencyapi.com/docs/status-codes).",
+      "source": { "url": "https://currencyapi.com/docs/status-codes", "quote": "responses produced by the API endpoints additionally carry an" }
+    }
+  ]
+}

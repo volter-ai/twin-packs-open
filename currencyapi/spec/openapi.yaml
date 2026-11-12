@@ -1,0 +1,889 @@
+openapi: 3.1.0
+info:
+  title: currencyapi
+  version: "3"
+  summary: Current and historical foreign exchange (fiat, metal and crypto) rates.
+  description: >-
+    currencyapi provides real-time and historical currency exchange rates for
+    fiat, precious metal and crypto currencies. All endpoints are served over
+    HTTPS and return JSON. Authenticate every request with your API key, either
+    as the `apikey` query parameter or the `apikey` request header.
+
+
+    This document is generated from the currencyapi service implementation and is
+    the machine-readable source of truth for the v3 REST API. A human-readable
+    version is available at https://currencyapi.com/docs.
+  contact:
+    name: currencyapi support
+    email: support@currencyapi.com
+    url: https://support.currencyapi.com/
+  x-logo:
+    url: https://currencyapi.com/currencyapi_logo.svg
+servers:
+  - url: https://api.currencyapi.com
+    description: Production
+security:
+  - ApiKeyQuery: []
+  - ApiKeyHeader: []
+tags:
+  - name: Rates
+    description: Live, historical and converted exchange rates.
+  - name: Metadata
+    description: Supported currencies, countries and account status.
+paths:
+  /v3/latest:
+    get:
+      tags:
+        - Rates
+      summary: Latest exchange rates
+      operationId: getLatest
+      description: >-
+        Returns the latest exchange rates for a given base currency (default
+        `USD`). The update interval of the returned data depends on your
+        subscription plan (from daily down to minutely).
+      parameters:
+        - $ref: '#/components/parameters/BaseCurrency'
+        - $ref: '#/components/parameters/Currencies'
+        - $ref: '#/components/parameters/Type'
+      responses:
+        '200':
+          description: Latest exchange rates.
+          headers:
+            X-RateLimit-Limit-Quota-Month:
+              $ref: '#/components/headers/RateLimitLimitQuotaMonth'
+            X-RateLimit-Remaining-Quota-Month:
+              $ref: '#/components/headers/RateLimitRemainingQuotaMonth'
+            X-Cost:
+              $ref: '#/components/headers/Cost'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRatesResponse'
+              example:
+                meta:
+                  last_updated_at: "2023-06-23T10:15:59Z"
+                data:
+                  AED:
+                    code: AED
+                    value: 3.67306
+                  AFN:
+                    code: AFN
+                    value: 91.80254
+                  EUR:
+                    code: EUR
+                    value: 0.918456
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v3/historical:
+    get:
+      tags:
+        - Rates
+      summary: Historical exchange rates
+      operationId: getHistorical
+      description: >-
+        Returns the exchange rates for a specific date. Historical data is
+        available back to 1999. The `date` must be at least one day in the past.
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: Date to retrieve historical rates for (format `YYYY-MM-DD`).
+          schema:
+            type: string
+            format: date
+          example: "2022-01-01"
+        - $ref: '#/components/parameters/BaseCurrency'
+        - $ref: '#/components/parameters/Currencies'
+        - $ref: '#/components/parameters/Type'
+      responses:
+        '200':
+          description: Historical exchange rates for the requested date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRatesResponse'
+              example:
+                meta:
+                  last_updated_at: "2022-01-01T23:59:59Z"
+                data:
+                  AED:
+                    code: AED
+                    value: 3.67306
+                  AFN:
+                    code: AFN
+                    value: 91.80254
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v3/convert:
+    get:
+      tags:
+        - Rates
+      summary: Convert a value between currencies
+      operationId: getConvert
+      description: >-
+        Converts a value from the base currency into all (or a filtered set of)
+        currencies, for today or for a given historical date. Requires a plan
+        that includes the convert endpoint.
+      parameters:
+        - name: value
+          in: query
+          required: true
+          description: The value to convert. Must be greater than 0.
+          schema:
+            type: number
+            exclusiveMinimum: 0
+          example: 12
+        - name: date
+          in: query
+          required: false
+          description: >-
+            Optional date to convert against historical rates (format
+            `YYYY-MM-DD`). Must be at least one day in the past. Omit for the
+            latest rates.
+          schema:
+            type: string
+            format: date
+          example: "2022-01-01"
+        - $ref: '#/components/parameters/BaseCurrency'
+        - $ref: '#/components/parameters/Currencies'
+        - $ref: '#/components/parameters/Type'
+      responses:
+        '200':
+          description: Converted values keyed by currency code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRatesResponse'
+              example:
+                meta:
+                  last_updated_at: "2022-01-01T23:59:59Z"
+                data:
+                  AED:
+                    code: AED
+                    value: 44.07672
+                  EUR:
+                    code: EUR
+                    value: 11.021472
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v3/range:
+    get:
+      tags:
+        - Rates
+      summary: Historical exchange rates for a time range
+      operationId: getRange
+      description: >-
+        Returns exchange rates for every interval between `datetime_start` and
+        `datetime_end` at the requested accuracy. Requires a plan that includes
+        the range endpoint (medium and up). The allowed span and look-back
+        depend on the chosen accuracy:
+
+
+        - `day`: not more than 366 days between start and end.
+
+        - `hour`: not more than 7 days between start and end, and not more than 3
+          months back.
+
+        - `quarter_hour`: not more than 24 hours between start and end, and not
+          more than 7 days back.
+
+        - `minute`: not more than 6 hours between start and end, and not more
+          than 7 days back.
+      parameters:
+        - name: datetime_start
+          in: query
+          required: true
+          description: >-
+            Start of the range as an ISO 8601 datetime (e.g.
+            `2021-11-30T23:59:59Z`). Must be before or equal to `datetime_end`.
+          schema:
+            type: string
+            format: date-time
+          example: "2021-11-30T23:59:59Z"
+        - name: datetime_end
+          in: query
+          required: true
+          description: >-
+            End of the range as an ISO 8601 datetime (e.g.
+            `2021-12-31T23:59:59Z`). Must be after or equal to `datetime_start`.
+          schema:
+            type: string
+            format: date-time
+          example: "2021-12-31T23:59:59Z"
+        - name: accuracy
+          in: query
+          required: false
+          description: The interval accuracy of the returned data.
+          schema:
+            type: string
+            enum:
+              - day
+              - hour
+              - quarter_hour
+              - minute
+            default: day
+        - $ref: '#/components/parameters/BaseCurrency'
+        - $ref: '#/components/parameters/Currencies'
+        - $ref: '#/components/parameters/Type'
+      responses:
+        '200':
+          description: Exchange rates per interval within the requested range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RangeResponse'
+              example:
+                data:
+                  - datetime: "2022-01-01T23:59:59Z"
+                    currencies:
+                      AED:
+                        code: AED
+                        value: 3.67306
+                      EUR:
+                        code: EUR
+                        value: 0.918456
+                  - datetime: "2022-01-02T23:59:59Z"
+                    currencies:
+                      AED:
+                        code: AED
+                        value: 3.67308
+                      EUR:
+                        code: EUR
+                        value: 0.919012
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v3/currencies:
+    get:
+      tags:
+        - Metadata
+      summary: List supported currencies
+      operationId: getCurrencies
+      description: >-
+        Returns metadata for all supported currencies, optionally filtered by
+        code or type.
+      parameters:
+        - $ref: '#/components/parameters/Currencies'
+        - $ref: '#/components/parameters/Type'
+        - name: as_html
+          in: query
+          required: false
+          description: >-
+            When `true`, returns an HTML table of currency codes and names
+            instead of a JSON payload.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Supported currency metadata keyed by currency code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrenciesResponse'
+              example:
+                data:
+                  AED:
+                    symbol: "AED"
+                    name: "United Arab Emirates Dirham"
+                    symbol_native: "د.إ"
+                    decimal_digits: 2
+                    rounding: 0
+                    code: "AED"
+                    name_plural: "UAE dirhams"
+                    type: "fiat"
+                    countries:
+                      - "AE"
+                  BTC:
+                    symbol: "₿"
+                    name: "Bitcoin"
+                    symbol_native: "₿"
+                    decimal_digits: 8
+                    rounding: 0
+                    code: "BTC"
+                    name_plural: "Bitcoin"
+                    type: "crypto"
+                    countries: []
+            text/html:
+              schema:
+                type: string
+              example: "<table><tr><th>Code</th><th>Name</th></tr><tr><td>AED</td><td>United Arab Emirates Dirham</td></tr></table>"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v3/countries:
+    get:
+      tags:
+        - Metadata
+      summary: List countries
+      operationId: getCountries
+      description: >-
+        Returns the list of countries known to currencyapi, including their
+        associated currency information.
+      responses:
+        '200':
+          description: Country metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CountriesResponse'
+              example:
+                data:
+                  AE:
+                    alpha2: "AE"
+                    alpha3: "ARE"
+                    calling_codes:
+                      - "+971"
+                    currencies:
+                      - "AED"
+                    emoji: "🇦🇪"
+                    ioc: "UAE"
+                    languages:
+                      - name: "Arabic"
+                        name_native: "العربية"
+                    name: "United Arab Emirates"
+                    name_translated: "United Arab Emirates"
+                    timezones:
+                      - "Asia/Dubai"
+                    is_in_european_union: false
+                    tld: ".ae"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v3/status:
+    get:
+      tags:
+        - Metadata
+      summary: Account quota status
+      operationId: getStatus
+      description: >-
+        Returns your current monthly and grace quota usage. Requests to this
+        endpoint do not count against your quota or rate limit.
+      responses:
+        '200':
+          description: Current quota usage for the authenticated account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              example:
+                account_id: 313373133731337
+                quotas:
+                  month:
+                    total: 300
+                    used: 72
+                    remaining: 228
+                  grace:
+                    total: 0
+                    used: 0
+                    remaining: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: apikey
+      description: API key passed as the `apikey` query parameter.
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: apikey
+      description: >-
+        API key passed as the `apikey` request header. This is the recommended
+        method as it keeps the key out of URLs and access logs.
+  parameters:
+    BaseCurrency:
+      name: base_currency
+      in: query
+      required: false
+      description: >-
+        The base currency that all returned values are relative to. Defaults to
+        `USD`.
+      schema:
+        $ref: '#/components/schemas/CurrencyCode'
+    Currencies:
+      name: currencies
+      in: query
+      required: false
+      description: >-
+        Comma-separated list of currency codes to include (e.g. `EUR,USD,CAD`).
+        The array form `currencies[]=EUR&currencies[]=USD` is also accepted. By
+        default all supported currencies are returned.
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/CurrencyCode'
+      example:
+        - EUR
+        - USD
+        - CAD
+    Type:
+      name: type
+      in: query
+      required: false
+      description: Filter the returned currencies by type.
+      schema:
+        type: string
+        enum:
+          - fiat
+          - metal
+          - crypto
+  headers:
+    RateLimitLimitQuotaMonth:
+      description: Your monthly request quota.
+      schema:
+        type: integer
+      example: 300
+    RateLimitRemainingQuotaMonth:
+      description: Remaining requests in your monthly quota.
+      schema:
+        type: integer
+      example: 228
+    Cost:
+      description: >-
+        Number of requests this call counted against your quota (0 for sandbox
+        keys). Only successful responses from the data endpoints carry this
+        header.
+      schema:
+        type: integer
+      example: 1
+  responses:
+    Unauthorized:
+      description: >-
+        The API key is missing or invalid. Every request must be authenticated
+        with a valid `apikey` query parameter or request header.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "Invalid authentication credentials"
+    Forbidden:
+      description: >-
+        Your plan does not permit this endpoint or parameter combination.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "You are not allowed to use the convert endpoint, please upgrade your plan"
+            info: "For more information, see documentation: https://currencyapi.com/docs/status-codes#_403"
+    ValidationError:
+      description: One or more request parameters failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            message: "Validation error"
+            errors:
+              base_currency:
+                - "The selected base currency is invalid."
+            info: "For more information, see documentation: https://currencyapi.com/docs/status-codes#_422"
+    RateLimited:
+      description: >-
+        You have exceeded your monthly quota or minute rate limit. Only
+        successful requests count against your quota.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "You have reached your monthly limit, please upgrade your plan"
+  schemas:
+    CurrencyCode:
+      type: string
+      description: >-
+        A supported currency code (ISO 4217 for fiat and metals, common tickers
+        for crypto).
+      enum:
+        - AED
+        - AFN
+        - ALL
+        - AMD
+        - ANG
+        - AOA
+        - ARS
+        - AUD
+        - AWG
+        - AZN
+        - BAM
+        - BBD
+        - BDT
+        - BGN
+        - BHD
+        - BIF
+        - BMD
+        - BND
+        - BOB
+        - BRL
+        - BSD
+        - BTN
+        - BWP
+        - BYN
+        - BYR
+        - BZD
+        - CAD
+        - CDF
+        - CHF
+        - CLF
+        - CLP
+        - CNY
+        - COP
+        - CRC
+        - CUC
+        - CUP
+        - CVE
+        - CZK
+        - DJF
+        - DKK
+        - DOP
+        - DZD
+        - EGP
+        - ERN
+        - ETB
+        - EUR
+        - FJD
+        - FKP
+        - GBP
+        - GEL
+        - GGP
+        - GHS
+        - GIP
+        - GMD
+        - GNF
+        - GTQ
+        - GYD
+        - HKD
+        - HNL
+        - HRK
+        - HTG
+        - HUF
+        - IDR
+        - ILS
+        - IMP
+        - INR
+        - IQD
+        - IRR
+        - ISK
+        - JEP
+        - JMD
+        - JOD
+        - JPY
+        - KES
+        - KGS
+        - KHR
+        - KMF
+        - KPW
+        - KRW
+        - KWD
+        - KYD
+        - KZT
+        - LAK
+        - LBP
+        - LKR
+        - LRD
+        - LSL
+        - LTL
+        - LVL
+        - LYD
+        - MAD
+        - MDL
+        - MGA
+        - MKD
+        - MMK
+        - MNT
+        - MOP
+        - MRO
+        - MUR
+        - MVR
+        - MWK
+        - MXN
+        - MYR
+        - MZN
+        - NAD
+        - NGN
+        - NIO
+        - NOK
+        - NPR
+        - NZD
+        - OMR
+        - PAB
+        - PEN
+        - PGK
+        - PHP
+        - PKR
+        - PLN
+        - PYG
+        - QAR
+        - RON
+        - RSD
+        - RUB
+        - RWF
+        - SAR
+        - SBD
+        - SCR
+        - SDG
+        - SEK
+        - SGD
+        - SHP
+        - SLL
+        - SOS
+        - SRD
+        - STD
+        - SVC
+        - SYP
+        - SZL
+        - THB
+        - TJS
+        - TMT
+        - TND
+        - TOP
+        - TRY
+        - TTD
+        - TWD
+        - TZS
+        - UAH
+        - UGX
+        - USD
+        - UYU
+        - UZS
+        - VEF
+        - VND
+        - VUV
+        - WST
+        - XAF
+        - XAG
+        - XAU
+        - XCD
+        - XDR
+        - XOF
+        - XPF
+        - YER
+        - ZAR
+        - ZMK
+        - ZMW
+        - ZWL
+        - XPT
+        - XPD
+        - BTC
+        - ETH
+        - BNB
+        - XRP
+        - SOL
+        - DOT
+        - AVAX
+        - MATIC
+        - LTC
+        - ADA
+        - USDT
+        - USDC
+        - DAI
+        - ARB
+        - OP
+        - TRX
+        - VES
+        - STN
+        - MRU
+        - ZWG
+        - SLE
+        - XCG
+    CurrencyRate:
+      type: object
+      description: A single currency rate entry.
+      properties:
+        code:
+          $ref: '#/components/schemas/CurrencyCode'
+        value:
+          type: number
+          description: The conversion rate relative to the base currency.
+          example: 3.67306
+      required:
+        - code
+        - value
+    RatesMap:
+      type: object
+      description: Map of currency code to its rate entry.
+      additionalProperties:
+        $ref: '#/components/schemas/CurrencyRate'
+    ExchangeRatesResponse:
+      type: object
+      description: Standard rates response used by latest, historical and convert.
+      properties:
+        meta:
+          type: object
+          properties:
+            last_updated_at:
+              type: string
+              format: date-time
+              description: When this dataset was last updated (ISO 8601, UTC).
+              example: "2023-06-23T10:15:59Z"
+          required:
+            - last_updated_at
+        data:
+          $ref: '#/components/schemas/RatesMap'
+      required:
+        - meta
+        - data
+    RangeResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              datetime:
+                type: string
+                format: date-time
+                description: The datetime this interval's rates apply to.
+                example: "2022-01-01T23:59:59Z"
+              currencies:
+                $ref: '#/components/schemas/RatesMap'
+            required:
+              - datetime
+              - currencies
+      required:
+        - data
+    CurrencyInfo:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "AED"
+        name:
+          type: string
+          example: "United Arab Emirates Dirham"
+        symbol_native:
+          type: string
+          example: "د.إ"
+        decimal_digits:
+          type: integer
+          example: 2
+        rounding:
+          type: number
+          example: 0
+        code:
+          $ref: '#/components/schemas/CurrencyCode'
+        name_plural:
+          type: string
+          example: "UAE dirhams"
+        type:
+          type: string
+          enum:
+            - fiat
+            - metal
+            - crypto
+        countries:
+          type: array
+          description: ISO 3166-1 alpha-2 country codes that use this currency.
+          items:
+            type: string
+          example:
+            - "AE"
+    CurrenciesResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CurrencyInfo'
+      required:
+        - data
+    CountriesResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties:
+            type: object
+      required:
+        - data
+    StatusResponse:
+      type: object
+      properties:
+        account_id:
+          type: integer
+          description: Your account (team) id.
+          example: 313373133731337
+        quotas:
+          type: object
+          properties:
+            month:
+              $ref: '#/components/schemas/QuotaBucket'
+            grace:
+              $ref: '#/components/schemas/QuotaBucket'
+          required:
+            - month
+      required:
+        - quotas
+    QuotaBucket:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 300
+        used:
+          type: integer
+          example: 72
+        remaining:
+          type: integer
+          example: 228
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Human-readable error message.
+        info:
+          type: string
+          description: >-
+            Link to the relevant documentation. Present on validation (422) and
+            plan (403) errors.
+      required:
+        - message
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Validation error"
+        errors:
+          type: object
+          description: Map of parameter name to an array of validation messages.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        info:
+          type: string
+      required:
+        - message
+        - errors
