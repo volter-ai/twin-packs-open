@@ -1,0 +1,72 @@
+{
+  "vendor": "clickhouse",
+  "author": "codex-01a12db0-6110",
+  "about": "PostHog60dd1fec statement shapes; synthetic database names and explicitly disabled logs. Not a PostHog outcome or native-client walk.",
+  "steps": [
+    {
+      "name": "1. door:configuration",
+      "method": "POST",
+      "path": "/_twin/configuration",
+      "status": 200,
+      "body": {
+        "clusters": {
+          "posthog": [
+            "local"
+          ]
+        },
+        "macros": {
+          "shard": "01",
+          "replica": "01"
+        },
+        "localReplication": true
+      }
+    },
+    {
+      "name": "2. ping",
+      "method": "GET",
+      "path": "/ping",
+      "status": 200
+    },
+    {
+      "name": "3. query_post",
+      "method": "POST",
+      "path": "/",
+      "status": 200,
+      "body": "CREATE DATABASE IF NOT EXISTS analytics ON CLUSTER posthog"
+    },
+    {
+      "name": "4. query_post",
+      "method": "POST",
+      "path": "/?database=analytics",
+      "status": 200,
+      "bodyBase64": "Q1JFQVRFIFRBQkxFIG1pZ3JhdGlvbnMgKHBhY2thZ2VfbmFtZSBTdHJpbmcsIG1vZHVsZV9uYW1lIFN0cmluZywgYXBwbGllZCBEYXRlKSBFTkdJTkUgPSBSZXBsaWNhdGVkTWVyZ2VUcmVlKCcvY2xpY2tob3VzZS9wcm9kL3RhYmxlcy9ub3NoYXJkL3tkYXRhYmFzZX0ve3RhYmxlfScsICd7cmVwbGljYX0te3NoYXJkfScpIFBBUlRJVElPTiBCWSB0b1lZWVlNTShhcHBsaWVkKSBPUkRFUiBCWSAocGFja2FnZV9uYW1lLCBtb2R1bGVfbmFtZSkgU0VUVElOR1MgaW5kZXhfZ3JhbnVsYXJpdHk9ODE5Mg=="
+    },
+    {
+      "name": "5. query_post",
+      "method": "POST",
+      "path": "/?database=analytics",
+      "status": 200,
+      "body": "CREATE TABLE distributed_migrations (package_name String, module_name String, applied Date) ENGINE = Distributed(posthog, analytics, migrations, rand())"
+    },
+    {
+      "name": "6. query_post",
+      "method": "POST",
+      "path": "/?database=analytics",
+      "status": 200,
+      "body": "SELECT DISTINCT module_name FROM distributed_migrations WHERE package_name = 'application'",
+      "expect": [
+        {
+          "path": "",
+          "equals": ""
+        }
+      ]
+    },
+    {
+      "name": "7. query_post",
+      "method": "POST",
+      "path": "/?database=analytics",
+      "status": 200,
+      "body": "INSERT INTO distributed_migrations VALUES ('application', '0001_initial', '2026-10-13')"
+    }
+  ]
+}

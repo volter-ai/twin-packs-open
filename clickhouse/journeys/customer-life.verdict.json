@@ -1,0 +1,81 @@
+{
+  "judge": {
+    "agent": "Claude journey judge (Opus)",
+    "name": "Independent journey judge"
+  },
+  "authors": [
+    "yueranyuan",
+    "Aaron (A-001)",
+    "Claude Opus 5.5",
+    "Codex"
+  ],
+  "sha256": "a19c6c4b353699476bfdfd979554f350bd71f58d0b9dfe6f57878aa461ae4e2b",
+  "judgedAt": "2026-10-15",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "initdb-pair-wrong-actor",
+      "steps": [
+        3,
+        9
+      ],
+      "barItem": "the wrong actor or credential for an act",
+      "reason": "Steps 3 (GET /?query=SELECT 1) and 9 (POST SYSTEM FLUSH LOGS) are the demand's init-db.sh:9 pair (journeys/demand.json). In PostHog 60dd1fec, docker/clickhouse/docker-entrypoint-initdb.d/init-db.sh runs `clickhouse client --query \"select 1\"` and then `clickhouse client --query \"system flush logs\"` inside the container. The image entrypoint runs that script against a temporary server that listens only on 127.0.0.1, and stops that server before the real one starts (spec/recordings/clickhouse-24.12.6.70-entrypoint.sh.txt:186-243; the clickhouse/clickhouse-server Docker Hub page, 'How to extend this image', on /docker-entrypoint-initdb.d). It happens on first boot, before the /ping in step 2 can pass, and it uses the native client. The life instead has the application send the pair over HTTP: step 3 after the healthcheck, and step 9 after the migrations. spec/SOURCE.md itself says this initialization contract is not modelled and is a gap.",
+      "correction": "Remove steps 3 and 9 from the application's HTTP life. The entrypoint's initialization stays the named gap it already is in spec/SOURCE.md, and the life does not replay it as application traffic."
+    },
+    {
+      "id": "flush-without-logs",
+      "steps": [
+        1,
+        9
+      ],
+      "barItem": "a stated cause that never happens, and a promise never kept",
+      "reason": "init-db.sh gives its own reason for the flush in lines 6-7: to 'flush log tables to ensure system log tables (e.g., system.crash_log) are created'. ClickHouse's SYSTEM statements page (clickhouse.com/docs/sql-reference/statements/system#flush-logs) says the flush 'Flushes buffered log messages to system tables, e.g. system.query_log ... This will also create system tables even if message queue is empty.' Step 1 sets \"systemLogs\": \"disabled\", so step 9 flushes logs that cannot exist and creates no system table. The setting is there only so the twin can answer the flush (README.md: 'SYSTEM FLUSH LOGS succeeds only with logs explicitly disabled by the operator'), not for any reason the story shows.",
+      "correction": "Remove \"systemLogs\": \"disabled\" from step 1 together with step 9; do not keep a flush whose only reason, creating the system log tables, the story has turned off."
+    },
+    {
+      "id": "migration-readback",
+      "steps": [
+        7,
+        8
+      ],
+      "barItem": "a read-back with no need: a list or get of what the story already holds, unless someone who does not hold it reads it",
+      "reason": "In step 7 the application inserts ('application', '0001_initial', '2026-10-13'). In step 8 the same application, with the same credential, GETs SELECT * FROM migrations FORMAT JSONEachRow (an HTTP read, clickhouse.com/docs/interfaces/http) and reads back the row it has just written. The ORM that the demand names reads the applied migrations before it writes any record. PostHog's infi.clickhouse_orm fork at 4e3996be, database.py:343-386: migrate() first runs `SELECT DISTINCT module_name FROM <distributed table> WHERE package_name = '...'` (POST), then applies the unapplied migrations, then inserts each record. The outline's own order is the same: 'reads the applied migrations and writes a migration record'. No other actor appears who lacks the record.",
+      "correction": "Put the read before step 7, as the ORM does: a POST to /?database=analytics with `SELECT DISTINCT module_name FROM distributed_migrations WHERE package_name = 'application'`, which returns no rows on a fresh database. Then do the insert, and remove the read-back after it."
+    }
+  ],
+  "applied": {
+    "from": "c9c1ad5e9622302be504dee7754306c02d1a317de003e8154ff21a199a45816a",
+    "wasPlausible": false,
+    "steps": [
+      "1",
+      "3",
+      "7",
+      "8",
+      "9"
+    ],
+    "rulings": [
+      {
+        "steps": [
+          3,
+          9
+        ],
+        "why": "Remove steps 3 and 9 from the application's HTTP life. The entrypoint's initialization stays the named gap it already is in spec/SOURCE.md, and the life does not replay it as application traffic."
+      },
+      {
+        "steps": [
+          1,
+          9
+        ],
+        "why": "Remove \"systemLogs\": \"disabled\" from step 1 together with step 9; do not keep a flush whose only reason, creating the system log tables, the story has turned off."
+      },
+      {
+        "steps": [
+          7,
+          8
+        ],
+        "why": "Put the read before step 7, as the ORM does: a POST to /?database=analytics with `SELECT DISTINCT module_name FROM distributed_migrations WHERE package_name = 'application'`, which returns no rows on a fresh database. Then do the insert, and remove the read-back after it."
+      }
+    ]
+  }
+}

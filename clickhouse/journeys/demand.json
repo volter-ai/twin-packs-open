@@ -1,0 +1,82 @@
+{
+  "measured": {
+    "at": "2026-10-13",
+    "method": "retained Compose census and unchanged vendor source reading",
+    "declarationCount": {
+      "publishers": 11,
+      "publisherDenominator": 193,
+      "survey": 14,
+      "surveyDenominator": 300
+    },
+    "execution": "not run"
+  },
+  "applications": [
+    {
+      "name": "PostHog",
+      "commit": "60dd1fec2d13efcde1ed0dbafb5b71d5a3bb1a43",
+      "client": "clickhouse-driver0.2.10, infi.clickhouse_orm, @clickhouse/client",
+      "backend": [
+        {
+          "call": "GET /ping",
+          "operation": "ping",
+          "evidence": "deployment-inputs/posthog-files/docker-compose.base.yml:202"
+        },
+        {
+          "call": "SELECT 1; SYSTEM FLUSH LOGS",
+          "operation": "query_post",
+          "evidence": "docker/clickhouse/docker-entrypoint-initdb.d/init-db.sh:9"
+        },
+        {
+          "call": "CREATE DATABASE IF NOT EXISTS <db> ON CLUSTER <cluster>",
+          "operation": "query_post",
+          "evidence": "posthog/management/commands/migrate_clickhouse.py:147"
+        },
+        {
+          "call": "CREATE TABLE ReplicatedMergeTree and Distributed migration tables",
+          "operation": "query_post",
+          "evidence": "posthog/management/commands/migrate_clickhouse.py:169"
+        }
+      ],
+      "frontend": []
+    },
+    {
+      "name": "Plausible Community Edition",
+      "commit": "5cb5234fd7754d86a86b2f897788857de4164941",
+      "client": "vendor Compose HTTP healthcheck; application SQL/SDK bodies not yet read",
+      "backend": [
+        {
+          "call": "GET /ping",
+          "operation": "ping",
+          "evidence": "spec/recordings/plausible-3.1.0/compose.yml:33"
+        }
+      ],
+      "frontend": [],
+      "originalInputs": {
+        "image": "clickhouse/clickhouse-server:24.12-alpine",
+        "service": "plausible_events_db",
+        "files": [
+          "clickhouse/logs.xml",
+          "clickhouse/ipv4-only.xml",
+          "clickhouse/low-resources.xml"
+        ],
+        "userSetup": "CLICKHOUSE_SKIP_USER_SETUP=1",
+        "source": "spec/recordings/plausible-3.1.0/reading.json",
+        "userProfiles": "File-selected readonly profiles and unrestricted ::/0 from pinned vendor users.xml; both wires enforce mode1 client settings, with unresolved comparisons, quotas and other policies retained as gaps."
+      }
+    }
+  ],
+  "unreadCallers": [
+    "Infisical/infisical",
+    "LibreChat-AI/LibreChat",
+    "appwrite/appwrite",
+    "centrifugal/centrifugo",
+    "emqx/emqx",
+    "langfuse/langfuse",
+    "novuhq/novu",
+    "rybbit-io/rybbit",
+    "umami-software/umami"
+  ],
+  "unreadApplicationSql": [
+    "Plausible release db createdb/migrate bodies and HTTP client contract"
+  ]
+}

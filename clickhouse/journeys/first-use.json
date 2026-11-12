@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "ClickHouse official JavaScript client1.12.0: https://github.com/ClickHouse/clickhouse-js; CREATE/INSERT/SELECT from vendored HTTP reference",
+  "about": "The unchanged official HTTP client creates analytics events and reads the same stored rows after a World resumes. This authored workflow has not run.",
+  "files": {
+    "package.json": "{\n  \"name\": \"clickhouse-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@clickhouse/client\": \"1.12.0\"\n  },\n  \"scripts\": {\n    \"start\": \"node app.mjs\"\n  }\n}\n",
+    ".env.example": "CLICKHOUSE_URL=\n",
+    "app.mjs": "import { createClient } from '@clickhouse/client';\nconst client = createClient({ url: process.env.CLICKHOUSE_URL, username: 'default', password: '' });\ntry {\n  if (!process.argv.includes('--readback')) {\n    await client.command({ query: 'CREATE DATABASE IF NOT EXISTS analytics' });\n    await client.command({ query: 'CREATE TABLE IF NOT EXISTS analytics.events (id UInt32, label String) ENGINE = MergeTree ORDER BY id' });\n    await client.insert({ table: 'analytics.events', values: [{ id: 1, label: 'first event' }], format: 'JSONEachRow' });\n  }\n  const result = await client.query({ query: 'SELECT id, label FROM analytics.events ORDER BY id', format: 'JSONEachRow' });\n  console.log(JSON.stringify(await result.json()));\n} finally { await client.close(); }\n"
+  },
+  "run": [
+    "node",
+    "app.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "app.mjs",
+      "--readback"
+    ]
+  }
+}
