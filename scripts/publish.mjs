@@ -22,6 +22,7 @@ if (upload) {
   assert.equal(process.env.GITHUB_REF, publicationRef, 'Uploads require the dedicated publish branch');
   assert.equal(process.env.GITHUB_WORKFLOW_REF, publicationWorkflow, 'Uploads require the registered workflow on publish');
   assert.match(process.env.GITHUB_SHA ?? '', /^[a-f0-9]{40}$/);
+  assert.ok(['latest', 'staged'].includes(process.env.PACK_DIST_TAG), 'Choose the dist-tag: latest, or staged in a release with the platform');
   assert.equal(process.env.GITHUB_WORKFLOW_SHA, process.env.GITHUB_SHA, 'Publication source and workflow revision must agree');
   selected = selectedPack();
   assert.equal(process.env.PACK_PREPARATION_TAG, `prepared-${vendor}-${selected.manifest.version}`,
@@ -52,6 +53,7 @@ const receipt = {
   workflowRun: process.env.GITHUB_RUN_ID ?? null, workflowAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
   workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null, workflowSha: process.env.GITHUB_WORKFLOW_SHA ?? null,
   managerAuthorization: process.env.PACK_MANAGER_AUTHORIZATION ?? null,
+  distTag: process.env.PACK_DIST_TAG ?? null,
 };
 if (upload) {
   // One read, one bounded upload. Unknown registry responses never mean absence.
@@ -67,7 +69,7 @@ if (upload) {
     assert.equal(Number(process.env.GITHUB_RUN_ATTEMPT), 1, 'A workflow rerun only reads the exact version; never upload again');
     assert.ok(!existsSync(join(directory, 'upload-started.json')), 'An earlier publication started; resolve its exact registry version without another upload');
     assert.ok(!existsSync(join(directory, 'upload-accepted.json')), 'An earlier upload was accepted; confirm it outside CI');
-    const publishing = npmCommand(['publish', '--ignore-scripts', '--access', 'public', '--provenance', '--fetch-retries=0', '--fetch-timeout=12000', archive]);
+    const publishing = npmCommand(['publish', '--ignore-scripts', '--access', 'public', '--tag', process.env.PACK_DIST_TAG, '--provenance', '--fetch-retries=0', '--fetch-timeout=12000', archive]);
     writeFileSync(join(directory, 'upload-started.json'), JSON.stringify(receipt, null, 2) + '\n');
     const retained = spawnSync('gh', ['release', 'upload', process.env.PACK_PREPARATION_TAG,
       join(directory, 'upload-started.json'), '--repo', process.env.GITHUB_REPOSITORY], { stdio: 'inherit', timeout: 5000 });
@@ -81,7 +83,7 @@ if (upload) {
     join(directory, 'upload-accepted.json'), '--repo', process.env.GITHUB_REPOSITORY, '--clobber'], { stdio: 'inherit', timeout: 5000 });
   assert.equal(recorded.status, 0, 'Upload result could not be retained; confirm the exact registry version outside CI');
   if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY,
-    `\nExact archive upload: \`${preparation.package}@${preparation.version}\`\n\nPreparation SHA-256: \`${preparationDigest}\`\n\nSource: \`${preparation.sourceCommit}\`\n\nPublication ref: \`${publicationRef}\`\n\nWorkflow: \`${receipt.workflowRef}\` at \`${receipt.workflowSha}\`\n\nManager authorization reference: ${receipt.managerAuthorization ?? '(not recorded)'}.\n\nIntegrity: \`${preparation.integrity}\`\n\nAccepted upload: ${receipt.acceptedUpload}. Registry bytes already confirmed: ${receipt.registryConfirmed}. Run the operator confirmation and submission commands outside CI.\n`, { flag: 'a' });
+    `\nExact archive upload: \`${preparation.package}@${preparation.version}\`\n\nPreparation SHA-256: \`${preparationDigest}\`\n\nSource: \`${preparation.sourceCommit}\`\n\nPublication ref: \`${publicationRef}\`\n\nWorkflow: \`${receipt.workflowRef}\` at \`${receipt.workflowSha}\`\n\nManager authorization reference: ${receipt.managerAuthorization ?? '(not recorded)'}.\n\nDist-tag: \`${receipt.distTag}\`.\n\nIntegrity: \`${preparation.integrity}\`\n\nAccepted upload: ${receipt.acceptedUpload}. Registry bytes already confirmed: ${receipt.registryConfirmed}. Run the operator confirmation and submission commands outside CI.\n`, { flag: 'a' });
 } else {
   const cli = process.env.CATALOG_CLI;
   assert.ok(cli, 'CATALOG_CLI must name the exact installed registered catalog bootstrap CLI');
