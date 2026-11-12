@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "https://github.com/twentyhq/favicon/blob/fb84fc14394ee60a675fa88a892b912cb4329557/README.md",
+  "about": "Twenty's company avatars as they ship (twentyhq/twenty e79b3365): its own URL builder from twenty-shared, no SDK and no key (the service is public), loads the favicon of a company it prefills in every new workspace, asserting a 192-pixel PNG, and the vendor's 404 for a domain the World does not know. The World knows the prefilled companies from the pack's default data.",
+  "files": {
+    "package.json": "{\n  \"name\": \"twenty-icons-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {}\n}\n",
+    ".env.example": "# twenty-icons.com is public: Twenty sends no key\n",
+    "app.mjs": "import assert from 'node:assert/strict';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\n\n// Twenty's own URL builder (twentyhq/twenty e79b3365, packages/twenty-shared/src/utils/image/getLogoUrlFromDomainName.ts,\n// its types removed): the address its company avatars put in an <img>\nconst sanitizeURL = (link) => {\n  return link\n    ? link.replace(/(https?:\\/\\/)|(www\\.)/g, '').replace(/\\/$/, '')\n    : '';\n};\nconst getLogoUrlFromDomainName = (domainName) => {\n  const sanitizedDomain = sanitizeURL(domainName);\n  return sanitizedDomain\n    ? `https://twenty-icons.com/${sanitizedDomain}`\n    : undefined;\n};\n\n// a company Twenty prefills in every new workspace, with its domain as Twenty stores it: its avatar loads the favicon\nconst url = getLogoUrlFromDomainName('https://www.airbnb.com/');\nassert.equal(url, 'https://twenty-icons.com/airbnb.com');\nconst icon = await fetch(url);\nassert.equal(icon.status, 200);\nassert.equal(icon.headers.get('content-type'), 'image/png');\nconst png = new Uint8Array(await icon.arrayBuffer());\nassert.deepEqual([...png.slice(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);\nconst width = new DataView(png.buffer).getUint32(16);\nassert.equal(width, 192, 'airbnb.com at its largest size');\n\n// a company whose domain the World does not know: the vendor's 404, and Twenty's avatar shows the initial\nconst unknown = await fetch(getLogoUrlFromDomainName('no-such-company.example'));\nassert.equal(unknown.status, 404);\nassert.equal(await unknown.text(), 'Could not fetch favicon');\nconsole.log(JSON.stringify({ favicon: url, width, unknown: unknown.status }));\n"
+  },
+  "run": [
+    "node",
+    "app.mjs"
+  ],
+  "retention": {
+    "none": "Twenty only reads favicons: it stores nothing at twenty-icons.com and holds no account there, so there is no record of the app's to read back."
+  }
+}

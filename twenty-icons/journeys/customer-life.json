@@ -1,0 +1,121 @@
+{
+  "vendor": "twenty-icons",
+  "host": "twenty-icons.com",
+  "author": "Claude Opus 5.5 (VO-3832)",
+  "about": "Twenty shows each company with its domain's favicon from twenty-icons.com. The World declares the domains it knows (the pack's default data declares Twenty's five prefilled companies); a known domain answers its generated PNG, any other the vendor's 404, and a name the vendor's domain rule refuses its 400.",
+  "steps": [
+    {
+      "name": "The World declares Twenty's prefilled companies, as the pack's default data does",
+      "method": "POST",
+      "path": "/_twin/icons",
+      "body": { "icons": [
+        { "domain": "airbnb.com", "size": 192 },
+        { "domain": "anthropic.com", "size": 128 },
+        { "domain": "stripe.com", "size": 128 },
+        { "domain": "figma.com", "size": 128 },
+        { "domain": "notion.com", "size": 128 }
+      ] },
+      "status": 200,
+      "expect": [ { "path": "icons.0.domain", "equals": "airbnb.com" }, { "path": "icons.4.size", "equals": 128 } ]
+    },
+    {
+      "name": "Airbnb's company avatar loads its favicon",
+      "method": "GET",
+      "path": "/airbnb.com",
+      "status": 200,
+      "expect": [
+        { "header": "content-type", "equals": "image/png" },
+        { "header": "cache-control", "equals": "max-age=16070400" },
+        { "header": "last-modified", "exists": true },
+        { "path": "", "contains": "PNG" }
+      ]
+    },
+    {
+      "name": "Stripe's avatar loads its favicon",
+      "method": "GET",
+      "path": "/stripe.com",
+      "status": 200,
+      "expect": [ { "header": "content-type", "equals": "image/png" } ]
+    },
+    {
+      "name": "A company whose site is at its www. name: the World declares www.example-co.com",
+      "method": "POST",
+      "path": "/_twin/icons",
+      "body": { "icons": [ { "domain": "www.example-co.com", "size": 32 } ] },
+      "status": 200,
+      "expect": [ { "path": "icons.0.domain", "equals": "www.example-co.com" } ]
+    },
+    {
+      "name": "The bare name answers the www. site's favicon, as the vendor fetches https://www.<domain> when https://<domain> has none",
+      "method": "GET",
+      "path": "/example-co.com",
+      "status": 200,
+      "expect": [
+        { "header": "content-type", "equals": "image/png" },
+        { "header": "cache-control", "equals": "max-age=16070400" }
+      ]
+    },
+    {
+      "name": "A www. name the World did not declare is a domain of its own, and unknown",
+      "method": "GET",
+      "path": "/www.airbnb.com",
+      "status": 404,
+      "expect": [ { "path": "", "equals": "Could not fetch favicon" } ]
+    },
+    {
+      "name": "A trailing slash answers the same favicon",
+      "method": "GET",
+      "path": "/airbnb.com/",
+      "status": 200,
+      "expect": [ { "header": "content-type", "equals": "image/png" } ]
+    },
+    {
+      "name": "A domain the World does not know answers the vendor's 404, and Twenty's avatar shows the initial",
+      "method": "GET",
+      "path": "/no-such-domain.example",
+      "status": 404,
+      "expect": [
+        { "path": "", "equals": "Could not fetch favicon" },
+        { "header": "content-type", "equals": "text/html; charset=utf-8" },
+        { "header": "etag", "equals": "W/\"17-vv8JzlAVdhtD0UCj46Ojpk7ccr0\"" },
+        { "header": "cache-control", "equals": "max-age=16070400" }
+      ]
+    },
+    {
+      "name": "An uppercase name is refused by the vendor's domain rule",
+      "method": "GET",
+      "path": "/AIRBNB.COM",
+      "status": 400,
+      "expect": [
+        { "path": "", "equals": "Invalid domain" },
+        { "header": "etag", "equals": "W/\"e-f+IS0cayD8NQoMVeLPpzds1bTXk\"" },
+        { "header": "cache-control", "exists": false }
+      ]
+    },
+    {
+      "name": "A scenario declares another company's domain at 64",
+      "method": "POST",
+      "path": "/_twin/icons",
+      "body": { "icons": [ { "domain": "acme.dev", "size": 64 } ] },
+      "status": 200,
+      "expect": [ { "path": "icons.0.size", "equals": 64 } ]
+    },
+    {
+      "name": "That company's avatar now loads",
+      "method": "GET",
+      "path": "/acme.dev",
+      "status": 200,
+      "expect": [ { "header": "content-type", "equals": "image/png" } ]
+    },
+    {
+      "name": "The host's root redirects to the service's README",
+      "method": "GET",
+      "path": "/",
+      "status": 301,
+      "expect": [
+        { "header": "location", "equals": "https://github.com/twentyhq/favicon/blob/main/README.md" },
+        { "header": "cache-control", "equals": "max-age=16070400" }
+      ]
+    }
+  ]
+}
