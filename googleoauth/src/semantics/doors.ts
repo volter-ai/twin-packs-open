@@ -8,7 +8,7 @@
 //                                                  person (the organization owner's own Google account where they made
 //                                                  one) and its project's API key (the credential door)
 import { personOf, type HandlerContext } from '@volter/world-core';
-import { ACCOUNT, accountBySub, accountSub, API_KEY, CLIENT, credential, serial, SERVICE_ACCOUNT, SERVICE_ACCOUNT_KEY, type Row } from './shared.ts';
+import { ACCOUNT, accountBySub, accountSub, API_KEY, API_KEY_FORMAT, CLIENT, CLIENT_NAME_FORMAT, CLIENT_NUMBER_FORMAT, CLIENT_SECRET_FORMAT, KEY_LABEL_FORMAT, serial, SERVICE_ACCOUNT, SERVICE_ACCOUNT_KEY, type Row } from './shared.ts';
 
 const bad = (error: string): Response => Response.json({ error }, { status: 400 });
 const bodyOf = (ctx: HandlerContext): Record<string, unknown> => (ctx.body && typeof ctx.body === 'object' ? ctx.body : {}) as Record<string, unknown>;
@@ -60,8 +60,8 @@ async function createServiceAccount(ctx: HandlerContext, email: string, project:
   return made.created ? ctx.row(SERVICE_ACCOUNT, email)! : Response.json({ error: 'ALREADY_EXISTS', error_description: `Service account ${email} already exists` }, { status: 409 });
 }
 
-async function makeServiceAccountKey(ctx: HandlerContext, account: Row): Promise<string> {
-  const label = `service-account-key:${await serial(ctx)}`;
+async function makeServiceAccountKey(ctx: HandlerContext, account: Row, issued?: string): Promise<string> {
+  const label = issued ?? `service-account-key:${await serial(ctx)}`;
   const key = await ctx.signingKey(label, 'RS256');
   const id = ctx.crypto.digest('sha1', key.publicPem, 'hex');
   await ctx.record(SERVICE_ACCOUNT_KEY, { _service_account: account.id, _key_label: label, private_key_id: id, public_key: key.publicPem }, id);
@@ -85,6 +85,9 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
   try {
     const b = bodyOf(ctx);
     const organizationId = await ctx.account();
+    // every value the application holds is issued by the World's issuance door, for the organization (the door's
+    // account) and, where one is selected, its deployment: the same at every boot and after a reset
+    const purpose = (name: string): string => (ctx.deployment() ? `${ctx.deployment()}/${name}` : name);
     const organization = await ctx.organization();
     const memberEmail = organization.members[0]!.toLowerCase();
     // the person who consents is the organization's owner, its first member: their own Google account where they made
@@ -116,7 +119,7 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
       return String(made.id);
     });
     const serviceKey = await ctx.accountKey('service-account-key', SERVICE_ACCOUNT_KEY, {
-      make: () => makeServiceAccountKey(ctx, account),
+      make: async () => makeServiceAccountKey(ctx, account, `service-account-key:${await ctx.issueKeyId(purpose('service-account-key'), KEY_LABEL_FORMAT)}`),
       read: (row) => serviceAccountCredentials(ctx, account, row),
     });
     const out: Row = { client_email: account.client_email, credentials: JSON.parse(serviceKey.secret) };
@@ -124,17 +127,16 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
     if (c) {
       if (!Array.isArray(c.redirect_uris) || !c.redirect_uris.every((u) => typeof u === 'string')) return bad('client.redirect_uris is required');
       const client = await ctx.deploymentObject(`oauth-client:${String(project.id)}`, CLIENT, async (deployment) => {
-        const n = await serial(ctx);
-        const digits = (await ctx.secret(`googleoauth:client-id:${n}`)).replace(/\D/g, '').padEnd(12, '7').slice(0, 12);
-        const tail = (await ctx.secret(`googleoauth:client-name:${n}`)).replace(/[^a-z0-9]/g, '').padEnd(32, '0').slice(0, 32);
+        const digits = await ctx.issueKeyId(purpose('oauth-client-number'), CLIENT_NUMBER_FORMAT);
+        const tail = await ctx.issueKeyId(purpose('oauth-client-name'), CLIENT_NAME_FORMAT);
         const id = `${digits}-${tail}.apps.googleusercontent.com`;
-        await ctx.write(CLIENT, id, { client_id: id, secret: await credential(ctx, 'GOCSPX-', `client-secret:${n}`, 28), redirect_uris: c.redirect_uris, name: c.name ?? (deployment || 'World App'), support_email: null, _project: project.id }, 'client.create');
+        await ctx.write(CLIENT, id, { client_id: id, secret: await ctx.issueKey(purpose('oauth-client-secret'), CLIENT_SECRET_FORMAT), redirect_uris: c.redirect_uris, name: c.name ?? (deployment || 'World App'), support_email: null, _project: project.id }, 'client.create');
         return id;
       });
       const secret = await ctx.accountKey('oauth-client-secret', CLIENT, {
         make: async () => {
           if (typeof ctx.row(CLIENT, String(client.id))?.secret !== 'string') {
-            const value = await credential(ctx, 'GOCSPX-', `client-secret:${await serial(ctx)}`, 28);
+            const value = await ctx.issueKey(purpose('oauth-client-secret'), CLIENT_SECRET_FORMAT);
             await ctx.change(CLIENT, String(client.id), (row) => row._project === project.id && typeof row.secret !== 'string'
               ? { secret: value } : undefined, 'client.secret_reset');
           }
@@ -156,15 +158,15 @@ export async function worldCredentials(ctx: HandlerContext): Promise<Response> {
     if (k) {
       const key = await ctx.accountKey('api-key', API_KEY, {
         make: async () => {
-          const label = `api-key:${await serial(ctx)}`;
-          const value = await credential(ctx, 'AIza', label, 35);
+          const issuedAs = purpose('api-key');
+          const value = await ctx.issueKey(issuedAs, API_KEY_FORMAT);
           const id = ctx.crypto.sha256(value);
-          await ctx.write(API_KEY, id, { project: project.id, name: typeof k.name === 'string' ? k.name : 'API key 1', created: ctx.occurredAt, _secret_label: label }, 'api_key.create');
+          await ctx.write(API_KEY, id, { project: project.id, name: typeof k.name === 'string' ? k.name : 'API key 1', created: ctx.occurredAt, _purpose: issuedAs }, 'api_key.create');
           return id;
         },
         read: async (row) => {
-          if (row.project !== project.id || typeof row._secret_label !== 'string') return undefined;
-          const value = await credential(ctx, 'AIza', row._secret_label, 35);
+          if (row.project !== project.id || typeof row._purpose !== 'string') return undefined;
+          const value = await ctx.issueKey(row._purpose, API_KEY_FORMAT);
           return ctx.crypto.sha256(value) === row.id ? value : undefined;
         },
       });

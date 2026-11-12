@@ -56,6 +56,16 @@ export function clientOf(ctx: Reader & { call: HandlerContext['call'] }, params:
 
 /** A credential of Google's shapes (`ya29.` access tokens, `1//0` refresh tokens, `4/0A` codes), drawn from secrets the
  *  World holds for its seed (ctx.secret), so no one computes it from the client, the account and the moment. */
+/** The shapes the World's issuance door gives the credential door's values (world-core `KeyFormat`), as `credential`
+ *  draws them: an API key (`AIza`, 35 more), an OAuth client's secret (`GOCSPX-`, 28 more) and its id's two parts (12
+ *  digits, then 32 lowercase letters and digits, before `.apps.googleusercontent.com`). */
+export const API_KEY_FORMAT = { prefix: 'AIza', length: 39, alphabet: 'base64url' } as const;
+export const CLIENT_SECRET_FORMAT = { prefix: 'GOCSPX-', length: 35, alphabet: 'base64url' } as const;
+export const CLIENT_NUMBER_FORMAT = { length: 12, alphabet: 'digits' } as const;
+export const CLIENT_NAME_FORMAT = { length: 32, alphabet: '0123456789abcdefghijklmnopqrstuvwxyz' } as const;
+/** The id a service-account key's signing pair is drawn under (its label), from the same door: 40 hex. */
+export const KEY_LABEL_FORMAT = { length: 40, alphabet: 'hex' } as const;
+
 export async function credential(ctx: Pick<HandlerContext, 'secret'>, prefix: string, seed: string, length: number): Promise<string> {
   let out = '';
   for (let i = 0; out.length < length; i++) out += (await ctx.secret(`googleoauth:${seed}:${i}`)).replace(/[^A-Za-z0-9_-]/g, '');
@@ -83,7 +93,7 @@ export async function issue(ctx: HandlerContext, client: Row, account: Row, scop
   await ctx.write(ACCESS_TOKEN, access, { clientId, sub, scope: scopes.join(' '), expiresAt, revoked: false }, 'access_token.create');
   const out: Row = { access_token: access, expires_in: 3599, scope: scopes.join(' '), token_type: 'Bearer' };
   if (scopes.includes('openid')) {
-    out.id_token = ctx.crypto.jwtSign({ iss: ISSUER, azp: clientId, aud: clientId, sub, ...(nonce ? { nonce } : {}), ...accountClaims(account, scopes) }, await idTokenKey(ctx), { now: nowSeconds(ctx), expiresInSeconds: 3599, kidPrefix: '' });
+    out.id_token = ctx.crypto.jwtSign({ iss: ISSUER, azp: clientId, aud: clientId, sub, ...(nonce ? { nonce } : {}), ...accountClaims(account, scopes) }, await idTokenKey(ctx), { expiresInSeconds: 3599, kidPrefix: '' });
   }
   if (offline) {
     const refresh = await credential(ctx, '1//0', `refresh:${clientId}:${sub}:${ctx.occurredAt}:${n}`, 100);
