@@ -1,0 +1,213 @@
+{
+  "vendor": "duckduckgo",
+  "author": "codex-duckduckgo",
+  "host": "html.duckduckgo.com",
+  "about": "A developer researches domain docs through Harness, then opens Workbench browser search. Initial primary navigation returns the observed script-driven 202 shell/challenge; the recorded no-script HTML link searches the same stored corpus. All HTML carries twin-only CSP and no-store.",
+  "steps": [
+    {
+      "name": "Publisher supplies documentation page",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "body": {
+        "html": "<div class=\"result results_links results_links_deep web-result \"><h2 class=\"result__title\"><a rel=\"nofollow\" class=\"result__a\" href=\"//duckduckgo.com/l/?uddg=https%3A%2F%2Fdocs.example.test%2Fdomain%3Fa%3D1%26b%3D2&amp;rut=world\">Example &amp; Domain</a></h2><a class=\"result__snippet\" href=\"//duckduckgo.com/l/?uddg=https%3A%2F%2Fdocs.example.test%2Fdomain%3Fa%3D1%26b%3D2&amp;rut=world\">Documentation &amp; setup.</a></div>",
+        "indexText": "example domain documentation",
+        "title": "Example & Domain",
+        "href": "//duckduckgo.com/l/?uddg=https%3A%2F%2Fdocs.example.test%2Fdomain%3Fa%3D1%26b%3D2&rut=world",
+        "snippet": "Documentation & setup."
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "title",
+          "equals": "Example & Domain"
+        }
+      ]
+    },
+    {
+      "name": "Publisher supplies news page",
+      "method": "POST",
+      "path": "/_twin/pages",
+      "body": {
+        "html": "<div class=\"result results_links results_links_deep web-result \"><h2 class=\"result__title\"><a rel=\"nofollow\" class=\"result__a\" href=\"//duckduckgo.com/l/?uddg=https%3A%2F%2Fnews.example.test%2Fdomain&amp;rut=world\">Domain news</a></h2><a class=\"result__snippet\" href=\"//duckduckgo.com/l/?uddg=https%3A%2F%2Fnews.example.test%2Fdomain&amp;rut=world\">New domain guidance.</a></div>",
+        "indexText": "example domain news",
+        "title": "Domain news",
+        "href": "//duckduckgo.com/l/?uddg=https%3A%2F%2Fnews.example.test%2Fdomain&rut=world",
+        "snippet": "New domain guidance."
+      },
+      "status": 201,
+      "expect": [
+        {
+          "path": "title",
+          "equals": "Domain news"
+        }
+      ]
+    },
+    {
+      "name": "Harness searches example domain at its World-bound SUPERCODE_WEB_SEARCH_URL, retaining the vendor HTML path",
+      "method": "GET",
+      "path": "/html/?q=example+domain",
+      "headers": {
+        "User-Agent": "supercode/0.5.100"
+      },
+      "status": 200,
+      "view": "results",
+      "expect": [
+        {
+          "path": "",
+          "equals": [
+            {
+              "title": "Example & Domain",
+              "url": "https://docs.example.test/domain?a=1&b=2",
+              "snippet": "Documentation & setup."
+            },
+            {
+              "title": "Domain news",
+              "url": "https://news.example.test/domain",
+              "snippet": "New domain guidance."
+            }
+          ]
+        },
+        {
+          "header": "content-security-policy",
+          "equals": "default-src 'none'; sandbox"
+        },
+        {
+          "header": "cache-control",
+          "equals": "no-store, max-age=0"
+        },
+        {
+          "header": "pragma",
+          "equals": "no-cache"
+        },
+        {
+          "header": "expires",
+          "equals": "0"
+        }
+      ]
+    },
+    {
+      "name": "The developer opens the agent's search in Workbench to see the pages themselves: Workbench opens the recorded primary search/challenge shell",
+      "method": "GET",
+      "path": "https://duckduckgo.com/?q=example%20domain",
+      "status": 202,
+      "expect": [
+        {
+          "path": "",
+          "contains": "example domain at DuckDuckGo"
+        },
+        {
+          "path": "",
+          "contains": "DDG.deep.anomalyDetectionBlock"
+        },
+        {
+          "path": "",
+          "contains": "/html/?q=example%20domain"
+        },
+        {
+          "header": "content-security-policy",
+          "equals": "default-src 'none'; sandbox"
+        },
+        {
+          "header": "cache-control",
+          "equals": "no-store, max-age=0"
+        },
+        {
+          "header": "pragma",
+          "equals": "no-cache"
+        },
+        {
+          "header": "expires",
+          "equals": "0"
+        }
+      ],
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
+      }
+    },
+    {
+      "name": "The developer follows the recorded no-script HTML link into the same World corpus",
+      "method": "GET",
+      "path": "https://duckduckgo.com/html/?q=example%20domain",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
+      },
+      "status": 200,
+      "view": "results",
+      "expect": [
+        {
+          "path": "",
+          "equals": [
+            {
+              "title": "Example & Domain",
+              "url": "https://docs.example.test/domain?a=1&b=2",
+              "snippet": "Documentation & setup."
+            },
+            {
+              "title": "Domain news",
+              "url": "https://news.example.test/domain",
+              "snippet": "New domain guidance."
+            }
+          ]
+        },
+        {
+          "header": "content-security-policy",
+          "equals": "default-src 'none'; sandbox"
+        },
+        {
+          "header": "cache-control",
+          "equals": "no-store, max-age=0"
+        },
+        {
+          "header": "pragma",
+          "equals": "no-cache"
+        },
+        {
+          "header": "expires",
+          "equals": "0"
+        }
+      ]
+    },
+    {
+      "name": "Research resumes later",
+      "wait": "1h"
+    },
+    {
+      "name": "Harness narrows research to documentation",
+      "method": "GET",
+      "path": "/html/?q=documentation",
+      "headers": {
+        "User-Agent": "supercode/0.5.100"
+      },
+      "status": 200,
+      "view": "results",
+      "expect": [
+        {
+          "path": "",
+          "equals": [
+            {
+              "title": "Example & Domain",
+              "url": "https://docs.example.test/domain?a=1&b=2",
+              "snippet": "Documentation & setup."
+            }
+          ]
+        },
+        {
+          "header": "content-security-policy",
+          "equals": "default-src 'none'; sandbox"
+        },
+        {
+          "header": "cache-control",
+          "equals": "no-store, max-age=0"
+        },
+        {
+          "header": "pragma",
+          "equals": "no-cache"
+        },
+        {
+          "header": "expires",
+          "equals": "0"
+        }
+      ]
+    }
+  ]
+}

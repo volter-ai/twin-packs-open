@@ -1,0 +1,10 @@
+# DuckDuckGo HTML search
+Volter Harness sends anonymous GET /html/?q=… with its supercode User-Agent. a.result__a hrefs and paired a.result__snippet anchors come from independent stored World page blobs. POST /_twin/pages publishes {html, indexText, title, href, snippet}. indexText supplies synthetic lexical selection in stored order; no live crawling or vendor ranking claim.
+
+Workbench's shipped button navigates GET https://duckduckgo.com/?q=<encodeURIComponent(search)> in a new tab. The one authorized primary-host recording returned HTTP 202: a script-driven search shell with anomalyDetectionBlock, a no-script /html/?q=… link, and no result list. browserSearch replays that initial shell and status, echoing the query; it does not solve the challenge or fabricate JavaScript results. The recorded HTML link reaches searchHtml over the same seeded pages. In a browser, only static unstyled scaffolding and, for script-disabled rendering, the no-script notice are available; there is no interactive challenge or result list on the primary page. Later scripts, assets and result/challenge requests are unestablished.
+
+Every HTML response, including successful results, the primary shell and the gap, adds these TWIN-ONLY safety headers: Content-Security-Policy: default-src 'none'; sandbox; Cache-Control: no-store, max-age=0; Pragma: no-cache; Expires: 0. They are World controls, not vendor behavior. No scripts execute and no external resource loads are allowed; responses cannot be cached on the vendor origins. Harness parses the same body bytes and result anchors as before. Encoding retained wire data does not itself protect a browser; the response policy does.
+
+No-results markup remains unestablished because the random-token recording returned results. Empty-result flows and unsupported operations use the retained unknown-path HTTP 200 shell under the same safety headers. Recorded HTML navigation POST remains unmodeled: neither demanded product submits it.
+
+spec/SOURCE.md gives provenance and limits. The life and four recording examples run offline in journey Worlds. Neither product uses an official SDK.
