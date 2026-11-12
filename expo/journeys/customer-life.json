@@ -1,0 +1,401 @@
+{
+  "vendor": "expo",
+  "author": "Contributor 62",
+  "host": "exp.host",
+  "about": "RH2 reviewer Jonah receives away notices, the operator diagnoses provider refusals, and tokens are pruned when reviewers leave. World phones are online; provider unregistration is simulated on next delivery.",
+  "steps": [
+    {
+      "name": "Jonah allows notifications and installs RH2 on his iPhone",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@volter-ai/runhuman",
+        "platform": "ios",
+        "owner": "Jonah"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@volter-ai/runhuman"
+        },
+        {
+          "path": "platform",
+          "equals": "ios"
+        }
+      ],
+      "capture": {
+        "iphone": "token"
+      }
+    },
+    {
+      "name": "Jonah also installs RH2 on his online Android tablet",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@volter-ai/runhuman",
+        "platform": "android",
+        "owner": "Jonah"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@volter-ai/runhuman"
+        },
+        {
+          "path": "platform",
+          "equals": "android"
+        }
+      ],
+      "capture": {
+        "tablet": "token"
+      }
+    },
+    {
+      "name": "Priya joins the reviewing team on her iPhone",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@volter-ai/runhuman",
+        "platform": "ios",
+        "owner": "Priya"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@volter-ai/runhuman"
+        },
+        {
+          "path": "platform",
+          "equals": "ios"
+        }
+      ],
+      "capture": {
+        "priya": "token"
+      }
+    },
+    {
+      "name": "RH2 alerts away reviewer Jonah on both phones",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": [
+        {
+          "to": "{iphone}",
+          "title": "Review needed",
+          "body": "Room 12 has a job waiting.",
+          "sound": "default",
+          "data": {
+            "url": "https://pilot.runhuman.com/rooms/12"
+          }
+        },
+        {
+          "to": "{tablet}",
+          "title": "Review needed",
+          "body": "Room 12 has a job waiting.",
+          "sound": "default",
+          "data": {
+            "url": "https://pilot.runhuman.com/rooms/12"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "path": "data.0.status",
+          "equals": "ok"
+        },
+        {
+          "path": "data.1.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "phoneTicket": "data.0.id",
+        "tabletTicket": "data.1.id"
+      }
+    },
+    {
+      "name": "The online phones receive their notifications",
+      "wait": "5s"
+    },
+    {
+      "name": "Jonah reads the tablet notice to open the waiting room",
+      "method": "GET",
+      "path": "/_twin/devices/{tablet}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.title",
+          "equals": "Review needed"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "Room 12 has a job waiting."
+        },
+        {
+          "path": "data.0.data.url",
+          "equals": "https://pilot.runhuman.com/rooms/12"
+        }
+      ]
+    },
+    {
+      "name": "A day passes before Priya leaves the reviewing team",
+      "wait": "24h"
+    },
+    {
+      "name": "Priya uninstalls RH2",
+      "method": "POST",
+      "path": "/_twin/devices/{priya}/uninstall",
+      "status": 200,
+      "expect": [
+        {
+          "path": "installed",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "The next scheduled away alert still uses Priya's saved token",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": [
+        {
+          "to": "{priya}",
+          "title": "Review needed",
+          "body": "Room 13 has a job waiting.",
+          "sound": "default",
+          "data": {
+            "url": "https://pilot.runhuman.com/rooms/13"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "path": "data.0.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "gone": "data.0.id"
+      }
+    },
+    {
+      "name": "The operator follows Expo's fifteen-minute receipt recommendation",
+      "wait": "15m"
+    },
+    {
+      "name": "RH2 receives an error ticket and removes Priya's old token",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": [
+        {
+          "to": "{priya}",
+          "title": "Review needed",
+          "body": "Room 14 has a job waiting.",
+          "sound": "default",
+          "data": {
+            "url": "https://pilot.runhuman.com/rooms/14"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "path": "data.0.status",
+          "equals": "error"
+        },
+        {
+          "path": "data.0.details.error",
+          "equals": "DeviceNotRegistered"
+        }
+      ]
+    },
+    {
+      "name": "An hour passes before the operator diagnoses the earlier queued notification",
+      "wait": "1h"
+    },
+    {
+      "name": "The simulated provider reports Priya's unregistration",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{gone}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "contains": "\"{gone}\":"
+        },
+        {
+          "path": "data",
+          "contains": "\"status\":\"error\""
+        },
+        {
+          "path": "data",
+          "contains": "\"error\":\"DeviceNotRegistered\""
+        }
+      ]
+    },
+    {
+      "name": "The next day an administrator investigates a lengthy review",
+      "wait": "24h"
+    },
+    {
+      "name": "The diagnostic notification mistakenly includes the whole transcript",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": [
+        {
+          "to": "{iphone}",
+          "title": "Review transcript",
+          "body": "RH2 review transcript, room 15:\nReview segment 1: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 2: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 3: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 4: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 5: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 6: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 7: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 8: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 9: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 10: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 11: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 12: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 13: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 14: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 15: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 16: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.\nReview segment 17: Jonah: I opened the room invitation and compared the checkout instructions with the task description. Administrator: Please record whether the confirmation page preserves the selected plan and whether the return link leads back to this review room. Jonah: The initial confirmation is visible, but returning from the receipt drops the room selection; the job remains waiting for another reviewer.",
+          "sound": "default",
+          "data": {
+            "url": "https://pilot.runhuman.com/rooms/15"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "path": "data.0.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "big": "data.0.id"
+      }
+    },
+    {
+      "name": "The administrator checks the receipt fifteen minutes later",
+      "wait": "15m"
+    },
+    {
+      "name": "The provider refused the oversized payload",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{big}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "contains": "\"{big}\":"
+        },
+        {
+          "path": "data",
+          "contains": "\"status\":\"error\""
+        },
+        {
+          "path": "data",
+          "contains": "\"error\":\"MessageTooBig\""
+        }
+      ]
+    },
+    {
+      "name": "The administrator restores RH2's short notice and room link",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": [
+        {
+          "to": "{iphone}",
+          "title": "Review needed",
+          "body": "Room 15 has a job waiting.",
+          "sound": "default",
+          "data": {
+            "url": "https://pilot.runhuman.com/rooms/15"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "path": "data.0.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "fixed": "data.0.id"
+      }
+    },
+    {
+      "name": "The corrected notice reaches Jonah's online iPhone",
+      "wait": "5s"
+    },
+    {
+      "name": "Jonah opens the corrected notice to read the transcript in the console",
+      "method": "GET",
+      "path": "/_twin/devices/{iphone}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{fixed}"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "Room 15 has a job waiting."
+        },
+        {
+          "path": "data.0.data.url",
+          "equals": "https://pilot.runhuman.com/rooms/15"
+        }
+      ]
+    },
+    {
+      "name": "Jonah finishes his reviews and leaves the team the following day",
+      "wait": "25h"
+    },
+    {
+      "name": "The operator's delayed old-ticket cleanup finds receipts already expired",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{phoneTicket}",
+          "{fixed}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "equals": {}
+        }
+      ]
+    },
+    {
+      "name": "Jonah uninstalls RH2 from his iphone",
+      "method": "POST",
+      "path": "/_twin/devices/{iphone}/uninstall",
+      "status": 200,
+      "expect": [
+        {
+          "path": "installed",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Jonah uninstalls RH2 from his tablet",
+      "method": "POST",
+      "path": "/_twin/devices/{tablet}/uninstall",
+      "status": 200,
+      "expect": [
+        {
+          "path": "installed",
+          "equals": false
+        }
+      ]
+    }
+  ]
+}

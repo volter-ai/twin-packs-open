@@ -1,0 +1,2311 @@
+{
+  "vendor": "expo",
+  "author": "Contributor 62",
+  "host": "exp.host",
+  "about": "Expo reference concrete sends, ordered tickets, mixed tickets, receipt lookups, payload validation and error/retention rules. Each excluded documented provider, authorization, native presentation or network rule is explicitly source-linked and recorded against the online, correctly provisioned, no-enhanced-security configuration. Setup phones represent native registration; exact undocumented validation codes/messages are not asserted.",
+  "steps": [
+    {
+      "name": "Prepare an online recipient a",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@expo/example",
+        "platform": "ios"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@expo/example"
+        },
+        {
+          "path": "platform",
+          "equals": "ios"
+        }
+      ],
+      "capture": {
+        "a": "token"
+      }
+    },
+    {
+      "name": "Prepare an online recipient b",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@expo/example",
+        "platform": "ios"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@expo/example"
+        },
+        {
+          "path": "platform",
+          "equals": "ios"
+        }
+      ],
+      "capture": {
+        "b": "token"
+      }
+    },
+    {
+      "name": "Prepare an online recipient c",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@expo/example",
+        "platform": "android"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@expo/example"
+        },
+        {
+          "path": "platform",
+          "equals": "android"
+        }
+      ],
+      "capture": {
+        "c": "token"
+      }
+    },
+    {
+      "name": "Prepare an online recipient d",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@expo/example",
+        "platform": "ios"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@expo/example"
+        },
+        {
+          "path": "platform",
+          "equals": "ios"
+        }
+      ],
+      "capture": {
+        "d": "token"
+      }
+    },
+    {
+      "name": "Prepare a recipient from another project",
+      "method": "POST",
+      "path": "/_twin/devices",
+      "status": 201,
+      "body": {
+        "project": "@expo/other",
+        "platform": "ios"
+      },
+      "expect": [
+        {
+          "path": "project",
+          "equals": "@expo/other"
+        },
+        {
+          "path": "platform",
+          "equals": "ios"
+        }
+      ],
+      "capture": {
+        "other": "token"
+      }
+    },
+    {
+      "name": "pushSend#doc hello world cURL",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": {
+        "to": "{a}",
+        "title": "hello",
+        "body": "world"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "ok"
+        },
+        {
+          "path": "data.id",
+          "exists": true
+        }
+      ],
+      "capture": {
+        "hello": "data.id"
+      }
+    },
+    {
+      "name": "pushSend#doc four recipients in order",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": [
+        {
+          "to": "{a}",
+          "sound": "default",
+          "body": "Hello world!"
+        },
+        {
+          "to": "{b}",
+          "badge": 1,
+          "body": "You've got mail"
+        },
+        {
+          "to": [
+            "{c}",
+            "{d}"
+          ],
+          "body": "Breaking news!"
+        }
+      ],
+      "expect": [
+        {
+          "path": "data.0.status",
+          "equals": "ok"
+        },
+        {
+          "path": "data.1.status",
+          "equals": "ok"
+        },
+        {
+          "path": "data.2.status",
+          "equals": "ok"
+        },
+        {
+          "path": "data.3.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "t0": "data.0.id",
+        "t1": "data.1.id",
+        "t2": "data.2.id",
+        "t3": "data.3.id"
+      }
+    },
+    {
+      "name": "Published successful notifications reach the online recipients",
+      "wait": "5s"
+    },
+    {
+      "name": "Read the published send effect on phone a",
+      "method": "GET",
+      "path": "/_twin/devices/{a}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.to",
+          "equals": "{a}"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "Hello world!"
+        },
+        {
+          "path": "data.0.sound",
+          "equals": "default"
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{t0}"
+        },
+        {
+          "path": "data.1.id",
+          "equals": "{hello}"
+        },
+        {
+          "path": "data.1.to",
+          "equals": "{a}"
+        },
+        {
+          "path": "data.1.title",
+          "equals": "hello"
+        },
+        {
+          "path": "data.1.body",
+          "equals": "world"
+        }
+      ]
+    },
+    {
+      "name": "Read the published send effect on phone b",
+      "method": "GET",
+      "path": "/_twin/devices/{b}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.to",
+          "equals": "{b}"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "You've got mail"
+        },
+        {
+          "path": "data.0.badge",
+          "equals": 1
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{t1}"
+        }
+      ]
+    },
+    {
+      "name": "Read the published send effect on phone c",
+      "method": "GET",
+      "path": "/_twin/devices/{c}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.to",
+          "equals": "{c}"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "Breaking news!"
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{t2}"
+        }
+      ]
+    },
+    {
+      "name": "Read the published send effect on phone d",
+      "method": "GET",
+      "path": "/_twin/devices/{d}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.to",
+          "equals": "{d}"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "Breaking news!"
+        },
+        {
+          "path": "data.0.id",
+          "equals": "{t3}"
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc individual ticket error",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": [
+        {
+          "to": "ExponentPushToken[notregistered]",
+          "body": "Hello world!"
+        },
+        {
+          "to": "{b}",
+          "body": "You've got mail"
+        }
+      ],
+      "expect": [
+        {
+          "path": "data.0.status",
+          "equals": "error"
+        },
+        {
+          "path": "data.0.details.error",
+          "equals": "DeviceNotRegistered"
+        },
+        {
+          "path": "data.1.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "individual": "data.1.id"
+      }
+    },
+    {
+      "name": "The accepted mixed-batch recipient gets its notification",
+      "wait": "5s"
+    },
+    {
+      "name": "Read the mixed batch accepted effect",
+      "method": "GET",
+      "path": "/_twin/devices/{b}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{individual}"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "You've got mail"
+        }
+      ]
+    },
+    {
+      "name": "pushGetReceipts#doc receipt mapping omits absent ids",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{t0}",
+          "unknown",
+          "{t2}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "equals": {
+            "{t0}": {
+              "status": "ok"
+            },
+            "{t2}": {
+              "status": "ok"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc over 100 notifications",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": [
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{a}",
+          "body": "Hello"
+        }
+      ],
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "PUSH_TOO_MANY_NOTIFICATIONS"
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc over 100 recipients in one message",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": {
+        "to": [
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}",
+          "{a}"
+        ],
+        "body": "Hello"
+      },
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "PUSH_TOO_MANY_NOTIFICATIONS"
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc different projects",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": [
+        {
+          "to": "{a}",
+          "body": "Hello"
+        },
+        {
+          "to": "{other}",
+          "body": "Hello"
+        }
+      ],
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "PUSH_TOO_MANY_EXPERIENCE_IDS"
+        },
+        {
+          "path": "errors.0.details",
+          "equals": {
+            "@expo/example": [
+              "{a}"
+            ],
+            "@expo/other": [
+              "{other}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pushGetReceipts#doc over 1000 receipts",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 400,
+      "body": {
+        "ids": [
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown"
+        ]
+      },
+      "expect": [
+        {
+          "path": "errors.0.code",
+          "equals": "PUSH_TOO_MANY_RECEIPTS"
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc missing recipients",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": {
+        "title": "hello"
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "pushGetReceipts#doc missing receipt ids",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 400,
+      "body": {},
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "pushGetReceipts#doc nonstring receipt id",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 400,
+      "body": {
+        "ids": [
+          1
+        ]
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc non JSON request",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "not-json",
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc title must be a string",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": {
+        "to": "{a}",
+        "body": "hello",
+        "title": 42
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc priority must be a documented enum",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": {
+        "to": "{a}",
+        "body": "hello",
+        "priority": "urgent"
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc data must be an object",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": {
+        "to": "{a}",
+        "body": "hello",
+        "data": "not an object"
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "pushSend#doc sound must be string or null",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 400,
+      "body": {
+        "to": "{a}",
+        "body": "hello",
+        "sound": {
+          "critical": true
+        }
+      },
+      "expect": [
+        {
+          "path": "errors.0.message",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "name": "Queue a notification to demonstrate a pending receipt",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": {
+        "to": "{a}",
+        "title": "hello",
+        "body": "world"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "pending": "data.id"
+      }
+    },
+    {
+      "name": "pushGetReceipts#doc receipt not yet available",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{pending}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "equals": {}
+        }
+      ]
+    },
+    {
+      "name": "Pending notification reaches its recipient",
+      "wait": "5s"
+    },
+    {
+      "name": "Read pending send effect",
+      "method": "GET",
+      "path": "/_twin/devices/{a}/notifications",
+      "status": 200,
+      "expect": [
+        {
+          "path": "data.0.id",
+          "equals": "{pending}"
+        },
+        {
+          "path": "data.0.title",
+          "equals": "hello"
+        },
+        {
+          "path": "data.0.body",
+          "equals": "world"
+        }
+      ]
+    },
+    {
+      "name": "Queue the payload that exceeds the provider limit",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": {
+        "to": "{a}",
+        "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "oversize": "data.id"
+      }
+    },
+    {
+      "name": "Prepare an uninstalled recipient for the simulated provider",
+      "method": "POST",
+      "path": "/_twin/devices/{d}/uninstall",
+      "status": 200,
+      "expect": [
+        {
+          "path": "installed",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "Queue the send whose provider reports unregistration",
+      "method": "POST",
+      "path": "/--/api/v2/push/send",
+      "status": 200,
+      "body": {
+        "to": "{d}",
+        "body": "Hello"
+      },
+      "expect": [
+        {
+          "path": "data.status",
+          "equals": "ok"
+        }
+      ],
+      "capture": {
+        "unregistered": "data.id"
+      }
+    },
+    {
+      "name": "Provider processing creates the error receipts",
+      "wait": "15m"
+    },
+    {
+      "name": "pushGetReceipts#doc payload exceeds 4096 bytes",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{oversize}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "contains": "\"{oversize}\":"
+        },
+        {
+          "path": "data",
+          "contains": "\"status\":\"error\""
+        },
+        {
+          "path": "data",
+          "contains": "\"error\":\"MessageTooBig\""
+        }
+      ]
+    },
+    {
+      "name": "pushGetReceipts#doc provider reports DeviceNotRegistered",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{unregistered}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "contains": "\"{unregistered}\":"
+        },
+        {
+          "path": "data",
+          "contains": "\"status\":\"error\""
+        },
+        {
+          "path": "data",
+          "contains": "\"error\":\"DeviceNotRegistered\""
+        }
+      ]
+    },
+    {
+      "name": "Published receipt retention window passes",
+      "wait": "25h"
+    },
+    {
+      "name": "pushGetReceipts#doc receipts cleared after 24 hours",
+      "method": "POST",
+      "path": "/--/api/v2/push/getReceipts",
+      "status": 200,
+      "body": {
+        "ids": [
+          "{pending}",
+          "{oversize}"
+        ]
+      },
+      "expect": [
+        {
+          "path": "data",
+          "equals": {}
+        }
+      ]
+    }
+  ],
+  "notReplayed": {
+    "pushGetReceipts#doc MessageRateExceeded": "The World has online providers with no per-device rate-fault configuration. This receipt error is possible in the real gateway but no demanded caller or life selects its cause.",
+    "pushGetReceipts#doc MismatchSenderId": "The native-registration door represents correctly provisioned FCM recipients. No provider credential/sender configuration is exposed by this pack.",
+    "pushGetReceipts#doc InvalidCredentials": "The modeled providers are correctly provisioned; credential revocation/EAS credential repair are excluded, with no provider-credential configuration mechanism.",
+    "pushSend#doc missing provider credentials": "The devices door assumes correctly provisioned projects. No credential-missing provider configuration or fault mechanism is modeled.",
+    "pushSend#doc TOO_MANY_REQUESTS": "This World has no project-wide traffic-load/rate-fault configuration. The kernel deploy allowance is a separate concern, and this local gateway does not synthesize that real-service error.",
+    "pushSend#doc transient HTTP 429 and 5xx retry": "The reference is advice for a temporarily unavailable service. The online gateway has no downtime/fault configuration; RH2 performs one timed fetch rather than these SDK retries.",
+    "pushSend#doc enhanced security UNAUTHORIZED": "Enhanced push security is disabled in the measured RH2 caller and native project configuration. Access-token setup and an authorization-fault mechanism are excluded.",
+    "pushSend#doc background configuration and contentAvailable precedence": "Background app tasks/configuration and precedence when both flags are supplied are excluded; RH2 sends foreground-style title/body notices. Payload preservation is not background execution.",
+    "pushSend#doc TTL expiration and precedence": "The simulated devices are always online; offline redelivery, expiry scheduling and the providers own four-week default TTL are excluded. The fields may be carried as payload, without simulating scheduling.",
+    "pushSend#doc priority defaults and sleeping devices": "Devices are online and awake. Native default priorities, platform-specific delays, doze and battery policy are excluded. A typed priority can be carried without claiming provider scheduling.",
+    "pushSend#doc custom sounds and permission": "Native sound-file installation and ios.allowsSound/ios.allowsBadge permission settings are excluded. Inbox is payload inspection, not a native sound or badge engine.",
+    "pushSend#doc badge clearing": "Persistent OS badge state and sound/badge permission effects are excluded. The published badge payload is replayed, but setting an OS badge is not modeled.",
+    "pushSend#doc notification channels": "The online simulated phone has no native Android channel registry or default-channel creation mechanism. RH2 sends no channelId; channel configuration is excluded.",
+    "pushSend#doc rich images": "Image fetching, native rich-notification extensions and provider transformation are excluded; no file/media delivery or native extension mechanism is modeled.",
+    "pushSend#doc collapse tag and thread grouping": "Offline collapse, Android tag replacement and iOS thread grouping are excluded; inbox is a chronological payload log, not a native notification tray.",
+    "pushSend#doc iOS presentation and native categories": "iOS interruption levels, Focus/filter criteria, target windows/relevance scores, native category actions and mutableContent extensions are excluded. The scope does not provide native presentation/configuration machinery.",
+    "pushSend#doc platform icon defaults": "Native drawable/icon installation and icon defaults are excluded; the gateway does not render native notification widgets.",
+    "pushSend#doc gzip request transport": "Gzip decoding is implemented by the kernel manifest encoding. The page provides no literal compressed request fixture to transcribe; blind/standalone clients and kernel transport checks cover bytes separately.",
+    "pushSend#doc format pseudocode": "The format blocks contain non-JSON type expressions such as status unions and string placeholders. They specify shapes rather than executable requests; the concrete single/batch examples and derived schemas cover those shapes.",
+    "pushGetReceipts#doc receipt format pseudocode": "Receipt ID keys, string[] and status unions are format pseudocode, not executable request fixtures; concrete lookup examples and derived schema cover the format.",
+    "pushSend#doc delivery guarantee and offline phones": "Real-provider retries, offline delivery and end-user confirmation are excluded. This simulation explicitly assumes online phones and equates its provider acceptance with its own inbox display, not real delivery proof.",
+    "pushSend#doc network diagnostics and concurrent connections": "DNS, traceroute, TLS diagnostics and SDK connection/backoff tuning are caller/network troubleshooting rather than push API fixtures. No external network diagnostic or SDK pooling mechanism is modeled by the pack."
+  }
+}

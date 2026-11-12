@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "source": "https://docs.expo.dev/push-notifications/sending-notifications/",
+  "about": "RH2's away notifier as it ships (volter-ai/runhuman-2 34fdc937, apps/rh2/src/notify/away.ts sendToDevices): its own fetch posts one message per phone to Expo's push service (title, body, data.url, sound default) and counts the ok tickets; RH2 pins no Expo server SDK and sends no access token. Bruno's two phones register first through the World's devices door (expo-notifications on the phone, which no server API does). The clock advances a minute, past the service's delivery, and the readback reads what each phone shows through the inbox door, without sending again.",
+  "files": {
+    "package.json": "{\n  \"name\": \"expo-rh2-customer\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {}\n}\n",
+    ".env.example": "# RH2 sends Expo pushes without an access token (no enhanced push security)\n",
+    "notify.mjs": "import assert from 'node:assert/strict';\nimport { readFileSync, writeFileSync } from 'node:fs';\nif (!process.env.VOLTER_WORLD) throw new Error('Run this app through its World.');\nconst receiptFile = 'expo-push.json';\nconst url = 'https://rh2.example/console/rooms/standup';\n// the World's doors are the twin's own, at the URL the World names for it\nconst twin = process.env.EXPO_TWIN_URL;\nif (!twin) throw new Error('The World names no Expo twin URL.');\nif (process.argv[2] === 'readback') {\n  // what each phone shows (the World's inbox door stands in for the phone's notification centre)\n  const saved = JSON.parse(readFileSync(receiptFile, 'utf8'));\n  const shown = [];\n  for (const token of saved.tokens) {\n    const response = await fetch(twin + '/_twin/devices/' + encodeURIComponent(token) + '/notifications');\n    assert.equal(response.status, 200);\n    const { data } = await response.json();\n    assert.equal(data.length, 1, 'the phone shows the one notification it was sent');\n    assert.equal(data[0].title, 'Ada replied in Standup');\n    assert.equal(data[0].body, 'The staging credentials are in the vault.');\n    assert.equal(data[0].data.url, url);\n    assert.equal(data[0].to, token);\n    assert.ok(data[0].received_at, 'the phone was handed it');\n    shown.push({ token, id: data[0].id, received_at: data[0].received_at });\n  }\n  console.log(JSON.stringify({ retained: true, shown }));\n} else {\n  // Bruno's phones install RH2's mobile app and register for pushes (expo-notifications on the phone; the World's devices door)\n  const tokens = [];\n  for (const platform of ['ios', 'android']) {\n    const response = await fetch(twin + '/_twin/devices', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: '@runhuman/rh2-mobile', platform, owner: 'bruno' }) });\n    if (response.status !== 201) throw new Error('The phone could not register: ' + response.status + ' ' + await response.text());\n    tokens.push((await response.json()).token);\n  }\n  // RH2's away notifier (apps/rh2/src/notify/away.ts, sendToDevices): one message per phone, as it sends them\n  const title = 'Ada replied in Standup';\n  const body = 'The staging credentials are in the vault.';\n  const response = await fetch('https://exp.host/--/api/v2/push/send', {\n    body: JSON.stringify(tokens.map((to) => ({ body: body.slice(0, 1000), data: { url }, sound: 'default', title, to }))),\n    headers: { accept: 'application/json', 'content-type': 'application/json' },\n    method: 'POST',\n    signal: AbortSignal.timeout(10_000),\n  });\n  const answer = await response.json();\n  assert.equal(response.status, 200, JSON.stringify(answer));\n  assert.ok(Array.isArray(answer.data), 'the push service answers its tickets as data');\n  assert.equal(answer.data.length, tokens.length, 'one ticket per message, in order');\n  for (const ticket of answer.data) {\n    assert.equal(ticket.status, 'ok', JSON.stringify(ticket));\n    assert.match(ticket.id, /^[0-9a-f-]{36}$/, 'an ok ticket names its receipt id');\n  }\n  writeFileSync(receiptFile, JSON.stringify({ tokens, tickets: answer.data.map((t) => t.id) }) + '\\n');\n  console.log(JSON.stringify({ sent: answer.data.length, tickets: answer.data }));\n}\n"
+  },
+  "run": [
+    "node",
+    "notify.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "notify.mjs",
+      "readback"
+    ]
+  },
+  "clock": {
+    "at": "2026-10-05T09:00:00.000Z",
+    "advanceAfterRun": "1m"
+  }
+}
