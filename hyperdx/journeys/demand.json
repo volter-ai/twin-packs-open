@@ -1,0 +1,78 @@
+{
+  "measured": "LibreChat (f10b1d91), Twenty (1d561b8c) and Dub, Cal.diy and Rallly at the demand scan's commits were read on 2026-11-09 for OpenTelemetry exporters, OTLP endpoints and HyperDX. LibreChat's browser RUM names HyperDX as its one provider (RUM_PROVIDER defaults to hyperdx) and LibreChat and Twenty export OTLP to the endpoint an operator sets; all of it only when an operator turns it on (optional, below). Dub, Cal.diy and Rallly export none. The exporters were read at the versions the applications' lockfiles resolve: LibreChat's NodeSDK 0.218.0 takes OTEL_EXPORTER_OTLP_PROTOCOL (http/protobuf by default) and sends binary protobuf with @opentelemetry/exporter-trace-otlp-proto and exporter-logs-otlp-proto 0.218.0; Twenty's @opentelemetry/exporter-metrics-otlp-http 0.219.0 sends JSON; @hyperdx/browser 0.24.0 sends its spans to <url>/v1/traces and its session replay to <url>/v1/logs. OTLP/gRPC (LibreChat's OTEL_EXPORTER_OTLP_PROTOCOL=grpc) is another transport and is not served. No application reads HyperDX's External API; the bench does, as an engineer reads an incident (platform, below).",
+  "applications": [],
+  "optional": [
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "commit": "f10b1d91f1eee3a2c82d5247bf620351486b7c1b",
+      "what": "the server's traces and logs through the OpenTelemetry NodeSDK (HTTP, Express, MongoDB, Mongoose and undici instrumentations; Winston logs through the OpenTelemetry transport) to OTEL_EXPORTER_OTLP_ENDPOINT",
+      "setting": "Configuration: OTEL_TRACING_ENABLED and OTEL_LOGS_ENABLED, both false by default (.env.example:337,340; packages/api/src/telemetry/config.ts:36-37).",
+      "evidence": "packages/api/src/telemetry/config.ts:36",
+      "client": "@opentelemetry/sdk-node@0.218.0:build/src/sdk.js; @opentelemetry/exporter-trace-otlp-proto@0.218.0:build/src/platform/node/OTLPTraceExporter.js:17; @opentelemetry/otlp-exporter-base@0.218.0:build/src/configuration/otlp-node-http-env-configuration.js:63",
+      "backend": [
+        {
+          "call": "the NodeSDK's span batch export",
+          "operation": "exportTraces",
+          "evidence": "packages/api/src/telemetry/sdk.ts:356"
+        },
+        {
+          "call": "Winston log records through OpenTelemetryTransportV3",
+          "operation": "exportLogs",
+          "evidence": "packages/api/src/telemetry/logs.ts:38"
+        }
+      ]
+    },
+    {
+      "application": "LibreChat-AI/LibreChat",
+      "commit": "f10b1d91f1eee3a2c82d5247bf620351486b7c1b",
+      "what": "the browser's real-user monitoring through HyperDX's browser SDK (RUM_PROVIDER, whose default and only supported value is hyperdx), sending its spans and session replay as OTLP to RUM_URL with RUM_PUBLIC_TOKEN",
+      "setting": "Configuration: RUM_ENABLED, false by default (.env.example:365; api/server/services/Config/rum.js:72); with it on, the provider is HyperDX unless another is named (rum.js:76).",
+      "evidence": "api/server/services/Config/rum.js:76",
+      "client": "@hyperdx/browser@0.24.0 (@hyperdx/otel-web@0.18.0)",
+      "frontend": [
+        {
+          "call": "HyperDX.init with the configured url: browser spans exported to <url>/v1/traces",
+          "operation": "exportTraces",
+          "evidence": "client/src/lib/rum/useRum.ts:214"
+        },
+        {
+          "call": "HyperDX.init's session replay (rrweb events) exported as log records to <url>/v1/logs",
+          "operation": "exportLogs",
+          "evidence": "client/src/lib/rum/useRum.ts:214",
+          "client": "@hyperdx/browser@0.24.0:build/index.js:1"
+        }
+      ]
+    },
+    {
+      "application": "twentyhq/twenty",
+      "commit": "1d561b8c73c984058a5121ec229f4805a2424a91",
+      "what": "the server's metrics through a periodic OTLP metric exporter to OTLP_COLLECTOR_METRICS_ENDPOINT_URL",
+      "setting": "Configuration: METER_DRIVER including opentelemetry, empty by default (packages/twenty-server/.env.example:46; packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts:1248).",
+      "evidence": "packages/twenty-server/src/instrument.ts:156",
+      "client": "@opentelemetry/exporter-metrics-otlp-http@0.219.0:build/src/platform/node/OTLPMetricExporter.js:17",
+      "backend": [
+        {
+          "call": "OTLPMetricExporter's periodic export",
+          "operation": "exportMetrics",
+          "evidence": "packages/twenty-server/src/instrument.ts:158"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    {
+      "application": "volter-ai/twin-world (the World as a bench)",
+      "commit": "c322b291",
+      "what": "The bench runs the reference applications with their telemetry on; LibreChat's and Twenty's OpenTelemetry exporters, LibreChat's HyperDX browser RUM and any OpenTelemetry SDK reach the World's HyperDX ingest, whose spans, log records and metric points the bench's evidence adapter reads.",
+      "operations": "exportTraces; exportLogs; exportMetrics",
+      "evidence": "docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:190"
+    },
+    {
+      "application": "volter-ai/twin-world (the World as a bench)",
+      "commit": "c322b291",
+      "what": "A task's World holds the incident in its telemetry twins, read through those vendors' own APIs as a developer reads them: an engineer finds HyperDX's sources and searches its logs and traces (a trace by its TraceId, a service's slow spans, the error logs) through the External API with a personal API key.",
+      "operations": "listSources; getSource; searchEvents",
+      "evidence": "docs/adr/0036-a-scenario-is-a-timeline-of-inputs.md:178"
+    }
+  ]
+}

@@ -1,0 +1,560 @@
+{
+ "vendor": "hyperdx",
+ "author": "Contributor 96",
+ "host": "api.hyperdx.io",
+ "about": "The OTLP specification's JSON request examples for traces, logs and metrics, and its stated rules for an empty request, bad data and an invalid trace id, each replayed against HyperDX's ingest; and the External API document's answers: a search's recent errors, read back from a log record sent through the ingest as the example shows it, and an unknown source's 404.",
+ "steps": [
+  {
+   "name": "Bootstrap the example account: its team, ingestion key and personal API key",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {},
+   "capture": {
+    "key": "access_key",
+    "ingestion": "ingestion_key"
+   }
+  },
+  {
+   "name": "OTLP JSON trace request example",
+   "method": "POST",
+   "path": "/v1/traces",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "example": "exportTraces#doc OTLP JSON trace request example",
+   "body": {
+    "resourceSpans": [
+     {
+      "resource": {
+       "attributes": [
+        {
+         "key": "service.name",
+         "value": {
+          "stringValue": "my.service"
+         }
+        }
+       ]
+      },
+      "scopeSpans": [
+       {
+        "scope": {
+         "name": "my.library",
+         "version": "1.0.0",
+         "attributes": [
+          {
+           "key": "my.scope.attribute",
+           "value": {
+            "stringValue": "some scope attribute"
+           }
+          }
+         ]
+        },
+        "spans": [
+         {
+          "traceId": "5B8EFFF798038103D269B633813FC60C",
+          "spanId": "EEE19B7EC3C1B174",
+          "parentSpanId": "EEE19B7EC3C1B173",
+          "name": "I'm a server span",
+          "startTimeUnixNano": "1544712660000000000",
+          "endTimeUnixNano": "1544712661000000000",
+          "kind": 2,
+          "attributes": [
+           {
+            "key": "my.span.attr",
+            "value": {
+             "stringValue": "some value"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "partialSuccess",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "OTLP JSON logs request example",
+   "method": "POST",
+   "path": "/v1/logs",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "example": "exportLogs#doc OTLP JSON logs request example",
+   "body": {
+    "resourceLogs": [
+     {
+      "resource": {
+       "attributes": [
+        {
+         "key": "service.name",
+         "value": {
+          "stringValue": "my.service"
+         }
+        }
+       ]
+      },
+      "scopeLogs": [
+       {
+        "scope": {
+         "name": "my.library",
+         "version": "1.0.0",
+         "attributes": [
+          {
+           "key": "my.scope.attribute",
+           "value": {
+            "stringValue": "some scope attribute"
+           }
+          }
+         ]
+        },
+        "logRecords": [
+         {
+          "timeUnixNano": "1544712660300000000",
+          "observedTimeUnixNano": "1544712660300000000",
+          "severityNumber": 10,
+          "severityText": "Information",
+          "traceId": "5B8EFFF798038103D269B633813FC60C",
+          "spanId": "EEE19B7EC3C1B174",
+          "body": {
+           "stringValue": "Example log record"
+          },
+          "attributes": [
+           {
+            "key": "string.attribute",
+            "value": {
+             "stringValue": "some string"
+            }
+           },
+           {
+            "key": "boolean.attribute",
+            "value": {
+             "boolValue": true
+            }
+           },
+           {
+            "key": "int.attribute",
+            "value": {
+             "intValue": "10"
+            }
+           },
+           {
+            "key": "double.attribute",
+            "value": {
+             "doubleValue": 637.704
+            }
+           },
+           {
+            "key": "array.attribute",
+            "value": {
+             "arrayValue": {
+              "values": [
+               {
+                "stringValue": "many"
+               },
+               {
+                "stringValue": "values"
+               }
+              ]
+             }
+            }
+           },
+           {
+            "key": "map.attribute",
+            "value": {
+             "kvlistValue": {
+              "values": [
+               {
+                "key": "some.map.key",
+                "value": {
+                 "stringValue": "some value"
+                }
+               }
+              ]
+             }
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "partialSuccess",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "OTLP JSON metrics request example",
+   "method": "POST",
+   "path": "/v1/metrics",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "example": "exportMetrics#doc OTLP JSON metrics request example",
+   "body": {
+    "resourceMetrics": [
+     {
+      "resource": {
+       "attributes": [
+        {
+         "key": "service.name",
+         "value": {
+          "stringValue": "my.service"
+         }
+        }
+       ]
+      },
+      "scopeMetrics": [
+       {
+        "scope": {
+         "name": "my.library",
+         "version": "1.0.0",
+         "attributes": [
+          {
+           "key": "my.scope.attribute",
+           "value": {
+            "stringValue": "some scope attribute"
+           }
+          }
+         ]
+        },
+        "metrics": [
+         {
+          "name": "my.counter",
+          "unit": "1",
+          "description": "I am a Counter",
+          "sum": {
+           "aggregationTemporality": 1,
+           "isMonotonic": true,
+           "dataPoints": [
+            {
+             "asDouble": 5,
+             "startTimeUnixNano": "1544712660300000000",
+             "timeUnixNano": "1544712660300000000",
+             "attributes": [
+              {
+               "key": "my.counter.attr",
+               "value": {
+                "stringValue": "some value"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         },
+         {
+          "name": "my.gauge",
+          "unit": "1",
+          "description": "I am a Gauge",
+          "gauge": {
+           "dataPoints": [
+            {
+             "asDouble": 10,
+             "timeUnixNano": "1544712660300000000",
+             "attributes": [
+              {
+               "key": "my.gauge.attr",
+               "value": {
+                "stringValue": "some value"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         },
+         {
+          "name": "my.histogram",
+          "unit": "1",
+          "description": "I am a Histogram",
+          "histogram": {
+           "aggregationTemporality": 1,
+           "dataPoints": [
+            {
+             "startTimeUnixNano": "1544712660300000000",
+             "timeUnixNano": "1544712660300000000",
+             "count": "2",
+             "sum": 2,
+             "bucketCounts": [
+              "1",
+              "1"
+             ],
+             "explicitBounds": [
+              1
+             ],
+             "min": 0,
+             "max": 2,
+             "attributes": [
+              {
+               "key": "my.histogram.attr",
+               "value": {
+                "stringValue": "some value"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         },
+         {
+          "name": "my.exponential.histogram",
+          "unit": "1",
+          "description": "I am an Exponential Histogram",
+          "exponentialHistogram": {
+           "aggregationTemporality": 1,
+           "dataPoints": [
+            {
+             "startTimeUnixNano": "1544712660300000000",
+             "timeUnixNano": "1544712660300000000",
+             "count": "3",
+             "sum": 10,
+             "scale": 0,
+             "zeroCount": "1",
+             "positive": {
+              "offset": 1,
+              "bucketCounts": [
+               "0",
+               "2"
+              ]
+             },
+             "min": 0,
+             "max": 5,
+             "zeroThreshold": 0,
+             "attributes": [
+              {
+               "key": "my.exponential.histogram.attr",
+               "value": {
+                "stringValue": "some value"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "partialSuccess",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "An empty request is answered with success",
+   "method": "POST",
+   "path": "/v1/traces",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "example": "exportTraces#doc An empty request is answered with success",
+   "body": {},
+   "expect": [
+    {
+     "path": "partialSuccess",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "name": "Bad data is answered 400 with a Status",
+   "method": "POST",
+   "path": "/v1/logs",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "status": 400,
+   "example": "exportLogs#doc Bad data is answered 400 with a Status",
+   "body": "{\"resourceLogs\": 7}",
+   "expect": [
+    {
+     "path": "message",
+     "exists": true
+    }
+   ]
+  },
+  {
+   "name": "A span with an invalid trace id is rejected in a partial success",
+   "method": "POST",
+   "path": "/v1/traces",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "example": "exportTraces#doc A span with an invalid trace id is rejected in a partial success",
+   "body": {
+    "resourceSpans": [
+     {
+      "scopeSpans": [
+       {
+        "spans": [
+         {
+          "traceId": "00000000000000000000000000000000",
+          "spanId": "EEE19B7EC3C1B174",
+          "name": "invalid"
+         },
+         {
+          "traceId": "5B8EFFF798038103D269B633813FC60C",
+          "spanId": "EEE19B7EC3C1B175",
+          "name": "valid"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "expect": [
+    {
+     "path": "partialSuccess.rejectedSpans",
+     "equals": "1"
+    },
+    {
+     "path": "partialSuccess.errorMessage",
+     "contains": "invalid trace_id"
+    }
+   ]
+  },
+  {
+   "name": "The team's sources, to search the Logs source the example names by its own id",
+   "method": "GET",
+   "path": "/api/v2/sources",
+   "headers": {
+    "authorization": "Bearer {key}"
+   },
+   "status": 200,
+   "capture": {
+    "logs": "data.0.id"
+   },
+   "expect": [
+    {
+     "path": "data.0.name",
+     "equals": "Logs"
+    }
+   ]
+  },
+  {
+   "name": "api-service's error log, sent through the ingest at the time the search example's row shows",
+   "method": "POST",
+   "path": "/v1/logs",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "status": 200,
+   "body": {
+    "resourceLogs": [
+     {
+      "resource": {
+       "attributes": [
+        {
+         "key": "service.name",
+         "value": {
+          "stringValue": "api-service"
+         }
+        }
+       ]
+      },
+      "scopeLogs": [
+       {
+        "scope": {
+         "name": "api-service"
+        },
+        "logRecords": [
+         {
+          "timeUnixNano": "1778371283456789000",
+          "severityNumber": 17,
+          "severityText": "ERROR",
+          "body": {
+           "stringValue": "connection refused: redis:6379"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "searchEvents published answer: the recent errors for a service",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "example": "searchEvents#200 application/json",
+   "body": {
+    "sourceId": "{logs}",
+    "startTime": "2026-05-10T00:00:00Z",
+    "endTime": "2026-05-10T01:00:00Z",
+    "where": "SeverityText:ERROR",
+    "select": "Timestamp,SeverityText,Body,ServiceName",
+    "maxResults": 50
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "",
+     "equals": {
+      "data": [
+       {
+        "Timestamp": "2026-05-10T00:01:23.456789000Z",
+        "SeverityText": "ERROR",
+        "Body": "connection refused: redis:6379",
+        "ServiceName": "api-service"
+       }
+      ],
+      "rows": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "getSource published answer: a source the team does not hold",
+   "method": "GET",
+   "path": "/api/v2/sources/507f1f77bcf86cd799439011",
+   "headers": {
+    "authorization": "Bearer {key}"
+   },
+   "status": 404,
+   "example": "getSource#404 application/json",
+   "expect": [
+    {
+     "path": "",
+     "equals": {
+      "message": "Source not found"
+     }
+    }
+   ]
+  }
+ ],
+ "notReplayed": {
+  "listSources#401 application/json": "packages/api/src/middleware/auth.ts at hyperdxio/hyperdx 049ec842 answers a missing or unknown key with res.sendStatus(401), Express 4.22.1's plain-text 'Unauthorized', before the sources router runs; the document's example body ({message: 'Unauthorized access. API key is missing or invalid.'}) is not what the server sends, and the server is the wire (RECIPE, \"The vendor's own server source\"). The life's first External API step replays the server's answer.",
+  "getSource#401 application/json": "packages/api/src/middleware/auth.ts at hyperdxio/hyperdx 049ec842 answers a missing or unknown key with res.sendStatus(401), Express 4.22.1's plain-text 'Unauthorized', before the sources router runs; the document's example body ({message: 'Unauthorized access. API key is missing or invalid.'}) is not what the server sends, and the server is the wire (RECIPE, \"The vendor's own server source\"). The life's first External API step replays the server's answer."
+ }
+}

@@ -1,0 +1,860 @@
+{
+ "vendor": "hyperdx",
+ "author": "Contributor 96",
+ "host": "api.hyperdx.io",
+ "about": "Kestrel Labs runs LibreChat with its OpenTelemetry tracing and logs and its HyperDX browser RUM on, and Twenty with its OTLP metrics on, all sending to HyperDX's ingest as the bench runs them: the browser's fetch span (JSON, with the ingestion key), a failed chat request's server and MongoDB spans with the exception the server recorded (binary protobuf, as LibreChat's NodeSDK sends by default), the exporter's retry of that batch kept once, the Winston error log naming the request's trace and span, and Twenty's delta counter and event-loop histogram. Then the on-call engineer reads the incident through HyperDX's External API with a personal API key: the team's sources, the trace by its TraceId with its exception, LibreChat's slow spans, the error logs, the last 15 minutes with the default columns, and the API's refusals.",
+ "steps": [
+  {
+   "name": "Mon 5 Jan, 09:55: Kestrel Labs sets up HyperDX for LibreChat and Twenty",
+   "wait": "6355m"
+  },
+  {
+   "name": "Kestrel Labs signs up: its team (with HyperDX's Logs and Traces sources), the ingestion API key LibreChat's browser RUM sends, and a personal API key for the External API",
+   "method": "POST",
+   "path": "/_twin/app-credentials",
+   "status": 201,
+   "body": {},
+   "capture": {
+    "key": "access_key",
+    "ingestion": "ingestion_key"
+   },
+   "expect": [
+    {
+     "path": "access_key",
+     "matches": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    {
+     "path": "ingestion_key",
+     "matches": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    {
+     "path": "api_url",
+     "equals": "https://api.hyperdx.io"
+    }
+   ],
+   "evidence": "hyperdx/src/manifest.ts:credentialDoor"
+  },
+  {
+   "name": "09:59:59: LibreChat's browser RUM (@hyperdx/browser) exports the page's GET /api/config span as JSON, its ingestion key in the authorization header",
+   "method": "POST",
+   "path": "/v1/traces",
+   "headers": {
+    "content-type": "application/json",
+    "authorization": "{ingestion}"
+   },
+   "body": {
+    "resourceSpans": [
+     {
+      "resource": {
+       "attributes": [
+        {
+         "key": "service.name",
+         "value": {
+          "stringValue": "librechat-web"
+         }
+        },
+        {
+         "key": "telemetry.sdk.name",
+         "value": {
+          "stringValue": "opentelemetry"
+         }
+        },
+        {
+         "key": "rum.sessionId",
+         "value": {
+          "stringValue": "6a1f2d0c9b8e4f3a"
+         }
+        }
+       ]
+      },
+      "scopeSpans": [
+       {
+        "scope": {
+         "name": "@hyperdx/instrumentation-fetch",
+         "version": "0.18.0"
+        },
+        "spans": [
+         {
+          "traceId": "9e1c7b2a4d6f48a0b3c5d7e9f1a2b4c6",
+          "spanId": "1a2b3c4d5e6f7a8b",
+          "name": "HTTP GET",
+          "kind": 3,
+          "startTimeUnixNano": "1767607199500000000",
+          "endTimeUnixNano": "1767607199532000000",
+          "attributes": [
+           {
+            "key": "http.method",
+            "value": {
+             "stringValue": "GET"
+            }
+           },
+           {
+            "key": "http.url",
+            "value": {
+             "stringValue": "https://chat.kestrel.test/api/config"
+            }
+           },
+           {
+            "key": "http.status_code",
+            "value": {
+             "intValue": "200"
+            }
+           }
+          ],
+          "status": {}
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "status": 200,
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    },
+    {
+     "path": "partialSuccess",
+     "exists": false
+    }
+   ],
+   "evidence": "LibreChat client/src/lib/rum/useRum.ts:214; @hyperdx/otel-web@0.18.0:dist/cjs/index.js:73"
+  },
+  {
+   "name": "10:00: LibreChat's NodeSDK exports the failed POST /api/* trace (binary protobuf): the server span (an exception event, status error, 850 ms) and its MongoDB insert child (715 ms)",
+   "method": "POST",
+   "path": "/v1/traces",
+   "headers": {
+    "content-type": "application/x-protobuf"
+   },
+   "bodyBase64": "CtoICooBChsKDHNlcnZpY2UubmFtZRILCglsaWJyZWNoYXQKIgoWdGVsZW1ldHJ5LnNkay5sYW5ndWFnZRIICgZub2RlanMKJQoSdGVsZW1ldHJ5LnNkay5uYW1lEg8KDW9wZW50ZWxlbWV0cnkKIAoVdGVsZW1ldHJ5LnNkay52ZXJzaW9uEgcKBTIuNy4xEucECi4KI0BvcGVudGVsZW1ldHJ5L2luc3RydW1lbnRhdGlvbi1odHRwEgcwLjIwNy4wErQEChBL+S81d7NNpqPOkp0ODkc2EggA8GeqC6kCt4UBAQEAACoLUE9TVCAvYXBpLyowAjkAQGwaYs2HGEGAOBZNYs2HGEodChNodHRwLnJlcXVlc3QubWV0aG9kEgYKBFBPU1RKFwoLaHR0cC50YXJnZXQSCAoGL2FwaS8qShQKCHVybC5wYXRoEggKBi9hcGkvKkogChlodHRwLnJlc3BvbnNlLnN0YXR1c19jb2RlEgMY9ANa0gIJAKJ9TGLNhxgSCWV4Y2VwdGlvbholCg5leGNlcHRpb24udHlwZRITChFNb25nb05ldHdvcmtFcnJvcho9ChFleGNlcHRpb24ubWVzc2FnZRIoCiZjb25uZWN0aW9uIDQgdG8gMTI3LjAuMC4xOjI3MDE3IGNsb3NlZBrVAQoUZXhjZXB0aW9uLnN0YWNrdHJhY2USvAEKuQFNb25nb05ldHdvcmtFcnJvcjogY29ubmVjdGlvbiA0IHRvIDEyNy4wLjAuMToyNzAxNyBjbG9zZWQKICAgIGF0IENvbm5lY3Rpb24ub25DbG9zZSAobm9kZV9tb2R1bGVzL21vbmdvZGIvbGliL2NtYXAvY29ubmVjdGlvbi5qczoyODM6MjEpCiAgICBhdCBzYXZlTWVzc2FnZSAoYXBpL21vZGVscy9NZXNzYWdlLmpzOjYxOjE3KXoqEiZjb25uZWN0aW9uIDQgdG8gMTI3LjAuMC4xOjI3MDE3IGNsb3NlZBgCEuACCjAKJkBvcGVudGVsZW1ldHJ5L2luc3RydW1lbnRhdGlvbi1tb25nb2RiEgYwLjYwLjASqwIKEEv5LzV3s02mo86SnQ4ORzYSCLeta3FpIDMxIggA8GeqC6kCt4UBAQEAACoObW9uZ29kYi5pbnNlcnQwAzkATpMhYs2HGEHAVjFMYs2HGEobCg5kYi5zeXN0ZW0ubmFtZRIJCgdtb25nb2RiSiAKEmRiLmNvbGxlY3Rpb24ubmFtZRIKCghtZXNzYWdlc0obCgxkYi5uYW1lc3BhY2USCwoJTGlicmVDaGF0Sh0KEWRiLm9wZXJhdGlvbi5uYW1lEggKBmluc2VydEodCg5zZXJ2ZXIuYWRkcmVzcxILCgkxMjcuMC4wLjFKEwoLc2VydmVyLnBvcnQSBBiJ0wF6KhImY29ubmVjdGlvbiA0IHRvIDEyNy4wLjAuMToyNzAxNyBjbG9zZWQYAg==",
+   "status": 200,
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "application/x-protobuf"
+    },
+    {
+     "path": "",
+     "equals": ""
+    }
+   ],
+   "evidence": "LibreChat packages/api/src/telemetry/sdk.ts:356; @opentelemetry/exporter-trace-otlp-proto@0.218.0:build/src/platform/node/OTLPTraceExporter.js:17"
+  },
+  {
+   "name": "The exporter retries the same batch after a timeout: the spans are the same records (trace_id:span_id), kept once",
+   "method": "POST",
+   "path": "/v1/traces",
+   "headers": {
+    "content-type": "application/x-protobuf"
+   },
+   "bodyBase64": "CtoICooBChsKDHNlcnZpY2UubmFtZRILCglsaWJyZWNoYXQKIgoWdGVsZW1ldHJ5LnNkay5sYW5ndWFnZRIICgZub2RlanMKJQoSdGVsZW1ldHJ5LnNkay5uYW1lEg8KDW9wZW50ZWxlbWV0cnkKIAoVdGVsZW1ldHJ5LnNkay52ZXJzaW9uEgcKBTIuNy4xEucECi4KI0BvcGVudGVsZW1ldHJ5L2luc3RydW1lbnRhdGlvbi1odHRwEgcwLjIwNy4wErQEChBL+S81d7NNpqPOkp0ODkc2EggA8GeqC6kCt4UBAQEAACoLUE9TVCAvYXBpLyowAjkAQGwaYs2HGEGAOBZNYs2HGEodChNodHRwLnJlcXVlc3QubWV0aG9kEgYKBFBPU1RKFwoLaHR0cC50YXJnZXQSCAoGL2FwaS8qShQKCHVybC5wYXRoEggKBi9hcGkvKkogChlodHRwLnJlc3BvbnNlLnN0YXR1c19jb2RlEgMY9ANa0gIJAKJ9TGLNhxgSCWV4Y2VwdGlvbholCg5leGNlcHRpb24udHlwZRITChFNb25nb05ldHdvcmtFcnJvcho9ChFleGNlcHRpb24ubWVzc2FnZRIoCiZjb25uZWN0aW9uIDQgdG8gMTI3LjAuMC4xOjI3MDE3IGNsb3NlZBrVAQoUZXhjZXB0aW9uLnN0YWNrdHJhY2USvAEKuQFNb25nb05ldHdvcmtFcnJvcjogY29ubmVjdGlvbiA0IHRvIDEyNy4wLjAuMToyNzAxNyBjbG9zZWQKICAgIGF0IENvbm5lY3Rpb24ub25DbG9zZSAobm9kZV9tb2R1bGVzL21vbmdvZGIvbGliL2NtYXAvY29ubmVjdGlvbi5qczoyODM6MjEpCiAgICBhdCBzYXZlTWVzc2FnZSAoYXBpL21vZGVscy9NZXNzYWdlLmpzOjYxOjE3KXoqEiZjb25uZWN0aW9uIDQgdG8gMTI3LjAuMC4xOjI3MDE3IGNsb3NlZBgCEuACCjAKJkBvcGVudGVsZW1ldHJ5L2luc3RydW1lbnRhdGlvbi1tb25nb2RiEgYwLjYwLjASqwIKEEv5LzV3s02mo86SnQ4ORzYSCLeta3FpIDMxIggA8GeqC6kCt4UBAQEAACoObW9uZ29kYi5pbnNlcnQwAzkATpMhYs2HGEHAVjFMYs2HGEobCg5kYi5zeXN0ZW0ubmFtZRIJCgdtb25nb2RiSiAKEmRiLmNvbGxlY3Rpb24ubmFtZRIKCghtZXNzYWdlc0obCgxkYi5uYW1lc3BhY2USCwoJTGlicmVDaGF0Sh0KEWRiLm9wZXJhdGlvbi5uYW1lEggKBmluc2VydEodCg5zZXJ2ZXIuYWRkcmVzcxILCgkxMjcuMC4wLjFKEwoLc2VydmVyLnBvcnQSBBiJ0wF6KhImY29ubmVjdGlvbiA0IHRvIDEyNy4wLjAuMToyNzAxNyBjbG9zZWQYAg==",
+   "status": 200,
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "application/x-protobuf"
+    },
+    {
+     "path": "",
+     "equals": ""
+    }
+   ]
+  },
+  {
+   "name": "LibreChat's Winston transport exports the error log, naming the request's trace and server span",
+   "method": "POST",
+   "path": "/v1/logs",
+   "headers": {
+    "content-type": "application/x-protobuf"
+   },
+   "bodyBase64": "CoMDCooBChsKDHNlcnZpY2UubmFtZRILCglsaWJyZWNoYXQKIgoWdGVsZW1ldHJ5LnNkay5sYW5ndWFnZRIICgZub2RlanMKJQoSdGVsZW1ldHJ5LnNkay5uYW1lEg8KDW9wZW50ZWxlbWV0cnkKIAoVdGVsZW1ldHJ5LnNkay52ZXJzaW9uEgcKBTIuNy4xEvMBCioKIEBvcGVudGVsZW1ldHJ5L3dpbnN0b24tdHJhbnNwb3J0EgYwLjI4LjASxAEJQO3JTGLNhxhZQO3JTGLNhxgQERoFZXJyb3IqTApKW3NhdmVNZXNzYWdlXSBFcnJvciBzYXZpbmcgbWVzc2FnZTogY29ubmVjdGlvbiA0IHRvIDEyNy4wLjAuMToyNzAxNyBjbG9zZWQyOAoOY29udmVyc2F0aW9uSWQSJgokYzNiOWU4YTItMWYwZC00ZjVlLTlhM2ItN2MxZDJlNGY1YTZiRQEAAABKEEv5LzV3s02mo86SnQ4ORzZSCADwZ6oLqQK3",
+   "status": 200,
+   "expect": [
+    {
+     "header": "content-type",
+     "equals": "application/x-protobuf"
+    },
+    {
+     "path": "",
+     "equals": ""
+    }
+   ],
+   "evidence": "LibreChat packages/api/src/telemetry/logs.ts:38"
+  },
+  {
+   "name": "Twenty's periodic metric reader exports a minute's delta: one GraphQL 500 and the event loop's delay histogram (JSON)",
+   "method": "POST",
+   "path": "/v1/metrics",
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": {
+    "resourceMetrics": [
+     {
+      "resource": {
+       "attributes": [
+        {
+         "key": "service.name",
+         "value": {
+          "stringValue": "twenty-server"
+         }
+        },
+        {
+         "key": "k8s.pod.name",
+         "value": {
+          "stringValue": "twenty-server-0"
+         }
+        }
+       ]
+      },
+      "scopeMetrics": [
+       {
+        "scope": {
+         "name": "twenty-server",
+         "version": ""
+        },
+        "metrics": [
+         {
+          "name": "graphql-operation/500",
+          "description": "",
+          "unit": "",
+          "sum": {
+           "dataPoints": [
+            {
+             "attributes": [],
+             "startTimeUnixNano": "1767607200000000000",
+             "timeUnixNano": "1767607260000000000",
+             "asInt": 1
+            }
+           ],
+           "aggregationTemporality": 1,
+           "isMonotonic": true
+          }
+         },
+         {
+          "name": "twenty_nodejs_eventloop_delay_seconds",
+          "description": "Event loop delay",
+          "unit": "s",
+          "histogram": {
+           "dataPoints": [
+            {
+             "attributes": [],
+             "startTimeUnixNano": "1767607200000000000",
+             "timeUnixNano": "1767607260000000000",
+             "count": 4,
+             "sum": 0.052,
+             "min": 0.009,
+             "max": 0.021,
+             "bucketCounts": [
+              0,
+              0,
+              4,
+              0,
+              0
+             ],
+             "explicitBounds": [
+              0.001,
+              0.005,
+              0.025,
+              0.1
+             ]
+            }
+           ],
+           "aggregationTemporality": 1
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "status": 200,
+   "expect": [
+    {
+     "header": "content-type",
+     "contains": "application/json"
+    },
+    {
+     "path": "partialSuccess",
+     "exists": false
+    }
+   ],
+   "evidence": "Twenty packages/twenty-server/src/instrument.ts:158"
+  },
+  {
+   "name": "10:05: the on-call engineer opens HyperDX's External API to look at the failure",
+   "wait": "10m"
+  },
+  {
+   "name": "Without a key, the API refuses before it reads anything",
+   "method": "GET",
+   "path": "/api/v2/sources",
+   "status": 401,
+   "expect": [
+    {
+     "path": "",
+     "equals": "Unauthorized"
+    }
+   ],
+   "evidence": "https://raw.githubusercontent.com/hyperdxio/hyperdx/049ec84245d4e0572a6301b2179265fbbbb344e3/packages/api/src/routers/external-api/v2/index.ts"
+  },
+  {
+   "name": "The team's sources: Logs and Traces, as HyperDX sets a team up",
+   "method": "GET",
+   "path": "/api/v2/sources",
+   "headers": {
+    "authorization": "Bearer {key}"
+   },
+   "status": 200,
+   "capture": {
+    "logs": "data.0.id",
+    "traces": "data.1.id"
+   },
+   "expect": [
+    {
+     "path": "data.0.name",
+     "equals": "Logs"
+    },
+    {
+     "path": "data.0.kind",
+     "equals": "log"
+    },
+    {
+     "path": "data.0.id",
+     "matches": "^[0-9a-f]{24}$"
+    },
+    {
+     "path": "data.0.from",
+     "equals": {
+      "databaseName": "default",
+      "tableName": "otel_logs"
+     }
+    },
+    {
+     "path": "data.0.defaultTableSelectExpression",
+     "equals": "Timestamp,ServiceName,SeverityText,Body"
+    },
+    {
+     "path": "data.1.name",
+     "equals": "Traces"
+    },
+    {
+     "path": "data.1.kind",
+     "equals": "trace"
+    },
+    {
+     "path": "data.1.implicitColumnExpression",
+     "equals": "SpanName"
+    },
+    {
+     "path": "data.2",
+     "exists": false
+    }
+   ],
+   "evidence": "https://raw.githubusercontent.com/hyperdxio/hyperdx/049ec84245d4e0572a6301b2179265fbbbb344e3/packages/api/src/routers/external-api/v2/sources.ts"
+  },
+  {
+   "name": "The Traces source by its id: durations are in nanoseconds, and it points at the Logs source",
+   "method": "GET",
+   "path": "/api/v2/sources/{traces}",
+   "headers": {
+    "authorization": "Bearer {key}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "data.id",
+     "equals": "{traces}"
+    },
+    {
+     "path": "data.durationExpression",
+     "equals": "Duration"
+    },
+    {
+     "path": "data.durationPrecision",
+     "equals": 9
+    },
+    {
+     "path": "data.logSourceId",
+     "equals": "{logs}"
+    }
+   ]
+  },
+  {
+   "name": "A source id the team does not hold is not found",
+   "method": "GET",
+   "path": "/api/v2/sources/507f1f77bcf86cd799439011",
+   "headers": {
+    "authorization": "Bearer {key}"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "Source not found"
+    }
+   ]
+  },
+  {
+   "name": "The engineer's first search, typed by hand with a trailing comma, is not JSON",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "Invalid JSON payload"
+    }
+   ],
+   "body": "{\"sourceId\":\"{traces}\",\"where\":\"TraceId:4bf92f3577b34da6a3ce929d0e0e4736\",}"
+  },
+  {
+   "name": "The failed request's trace by its TraceId, newest span first: the retried export kept each span once",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "TraceId:4bf92f3577b34da6a3ce929d0e0e4736",
+    "select": "Timestamp,SpanId,ParentSpanId,SpanName,SpanKind,Duration,StatusCode,StatusMessage"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 2
+    },
+    {
+     "path": "data.0",
+     "equals": {
+      "Timestamp": "2026-01-05T10:00:00.120000000Z",
+      "SpanId": "b7ad6b7169203331",
+      "ParentSpanId": "00f067aa0ba902b7",
+      "SpanName": "mongodb.insert",
+      "SpanKind": "Client",
+      "Duration": "715000000",
+      "StatusCode": "Error",
+      "StatusMessage": "connection 4 to 127.0.0.1:27017 closed"
+     }
+    },
+    {
+     "path": "data.1.SpanName",
+     "equals": "POST /api/*"
+    },
+    {
+     "path": "data.1.ParentSpanId",
+     "equals": ""
+    },
+    {
+     "path": "data.1.SpanKind",
+     "equals": "Server"
+    },
+    {
+     "path": "data.1.Duration",
+     "equals": "850000000"
+    }
+   ],
+   "evidence": "https://raw.githubusercontent.com/hyperdxio/hyperdx/049ec84245d4e0572a6301b2179265fbbbb344e3/packages/api/src/routers/external-api/v2/search.ts"
+  },
+  {
+   "name": "The exception the server span recorded, read from its events",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "TraceId:4bf92f3577b34da6a3ce929d0e0e4736 AND SpanKind:\"Server\"",
+    "select": "Events.Name,Events.Attributes"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0",
+     "equals": {
+      "Events.Name": [
+       "exception"
+      ],
+      "Events.Attributes": [
+       {
+        "exception.type": "MongoNetworkError",
+        "exception.message": "connection 4 to 127.0.0.1:27017 closed",
+        "exception.stacktrace": "MongoNetworkError: connection 4 to 127.0.0.1:27017 closed\n    at Connection.onClose (node_modules/mongodb/lib/cmap/connection.js:283:21)\n    at saveMessage (api/models/Message.js:61:17)"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Slow spans asked as Duration:>1s: Duration is a count of nanoseconds, and ClickHouse cannot read 1s as one",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "ServiceName:librechat AND Duration:>1s"
+   },
+   "status": 500,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "Query execution failed"
+    }
+   ]
+  },
+  {
+   "name": "LibreChat's slow spans: ServiceName:librechat AND Duration:>800000000 (over 800 ms); the browser's 32 ms span names librechat-web and is not slow",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "ServiceName:librechat AND Duration:>800000000",
+    "select": "Timestamp,TraceId,SpanId,SpanName,ServiceName,Duration,StatusCode",
+    "maxResults": 100
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0",
+     "equals": {
+      "Timestamp": "2026-01-05T10:00:00.000000000Z",
+      "TraceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "SpanId": "00f067aa0ba902b7",
+      "SpanName": "POST /api/*",
+      "ServiceName": "librechat",
+      "Duration": "850000000",
+      "StatusCode": "Error"
+     }
+    }
+   ]
+  },
+  {
+   "name": "A field no column holds is ClickHouse's unknown identifier",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "http.method:GET"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "message",
+     "matches": "^UNKNOWN_IDENTIFIER: "
+    }
+   ]
+  },
+  {
+   "name": "Every librechat service's spans, the second page of one: a value is a case-insensitive part of the field, and the browser's service matches too",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "ServiceName:LIBRECHAT",
+    "select": "SpanName,ServiceName",
+    "maxResults": 1,
+    "offset": 2
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0",
+     "equals": {
+      "SpanName": "HTTP GET",
+      "ServiceName": "librechat-web"
+     }
+    }
+   ]
+  },
+  {
+   "name": "Only the server's own service, by a quoted value (equality)",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "ServiceName:\"librechat\" AND NOT StatusCode:Error",
+    "select": "SpanName"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 0
+    },
+    {
+     "path": "data",
+     "equals": []
+    }
+   ]
+  },
+  {
+   "name": "A search without a source is refused by the request's checks",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "where": "SeverityText:error"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "Body validation failed: sourceId: Required"
+    }
+   ]
+  },
+  {
+   "name": "The where language spelled Lucene is not one of the two the API names",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{logs}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "SeverityText:error",
+    "whereLanguage": "Lucene"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "Body validation failed: whereLanguage: Invalid enum value. Expected 'lucene' | 'sql', received 'Lucene'"
+    }
+   ]
+  },
+  {
+   "name": "The error logs: SeverityText:error in the Logs source, with the source's default columns",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{logs}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "SeverityText:error"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0",
+     "equals": {
+      "Timestamp": "2026-01-05T10:00:00.845000000Z",
+      "ServiceName": "librechat",
+      "SeverityText": "error",
+      "Body": "[saveMessage] Error saving message: connection 4 to 127.0.0.1:27017 closed"
+     }
+    }
+   ]
+  },
+  {
+   "name": "A window that ends before it starts is refused",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{logs}",
+    "startTime": "2026-01-05T11:00:00Z",
+    "endTime": "2026-01-05T09:00:00Z"
+   },
+   "status": 400,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "endTime must be greater than startTime"
+    }
+   ]
+  },
+  {
+   "name": "The log names the request's trace and server span, and a bare term searches the body by its words",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{logs}",
+    "startTime": "2026-01-05T09:00:00Z",
+    "endTime": "2026-01-05T11:00:00Z",
+    "where": "saveMessage closed",
+    "select": "TraceId,SpanId,SeverityNumber,LogAttributes"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 1
+    },
+    {
+     "path": "data.0.TraceId",
+     "equals": "4bf92f3577b34da6a3ce929d0e0e4736"
+    },
+    {
+     "path": "data.0.SpanId",
+     "equals": "00f067aa0ba902b7"
+    },
+    {
+     "path": "data.0.SeverityNumber",
+     "equals": 17
+    },
+    {
+     "path": "data.0.LogAttributes.conversationId",
+     "equals": "c3b9e8a2-1f0d-4f5e-9a3b-7c1d2e4f5a6b"
+    }
+   ]
+  },
+  {
+   "name": "A source the team does not hold is not found",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "507f1f77bcf86cd799439011"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "message",
+     "equals": "Source not found: 507f1f77bcf86cd799439011"
+    }
+   ]
+  },
+  {
+   "name": "The last 15 minutes of traces with the Traces source's default columns, newest first: a duration in milliseconds",
+   "method": "POST",
+   "path": "/api/v2/search",
+   "headers": {
+    "authorization": "Bearer {key}",
+    "content-type": "application/json"
+   },
+   "body": {
+    "sourceId": "{traces}"
+   },
+   "status": 200,
+   "expect": [
+    {
+     "path": "rows",
+     "equals": 3
+    },
+    {
+     "path": "data.0",
+     "equals": {
+      "Timestamp": "2026-01-05T10:00:00.120000000Z",
+      "ServiceName": "librechat",
+      "StatusCode": "Error",
+      "round(divide(Duration, 1000000.))": 715,
+      "SpanName": "mongodb.insert"
+     }
+    },
+    {
+     "path": "data.1.SpanName",
+     "equals": "POST /api/*"
+    },
+    {
+     "path": "data.2",
+     "equals": {
+      "Timestamp": "2026-01-05T09:59:59.500000000Z",
+      "ServiceName": "librechat-web",
+      "StatusCode": "Unset",
+      "round(divide(Duration, 1000000.))": 32,
+      "SpanName": "HTTP GET"
+     }
+    }
+   ]
+  },
+  {
+   "name": "The dashboards the twin does not serve answer as HyperDX answers a route it does not have",
+   "method": "GET",
+   "path": "/api/v2/dashboards",
+   "headers": {
+    "authorization": "Bearer {key}"
+   },
+   "status": 404,
+   "expect": [
+    {
+     "path": "",
+     "contains": "<pre>Cannot GET /api/v2/dashboards</pre>"
+    }
+   ]
+  }
+ ]
+}

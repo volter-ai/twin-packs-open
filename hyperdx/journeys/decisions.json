@@ -1,0 +1,54 @@
+{
+  "about": "HyperDX as the bench meets it: the three OTLP/HTTP exports of its ingest (each request read in binary or JSON protobuf, its spans, log records and metric data points kept as records, the Export*ServiceResponse answered in the request's encoding), which LibreChat's and Twenty's opt-in exporters and LibreChat's HyperDX browser RUM call; and the External API v2's sources and search, which the bench's engineer reads the incident through with a personal API key. Every other External API operation (alerts, charts, connections, dashboards, saved searches, webhooks, the team, writing sources) answers the gap.",
+  "decisions": [
+    {
+      "lane": "ingest",
+      "operation": "exportTraces",
+      "demand": "platform: the bench's HyperDX ingest (ADR 0036); optional: LibreChat's NodeSDK and HyperDX browser traces",
+      "mechanism": "handler",
+      "why": "No resource path: the handler reads ExportTraceServiceRequest (binary through the kernel's protobuf codec, or JSON), keeps each span with a valid trace and span id under trace_id:span_id with its resource and scope, rejects an invalid one in partialSuccess.rejectedSpans, and answers ExportTraceServiceResponse in the request's Content-Type. first-use.json's app.mjs exports a parent and a child span with an exception event through @opentelemetry/exporter-trace-otlp-proto and asserts the exporter's SUCCESS result; the life asserts the answer and partial success."
+    },
+    {
+      "lane": "ingest",
+      "operation": "exportLogs",
+      "demand": "platform: the bench's HyperDX ingest (ADR 0036); optional: LibreChat's Winston logs and HyperDX browser session replay",
+      "mechanism": "handler",
+      "why": "The handler reads ExportLogsServiceRequest and keeps each log record (body, severity, attributes, its trace_id and span_id as sent) under a minted id; no log record is rejected, since an absent or invalid trace id only says the record is of no trace. first-use.json's app.mjs emits a log record inside the parent span through @opentelemetry/exporter-logs-otlp-proto and asserts the exporter's SUCCESS result."
+    },
+    {
+      "lane": "ingest",
+      "operation": "exportMetrics",
+      "demand": "platform: the bench's HyperDX ingest (ADR 0036); optional: Twenty's OTLP metric exporter",
+      "mechanism": "handler",
+      "why": "The handler reads ExportMetricsServiceRequest and keeps each data point of each metric as its own record with the metric's name, description, unit and metadata, its data kind and the data's temporality and monotonicity. first-use.json's app.mjs records a counter and a histogram through @opentelemetry/exporter-metrics-otlp-http (JSON, as Twenty sends) and asserts the exporter's SUCCESS result."
+    },
+    {
+      "lane": "api",
+      "operation": "listSources",
+      "demand": "platform: the bench's engineer reading the incident through HyperDX's External API (ADR 0036 §8)",
+      "mechanism": "handler",
+      "why": "GET /api/v2/sources with the personal API key answers {data: [source]}: the team's Logs and Traces sources as HyperDX's default sources make them, in the external form (id, name, kind, connection, from, the column expressions, the other source's id), their ids the same at every boot. first-use.json's app.mjs lists them and takes the Logs and Traces source ids by kind for its searches; the life's sixth act asserts both."
+    },
+    {
+      "lane": "api",
+      "operation": "getSource",
+      "demand": "platform: the bench's engineer reading the incident (ADR 0036 §8)",
+      "mechanism": "handler",
+      "why": "GET /api/v2/sources/{id} answers {data: source}; an id that is no ObjectId is refused 400 'Params validation failed: id: Invalid ObjectId', one the team does not hold 404 'Source not found'. The life reads the Traces source by its id and asserts its durationExpression and durationPrecision (nanoseconds), and the unknown id's 404."
+    },
+    {
+      "lane": "api",
+      "operation": "searchEvents",
+      "demand": "platform: the bench's engineer reading the incident (ADR 0036 §8)",
+      "mechanism": "handler",
+      "why": "POST /api/v2/search reads the spans (Traces) or log records (Logs) the ingest kept, each projected into its otel_traces or otel_logs row as HyperDX's collector writes it (Timestamp in ISO nanoseconds, Duration in nanoseconds as a string, StatusCode Unset/Ok/Error, the attribute maps as strings), in the window [startTime, endTime] (15 minutes back from now by default), filtered by the Lucene where clause (field:value as a case-insensitive substring, quoted equality, >, >=, <, <=, ranges, AND, OR, NOT, bare terms on the implicit column by token), newest first or by orderBy, the select's columns or the source's default select, then offset and maxResults; answers {data, rows}. Its body checks, window refusals and unknown-source 404 are HyperDX's. first-use.json's app.mjs searches its trace by TraceId, its slow server spans by ServiceName and Duration:>N, and its error logs, and asserts each row; the life's seventh to tenth acts read the same and the refusals. The SQL where language (whereLanguage: sql) is a variant no reader uses: the gap."
+    },
+    {
+      "lane": "api",
+      "operation": "door:appCredentials",
+      "mechanism": "door",
+      "demand": "World account credentials for the application and the engineer.",
+      "why": "Account bootstrap: the team (HyperDX sets a new team up with its Logs and Traces sources), the team's ingestion API key (RUM_PUBLIC_TOKEN) and the first user's personal API key (HYPERDX_API_ACCESS_KEY, HYPERDX_SERVICE_KEY), as HyperDX's team settings show them, with the API URL (HYPERDX_API_URL), the same every boot."
+    }
+  ]
+}
