@@ -1,0 +1,13 @@
+# @volter/twin-redis
+
+Redis Open Source 7.4.0 over its RESP2 TCP wire, serving Twenty's queues, cache, sessions and subscriptions and Cal.com's API cache and throttling. [Demand](journeys/demand.json) records the application and pinned client calls; [decisions](journeys/decisions.json) records their semantics and evidence.
+
+Declare Redis in the World's `world.infrastructure.yml`. World commands own its lifecycle and inject `REDIS_URL`; the managed backing invokes `world-redis serve --port <port> --root <tree>`. The [manifest](src/manifest.ts) declares the wire, storage and literal gap. Stored data is created through Redis commands. There are no account, credential or hosted-vendor doors. Commands outside demand answer the declared unknown-command gap, including HELLO and unused client command builders.
+
+Redis's unchanged server command metadata and command pages are pinned with provenance in [SOURCE.md](spec/SOURCE.md). RESP2 commands can use transactions, Lua scripts, subscriptions and blocking sorted-set pops. Redis's [EXEC](https://redis.io/docs/latest/commands/exec/) executes queued commands in order; [SELECT](https://redis.io/docs/latest/commands/select/) selects the connection's database; [QUIT](https://redis.io/docs/latest/commands/quit/) closes the connection.
+
+A key's expiry belongs to that key. Whole-value SET replacement clears it unless KEEPTTL is requested; in-place collection edits retain it, while deleting the key removes it. RPOPLPUSH retains a same-key rotation's expiry and an existing destination's expiry. GETEX can update/remove expiry, and MSET replacements clear it; both remain outside demand. See Redis's [EXPIRE](https://redis.io/docs/latest/commands/expire/), [SET](https://redis.io/docs/latest/commands/set/), [GETEX](https://redis.io/docs/latest/commands/getex/) and [MSET](https://redis.io/docs/latest/commands/mset/) references and the per-operation decisions.
+
+Redis's signed integer arguments use canonical decimal spellings and the signed 64-bit range; counts and ranks apply their command-specific sign/zero rules. SCAN cursors and stream ID components use the unsigned 64-bit parser. [RPOP](https://redis.io/docs/latest/commands/rpop/), [LPOS](https://redis.io/docs/latest/commands/lpos/) and [XTRIM](https://redis.io/docs/latest/commands/xtrim/) describe their options. Each served command's arguments and parsers are recorded in its decision.
+
+[The life](journeys/customer-life.json) and [published examples](journeys/vendor-examples.json) describe the calls and assert their effects. The World-managed BullMQ execution, reset and teardown proof is the [cookbook recipe](../../twin-world/cookbook/redis-backing/README.md), with committed-source captures.
