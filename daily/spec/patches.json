@@ -1,0 +1,605 @@
+{
+  "patches": [
+    {
+      "op": "add",
+      "path": "/components/schemas/batch_processor_job",
+      "value": {
+        "type": "object",
+        "description": "A batch processor job, as GET /batch-processor/:id answers it.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "preset": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "processing",
+              "finished",
+              "error",
+              "deleted"
+            ]
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "sourceType": {
+                "type": "string"
+              },
+              "recordingId": {
+                "type": "string"
+              },
+              "uri": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              }
+            }
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "transcription": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "format": {
+                      "type": "string"
+                    },
+                    "s3Config": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "bucket": {
+                          "type": "string"
+                        },
+                        "region": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string"
+                  },
+                  "s3Config": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "bucket": {
+                        "type": "string"
+                      },
+                      "region": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "why": "The batch processor's pages document the job object (id, preset, status one of submitted, processing, finished, error; input; output; error) that GET /batch-processor/:id answers (https://docs.daily.co/reference/rest-api/batch-processor/reference/get-job); the spec has no batch processor at all. Its delete example answers the same object with status \"deleted\" (https://docs.daily.co/reference/rest-api/batch-processor/reference/delete-job).",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/batch-processor/reference/get-job",
+        "quote": "This endpoint retrieves information of a previously submitted job (by id)."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1batch-processor",
+      "value": {
+        "post": {
+          "summary": "/batch-processor",
+          "description": "Submit a post-processing job to the batch processor",
+          "operationId": "BatchProcessorSubmitJob",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "preset",
+                    "inParams",
+                    "outParams"
+                  ],
+                  "properties": {
+                    "preset": {
+                      "type": "string"
+                    },
+                    "inParams": {
+                      "type": "object",
+                      "properties": {
+                        "sourceType": {
+                          "type": "string"
+                        },
+                        "recordingId": {
+                          "type": "string"
+                        },
+                        "uri": {
+                          "type": "string"
+                        },
+                        "language": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "outParams": {
+                      "type": "object",
+                      "properties": {
+                        "s3Config": {
+                          "type": "object",
+                          "properties": {
+                            "s3KeyTemplate": {
+                              "type": "string"
+                            },
+                            "useReplacement": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "transformParams": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "200",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "examples": {
+                    "Result": {
+                      "value": {
+                        "id": "02c2508e-8835-4f3e-bcf2-e319d00f0eec"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/400"
+            }
+          },
+          "tags": [
+            "batch-processor"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ]
+        },
+        "get": {
+          "summary": "/batch-processor",
+          "description": "List all post-processing jobs",
+          "operationId": "BatchProcessorListJobs",
+          "parameters": [
+            {
+              "name": "recordingId",
+              "in": "query",
+              "description": "Filters jobs by a recording id",
+              "required": false,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer"
+              }
+            },
+            {
+              "name": "ending_before",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "starting_after",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "200",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "total_count": {
+                        "type": "integer"
+                      },
+                      "data": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "preset": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "submitted",
+                                "processing",
+                                "finished",
+                                "error"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "examples": {
+                    "Result": {
+                      "value": {
+                        "total_count": 1,
+                        "data": [
+                          {
+                            "id": "7b8d17cf-0f37-436f-94f8-3726c10de557",
+                            "preset": "summarize",
+                            "status": "submitted"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/400"
+            }
+          },
+          "tags": [
+            "batch-processor"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ]
+        }
+      },
+      "why": "Daily's batch processor (https://docs.daily.co/reference/rest-api/batch-processor/reference/submit-job: POST /batch-processor, and https://docs.daily.co/reference/rest-api/batch-processor/reference/list-jobs: GET /batch-processor with a recordingId filter) is documented and served but absent from the spec: the live API answered GET /v1/batch-processor with an invalid key 401 authentication-error, as it answers an operation it has, where a path it does not have answers 404 not-found \"api endpoint does not exist\" (spec/recordings/401-batch-processor-invalid-key.json, 404-unknown-endpoint.json). Cal.com's dailyvideo app calls both (VideoApiAdapter.ts submitBatchProcessorJob, getTranscriptsAccessLinkFromRecordingId).",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/batch-processor/reference/submit-job",
+        "quote": "This endpoint is used to submit jobs to the batch processor."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1batch-processor~1{id}",
+      "value": {
+        "get": {
+          "summary": "/batch-processor/:id",
+          "description": "Get a post-processing job from the batch processor",
+          "operationId": "BatchProcessorGetJob",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "200",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/batch_processor_job"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/400"
+            }
+          },
+          "tags": [
+            "batch-processor"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ]
+        },
+        "delete": {
+          "summary": "/batch-processor/:id",
+          "description": "Delete a post-processing job from the batch processor and delete created objects",
+          "operationId": "BatchProcessorDeleteJob",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "200",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/batch_processor_job"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/400"
+            }
+          },
+          "tags": [
+            "batch-processor"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ]
+        }
+      },
+      "why": "GET and DELETE /batch-processor/:id are documented (https://docs.daily.co/reference/rest-api/batch-processor/reference/get-job, https://docs.daily.co/reference/rest-api/batch-processor/reference/delete-job: \"The API response is the same as Get job status\") and absent from the spec.",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/batch-processor/reference/delete-job",
+        "quote": "This endpoint deletes a specific Batch Processor job."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1batch-processor~1{id}~1access-link",
+      "value": {
+        "get": {
+          "summary": "/batch-processor/:id/access-link",
+          "description": "Get access-link to download batch processing outputs",
+          "operationId": "BatchProcessorGetJobAccessLink",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "200",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "preset": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "submitted",
+                          "processing",
+                          "finished",
+                          "error"
+                        ]
+                      },
+                      "transcription": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "format": {
+                              "type": "string"
+                            },
+                            "link": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "summary": {
+                        "type": "object",
+                        "properties": {
+                          "format": {
+                            "type": "string"
+                          },
+                          "link": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/400"
+            }
+          },
+          "tags": [
+            "batch-processor"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ]
+        }
+      },
+      "why": "GET /batch-processor/:id/access-link is documented (https://docs.daily.co/reference/rest-api/batch-processor/reference/get-job-access-link: \"The API will return HTTP 404 if the job ID does not exist. It returns HTTP 400 if the job status is not finished\") and absent from the spec; Cal.com calls it (VideoApiAdapter.ts getBatchProcessorJobAccessLink).",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/batch-processor/reference/get-job-access-link",
+        "quote": "It returns HTTP 400 if the job status is not"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1meeting-tokens~1{meeting_token}/get/responses/200/content/application~1json/schema",
+      "value": {
+        "$ref": "#/components/schemas/properties"
+      },
+      "why": "Validating a token answers its properties: the meeting tokens overview prints the token object as its properties (\"example meeting token object\": exp, room_name, user_name, is_owner, close_tab_on_exit, enable_recording, start_video_off; https://docs.daily.co/reference/rest-api/meeting-tokens), and Cal.com's dailyvideo app reads exp, enable_recording_ui and user_id from the answer (VideoApiAdapter.ts, lib/types.ts ZGetMeetingTokenResponseSchema), where the spec's answer names only six of them.",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/meeting-tokens",
+        "quote": "example meeting token object"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1recordings/get/responses/200/content/application~1json/schema/properties/data/items/properties/room_name",
+      "value": {
+        "type": "string"
+      },
+      "why": "A recording object carries its room_name (the recordings overview's recording object: \"room_name\": \"test-recording-room\", https://docs.daily.co/reference/rest-api/recordings), and GET /recordings lists recording objects; Cal.com's dailyvideo app parses every listed recording with room_name required (packages/prisma/zod-utils.ts recordingItemSchema).",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/recordings",
+        "quote": "A recording object represents a single saved recording."
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1recordings/get/responses/200/content/application~1json/schema/properties/data/items/properties/duration",
+      "value": {
+        "type": "integer"
+      },
+      "why": "The spec's own example of GET /recordings lists a finished recording with \"duration\": 277, which its item schema omits.",
+      "source": {
+        "spec": "/paths/~1recordings/get/responses/200/content/application~1json/examples/Result/value/data/1",
+        "quote": "277"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1recordings/get/responses/200/content/application~1json/schema/properties/data/items/properties/tracks",
+      "value": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "integer"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "audio",
+                "video"
+              ]
+            },
+            "s3key": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "why": "A recording object carries its tracks (the recordings overview's recording object: \"tracks\": [], https://docs.daily.co/reference/rest-api/recordings; GetRecordingInfo's own schema has them).",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/recordings",
+        "quote": "A recording object represents a single saved recording."
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/components/schemas/meeting_participants-get-res/properties/data/items",
+      "value": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participant_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "join_time": {
+            "type": "integer"
+          },
+          "duration": {
+            "type": "integer"
+          }
+        }
+      },
+      "why": "The participants of a meeting are participant records, as the spec's own example of this operation answers them (user_id, participant_id, user_name, join_time, duration); its schema gives each the fields of a meeting instead.",
+      "source": {
+        "spec": "GetMeetingParticipants",
+        "quote": "participant_id"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/paths/~1webhooks~1{id}/get/responses/200/content/application~1json/schema",
+      "value": {
+        "$ref": "#/components/schemas/webhook"
+      },
+      "why": "GET /webhooks/:uuid answers the one webhook, as an object (the webhooks page: \"you can use the uuid field and the GET /webhooks/:uuid endpoint to receive information about your webhook\", with the object it answers; https://docs.daily.co/reference/rest-api/webhooks); the spec's schema says an array.",
+      "source": {
+        "url": "https://docs.daily.co/reference/rest-api/webhooks",
+        "quote": "endpoint to receive information about your webhook"
+      }
+    }
+  ]
+}
