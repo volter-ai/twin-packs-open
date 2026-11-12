@@ -18,9 +18,11 @@ export type Session = { stage: string; from?: string; rcpt: string[]; smtputf8?:
 /** What the front answers the stream: the reply lines, the session, and whether the stream reads a message next. */
 export type WireAnswer = smtpServer.SmtpAnswer<Session>;
 
-// Gmail's receiving server's replies. Where the documentation stops: Google publishes no table of them; the words are
-// recalled from its server's answers (`mx.google.com`, each reply ending `- gsmtp`), and the queue ids it adds are left
-// out.
+// Gmail's receiving server's replies. Google publishes its refusals in "Gmail SMTP errors and codes", each ending
+// `gsmtp`; where the documentation stops: the page lists no successes and no refusal of a recipient at a domain Google
+// does not receive for, so those replies' words are unverified (each is said so below), and the queue ids Gmail adds
+// are left out.
+// source: https://knowledge.workspace.google.com/admin/support/troubleshooting/gmail-smtp-errors-and-codes "gsmtp (Google SMTP) is added to all errors"
 export const HOST = 'mx.google.com';
 export const GREETING = `220 ${HOST} ESMTP - gsmtp`;
 // the largest message the server takes, as its EHLO advertises SIZE (recalled, as above)
@@ -32,9 +34,13 @@ export const GO_AHEAD = '354 Go ahead - gsmtp';
 export const BYE = '221 2.0.0 closing connection - gsmtp';
 export const UNRECOGNIZED = '502 5.5.1 Unrecognized command. - gsmtp';
 // an address at gmail.com that is no account
+// source: https://knowledge.workspace.google.com/admin/support/troubleshooting/gmail-smtp-errors-and-codes "The email account that you tried to reach does not exist."
 export const NO_ACCOUNT = '550 5.1.1 The email account that you tried to reach does not exist. - gsmtp';
-// an address at a domain this server does not receive for: an MX relays for no one
+// an address at a domain this server does not receive for: an MX relays for no one. Unverified: Google's error page has
+// no row for it, no published transcript of mx.google.com's reply to it was found, and a session to its MX from a
+// residential connection could not be made (port 25 closed); no wording is claimed for it, the words below only stand in
 export const NOT_OURS = '550 5.7.1 Relaying denied. - gsmtp';
+// source: https://knowledge.workspace.google.com/admin/support/troubleshooting/gmail-smtp-errors-and-codes "Your message exceeded Google's message size limits."
 export const TOO_BIG = '552 5.3.4 Your message exceeded Google\'s message size limits. - gsmtp';
 // no certificate on the World's side port (ADR 0032 §4: IMAP and submission, which need TLS, are later cards)
 export const NO_TLS = '454 4.7.0 TLS not available - gsmtp';

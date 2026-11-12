@@ -1,0 +1,1013 @@
+{
+  "vendor": "gmail",
+  "author": "Claude (VO-3832)",
+  "about": "Gmail's side of Harbourline's mail over seven weeks (journeys/customer-life.outline.md): its receiving server taking Rallly's mail from Harbourline's relay for two clients' Google accounts, refusing an address no account holds, another domain and a declared size over its limit, keeping a +tag address in the account it tags, and the webmail where each person reads only their own mail, signed in through Google.",
+  "companions": [
+    "googleoauth"
+  ],
+  "steps": [
+    {
+      "name": "Before Harbourline's mail: Maya Okafor makes her Google account at Google's sign-up, and is signed in",
+      "method": "POST",
+      "path": "https://accounts.google.com/signup",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=maya.okafor%40gmail.com&password=Maya-Okafor-2026&given_name=Maya&family_name=Okafor",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "maya.okafor@gmail.com"
+        },
+        {
+          "path": "",
+          "contains": "you are signed in"
+        }
+      ]
+    },
+    {
+      "name": "Tom Brennan makes his Google account the same way",
+      "method": "POST",
+      "path": "https://accounts.google.com/signup",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=tom.brennan%40gmail.com&password=Tom-Brennan-2026&given_name=Tom&family_name=Brennan",
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "tom.brennan@gmail.com"
+        }
+      ]
+    },
+    {
+      "name": "Monday 12 January, 09:00: Rallly's first poll is finalized, and Harbourline's relay hands its invitation to Gmail",
+      "wait": "16380m"
+    },
+    {
+      "name": "The relay connects to Gmail's receiving server and reads its greeting",
+      "on": "g1",
+      "connect": {},
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "mx.google.com ESMTP - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "EHLO from the relay: what Gmail offers, and no AUTH or STARTTLS here",
+      "on": "g1",
+      "send": "EHLO relay.harbourline.be",
+      "status": 250,
+      "expect": [
+        {
+          "path": "lines.0",
+          "equals": "mx.google.com at your service"
+        },
+        {
+          "path": "text",
+          "contains": "SIZE 157286400"
+        },
+        {
+          "path": "text",
+          "contains": "8BITMIME"
+        },
+        {
+          "path": "text",
+          "contains": "SMTPUTF8"
+        },
+        {
+          "path": "text",
+          "notContains": "AUTH"
+        },
+        {
+          "path": "text",
+          "notContains": "STARTTLS"
+        }
+      ]
+    },
+    {
+      "name": "MAIL FROM the poll's sender, its size and 8-bit body declared",
+      "on": "g1",
+      "send": "MAIL FROM:<polls@harbourline.be> SIZE=1400 BODY=8BITMIME",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "RCPT TO Maya, whose Google account holds the address",
+      "on": "g1",
+      "send": "RCPT TO:<maya.okafor@gmail.com>",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "RCPT TO Tom, the same message's second recipient",
+      "on": "g1",
+      "send": "RCPT TO:<tom.brennan@gmail.com>",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "DATA",
+      "on": "g1",
+      "send": "DATA",
+      "status": 354,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "Go ahead - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "the invitation, its text and the calendar event Rallly attaches, then the dot",
+      "on": "g1",
+      "send": [
+        "From: Harbourline Polls <polls@harbourline.be>",
+        "To: maya.okafor@gmail.com, tom.brennan@gmail.com",
+        "Subject: Harbourline workshop: your date is set",
+        "Date: Mon, 12 Jan 2026 09:00:00 +0000",
+        "Message-ID: <wk1-final@meet.harbourline.be>",
+        "MIME-Version: 1.0",
+        "Content-Type: multipart/mixed; boundary=\"hl-final-1\"",
+        "",
+        "--hl-final-1",
+        "Content-Type: text/plain; charset=utf-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        "The workshop is on Thursday 22 January 2026 at 10:00.",
+        "",
+        "Add it to your calendar with the attached event.",
+        "",
+        "--hl-final-1",
+        "Content-Type: text/calendar; charset=utf-8; method=REQUEST; name=\"workshop.ics\"",
+        "Content-Disposition: attachment; filename=\"workshop.ics\"",
+        "Content-Transfer-Encoding: base64",
+        "",
+        "QkVHSU46VkNBTEVOREFSDQpWRVJTSU9OOjIuMA0KUFJPRElEOi0vL1JhbGxseS8vRU4NCk1FVEhPRDpSRVFVRVNUDQpCRUdJTjpWRVZFTlQNClVJRDp3azFAbWVldC5oYXJib3VybGluZS5iZQ0KRFRTVEFSVDoyMDI2MDEyMlQxMDAwMDBaDQpEVEVORDoyMDI2MDEyMlQxMjAwMDBaDQpTVU1NQVJZOkhhcmJvdXJsaW5lIHdvcmtzaG9wDQpFTkQ6VkVWRU5UDQpFTkQ6VkNBTEVOREFSDQo=",
+        "--hl-final-1--",
+        "."
+      ],
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "QUIT",
+      "on": "g1",
+      "send": "QUIT",
+      "status": 221,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 closing connection - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "Monday 12 January, 18:30: Maya reads her mail",
+      "wait": "570m"
+    },
+    {
+      "name": "Maya opens Gmail in a browser no Google account is signed in to: Gmail sends her to Google's sign-in, her inbox as the page to come back to",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "contains": "https://accounts.google.com/ServiceLogin?"
+        },
+        {
+          "path": "location",
+          "contains": "service=mail"
+        }
+      ]
+    },
+    {
+      "name": "Maya signs in with the address and password the account was made with, and is returned to the inbox",
+      "method": "POST",
+      "path": "https://accounts.google.com/ServiceLogin",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=maya.okafor%40gmail.com&password=Maya-Okafor-2026&continue=https%3A%2F%2Fmail.google.com%2Fmail%2Fu%2F0%2F",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "equals": "https://mail.google.com/mail/u/0/"
+        }
+      ],
+      "capture": {
+        "maya_sid": "header:set-cookie:SID=([^;]+)"
+      }
+    },
+    {
+      "name": "Her inbox: the invitation at the top, unread",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/",
+      "headers": {
+        "cookie": "SID={maya_sid}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Harbourline workshop: your date is set"
+        },
+        {
+          "path": "",
+          "contains": "class=\"row unread\""
+        },
+        {
+          "path": "",
+          "contains": "maya.okafor@gmail.com"
+        }
+      ],
+      "capture": {
+        "maya_invite": "text:href=\"https://mail.google.com/mail/u/0/inbox/([^\"]+)\""
+      }
+    },
+    {
+      "name": "She opens it: sender, subject, both recipients, the body and the attached event",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/inbox/{maya_invite}",
+      "headers": {
+        "cookie": "SID={maya_sid}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "Harbourline workshop: your date is set"
+        },
+        {
+          "path": "",
+          "contains": "maya.okafor@gmail.com, tom.brennan@gmail.com"
+        },
+        {
+          "path": "",
+          "contains": "Thursday 22 January 2026 at 10:00"
+        },
+        {
+          "path": "",
+          "contains": "workshop.ics"
+        }
+      ]
+    },
+    {
+      "name": "She downloads the calendar event Rallly attached",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/inbox/{maya_invite}/attachments/0",
+      "headers": {
+        "cookie": "SID={maya_sid}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "BEGIN:VCALENDAR"
+        },
+        {
+          "path": "",
+          "contains": "DTSTART:20260122T100000Z"
+        }
+      ]
+    },
+    {
+      "name": "Wednesday 14 January, 10:00: a participant mistypes Tom's address on the next poll",
+      "wait": "2370m"
+    },
+    {
+      "name": "The relay connects",
+      "on": "g2",
+      "connect": {},
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "mx.google.com ESMTP - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "EHLO from the relay: what Gmail offers, and no AUTH or STARTTLS here",
+      "on": "g2",
+      "send": "EHLO relay.harbourline.be",
+      "status": 250,
+      "expect": [
+        {
+          "path": "lines.0",
+          "equals": "mx.google.com at your service"
+        },
+        {
+          "path": "text",
+          "contains": "SIZE 157286400"
+        },
+        {
+          "path": "text",
+          "contains": "8BITMIME"
+        },
+        {
+          "path": "text",
+          "contains": "SMTPUTF8"
+        },
+        {
+          "path": "text",
+          "notContains": "AUTH"
+        },
+        {
+          "path": "text",
+          "notContains": "STARTTLS"
+        }
+      ]
+    },
+    {
+      "name": "MAIL FROM the poll's sender",
+      "on": "g2",
+      "send": "MAIL FROM:<polls@harbourline.be> BODY=8BITMIME",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "RCPT TO the mistyped address: no Google account holds it",
+      "on": "g2",
+      "send": "RCPT TO:<tom.brenan@gmail.com>",
+      "status": 550,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "5.1.1 The email account that you tried to reach does not exist. - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "RCPT TO Maya, taken in the same transaction",
+      "on": "g2",
+      "send": "RCPT TO:<maya.okafor@gmail.com>",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "DATA, for the recipient Gmail took",
+      "on": "g2",
+      "send": "DATA",
+      "status": 354,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "Go ahead - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "the comment notification, then the dot",
+      "on": "g2",
+      "send": [
+        "From: Harbourline Polls <polls@harbourline.be>",
+        "To: maya.okafor@gmail.com, tom.brenan@gmail.com",
+        "Subject: New comment on the February workshop poll",
+        "Date: Wed, 14 Jan 2026 10:00:00 +0000",
+        "Message-ID: <wk2-comment@meet.harbourline.be>",
+        "MIME-Version: 1.0",
+        "Content-Type: text/plain; charset=utf-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        "A participant commented on the February workshop poll.",
+        "."
+      ],
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "QUIT",
+      "on": "g2",
+      "send": "QUIT",
+      "status": 221,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 closing connection - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "Monday 19 January, 09:00: Maya changes her Rallly address to maya.okafor+rallly@gmail.com, and Rallly mails it a confirmation",
+      "wait": "7140m"
+    },
+    {
+      "name": "The relay connects",
+      "on": "g3",
+      "connect": {},
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "mx.google.com ESMTP - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "EHLO from the relay: what Gmail offers, and no AUTH or STARTTLS here",
+      "on": "g3",
+      "send": "EHLO relay.harbourline.be",
+      "status": 250,
+      "expect": [
+        {
+          "path": "lines.0",
+          "equals": "mx.google.com at your service"
+        },
+        {
+          "path": "text",
+          "contains": "SIZE 157286400"
+        },
+        {
+          "path": "text",
+          "contains": "8BITMIME"
+        },
+        {
+          "path": "text",
+          "contains": "SMTPUTF8"
+        },
+        {
+          "path": "text",
+          "notContains": "AUTH"
+        },
+        {
+          "path": "text",
+          "notContains": "STARTTLS"
+        }
+      ]
+    },
+    {
+      "name": "MAIL FROM Rallly's sender",
+      "on": "g3",
+      "send": "MAIL FROM:<polls@harbourline.be> BODY=8BITMIME",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "RCPT TO Maya's tagged address: Gmail holds it for the account it tags",
+      "on": "g3",
+      "send": "RCPT TO:<maya.okafor+rallly@gmail.com>",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "DATA",
+      "on": "g3",
+      "send": "DATA",
+      "status": 354,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "Go ahead - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "the confirmation, then the dot",
+      "on": "g3",
+      "send": [
+        "From: Rallly <polls@harbourline.be>",
+        "To: maya.okafor+rallly@gmail.com",
+        "Subject: Verify your new email address",
+        "Date: Mon, 19 Jan 2026 09:00:00 +0000",
+        "Message-ID: <verify-maya@meet.harbourline.be>",
+        "MIME-Version: 1.0",
+        "Content-Type: text/plain; charset=utf-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        "Confirm maya.okafor+rallly@gmail.com as your Rallly email address: https://meet.harbourline.be/api/user/verify-email-change?token=c41f",
+        "."
+      ],
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "QUIT",
+      "on": "g3",
+      "send": "QUIT",
+      "status": 221,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 closing connection - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "Monday 19 January, 09:20: Maya looks for the confirmation",
+      "wait": "20m"
+    },
+    {
+      "name": "Maya opens Gmail in a browser no Google account is signed in to: Gmail sends her to Google's sign-in, her inbox as the page to come back to",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "contains": "https://accounts.google.com/ServiceLogin?"
+        },
+        {
+          "path": "location",
+          "contains": "service=mail"
+        }
+      ]
+    },
+    {
+      "name": "Maya signs in with the address and password the account was made with, and is returned to the inbox",
+      "method": "POST",
+      "path": "https://accounts.google.com/ServiceLogin",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=maya.okafor%40gmail.com&password=Maya-Okafor-2026&continue=https%3A%2F%2Fmail.google.com%2Fmail%2Fu%2F0%2F",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "equals": "https://mail.google.com/mail/u/0/"
+        }
+      ],
+      "capture": {
+        "maya_sid2": "header:set-cookie:SID=([^;]+)"
+      }
+    },
+    {
+      "name": "It is in her own inbox, above the earlier mail",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/",
+      "headers": {
+        "cookie": "SID={maya_sid2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "matches": "Verify your new email address.*New comment on the February workshop poll.*Harbourline workshop: your date is set"
+        }
+      ],
+      "capture": {
+        "maya_verify": "text:href=\"https://mail.google.com/mail/u/0/inbox/([^\"]+)\""
+      }
+    },
+    {
+      "name": "She opens it: sent to her tagged address, with the link she follows",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/inbox/{maya_verify}",
+      "headers": {
+        "cookie": "SID={maya_sid2}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "maya.okafor+rallly@gmail.com"
+        },
+        {
+          "path": "",
+          "contains": "https://meet.harbourline.be/api/user/verify-email-change?token=c41f"
+        }
+      ]
+    },
+    {
+      "name": "Tuesday 3 February, 11:00: Wout tests a relay rule that wrongly routes Harbourline's own domain to Gmail",
+      "wait": "20260m"
+    },
+    {
+      "name": "The relay connects",
+      "on": "g4",
+      "connect": {},
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "mx.google.com ESMTP - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "EHLO from the relay: what Gmail offers, and no AUTH or STARTTLS here",
+      "on": "g4",
+      "send": "EHLO relay.harbourline.be",
+      "status": 250,
+      "expect": [
+        {
+          "path": "lines.0",
+          "equals": "mx.google.com at your service"
+        },
+        {
+          "path": "text",
+          "contains": "SIZE 157286400"
+        },
+        {
+          "path": "text",
+          "contains": "8BITMIME"
+        },
+        {
+          "path": "text",
+          "contains": "SMTPUTF8"
+        },
+        {
+          "path": "text",
+          "notContains": "AUTH"
+        },
+        {
+          "path": "text",
+          "notContains": "STARTTLS"
+        }
+      ]
+    },
+    {
+      "name": "MAIL FROM Harbourline's alerts",
+      "on": "g4",
+      "send": "MAIL FROM:<alerts@harbourline.be>",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "RCPT TO an address at harbourline.be: Gmail relays for no one, and refuses it",
+      "on": "g4",
+      "send": "RCPT TO:<ops@harbourline.be>",
+      "status": 550
+    },
+    {
+      "name": "QUIT",
+      "on": "g4",
+      "send": "QUIT",
+      "status": 221,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 closing connection - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "Monday 16 February, 14:00: an admin export larger than Gmail takes",
+      "wait": "18900m"
+    },
+    {
+      "name": "The relay connects",
+      "on": "g5",
+      "connect": {},
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "mx.google.com ESMTP - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "EHLO from the relay: what Gmail offers, and no AUTH or STARTTLS here",
+      "on": "g5",
+      "send": "EHLO relay.harbourline.be",
+      "status": 250,
+      "expect": [
+        {
+          "path": "lines.0",
+          "equals": "mx.google.com at your service"
+        },
+        {
+          "path": "text",
+          "contains": "SIZE 157286400"
+        },
+        {
+          "path": "text",
+          "contains": "8BITMIME"
+        },
+        {
+          "path": "text",
+          "contains": "SMTPUTF8"
+        },
+        {
+          "path": "text",
+          "notContains": "AUTH"
+        },
+        {
+          "path": "text",
+          "notContains": "STARTTLS"
+        }
+      ]
+    },
+    {
+      "name": "MAIL FROM with a declared size above the 157,286,400 bytes Gmail advertised: refused before any data",
+      "on": "g5",
+      "send": "MAIL FROM:<polls@harbourline.be> SIZE=209715200",
+      "status": 552,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "5.3.4 Your message exceeded Google's message size limits. - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "QUIT",
+      "on": "g5",
+      "send": "QUIT",
+      "status": 221,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 closing connection - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "Monday 2 March, 09:00: the March poll's reminder goes to Tom",
+      "wait": "19860m"
+    },
+    {
+      "name": "The relay connects",
+      "on": "g6",
+      "connect": {},
+      "expect": [
+        {
+          "path": "code",
+          "equals": 220
+        },
+        {
+          "path": "text",
+          "equals": "mx.google.com ESMTP - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "EHLO from the relay: what Gmail offers, and no AUTH or STARTTLS here",
+      "on": "g6",
+      "send": "EHLO relay.harbourline.be",
+      "status": 250,
+      "expect": [
+        {
+          "path": "lines.0",
+          "equals": "mx.google.com at your service"
+        },
+        {
+          "path": "text",
+          "contains": "SIZE 157286400"
+        },
+        {
+          "path": "text",
+          "contains": "8BITMIME"
+        },
+        {
+          "path": "text",
+          "contains": "SMTPUTF8"
+        },
+        {
+          "path": "text",
+          "notContains": "AUTH"
+        },
+        {
+          "path": "text",
+          "notContains": "STARTTLS"
+        }
+      ]
+    },
+    {
+      "name": "MAIL FROM the poll's sender",
+      "on": "g6",
+      "send": "MAIL FROM:<polls@harbourline.be> BODY=8BITMIME",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "RCPT TO Tom",
+      "on": "g6",
+      "send": "RCPT TO:<tom.brennan@gmail.com>",
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.1.5 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "DATA",
+      "on": "g6",
+      "send": "DATA",
+      "status": 354,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "Go ahead - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "the reminder, then the dot",
+      "on": "g6",
+      "send": [
+        "From: Harbourline Polls <polls@harbourline.be>",
+        "To: tom.brennan@gmail.com",
+        "Subject: Reminder: vote on the March workshop dates",
+        "Date: Mon, 2 Mar 2026 09:00:00 +0000",
+        "Message-ID: <wk3-reminder@meet.harbourline.be>",
+        "MIME-Version: 1.0",
+        "Content-Type: text/plain; charset=utf-8",
+        "Content-Transfer-Encoding: 7bit",
+        "",
+        "You have not voted on the March workshop dates yet: https://meet.harbourline.be/invite/wk3",
+        "."
+      ],
+      "status": 250,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 OK - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "QUIT",
+      "on": "g6",
+      "send": "QUIT",
+      "status": 221,
+      "expect": [
+        {
+          "path": "text",
+          "equals": "2.0.0 closing connection - gsmtp"
+        }
+      ]
+    },
+    {
+      "name": "Monday 2 March, 19:00: Tom reads his mail for the first time since January",
+      "wait": "600m"
+    },
+    {
+      "name": "Tom opens Gmail in a browser no Google account is signed in to: Gmail sends him to Google's sign-in, his inbox as the page to come back to",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "contains": "https://accounts.google.com/ServiceLogin?"
+        },
+        {
+          "path": "location",
+          "contains": "service=mail"
+        }
+      ]
+    },
+    {
+      "name": "Tom signs in with the address and password the account was made with, and is returned to the inbox",
+      "method": "POST",
+      "path": "https://accounts.google.com/ServiceLogin",
+      "headers": {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      "body": "email=tom.brennan%40gmail.com&password=Tom-Brennan-2026&continue=https%3A%2F%2Fmail.google.com%2Fmail%2Fu%2F0%2F",
+      "status": 302,
+      "expect": [
+        {
+          "path": "location",
+          "equals": "https://mail.google.com/mail/u/0/"
+        }
+      ],
+      "capture": {
+        "tom_sid": "header:set-cookie:SID=([^;]+)"
+      }
+    },
+    {
+      "name": "His inbox, newest first: the reminder, then January's invitation; nothing of the mistyped address's",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/",
+      "headers": {
+        "cookie": "SID={tom_sid}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "matches": "Reminder: vote on the March workshop dates.*Harbourline workshop: your date is set"
+        },
+        {
+          "path": "",
+          "notContains": "New comment on the February workshop poll"
+        },
+        {
+          "path": "",
+          "notContains": "Verify your new email address"
+        }
+      ],
+      "capture": {
+        "tom_reminder": "text:href=\"https://mail.google.com/mail/u/0/inbox/([^\"]+)\""
+      }
+    },
+    {
+      "name": "He opens the reminder",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/inbox/{tom_reminder}",
+      "headers": {
+        "cookie": "SID={tom_sid}"
+      },
+      "status": 200,
+      "expect": [
+        {
+          "path": "",
+          "contains": "You have not voted on the March workshop dates yet"
+        }
+      ]
+    },
+    {
+      "name": "Maya had shared the link to her copy of January's invitation; in Tom's mailbox it names nothing",
+      "method": "GET",
+      "path": "https://mail.google.com/mail/u/0/inbox/{maya_invite}",
+      "headers": {
+        "cookie": "SID={tom_sid}"
+      },
+      "status": 404,
+      "expect": [
+        {
+          "path": "",
+          "contains": "That message could not be found."
+        }
+      ]
+    }
+  ]
+}

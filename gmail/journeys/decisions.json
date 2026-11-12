@@ -23,13 +23,25 @@
       "operation": "MAIL",
       "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
       "mechanism": "handler",
-      "why": "The front takes the sender (any, as an MX does) and its SIZE, BODY and SMTPUTF8 parameters; ctx.mail sends MAIL FROM with BODY=8BITMIME for 8-bit messages."
+      "why": "The front takes the sender (any, as an MX does) and its SIZE, BODY and SMTPUTF8 parameters, refusing a declared SIZE above the 157,286,400 bytes its EHLO advertises with 552 5.3.4, as Google's error page words it; ctx.mail sends MAIL FROM with BODY=8BITMIME for 8-bit messages.",
+      "sourceRules": [
+        {
+          "source": "https://knowledge.workspace.google.com/admin/support/troubleshooting/gmail-smtp-errors-and-codes",
+          "means": "552 5.3.4 \"Your message exceeded Google's message size limits.\""
+        }
+      ]
     },
     {
       "operation": "RCPT",
       "demand": "ADR 0032 \u00a74: the World's senders hand gmail.com's mail to this server (world-core smtp.ts sendMail); RFC 5321 Appendix D",
       "mechanism": "handler",
-      "why": "The front accepts a gmail.com address that is a Google account (googleoauth's _person and account, read through ownerReads) and refuses any other: 550 5.1.1 for no account, 550 5.7.1 for another domain; ctx.mail turns each reply into the sender's delivered or bounced."
+      "why": "The front accepts a gmail.com address that is a Google account (googleoauth's _person and account, read through ownerReads) and refuses any other at RCPT: 550 5.1.1 for no account, as Google's error page words it; an address at a domain Google does not receive for is refused with 550, unverified, no wording claimed (the page has no row for it, no published transcript of mx.google.com's reply was found, and a session to gmail-smtp-in.l.google.com:25 from themachine on 2026-11-11 timed out after 10 s); ctx.mail turns each reply into the sender's delivered or bounced.",
+      "sourceRules": [
+        {
+          "source": "https://knowledge.workspace.google.com/admin/support/troubleshooting/gmail-smtp-errors-and-codes",
+          "means": "550 5.1.1 \"The email account that you tried to reach does not exist.\", and gsmtp added to all errors"
+        }
+      ]
     },
     {
       "operation": "DATA",
