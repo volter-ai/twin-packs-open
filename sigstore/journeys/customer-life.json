@@ -1,0 +1,305 @@
+{
+ "vendor": "sigstore",
+ "author": "twin-packs-p3",
+ "about": "Volter's releases published with provenance (journeys/customer-life.outline.md): the npm registry reads Fulcio's trust bundle, Fulcio refuses identity tokens it cannot trust, and npm logs each release's signed statement in Rekor as a dsse entry, answered with its signed timestamp, inclusion proof and checkpoint, a repeat answered as a conflict.",
+ "steps": [
+  {
+   "name": "Tuesday 6 January, 14:00: Volter's release workflow publishes with provenance",
+   "wait": "8040m"
+  },
+  {
+   "name": "The npm registry reads Fulcio's trust bundle, the root a provenance certificate must chain to",
+   "method": "GET",
+   "path": "https://fulcio.sigstore.dev/api/v2/trustBundle",
+   "status": 200,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "capture": {
+    "root": "chains.0.certificates.0"
+   },
+   "expect": [
+    {
+     "path": "chains.0.certificates.0",
+     "contains": "-----BEGIN CERTIFICATE-----"
+    }
+   ]
+  },
+  {
+   "name": "and reads the same root again",
+   "method": "GET",
+   "path": "https://fulcio.sigstore.dev/api/v2/trustBundle",
+   "status": 200,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "expect": [
+    {
+     "path": "chains.0.certificates.0",
+     "equals": "{root}"
+    }
+   ]
+  },
+  {
+   "name": "A certificate request with no identity token is refused",
+   "method": "POST",
+   "path": "https://fulcio.sigstore.dev/api/v2/signingCert",
+   "status": 400,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "publicKeyRequest": {
+     "publicKey": {
+      "algorithm": "ECDSA",
+      "content": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwSTlg+/LB8wU67XOqA/ZNzidvBGL\nHwxyELAEfcqCEDdH2HCsxBPAUdEtXDN0eiwdLDX7Fg51OdbgKvPHpBDHuQ==\n-----END PUBLIC KEY-----\n"
+     },
+     "proofOfPossession": "MEUCIQ=="
+    }
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 3
+    }
+   ]
+  },
+  {
+   "name": "An identity token that is no JWT is refused",
+   "method": "POST",
+   "path": "https://fulcio.sigstore.dev/api/v2/signingCert",
+   "status": 401,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "credentials": {
+     "oidcIdentityToken": "not-a-jwt"
+    },
+    "publicKeyRequest": {
+     "publicKey": {
+      "algorithm": "ECDSA",
+      "content": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwSTlg+/LB8wU67XOqA/ZNzidvBGL\nHwxyELAEfcqCEDdH2HCsxBPAUdEtXDN0eiwdLDX7Fg51OdbgKvPHpBDHuQ==\n-----END PUBLIC KEY-----\n"
+     },
+     "proofOfPossession": "MEUCIQ=="
+    }
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 16
+    }
+   ]
+  },
+  {
+   "name": "A token from an issuer Fulcio does not trust is refused",
+   "method": "POST",
+   "path": "https://fulcio.sigstore.dev/api/v2/signingCert",
+   "status": 400,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "credentials": {
+     "oidcIdentityToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmV4YW1wbGUudGVzdCIsImF1ZCI6InNpZ3N0b3JlIiwic3ViIjoicmVwbzp2b2x0ZXItYWkvdHdpbjpyZWY6cmVmcy9oZWFkcy9tYWluIiwiaWF0IjoxNzY3NzA4MDAwLCJleHAiOjE3Njc3MDg2MDB9.c2lnbmF0dXJl"
+    },
+    "publicKeyRequest": {
+     "publicKey": {
+      "algorithm": "ECDSA",
+      "content": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwSTlg+/LB8wU67XOqA/ZNzidvBGL\nHwxyELAEfcqCEDdH2HCsxBPAUdEtXDN0eiwdLDX7Fg51OdbgKvPHpBDHuQ==\n-----END PUBLIC KEY-----\n"
+     },
+     "proofOfPossession": "MEUCIQ=="
+    }
+   },
+   "expect": [
+    {
+     "path": "code",
+     "equals": 3
+    }
+   ]
+  },
+  {
+   "name": "npm logs @volter/world-core's signed provenance statement in Rekor, a dsse entry",
+   "method": "POST",
+   "path": "https://rekor.sigstore.dev/api/v1/log/entries",
+   "status": 201,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "apiVersion": "0.0.1",
+    "kind": "dsse",
+    "spec": {
+     "proposedContent": {
+      "envelope": "{\"payloadType\":\"application/vnd.in-toto+json\",\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoicGtnOm5wbS8lNDB2b2x0ZXIvd29ybGQtY29yZUAwLjEuMCIsImRpZ2VzdCI6eyJzaGE1MTIiOiIyNzNlZjgyNTA3MDcwMTQ0YmQ3MzQ2NmE2MTIyYzFjMTQyM2M3OWI4NWZjMDBjNzQ3ZTVhMzA2OTI2NzE0YjM1OTFjYTYxZTRlNWUwOGQ5YzNkNmZjMTJkOGEyODhmY2Y2MmNjNmFlOTQ4MWQ5OTg2YWNlMzBkNjcxMjMzYTU2ZiJ9fV0sInByZWRpY2F0ZVR5cGUiOiJodHRwczovL3Nsc2EuZGV2L3Byb3ZlbmFuY2UvdjEiLCJwcmVkaWNhdGUiOnsiYnVpbGREZWZpbml0aW9uIjp7ImJ1aWxkVHlwZSI6Imh0dHBzOi8vc2xzYS1mcmFtZXdvcmsuZ2l0aHViLmlvL2dpdGh1Yi1hY3Rpb25zLWJ1aWxkdHlwZXMvd29ya2Zsb3cvdjEiLCJleHRlcm5hbFBhcmFtZXRlcnMiOnsid29ya2Zsb3ciOnsicmVmIjoicmVmcy9oZWFkcy9tYWluIiwicmVwb3NpdG9yeSI6Imh0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbiIsInBhdGgiOiIuZ2l0aHViL3dvcmtmbG93cy9wdWJsaXNoLnltbCJ9fX0sInJ1bkRldGFpbHMiOnsiYnVpbGRlciI6eyJpZCI6Imh0dHBzOi8vZ2l0aHViLmNvbS9hY3Rpb25zL3J1bm5lci9naXRodWItaG9zdGVkIn19fX0=\",\"signatures\":[{\"sig\":\"MEUCIQDpmscS9qm5cDQpkl7pkTySxRPyDIK6fPfNGipDasow9AIgBVkifO+3XPtqEEm4UmxmZPe/CzgmMT0UTf3i+R3L5FE=\",\"keyid\":\"\"}]}",
+      "verifiers": [
+       "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFd1NUbGcrL0xCOHdVNjdYT3FBL1pOemlkdkJHTApId3h5RUxBRWZjcUNFRGRIMkhDc3hCUEFVZEV0WEROMGVpd2RMRFg3Rmc1MU9kYmdLdlBIcEJESHVRPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="
+      ]
+     }
+    }
+   },
+   "capture": {
+    "e1": "text:^\\{\"([0-9a-f]{80})\""
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "\"logIndex\":0"
+    },
+    {
+     "path": "",
+     "contains": "\"treeSize\":1"
+    },
+    {
+     "path": "",
+     "contains": "\"signedEntryTimestamp\":"
+    },
+    {
+     "path": "",
+     "contains": "\"checkpoint\":\"rekor.sigstore.dev - "
+    },
+    {
+     "header": "location",
+     "contains": "/api/v1/log/entries/{e1}"
+    }
+   ]
+  },
+  {
+   "name": "Proposing the same entry again is Rekor's conflict, naming the entry",
+   "method": "POST",
+   "path": "https://rekor.sigstore.dev/api/v1/log/entries",
+   "status": 409,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "apiVersion": "0.0.1",
+    "kind": "dsse",
+    "spec": {
+     "proposedContent": {
+      "envelope": "{\"payloadType\":\"application/vnd.in-toto+json\",\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoicGtnOm5wbS8lNDB2b2x0ZXIvd29ybGQtY29yZUAwLjEuMCIsImRpZ2VzdCI6eyJzaGE1MTIiOiIyNzNlZjgyNTA3MDcwMTQ0YmQ3MzQ2NmE2MTIyYzFjMTQyM2M3OWI4NWZjMDBjNzQ3ZTVhMzA2OTI2NzE0YjM1OTFjYTYxZTRlNWUwOGQ5YzNkNmZjMTJkOGEyODhmY2Y2MmNjNmFlOTQ4MWQ5OTg2YWNlMzBkNjcxMjMzYTU2ZiJ9fV0sInByZWRpY2F0ZVR5cGUiOiJodHRwczovL3Nsc2EuZGV2L3Byb3ZlbmFuY2UvdjEiLCJwcmVkaWNhdGUiOnsiYnVpbGREZWZpbml0aW9uIjp7ImJ1aWxkVHlwZSI6Imh0dHBzOi8vc2xzYS1mcmFtZXdvcmsuZ2l0aHViLmlvL2dpdGh1Yi1hY3Rpb25zLWJ1aWxkdHlwZXMvd29ya2Zsb3cvdjEiLCJleHRlcm5hbFBhcmFtZXRlcnMiOnsid29ya2Zsb3ciOnsicmVmIjoicmVmcy9oZWFkcy9tYWluIiwicmVwb3NpdG9yeSI6Imh0dHBzOi8vZ2l0aHViLmNvbS92b2x0ZXItYWkvdHdpbiIsInBhdGgiOiIuZ2l0aHViL3dvcmtmbG93cy9wdWJsaXNoLnltbCJ9fX0sInJ1bkRldGFpbHMiOnsiYnVpbGRlciI6eyJpZCI6Imh0dHBzOi8vZ2l0aHViLmNvbS9hY3Rpb25zL3J1bm5lci9naXRodWItaG9zdGVkIn19fX0=\",\"signatures\":[{\"sig\":\"MEUCIQDpmscS9qm5cDQpkl7pkTySxRPyDIK6fPfNGipDasow9AIgBVkifO+3XPtqEEm4UmxmZPe/CzgmMT0UTf3i+R3L5FE=\",\"keyid\":\"\"}]}",
+      "verifiers": [
+       "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFd1NUbGcrL0xCOHdVNjdYT3FBL1pOemlkdkJHTApId3h5RUxBRWZjcUNFRGRIMkhDc3hCUEFVZEV0WEROMGVpd2RMRFg3Rmc1MU9kYmdLdlBIcEJESHVRPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="
+      ]
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "message",
+     "contains": "{e1}"
+    },
+    {
+     "header": "location",
+     "contains": "{e1}"
+    }
+   ]
+  },
+  {
+   "name": "@volter/world's statement is the log's second entry, its inclusion proof one hash long",
+   "method": "POST",
+   "path": "https://rekor.sigstore.dev/api/v1/log/entries",
+   "status": 201,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "apiVersion": "0.0.1",
+    "kind": "dsse",
+    "spec": {
+     "proposedContent": {
+      "envelope": "{\"payloadType\":\"application/vnd.in-toto+json\",\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoicGtnOm5wbS8lNDB2b2x0ZXIvd29ybGRAMC4xLjAiLCJkaWdlc3QiOnsic2hhNTEyIjoiNDJkZjExY2MwMGI5NTMzNzRjNDRmZDEzYjNmMTMzMjA0MjJkMTlmZTk4MTUxNTlhMmYxMzdlMGI2Y2UzMTc1OTYwM2Y3N2I0OGVhNjY2OGZlYmNkNTQxY2U0MzJjMjAzNGQyODM1NTNkNTIyMTEzMDJlMTgyYjZiYTgzYWJlZjEifX1dLCJwcmVkaWNhdGVUeXBlIjoiaHR0cHM6Ly9zbHNhLmRldi9wcm92ZW5hbmNlL3YxIiwicHJlZGljYXRlIjp7ImJ1aWxkRGVmaW5pdGlvbiI6eyJidWlsZFR5cGUiOiJodHRwczovL3Nsc2EtZnJhbWV3b3JrLmdpdGh1Yi5pby9naXRodWItYWN0aW9ucy1idWlsZHR5cGVzL3dvcmtmbG93L3YxIiwiZXh0ZXJuYWxQYXJhbWV0ZXJzIjp7IndvcmtmbG93Ijp7InJlZiI6InJlZnMvaGVhZHMvbWFpbiIsInJlcG9zaXRvcnkiOiJodHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4iLCJwYXRoIjoiLmdpdGh1Yi93b3JrZmxvd3MvcHVibGlzaC55bWwifX19LCJydW5EZXRhaWxzIjp7ImJ1aWxkZXIiOnsiaWQiOiJodHRwczovL2dpdGh1Yi5jb20vYWN0aW9ucy9ydW5uZXIvZ2l0aHViLWhvc3RlZCJ9fX19\",\"signatures\":[{\"sig\":\"MEYCIQDCyIRXxOU0supWpbNsF8ZO+VIPexk0q0gDjyCLorXbcwIhAJoQUUMO8bRz/fsh07rn8kT0XyuYzqcln2SwdiR8uAF+\",\"keyid\":\"\"}]}",
+      "verifiers": [
+       "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFd1NUbGcrL0xCOHdVNjdYT3FBL1pOemlkdkJHTApId3h5RUxBRWZjcUNFRGRIMkhDc3hCUEFVZEV0WEROMGVpd2RMRFg3Rmc1MU9kYmdLdlBIcEJESHVRPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="
+      ]
+     }
+    }
+   },
+   "capture": {
+    "e2": "text:^\\{\"([0-9a-f]{80})\""
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "\"logIndex\":1"
+    },
+    {
+     "path": "",
+     "contains": "\"treeSize\":2"
+    },
+    {
+     "header": "etag",
+     "equals": "{e2}"
+    }
+   ]
+  },
+  {
+   "name": "An entry of a kind the log does not keep is refused",
+   "method": "POST",
+   "path": "https://rekor.sigstore.dev/api/v1/log/entries",
+   "status": 400,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "apiVersion": "0.0.1",
+    "kind": "rpm",
+    "spec": {}
+   }
+  },
+  {
+   "name": "Tuesday 3 February, 14:00: the second release",
+   "wait": "40320m"
+  },
+  {
+   "name": "@volter/world 0.2.0's statement is the third entry",
+   "method": "POST",
+   "path": "https://rekor.sigstore.dev/api/v1/log/entries",
+   "status": 201,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "body": {
+    "apiVersion": "0.0.1",
+    "kind": "dsse",
+    "spec": {
+     "proposedContent": {
+      "envelope": "{\"payloadType\":\"application/vnd.in-toto+json\",\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoicGtnOm5wbS8lNDB2b2x0ZXIvd29ybGRAMC4yLjAiLCJkaWdlc3QiOnsic2hhNTEyIjoiMjBkYzBkYjJlZTk5NGZiYjViZjgwZmVhMzgwNjJhZDQwZjQ3NmQyYjFlYmU4NTA3ZWJmYWJmOTAzMGE5NDQ4ZGJmMTQ2ZmU2NmVhYzBhZmZiNmQwNTIzZDg3YjE0ZDA2Mzc3NDBmOGQxZDg5ZWYwYTI1YTBkNzRiMWFiOWM1NWYifX1dLCJwcmVkaWNhdGVUeXBlIjoiaHR0cHM6Ly9zbHNhLmRldi9wcm92ZW5hbmNlL3YxIiwicHJlZGljYXRlIjp7ImJ1aWxkRGVmaW5pdGlvbiI6eyJidWlsZFR5cGUiOiJodHRwczovL3Nsc2EtZnJhbWV3b3JrLmdpdGh1Yi5pby9naXRodWItYWN0aW9ucy1idWlsZHR5cGVzL3dvcmtmbG93L3YxIiwiZXh0ZXJuYWxQYXJhbWV0ZXJzIjp7IndvcmtmbG93Ijp7InJlZiI6InJlZnMvaGVhZHMvbWFpbiIsInJlcG9zaXRvcnkiOiJodHRwczovL2dpdGh1Yi5jb20vdm9sdGVyLWFpL3R3aW4iLCJwYXRoIjoiLmdpdGh1Yi93b3JrZmxvd3MvcHVibGlzaC55bWwifX19LCJydW5EZXRhaWxzIjp7ImJ1aWxkZXIiOnsiaWQiOiJodHRwczovL2dpdGh1Yi5jb20vYWN0aW9ucy9ydW5uZXIvZ2l0aHViLWhvc3RlZCJ9fX19\",\"signatures\":[{\"sig\":\"MEQCIEtwttJdNvlcmJPitcVh49a67QapdYPA5T5ghLwZP17EAiB2TZQzMX/rzvxNHoveYP3sUuxpECTEIWI27/u4SWvGdg==\",\"keyid\":\"\"}]}",
+      "verifiers": [
+       "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFd1NUbGcrL0xCOHdVNjdYT3FBL1pOemlkdkJHTApId3h5RUxBRWZjcUNFRGRIMkhDc3hCUEFVZEV0WEROMGVpd2RMRFg3Rmc1MU9kYmdLdlBIcEJESHVRPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="
+      ]
+     }
+    }
+   },
+   "expect": [
+    {
+     "path": "",
+     "contains": "\"logIndex\":2"
+    },
+    {
+     "path": "",
+     "contains": "\"treeSize\":3"
+    },
+    {
+     "path": "",
+     "contains": "\"integratedTime\":1770127200"
+    }
+   ]
+  },
+  {
+   "name": "The trust bundle still names the same root",
+   "method": "GET",
+   "path": "https://fulcio.sigstore.dev/api/v2/trustBundle",
+   "status": 200,
+   "headers": {
+    "user-agent": "sigstore-js/3.1.0 (Node: 22.12.0) make-fetch-happen/14.0.3"
+   },
+   "expect": [
+    {
+     "path": "chains.0.certificates.0",
+     "equals": "{root}"
+    }
+   ]
+  }
+ ]
+}

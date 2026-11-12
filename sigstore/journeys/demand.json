@@ -1,0 +1,41 @@
+{
+  "measured": "read in npm 10.9.8's own source (libnpmpublish/lib/provenance.js and publish.js; sigstore 3 and @sigstore/sign 4.1.1 as npm bundles them: dist/external/fulcio.js, dist/external/rekor.js, dist/witness/tlog/client.js with fetchOnConflict false, config.js's entry type dsse unless legacyCompatibility) and in twin-world's catalog design. The release workflow (volter-ai/twin .github/workflows/publish.yml) holds id-token: write; npm publish --provenance is RFC 0012's designed release.",
+  "applications": [
+    {
+      "name": "npm publish --provenance (npm 10.9.8)",
+      "client": "sigstore 3.1.0 with @sigstore/sign 3.1.0, bundled by npm 10.9.8",
+      "backend": [
+        {
+          "call": "a code-signing certificate for the workflow's GitHub Actions identity token",
+          "operation": "CA_CreateSigningCertificate",
+          "evidence": "npm@10.9.8:node_modules/libnpmpublish/lib/provenance.js:1,196; npm@10.9.8:node_modules/libnpmpublish/lib/publish.js:140; @sigstore/sign@3.1.0:dist/external/fulcio.js:29-30"
+        },
+        {
+          "call": "the signed provenance statement logged as an intoto entry (npm publish sets legacyCompatibility: true)",
+          "operation": "createLogEntry",
+          "evidence": "npm@10.9.8:node_modules/libnpmpublish/lib/provenance.js:1,196; npm@10.9.8:node_modules/libnpmpublish/lib/publish.js:140; @sigstore/sign@3.1.0:dist/external/rekor.js:34-35"
+        }
+      ],
+      "events": []
+    },
+    {
+      "name": "the World's npm registry (twin-packs-p3/npm-registry), checking a publish's provenance",
+      "client": "ctx.vendorFetch",
+      "backend": [
+        {
+          "call": "Fulcio's roots, which the provenance certificate must chain to",
+          "operation": "CA_GetTrustBundle",
+          "evidence": "npm-registry/src/semantics/shared.ts:212"
+        },
+        {
+          "call": "Rekor's log verification key, for the provenance bundle's signed witness",
+          "operation": "getPublicKey",
+          "evidence": "npm-registry/src/semantics/shared.ts:216"
+        }
+      ],
+      "events": [],
+      "commit": "1ffc43bdaab253acde7d356989c1eaaac12a5503"
+    }
+  ],
+  "notDemanded": "Fulcio's configuration; Rekor's log info, proofs, entries by UUID or index, and search (npm does not fetch on conflict, and no verifier here fetches an entry): served before, called by no application here."
+}
