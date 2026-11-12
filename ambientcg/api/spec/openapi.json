@@ -1,0 +1,53 @@
+{
+ "openapi": "3.0.2",
+ "info": {
+  "title": "ambientCG API v2",
+  "version": "2",
+  "description": "ambientCG's v2 API as Volter Editor calls it: /full_json, and the download door its downloadLink values name. Written from https://docs.ambientcg.com/api/v2/full_json/ and the host's answers (spec/SOURCE.md)."
+ },
+ "servers": [{ "url": "https://ambientcg.com" }],
+ "paths": {
+  "/api/v2/full_json": {
+   "get": {
+    "operationId": "fullJson",
+    "summary": "This endpoint is the most comprehensive endpoint. It delivers metadata and downloadable files for all assets in a JSON-format.",
+    "parameters": [
+     { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Search Query. A list of keywords, separated by commas or spaces." },
+     { "name": "type", "in": "query", "schema": { "type": "string" }, "description": "The data type of the assets: 3DModel, Atlas, Brush, Decal, HDRI, Material, PlainTexture, Substance, Terrain. Multiple values can be concatenated using a comma which will be interpreted as a logical OR." },
+     { "name": "method", "in": "query", "schema": { "type": "string" }, "description": "Method used to create the asset." },
+     { "name": "sort", "in": "query", "schema": { "type": "string" }, "description": "Defines the order of the results: Latest, Popular, Alphabet, Downloads. Not setting the parameter, setting it to an empty string or any other value will be interpreted as Latest" },
+     { "name": "id", "in": "query", "schema": { "type": "string" }, "description": "Can be used to select specific assets by their id. Multiple values can be concatenated using a comma. Non-existent ids will be ignored." },
+     { "name": "date", "in": "query", "schema": { "type": "string" }, "description": "Returns all assets released on one specific day." },
+     { "name": "limit", "in": "query", "schema": { "type": "integer" }, "description": "Defines the maximum number of results to be shown." },
+     { "name": "offset", "in": "query", "schema": { "type": "integer" }, "description": "Defines the offset in the results. The offset will only take effect if a limit (see above) has been set." },
+     { "name": "include", "in": "query", "schema": { "type": "string" }, "description": "Controls what data should be returned." }
+    ],
+    "responses": {
+     "200": {
+      "description": "The assets found.",
+      "content": { "application/json": { "schema": { "type": "object", "properties": {
+       "searchQuery": { "type": "object" }, "numberOfResults": { "type": "integer" }, "nextPageHttp": { "type": "string", "nullable": true }, "currentPageHttp": { "type": "string" },
+       "foundAssets": { "type": "array", "items": { "type": "object", "properties": {
+        "assetId": { "type": "string" }, "releaseDate": { "type": "string" }, "dataType": { "type": "string" }, "creationMethod": { "type": "string" }, "downloadCount": { "type": "integer" }, "popularityScore": { "type": "integer" },
+        "tags": { "type": "array", "items": { "type": "string" } }, "displayName": { "type": "string" }, "displayCategory": { "type": "string" }, "shortLink": { "type": "string" },
+        "downloadFolders": { "type": "object", "description": "downloadFolders.default.downloadFiletypeCategories.zip.downloads: each with fullDownloadPath, downloadLink, fileName, size, filetype, attribute, zipContent" },
+        "previewImage": { "type": "object", "description": "a thumbnail url per size and format (64-PNG … 2048-PNG, …-JPG-FFFFFF, …-WEBP)" }
+       } } }
+      } } } }
+     }
+    }
+   }
+  },
+  "/get": {
+   "get": {
+    "operationId": "getDownload",
+    "summary": "A download: a redirect to the file on the download host.",
+    "parameters": [{ "name": "file", "in": "query", "required": true, "schema": { "type": "string" }, "example": "Wood096_1K-JPG.zip" }],
+    "responses": {
+     "302": { "description": "Location: https://acg-download.struffelproductions.com/file/ambientCG-Web/download/<assetId>_<token>/<file>" },
+     "404": { "description": "This download could not be found." }
+    }
+   }
+  }
+ }
+}

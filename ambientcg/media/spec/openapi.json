@@ -1,0 +1,81 @@
+{
+ "openapi": "3.0.2",
+ "info": {
+  "title": "ambientCG files",
+  "version": "1.0.0",
+  "description": "The two Backblaze B2 hosts of the ambientCG-Web bucket: acg-download.struffelproductions.com (the zips a download redirects to) and acg-media.struffelproductions.com (the thumbnails previewImage names). Written from the api lane's answers and Backblaze's b2_download_file_by_name page (spec/SOURCE.md)."
+ },
+ "servers": [
+  {
+   "url": "https://acg-download.struffelproductions.com"
+  },
+  {
+   "url": "https://acg-media.struffelproductions.com"
+  }
+ ],
+ "paths": {
+  "/file/{bucket}/{fileName}": {
+   "get": {
+    "operationId": "downloadFileByName",
+    "summary": "Downloads one file using a bucket name and file name",
+    "description": "To this base, you add file/, your bucket name, a /, and then the name of the file. The file name may itself include more / characters. The response contains the headers Content-Length, Content-Type, X-Bz-File-Name and X-Bz-Content-Sha1.",
+    "parameters": [
+     {
+      "name": "bucket",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "example": "ambientCG-Web"
+     },
+     {
+      "name": "fileName",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "The file name, which may itself include more / characters.",
+      "example": "download/Wood096_0WgvcsZ3/Wood096_1K-JPG.zip"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "The file's bytes.",
+      "content": {
+       "*/*": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "File with such name does not exist.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "code": {
+           "type": "string",
+           "example": "not_found"
+          },
+          "message": {
+           "type": "string"
+          },
+          "status": {
+           "type": "integer"
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}
