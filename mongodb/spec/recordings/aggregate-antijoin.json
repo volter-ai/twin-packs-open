@@ -1,0 +1,166 @@
+{
+  "name": "aggregate-antijoin",
+  "why": "LibreChat's own pipeline shape: match on missing fields, look up another collection by a field, keep those with no match there, sort, limit, project",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "insert": "things",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "r": {
+            "$oid": "0000000000000000000000b1"
+          },
+          "p": {
+            "$numberInt": "1"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "r": {
+            "$oid": "0000000000000000000000b2"
+          },
+          "p": {
+            "$numberInt": "3"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "a",
+          "r": {
+            "$oid": "0000000000000000000000b1"
+          },
+          "p": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "4"
+          },
+          "k": "a",
+          "p": {
+            "$numberInt": "1"
+          },
+          "r": [
+            {
+              "$oid": "0000000000000000000000b3"
+            },
+            {
+              "$oid": "0000000000000000000000b1"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "5"
+          },
+          "k": "c"
+        }
+      ]
+    },
+    {
+      "insert": "owners",
+      "documents": [
+        {
+          "_id": {
+            "$oid": "0000000000000000000000b1"
+          },
+          "name": "one"
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "aggregate": "things",
+    "pipeline": [
+      {
+        "$match": {
+          "gone": {
+            "$exists": false
+          }
+        }
+      },
+      {
+        "$lookup": {
+          "from": "owners",
+          "localField": "r",
+          "foreignField": "_id",
+          "as": "owner"
+        }
+      },
+      {
+        "$match": {
+          "owner": {
+            "$size": {
+              "$numberInt": "0"
+            }
+          }
+        }
+      },
+      {
+        "$sort": {
+          "_id": {
+            "$numberInt": "1"
+          }
+        }
+      },
+      {
+        "$limit": {
+          "$numberInt": "25"
+        }
+      },
+      {
+        "$project": {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "r": {
+            "$numberInt": "1"
+          },
+          "k": {
+            "$numberInt": "1"
+          }
+        }
+      }
+    ],
+    "cursor": {}
+  },
+  "answer": {
+    "cursor": {
+      "firstBatch": [
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "r": {
+            "$oid": "0000000000000000000000b2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "5"
+          },
+          "k": "c"
+        }
+      ],
+      "id": {
+        "$numberLong": "0"
+      },
+      "ns": "ask_aggregate_antijoin.things"
+    },
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {}
+}

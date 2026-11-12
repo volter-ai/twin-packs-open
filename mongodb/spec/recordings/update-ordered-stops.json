@@ -1,0 +1,171 @@
+{
+  "name": "update-ordered-stops",
+  "why": "the same three statements, ordered: what the third does",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "createIndexes": "things",
+      "indexes": [
+        {
+          "key": {
+            "k": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "k_1",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "insert": "things",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a"
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b"
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "update": "things",
+    "updates": [
+      {
+        "q": {
+          "_id": {
+            "$numberInt": "3"
+          }
+        },
+        "u": {
+          "$set": {
+            "k": "c"
+          }
+        },
+        "upsert": true
+      },
+      {
+        "q": {
+          "_id": {
+            "$numberInt": "2"
+          }
+        },
+        "u": {
+          "$set": {
+            "k": "a"
+          }
+        }
+      },
+      {
+        "q": {
+          "_id": {
+            "$numberInt": "4"
+          }
+        },
+        "u": {
+          "$setOnInsert": {
+            "k": "d"
+          }
+        },
+        "upsert": true
+      }
+    ],
+    "ordered": true
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "1"
+    },
+    "writeErrors": [
+      {
+        "index": {
+          "$numberInt": "1"
+        },
+        "code": {
+          "$numberInt": "11000"
+        },
+        "errmsg": "E11000 duplicate key error collection: ask_update_ordered_stops.things index: k_1 dup key: { k: \"a\" }",
+        "keyPattern": {
+          "k": {
+            "$numberInt": "1"
+          }
+        },
+        "keyValue": {
+          "k": "a"
+        }
+      }
+    ],
+    "upserted": [
+      {
+        "index": {
+          "$numberInt": "0"
+        },
+        "_id": {
+          "$numberInt": "3"
+        }
+      }
+    ],
+    "nModified": {
+      "$numberInt": "0"
+    },
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "things": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a"
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b"
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "c"
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        },
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "k": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "k_1",
+          "unique": true
+        }
+      ]
+    }
+  }
+}

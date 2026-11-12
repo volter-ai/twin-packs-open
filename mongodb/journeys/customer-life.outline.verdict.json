@@ -1,0 +1,121 @@
+{
+  "judge": {
+    "agent": "Claude journey judge (Opus)",
+    "name": "Independent journey judge"
+  },
+  "authors": [
+    "yueranyuan",
+    "Aaron (A-001)",
+    "Claude Opus 5.5",
+    "Codex"
+  ],
+  "sha256": "5a678f91df7c3986dd7f5a8e98229a2f0b5cdf5168a9ae3d404e5b0e9c551285",
+  "judgedAt": "2026-10-15",
+  "plausible": true,
+  "rulings": [
+    {
+      "id": "unknown-command-without-cause",
+      "steps": [
+        "act 1"
+      ],
+      "barItem": "a refusal without a cause the story shows",
+      "reason": "Act 1 has the application 'ask for a command the server does not have and is refused'. Nothing LibreChat does sends such a command: journeys/demand.json lists every command of both readings (aggregate, create, createIndexes, delete, distinct, find, findAndModify, insert, listIndexes, update, and the driver's listCollections), none refused as CommandNotFound, and the driver of record, spec/clients/mongodb-6.20.0.tgz (MongoDB's Node driver 6.20.0, Apache-2.0, the spec's stand-in for the vendor's documentation per spec/SOURCE.md) builds no command the server lacks (spec/command-builders.json).",
+      "correction": "Remove the unknown-command refusal from act 1; the connection act ends at the handshake."
+    },
+    {
+      "id": "listindexes-refusal-without-cause",
+      "steps": [
+        "act 2"
+      ],
+      "barItem": "a refusal without a cause the story shows",
+      "reason": "Act 2 has the application 'refused the list of a collection never made'. The one listIndexes in journeys/demand.json is on agentqueuedturns at boot (queuedTurn.ts:16), a collection the same act makes first (demand: 'create on agentqueuedturns ... (boot)'), so LibreChat lists the indexes of a collection that exists and is answered with them.",
+      "correction": "Act 2 lists agentqueuedturns' indexes after making it and is answered with its _id index and its own; drop the refused list of a collection never made."
+    },
+    {
+      "id": "run-of-duplicate-key-refusals",
+      "steps": [
+        "act 3"
+      ],
+      "barItem": "a refusal without a cause the story shows, or the same cause drawn twice; a run of refusals",
+      "reason": "Act 3 draws the duplicate-key refusal (E11000) three times in a row: a repeated _id, a repeated value under a unique index, and two documents lacking a field under a plain unique index. No cause in the story makes LibreChat write a duplicate: its inserts in journeys/demand.json (roles, agentcategories, users, sessions, transactions) each carry a new ObjectId the driver made, and nothing in the outline repeats a user's email or the like.",
+      "correction": "Keep at most one duplicate-key refusal with a cause the story shows (for example a second person signing up with an email already registered, refused under users' unique email index, which LibreChat then reports); drop the others from act 3."
+    },
+    {
+      "id": "no-id-insert-not-sent",
+      "steps": [
+        "act 3"
+      ],
+      "barItem": "vendor behaviour the vendor's documentation contradicts",
+      "reason": "Act 3 says 'A document sent with no _id is given one'. In the driver of record, spec/clients/mongodb-6.20.0.tgz (MongoDB's Node driver 6.20.0, Apache-2.0, the spec's stand-in for the vendor's documentation per spec/SOURCE.md), src/utils.ts:1355-1369 (maybeAddIdToDocuments) gives every inserted document an _id on the client when it has none (forceServerObjectId defaults to false), and mongoose assigns _id on construction; the server never receives a LibreChat document without an _id.",
+      "correction": "Drop 'a document sent with no _id is given one' from act 3; the documents LibreChat writes carry the ObjectId its driver made."
+    },
+    {
+      "id": "find-operator-tour",
+      "steps": [
+        "act 4"
+      ],
+      "barItem": "a feature tour: one call per option of an endpoint in a row",
+      "reason": "Act 4 is a list of find options, one each: 'by a string, by an ObjectId, by several fields, by a field that exists or does not, by a list, by a date range, by an or of several; with a sort, a projection and a limit'. That is the recordings' filter catalogue (decisions.json, find), not what a sign-up and sign-in sends.",
+      "correction": "Write act 4 as the finds a sign-up and sign-in make on users, sessions and roles (the email lookup, the user by _id, the session by its token), each with the filter that act needs."
+    },
+    {
+      "id": "transaction-probe-never-sent",
+      "steps": [
+        "act 7"
+      ],
+      "barItem": "a stated cause that never happens",
+      "reason": "Act 7 has LibreChat 'probe for transactions'. journeys/demand.json, 'measured', says no command of either reading carried a transaction, on the replica set where one was available, and puts the only transaction (the MCP authority read's snapshot transaction) out of this life, as the outline's own last paragraph does.",
+      "correction": "Remove act 7; a transaction is not in this life."
+    }
+  ],
+  "applied": {
+    "from": "12d8ee9a5a84112f59680cbc907e97b212dad441e007e0da2c7c73e0d1712f97",
+    "wasPlausible": false,
+    "steps": [
+      "act 1",
+      "act 2",
+      "act 3",
+      "act 4",
+      "act 7"
+    ],
+    "rulings": [
+      {
+        "steps": [
+          "act 1"
+        ],
+        "why": "Remove the unknown-command refusal from act 1; the connection act ends at the handshake."
+      },
+      {
+        "steps": [
+          "act 2"
+        ],
+        "why": "Act 2 lists agentqueuedturns' indexes after making it and is answered with its _id index and its own; drop the refused list of a collection never made."
+      },
+      {
+        "steps": [
+          "act 3"
+        ],
+        "why": "Keep at most one duplicate-key refusal with a cause the story shows (for example a second person signing up with an email already registered, refused under users' unique email index, which LibreChat then reports); drop the others from act 3."
+      },
+      {
+        "steps": [
+          "act 3"
+        ],
+        "why": "Drop 'a document sent with no _id is given one' from act 3; the documents LibreChat writes carry the ObjectId its driver made."
+      },
+      {
+        "steps": [
+          "act 4"
+        ],
+        "why": "Write act 4 as the finds a sign-up and sign-in make on users, sessions and roles (the email lookup, the user by _id, the session by its token), each with the filter that act needs."
+      },
+      {
+        "steps": [
+          "act 7"
+        ],
+        "why": "Remove act 7; a transaction is not in this life."
+      }
+    ],
+    "how": "The outline is rewritten to the story's seven acts: no unknown-command or missing-collection refusal, the queue's indexes listed after it is made, one duplicate-key refusal with its cause shown (a second sign-up), no no-_id insert, the finds sign-up and sign-in make instead of an operator tour, and no transaction probe."
+  }
+}

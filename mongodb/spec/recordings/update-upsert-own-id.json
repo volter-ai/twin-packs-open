@@ -1,0 +1,141 @@
+{
+  "name": "update-upsert-own-id",
+  "why": "an upsert whose $setOnInsert names the same _id as its filter",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "insert": "things",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "update": "things",
+    "updates": [
+      {
+        "q": {
+          "_id": "primary"
+        },
+        "u": {
+          "$setOnInsert": {
+            "_id": "primary",
+            "n": {
+              "$numberInt": "1"
+            }
+          }
+        },
+        "upsert": true
+      }
+    ]
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "1"
+    },
+    "upserted": [
+      {
+        "index": {
+          "$numberInt": "0"
+        },
+        "_id": "primary"
+      }
+    ],
+    "nModified": {
+      "$numberInt": "0"
+    },
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "things": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        },
+        {
+          "_id": "primary",
+          "n": {
+            "$numberInt": "1"
+          }
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        }
+      ]
+    }
+  }
+}

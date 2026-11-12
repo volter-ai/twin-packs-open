@@ -1,0 +1,2402 @@
+{
+  "vendor": "mongodb",
+  "author": "worker-1",
+  "about": "LibreChat's boot, registration, sign-in, sign-out and a first chat, in its own database as its models send them (journeys/demand.json); every expected answer is the one MongoDB Community 7.0.16 gave (spec/recordings/librechat-story.json).",
+  "steps": [
+    {
+      "name": "The World reads the MongoDB identity manifest before the application boots",
+      "method": "GET",
+      "path": "/twin",
+      "status": 200
+    },
+    {
+      "name": "Recorded librechat-story: the driver connects and asks the server what it is, as its handshake does",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "ismaster": {
+          "$numberInt": "1"
+        },
+        "helloOk": true,
+        "client": {
+          "driver": {
+            "name": "nodejs|Mongoose",
+            "version": "6.20.0|8.12.1"
+          },
+          "platform": "Node.js v20.19.0, LE",
+          "os": {
+            "type": "Linux",
+            "name": "linux",
+            "architecture": "arm64",
+            "version": "6.10.0"
+          }
+        },
+        "compression": [
+          "none"
+        ]
+      },
+      "expect": [
+        {
+          "path": "helloOk",
+          "equals": true
+        },
+        {
+          "path": "ismaster",
+          "equals": true
+        },
+        {
+          "path": "maxBsonObjectSize",
+          "equals": {
+            "$numberInt": "16777216"
+          }
+        },
+        {
+          "path": "maxMessageSizeBytes",
+          "equals": {
+            "$numberInt": "48000000"
+          }
+        },
+        {
+          "path": "maxWriteBatchSize",
+          "equals": {
+            "$numberInt": "100000"
+          }
+        },
+        {
+          "path": "logicalSessionTimeoutMinutes",
+          "equals": {
+            "$numberInt": "30"
+          }
+        },
+        {
+          "path": "minWireVersion",
+          "equals": {
+            "$numberInt": "0"
+          }
+        },
+        {
+          "path": "maxWireVersion",
+          "equals": {
+            "$numberInt": "21"
+          }
+        },
+        {
+          "path": "readOnly",
+          "equals": false
+        },
+        {
+          "path": "ok",
+          "equals": {
+            "$numberDouble": "1.0"
+          }
+        },
+        {
+          "path": "topologyVersion.counter",
+          "equals": {
+            "$numberLong": "0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its users model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "users"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its users model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "users",
+        "indexes": [
+          {
+            "key": {
+              "email": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "email_1_tenantId_1",
+            "background": true,
+            "unique": true
+          },
+          {
+            "key": {
+              "role": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "role_1_tenantId_1",
+            "background": true
+          },
+          {
+            "key": {
+              "openidId": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "openidId_1_tenantId_1",
+            "background": true,
+            "unique": true,
+            "partialFilterExpression": {
+              "openidId": {
+                "$exists": true
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "4"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its sessions model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "sessions"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its sessions model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "sessions",
+        "indexes": [
+          {
+            "key": {
+              "expiration": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "expiration_1",
+            "background": true,
+            "expireAfterSeconds": {
+              "$numberInt": "0"
+            }
+          },
+          {
+            "key": {
+              "user": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "user_1",
+            "background": true
+          },
+          {
+            "key": {
+              "user": {
+                "$numberInt": "1"
+              },
+              "refreshTokenHash": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "user_1_refreshTokenHash_1",
+            "background": true,
+            "unique": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "4"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its roles model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "roles"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its roles model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "roles",
+        "indexes": [
+          {
+            "key": {
+              "name": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "name_1_tenantId_1",
+            "background": true,
+            "unique": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "2"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its agentcategories model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "agentcategories"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its agentcategories model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "agentcategories",
+        "indexes": [
+          {
+            "key": {
+              "value": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "value_1_tenantId_1",
+            "background": true,
+            "unique": true
+          },
+          {
+            "key": {
+              "isActive": {
+                "$numberInt": "1"
+              },
+              "order": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "isActive_1_order_1",
+            "background": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "3"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its balances model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "balances"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its balances model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "balances",
+        "indexes": [
+          {
+            "key": {
+              "user": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "user_1",
+            "background": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "2"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its conversations model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "conversations"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its conversations model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "conversations",
+        "indexes": [
+          {
+            "key": {
+              "conversationId": {
+                "$numberInt": "1"
+              },
+              "user": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "conversationId_1_user_1_tenantId_1",
+            "background": true,
+            "unique": true
+          },
+          {
+            "key": {
+              "user": {
+                "$numberInt": "1"
+              },
+              "_id": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "user_1__id_1",
+            "background": true
+          },
+          {
+            "key": {
+              "expiredAt": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "expiredAt_1",
+            "background": true,
+            "expireAfterSeconds": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "4"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its messages model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "messages"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its messages model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "messages",
+        "indexes": [
+          {
+            "key": {
+              "messageId": {
+                "$numberInt": "1"
+              },
+              "user": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "messageId_1_user_1_tenantId_1",
+            "background": true,
+            "unique": true
+          },
+          {
+            "key": {
+              "conversationId": {
+                "$numberInt": "1"
+              },
+              "user": {
+                "$numberInt": "1"
+              },
+              "createdAt": {
+                "$numberInt": "1"
+              },
+              "_id": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "conversationId_1_user_1_createdAt_1__id_1",
+            "background": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "3"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its transactions model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "transactions"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its transactions model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "transactions",
+        "indexes": [
+          {
+            "key": {
+              "user": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "user_1",
+            "background": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "2"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its aclentries model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "aclentries"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its aclentries model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "aclentries",
+        "indexes": [
+          {
+            "key": {
+              "principalId": {
+                "$numberInt": "1"
+              },
+              "permBits": {
+                "$numberInt": "1"
+              },
+              "resourceType": {
+                "$numberInt": "1"
+              },
+              "tenantId": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "principalId_1_permBits_1_resourceType_1_tenantId_1",
+            "background": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "2"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its agentqueuedturns model makes the collection",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "create": "agentqueuedturns"
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: its agentqueuedturns model makes the collection's indexes",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "createIndexes": "agentqueuedturns",
+        "indexes": [
+          {
+            "key": {
+              "conversationId": {
+                "$numberInt": "1"
+              },
+              "sequence": {
+                "$numberInt": "1"
+              }
+            },
+            "name": "conversationId_1_sequence_1",
+            "background": true,
+            "unique": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "numIndexesBefore": {
+              "$numberInt": "1"
+            },
+            "numIndexesAfter": {
+              "$numberInt": "2"
+            },
+            "createdCollectionAutomatically": false,
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the queue checks its indexes after making them",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "listIndexes": "agentqueuedturns",
+        "cursor": {}
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.agentqueuedturns",
+              "firstBatch": [
+                {
+                  "v": {
+                    "$numberInt": "2"
+                  },
+                  "key": {
+                    "_id": {
+                      "$numberInt": "1"
+                    }
+                  },
+                  "name": "_id_"
+                },
+                {
+                  "v": {
+                    "$numberInt": "2"
+                  },
+                  "key": {
+                    "conversationId": {
+                      "$numberInt": "1"
+                    },
+                    "sequence": {
+                      "$numberInt": "1"
+                    }
+                  },
+                  "name": "conversationId_1_sequence_1",
+                  "background": true,
+                  "unique": true
+                }
+              ]
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: it writes the default roles",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "insert": "roles",
+        "ordered": true,
+        "documents": [
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f702000001"
+            },
+            "name": "ADMIN",
+            "permissions": {
+              "PROMPTS": {
+                "USE": true,
+                "CREATE": true
+              }
+            },
+            "__v": {
+              "$numberInt": "0"
+            }
+          },
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f702000002"
+            },
+            "name": "USER",
+            "permissions": {
+              "PROMPTS": {
+                "USE": true,
+                "CREATE": true
+              }
+            },
+            "__v": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "2"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: it writes the default agent category",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "insert": "agentcategories",
+        "ordered": true,
+        "documents": [
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f703000001"
+            },
+            "value": "general",
+            "label": "General",
+            "description": "General purpose agents",
+            "order": {
+              "$numberInt": "0"
+            },
+            "isActive": true,
+            "custom": false,
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768381200000"
+              }
+            },
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768381200000"
+              }
+            },
+            "__v": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: registration looks for an account with the email",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "find": "users",
+        "filter": {
+          "email": "aya@example.test"
+        },
+        "limit": {
+          "$numberInt": "1"
+        },
+        "singleBatch": true,
+        "batchSize": {
+          "$numberInt": "1"
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "firstBatch": [],
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.users"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: registration counts the users, the first of whom becomes the admin",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "aggregate": "users",
+        "pipeline": [
+          {
+            "$match": {}
+          },
+          {
+            "$group": {
+              "_id": {
+                "$numberInt": "1"
+              },
+              "n": {
+                "$sum": {
+                  "$numberInt": "1"
+                }
+              }
+            }
+          }
+        ],
+        "cursor": {}
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "firstBatch": [],
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.users"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: registration writes the account",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "insert": "users",
+        "ordered": true,
+        "documents": [
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f701000001"
+            },
+            "name": "Aya Park",
+            "username": "aya",
+            "email": "aya@example.test",
+            "emailVerified": true,
+            "password": "$2a$10$abcdefghijklmnopqrstuuJ0nZ0z3V8k4Q2r9e8w7t6y5u4i3o2",
+            "avatar": null,
+            "provider": "local",
+            "role": "ADMIN",
+            "plugins": [],
+            "termsAccepted": false,
+            "backupCodes": [],
+            "refreshToken": [],
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768381200000"
+              }
+            },
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768381200000"
+              }
+            },
+            "__v": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: registration starts the account balance",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "update": "balances",
+        "ordered": true,
+        "updates": [
+          {
+            "q": {
+              "user": {
+                "$oid": "6720a1b0c4d5e6f701000001"
+              }
+            },
+            "u": {
+              "$setOnInsert": {
+                "tokenCredits": {
+                  "$numberInt": "20000"
+                },
+                "autoRefillEnabled": false
+              }
+            },
+            "upsert": true
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "n",
+          "equals": {
+            "$numberInt": "1"
+          }
+        },
+        {
+          "path": "nModified",
+          "equals": {
+            "$numberInt": "0"
+          }
+        },
+        {
+          "path": "ok",
+          "equals": {
+            "$numberDouble": "1.0"
+          }
+        },
+        {
+          "path": "upserted.0.index",
+          "equals": {
+            "$numberInt": "0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: a second sign-up with the same email is refused by the unique email index",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "insert": "users",
+        "ordered": true,
+        "documents": [
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f701000002"
+            },
+            "name": "Aya Park",
+            "username": "aya2",
+            "email": "aya@example.test",
+            "emailVerified": false,
+            "provider": "local",
+            "role": "USER",
+            "plugins": [],
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768381500000"
+              }
+            },
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768381500000"
+              }
+            },
+            "__v": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "0"
+            },
+            "writeErrors": [
+              {
+                "index": {
+                  "$numberInt": "0"
+                },
+                "code": {
+                  "$numberInt": "11000"
+                },
+                "errmsg": "E11000 duplicate key error collection: LibreChat.users index: email_1_tenantId_1 dup key: { email: \"aya@example.test\", tenantId: null }",
+                "keyPattern": {
+                  "email": {
+                    "$numberInt": "1"
+                  },
+                  "tenantId": {
+                    "$numberInt": "1"
+                  }
+                },
+                "keyValue": {
+                  "email": "aya@example.test",
+                  "tenantId": null
+                }
+              }
+            ],
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: sign-in finds the account by email",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "find": "users",
+        "filter": {
+          "email": "aya@example.test"
+        },
+        "limit": {
+          "$numberInt": "1"
+        },
+        "singleBatch": true,
+        "batchSize": {
+          "$numberInt": "1"
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "firstBatch": [
+                {
+                  "_id": {
+                    "$oid": "6720a1b0c4d5e6f701000001"
+                  },
+                  "name": "Aya Park",
+                  "username": "aya",
+                  "email": "aya@example.test",
+                  "emailVerified": true,
+                  "password": "$2a$10$abcdefghijklmnopqrstuuJ0nZ0z3V8k4Q2r9e8w7t6y5u4i3o2",
+                  "avatar": null,
+                  "provider": "local",
+                  "role": "ADMIN",
+                  "plugins": [],
+                  "termsAccepted": false,
+                  "backupCodes": [],
+                  "refreshToken": [],
+                  "createdAt": {
+                    "$date": {
+                      "$numberLong": "1768381200000"
+                    }
+                  },
+                  "updatedAt": {
+                    "$date": {
+                      "$numberLong": "1768381200000"
+                    }
+                  },
+                  "__v": {
+                    "$numberInt": "0"
+                  }
+                }
+              ],
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.users"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: sign-in reads the role the account holds",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "find": "roles",
+        "filter": {
+          "name": "ADMIN"
+        },
+        "limit": {
+          "$numberInt": "1"
+        },
+        "singleBatch": true,
+        "batchSize": {
+          "$numberInt": "1"
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "firstBatch": [
+                {
+                  "_id": {
+                    "$oid": "6720a1b0c4d5e6f702000001"
+                  },
+                  "name": "ADMIN",
+                  "permissions": {
+                    "PROMPTS": {
+                      "USE": true,
+                      "CREATE": true
+                    }
+                  },
+                  "__v": {
+                    "$numberInt": "0"
+                  }
+                }
+              ],
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.roles"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: sign-in opens a session",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "insert": "sessions",
+        "ordered": true,
+        "documents": [
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f704000001"
+            },
+            "expiration": {
+              "$date": {
+                "$numberLong": "1768986300000"
+              }
+            },
+            "user": {
+              "$oid": "6720a1b0c4d5e6f701000001"
+            },
+            "refreshTokenHash": "f2a1c3b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+            "__v": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the first page finds the account by id, without its password",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "find": "users",
+        "filter": {
+          "_id": {
+            "$oid": "6720a1b0c4d5e6f701000001"
+          }
+        },
+        "projection": {
+          "password": {
+            "$numberInt": "0"
+          },
+          "totpSecret": {
+            "$numberInt": "0"
+          }
+        },
+        "limit": {
+          "$numberInt": "1"
+        },
+        "singleBatch": true,
+        "batchSize": {
+          "$numberInt": "1"
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "firstBatch": [
+                {
+                  "_id": {
+                    "$oid": "6720a1b0c4d5e6f701000001"
+                  },
+                  "name": "Aya Park",
+                  "username": "aya",
+                  "email": "aya@example.test",
+                  "emailVerified": true,
+                  "avatar": null,
+                  "provider": "local",
+                  "role": "ADMIN",
+                  "plugins": [],
+                  "termsAccepted": false,
+                  "backupCodes": [],
+                  "refreshToken": [],
+                  "createdAt": {
+                    "$date": {
+                      "$numberLong": "1768381200000"
+                    }
+                  },
+                  "updatedAt": {
+                    "$date": {
+                      "$numberLong": "1768381200000"
+                    }
+                  },
+                  "__v": {
+                    "$numberInt": "0"
+                  }
+                }
+              ],
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.users"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the profile records the last sign-in",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "update": "users",
+        "ordered": true,
+        "updates": [
+          {
+            "q": {
+              "_id": {
+                "$oid": "6720a1b0c4d5e6f701000001"
+              }
+            },
+            "u": {
+              "$set": {
+                "lastLoginAt": {
+                  "$date": {
+                    "$numberLong": "1768381500000"
+                  }
+                },
+                "updatedAt": {
+                  "$date": {
+                    "$numberLong": "1768381500000"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "nModified": {
+              "$numberInt": "1"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: sign-out deletes the session",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "delete": "sessions",
+        "ordered": true,
+        "deletes": [
+          {
+            "q": {
+              "user": {
+                "$oid": "6720a1b0c4d5e6f701000001"
+              },
+              "refreshTokenHash": "f2a1c3b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2"
+            },
+            "limit": {
+              "$numberInt": "1"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the second sign-in opens a new session",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "insert": "sessions",
+        "ordered": true,
+        "documents": [
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f704000002"
+            },
+            "expiration": {
+              "$date": {
+                "$numberLong": "1768987200000"
+              }
+            },
+            "user": {
+              "$oid": "6720a1b0c4d5e6f701000001"
+            },
+            "refreshTokenHash": "0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c",
+            "__v": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the second sign-in records the same last sign-in, which changes nothing",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "update": "users",
+        "ordered": true,
+        "updates": [
+          {
+            "q": {
+              "_id": {
+                "$oid": "6720a1b0c4d5e6f701000001"
+              }
+            },
+            "u": {
+              "$set": {
+                "lastLoginAt": {
+                  "$date": {
+                    "$numberLong": "1768381500000"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "nModified": {
+              "$numberInt": "0"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the chat saves the person's message, asking for the document after",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "findAndModify": "messages",
+        "query": {
+          "messageId": "msg-user-1",
+          "user": "6720a1b0c4d5e6f701000001"
+        },
+        "update": {
+          "$set": {
+            "conversationId": "convo-1",
+            "parentMessageId": "00000000-0000-0000-0000-000000000000",
+            "sender": "User",
+            "text": "Plan a three-day trip to Kyoto",
+            "isCreatedByUser": true,
+            "error": false,
+            "unfinished": false,
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768382400000"
+              }
+            }
+          },
+          "$setOnInsert": {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f707000001"
+            },
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768382400000"
+              }
+            }
+          }
+        },
+        "new": true,
+        "upsert": true
+      },
+      "expect": [
+        {
+          "path": "lastErrorObject",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "updatedExisting": false,
+            "upserted": {
+              "$oid": "6720a1b0c4d5e6f707000001"
+            }
+          }
+        },
+        {
+          "path": "ok",
+          "equals": {
+            "$numberDouble": "1.0"
+          }
+        },
+        {
+          "path": "value._id",
+          "equals": {
+            "$oid": "6720a1b0c4d5e6f707000001"
+          }
+        },
+        {
+          "path": "value.messageId",
+          "equals": "msg-user-1"
+        },
+        {
+          "path": "value.user",
+          "equals": "6720a1b0c4d5e6f701000001"
+        },
+        {
+          "path": "value.conversationId",
+          "equals": "convo-1"
+        },
+        {
+          "path": "value.createdAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382400000"
+            }
+          }
+        },
+        {
+          "path": "value.error",
+          "equals": false
+        },
+        {
+          "path": "value.isCreatedByUser",
+          "equals": true
+        },
+        {
+          "path": "value.parentMessageId",
+          "equals": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "path": "value.sender",
+          "equals": "User"
+        },
+        {
+          "path": "value.text",
+          "equals": "Plan a three-day trip to Kyoto"
+        },
+        {
+          "path": "value.unfinished",
+          "equals": false
+        },
+        {
+          "path": "value.updatedAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382400000"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the chat saves the conversation, asking for the document after",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "findAndModify": "conversations",
+        "query": {
+          "conversationId": "convo-1",
+          "user": "6720a1b0c4d5e6f701000001"
+        },
+        "update": {
+          "$set": {
+            "title": "New Chat",
+            "endpoint": "openAI",
+            "model": "gpt-4.1-mini",
+            "isArchived": false,
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768382400000"
+              }
+            }
+          },
+          "$addToSet": {
+            "messages": {
+              "$oid": "6720a1b0c4d5e6f707000001"
+            }
+          },
+          "$setOnInsert": {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f706000001"
+            },
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768382400000"
+              }
+            }
+          }
+        },
+        "new": true,
+        "upsert": true
+      },
+      "expect": [
+        {
+          "path": "lastErrorObject",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "updatedExisting": false,
+            "upserted": {
+              "$oid": "6720a1b0c4d5e6f706000001"
+            }
+          }
+        },
+        {
+          "path": "ok",
+          "equals": {
+            "$numberDouble": "1.0"
+          }
+        },
+        {
+          "path": "value._id",
+          "equals": {
+            "$oid": "6720a1b0c4d5e6f706000001"
+          }
+        },
+        {
+          "path": "value.user",
+          "equals": "6720a1b0c4d5e6f701000001"
+        },
+        {
+          "path": "value.conversationId",
+          "equals": "convo-1"
+        },
+        {
+          "path": "value.createdAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382400000"
+            }
+          }
+        },
+        {
+          "path": "value.endpoint",
+          "equals": "openAI"
+        },
+        {
+          "path": "value.isArchived",
+          "equals": false
+        },
+        {
+          "path": "value.messages",
+          "equals": [
+            {
+              "$oid": "6720a1b0c4d5e6f707000001"
+            }
+          ]
+        },
+        {
+          "path": "value.model",
+          "equals": "gpt-4.1-mini"
+        },
+        {
+          "path": "value.title",
+          "equals": "New Chat"
+        },
+        {
+          "path": "value.updatedAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382400000"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the chat saves the model's reply, asking for the document after",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "findAndModify": "messages",
+        "query": {
+          "messageId": "msg-ai-1",
+          "user": "6720a1b0c4d5e6f701000001"
+        },
+        "update": {
+          "$set": {
+            "conversationId": "convo-1",
+            "parentMessageId": "msg-user-1",
+            "sender": "GPT-4.1 mini",
+            "text": "Day one: Fushimi Inari at dawn, then Gion in the evening.",
+            "isCreatedByUser": false,
+            "error": false,
+            "unfinished": false,
+            "tokenCount": {
+              "$numberInt": "18"
+            },
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768382460000"
+              }
+            }
+          },
+          "$setOnInsert": {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f707000002"
+            },
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768382460000"
+              }
+            }
+          }
+        },
+        "new": true,
+        "upsert": true
+      },
+      "expect": [
+        {
+          "path": "lastErrorObject",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "updatedExisting": false,
+            "upserted": {
+              "$oid": "6720a1b0c4d5e6f707000002"
+            }
+          }
+        },
+        {
+          "path": "ok",
+          "equals": {
+            "$numberDouble": "1.0"
+          }
+        },
+        {
+          "path": "value._id",
+          "equals": {
+            "$oid": "6720a1b0c4d5e6f707000002"
+          }
+        },
+        {
+          "path": "value.user",
+          "equals": "6720a1b0c4d5e6f701000001"
+        },
+        {
+          "path": "value.messageId",
+          "equals": "msg-ai-1"
+        },
+        {
+          "path": "value.conversationId",
+          "equals": "convo-1"
+        },
+        {
+          "path": "value.createdAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382460000"
+            }
+          }
+        },
+        {
+          "path": "value.error",
+          "equals": false
+        },
+        {
+          "path": "value.isCreatedByUser",
+          "equals": false
+        },
+        {
+          "path": "value.parentMessageId",
+          "equals": "msg-user-1"
+        },
+        {
+          "path": "value.sender",
+          "equals": "GPT-4.1 mini"
+        },
+        {
+          "path": "value.text",
+          "equals": "Day one: Fushimi Inari at dawn, then Gion in the evening."
+        },
+        {
+          "path": "value.tokenCount",
+          "equals": {
+            "$numberInt": "18"
+          }
+        },
+        {
+          "path": "value.unfinished",
+          "equals": false
+        },
+        {
+          "path": "value.updatedAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382460000"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the chat adds the reply to the conversation",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "findAndModify": "conversations",
+        "query": {
+          "conversationId": "convo-1",
+          "user": "6720a1b0c4d5e6f701000001"
+        },
+        "update": {
+          "$set": {
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768382460000"
+              }
+            }
+          },
+          "$addToSet": {
+            "messages": {
+              "$oid": "6720a1b0c4d5e6f707000002"
+            }
+          }
+        },
+        "new": true,
+        "upsert": true
+      },
+      "expect": [
+        {
+          "path": "lastErrorObject",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "updatedExisting": true
+          }
+        },
+        {
+          "path": "ok",
+          "equals": {
+            "$numberDouble": "1.0"
+          }
+        },
+        {
+          "path": "value._id",
+          "equals": {
+            "$oid": "6720a1b0c4d5e6f706000001"
+          }
+        },
+        {
+          "path": "value.user",
+          "equals": "6720a1b0c4d5e6f701000001"
+        },
+        {
+          "path": "value.conversationId",
+          "equals": "convo-1"
+        },
+        {
+          "path": "value.createdAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382400000"
+            }
+          }
+        },
+        {
+          "path": "value.endpoint",
+          "equals": "openAI"
+        },
+        {
+          "path": "value.isArchived",
+          "equals": false
+        },
+        {
+          "path": "value.messages",
+          "equals": [
+            {
+              "$oid": "6720a1b0c4d5e6f707000001"
+            },
+            {
+              "$oid": "6720a1b0c4d5e6f707000002"
+            }
+          ]
+        },
+        {
+          "path": "value.model",
+          "equals": "gpt-4.1-mini"
+        },
+        {
+          "path": "value.title",
+          "equals": "New Chat"
+        },
+        {
+          "path": "value.updatedAt",
+          "equals": {
+            "$date": {
+              "$numberLong": "1768382460000"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the turn's spend is recorded as its two transactions",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "insert": "transactions",
+        "ordered": true,
+        "documents": [
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f708000001"
+            },
+            "user": {
+              "$oid": "6720a1b0c4d5e6f701000001"
+            },
+            "conversationId": "convo-1",
+            "tokenType": "prompt",
+            "model": "gpt-4.1-mini",
+            "context": "message",
+            "rawAmount": {
+              "$numberInt": "-12"
+            },
+            "tokenValue": {
+              "$numberInt": "-4800"
+            },
+            "rate": {
+              "$numberInt": "400"
+            },
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768382460000"
+              }
+            },
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768382460000"
+              }
+            },
+            "__v": {
+              "$numberInt": "0"
+            }
+          },
+          {
+            "_id": {
+              "$oid": "6720a1b0c4d5e6f708000002"
+            },
+            "user": {
+              "$oid": "6720a1b0c4d5e6f701000001"
+            },
+            "conversationId": "convo-1",
+            "tokenType": "completion",
+            "model": "gpt-4.1-mini",
+            "context": "message",
+            "rawAmount": {
+              "$numberInt": "-18"
+            },
+            "tokenValue": {
+              "$numberInt": "-28800"
+            },
+            "rate": {
+              "$numberInt": "1600"
+            },
+            "createdAt": {
+              "$date": {
+                "$numberLong": "1768382460000"
+              }
+            },
+            "updatedAt": {
+              "$date": {
+                "$numberLong": "1768382460000"
+              }
+            },
+            "__v": {
+              "$numberInt": "0"
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "2"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the balance is charged for the turn",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "update": "balances",
+        "ordered": true,
+        "updates": [
+          {
+            "q": {
+              "user": {
+                "$oid": "6720a1b0c4d5e6f701000001"
+              }
+            },
+            "u": {
+              "$inc": {
+                "tokenCredits": {
+                  "$numberInt": "-33600"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "n": {
+              "$numberInt": "1"
+            },
+            "nModified": {
+              "$numberInt": "1"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the conversation list finds the person's conversations, newest first",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "find": "conversations",
+        "filter": {
+          "user": "6720a1b0c4d5e6f701000001",
+          "isArchived": {
+            "$ne": true
+          }
+        },
+        "sort": {
+          "updatedAt": {
+            "$numberInt": "-1"
+          }
+        },
+        "projection": {
+          "conversationId": {
+            "$numberInt": "1"
+          },
+          "title": {
+            "$numberInt": "1"
+          },
+          "endpoint": {
+            "$numberInt": "1"
+          },
+          "model": {
+            "$numberInt": "1"
+          },
+          "updatedAt": {
+            "$numberInt": "1"
+          }
+        },
+        "limit": {
+          "$numberInt": "25"
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "firstBatch": [
+                {
+                  "_id": {
+                    "$oid": "6720a1b0c4d5e6f706000001"
+                  },
+                  "conversationId": "convo-1",
+                  "endpoint": "openAI",
+                  "model": "gpt-4.1-mini",
+                  "title": "New Chat",
+                  "updatedAt": {
+                    "$date": {
+                      "$numberLong": "1768382460000"
+                    }
+                  }
+                }
+              ],
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.conversations"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the conversation reopened reads its messages in order",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "find": "messages",
+        "filter": {
+          "conversationId": "convo-1",
+          "user": "6720a1b0c4d5e6f701000001"
+        },
+        "sort": {
+          "createdAt": {
+            "$numberInt": "1"
+          }
+        },
+        "projection": {
+          "messageId": {
+            "$numberInt": "1"
+          },
+          "parentMessageId": {
+            "$numberInt": "1"
+          },
+          "sender": {
+            "$numberInt": "1"
+          },
+          "text": {
+            "$numberInt": "1"
+          },
+          "isCreatedByUser": {
+            "$numberInt": "1"
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "cursor": {
+              "firstBatch": [
+                {
+                  "_id": {
+                    "$oid": "6720a1b0c4d5e6f707000001"
+                  },
+                  "messageId": "msg-user-1",
+                  "isCreatedByUser": true,
+                  "parentMessageId": "00000000-0000-0000-0000-000000000000",
+                  "sender": "User",
+                  "text": "Plan a three-day trip to Kyoto"
+                },
+                {
+                  "_id": {
+                    "$oid": "6720a1b0c4d5e6f707000002"
+                  },
+                  "messageId": "msg-ai-1",
+                  "isCreatedByUser": false,
+                  "parentMessageId": "msg-user-1",
+                  "sender": "GPT-4.1 mini",
+                  "text": "Day one: Fushimi Inari at dawn, then Gion in the evening."
+                }
+              ],
+              "id": {
+                "$numberLong": "0"
+              },
+              "ns": "LibreChat.messages"
+            },
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: what the person may see is the distinct resources their grants name",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "distinct": "aclentries",
+        "key": "resourceId",
+        "query": {
+          "principalId": {
+            "$oid": "6720a1b0c4d5e6f701000001"
+          },
+          "resourceType": "agent",
+          "permBits": {
+            "$bitsAllSet": {
+              "$numberInt": "1"
+            }
+          }
+        }
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "values": [],
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recorded librechat-story: the application closes and ends its driver session",
+      "link": "app",
+      "database": "LibreChat",
+      "mongo": {
+        "endSessions": [
+          {
+            "id": {
+              "$binary": {
+                "base64": "AAAAAAAAAAAAAAAAAAAAAA==",
+                "subType": "04"
+              }
+            }
+          }
+        ]
+      },
+      "expect": [
+        {
+          "path": "",
+          "equals": {
+            "ok": {
+              "$numberDouble": "1.0"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

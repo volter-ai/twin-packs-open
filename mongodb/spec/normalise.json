@@ -1,0 +1,40 @@
+{
+  "//": "What is NOT compared between the oracle's answer and the twin's, each with its why. A path is dotted from the answer's root; * is any key or index. Nothing is added here to make a case pass: an entry needs a reason that holds for every case.",
+  "masked": [
+    {
+      "path": "$clusterTime",
+      "why": "a replica set's gossip; absent on a standalone, listed so a topology change cannot fail every case"
+    },
+    {
+      "path": "operationTime",
+      "why": "the server's own clock at the moment of the answer"
+    },
+    {
+      "path": "localTime",
+      "why": "hello's clock: the server gives the machine's time, a twin the World's instant"
+    },
+    {
+      "path": "topologyVersion.processId",
+      "why": "hello's process id: random for each server process; a twin derives its own so two Worlds made alike answer alike"
+    },
+    {
+      "path": "cursor.firstBatch.*.info.uuid",
+      "why": "listCollections' uuid of a collection: random for each collection a server makes; a twin derives its own from the database and the collection's name so two Worlds made alike answer alike"
+    },
+    {
+      "path": "connectionId",
+      "why": "the number a server gives each connection it accepts, counted from its own start; a World's connections are its own"
+    },
+    {
+      "path": "upserted.*._id",
+      "why": "the ObjectId a server makes for an upserted document whose filter and update name none: its clock, a value random per process and a counter; a World makes its own"
+    }
+  ],
+  "unordered": [
+    {
+      "path": "value",
+      "when": "lastErrorObject",
+      "why": "a findAndModify answers with a document whose field order an upsert's query plan may have set, when it made the document or earlier: the order in which an upserted document holds its filter's equalities is the plan the server chose, not the request's (the filter's order into an empty collection, alphabetical into one holding documents with no index to use, either where an index serves the filter; measured on mongod 7.0.16, 2026-10-15); each field is compared, not their order. A document an insert wrote keeps its order, which every find still compares"
+    }
+  ]
+}

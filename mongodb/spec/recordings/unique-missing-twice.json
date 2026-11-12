@@ -1,0 +1,104 @@
+{
+  "name": "unique-missing-twice",
+  "why": "a plain unique index, and a second document that lacks the indexed field when one already lacks it",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "createIndexes": "people",
+      "indexes": [
+        {
+          "key": {
+            "g": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "g_1",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "insert": "people",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          }
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "insert": "people",
+    "documents": [
+      {
+        "_id": {
+          "$numberInt": "2"
+        }
+      }
+    ]
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "0"
+    },
+    "writeErrors": [
+      {
+        "index": {
+          "$numberInt": "0"
+        },
+        "code": {
+          "$numberInt": "11000"
+        },
+        "errmsg": "E11000 duplicate key error collection: ask_unique_missing_twice.people index: g_1 dup key: { g: null }",
+        "keyPattern": {
+          "g": {
+            "$numberInt": "1"
+          }
+        },
+        "keyValue": {
+          "g": null
+        }
+      }
+    ],
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "people": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          }
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        },
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "g": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "g_1",
+          "unique": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "name": "update-upsert-duplicate",
+  "why": "an upsert that matches nothing and whose new document repeats a value a unique index already holds",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "createIndexes": "things",
+      "indexes": [
+        {
+          "key": {
+            "k": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "k_1",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "insert": "things",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a"
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "update": "things",
+    "updates": [
+      {
+        "q": {
+          "_id": {
+            "$numberInt": "2"
+          }
+        },
+        "u": {
+          "$set": {
+            "k": "a"
+          }
+        },
+        "upsert": true
+      }
+    ]
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "0"
+    },
+    "writeErrors": [
+      {
+        "index": {
+          "$numberInt": "0"
+        },
+        "code": {
+          "$numberInt": "11000"
+        },
+        "errmsg": "E11000 duplicate key error collection: ask_update_upsert_duplicate.things index: k_1 dup key: { k: \"a\" }",
+        "keyPattern": {
+          "k": {
+            "$numberInt": "1"
+          }
+        },
+        "keyValue": {
+          "k": "a"
+        }
+      }
+    ],
+    "nModified": {
+      "$numberInt": "0"
+    },
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "things": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a"
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        },
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "k": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "k_1",
+          "unique": true
+        }
+      ]
+    }
+  }
+}

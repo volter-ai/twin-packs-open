@@ -1,0 +1,107 @@
+{
+  "name": "insert-unique-violation",
+  "why": "an insert that repeats a value under a unique index",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "createIndexes": "people",
+      "indexes": [
+        {
+          "key": {
+            "email": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "email_1",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "insert": "people",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "email": "ada@world.test"
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "insert": "people",
+    "documents": [
+      {
+        "_id": {
+          "$numberInt": "2"
+        },
+        "email": "ada@world.test"
+      }
+    ]
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "0"
+    },
+    "writeErrors": [
+      {
+        "index": {
+          "$numberInt": "0"
+        },
+        "code": {
+          "$numberInt": "11000"
+        },
+        "errmsg": "E11000 duplicate key error collection: ask_insert_unique_violation.people index: email_1 dup key: { email: \"ada@world.test\" }",
+        "keyPattern": {
+          "email": {
+            "$numberInt": "1"
+          }
+        },
+        "keyValue": {
+          "email": "ada@world.test"
+        }
+      }
+    ],
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "people": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "email": "ada@world.test"
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        },
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "email": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "email_1",
+          "unique": true
+        }
+      ]
+    }
+  }
+}

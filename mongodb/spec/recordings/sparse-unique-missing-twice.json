@@ -1,0 +1,130 @@
+{
+  "name": "sparse-unique-missing-twice",
+  "why": "a sparse unique index, and a second document that lacks the indexed field when one already lacks it; then one that repeats a value",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "createIndexes": "people",
+      "indexes": [
+        {
+          "key": {
+            "g": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "g_1",
+          "unique": true,
+          "sparse": true
+        }
+      ]
+    },
+    {
+      "insert": "people",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "g": "x"
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "insert": "people",
+    "documents": [
+      {
+        "_id": {
+          "$numberInt": "3"
+        }
+      },
+      {
+        "_id": {
+          "$numberInt": "4"
+        },
+        "g": "x"
+      }
+    ],
+    "ordered": true
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "1"
+    },
+    "writeErrors": [
+      {
+        "index": {
+          "$numberInt": "1"
+        },
+        "code": {
+          "$numberInt": "11000"
+        },
+        "errmsg": "E11000 duplicate key error collection: ask_sparse_unique_missing_twice.people index: g_1 dup key: { g: \"x\" }",
+        "keyPattern": {
+          "g": {
+            "$numberInt": "1"
+          }
+        },
+        "keyValue": {
+          "g": "x"
+        }
+      }
+    ],
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "people": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "g": "x"
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          }
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        },
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "g": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "g_1",
+          "unique": true,
+          "sparse": true
+        }
+      ]
+    }
+  }
+}

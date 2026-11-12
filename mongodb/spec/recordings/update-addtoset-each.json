@@ -1,0 +1,158 @@
+{
+  "name": "update-addtoset-each",
+  "why": "an update that adds to a set two ObjectIds, one already in it, on a document that has the array, and on one that has no such field",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "insert": "things",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "update": "things",
+    "updates": [
+      {
+        "q": {
+          "k": "a"
+        },
+        "u": {
+          "$addToSet": {
+            "tags": {
+              "$each": [
+                {
+                  "$oid": "0000000000000000000000a1"
+                },
+                {
+                  "$oid": "0000000000000000000000a2"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "q": {
+          "_id": {
+            "$numberInt": "2"
+          }
+        },
+        "u": {
+          "$addToSet": {
+            "tags": {
+              "$each": [
+                {
+                  "$oid": "0000000000000000000000a3"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "2"
+    },
+    "nModified": {
+      "$numberInt": "2"
+    },
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "things": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            },
+            {
+              "$oid": "0000000000000000000000a2"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a3"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "name": "update-upsert-existing",
+  "why": "an upsert that matches a document: what $setOnInsert does then",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "insert": "things",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "update": "things",
+    "updates": [
+      {
+        "q": {
+          "k": "a"
+        },
+        "u": {
+          "$set": {
+            "at": {
+              "$date": {
+                "$numberLong": "2000"
+              }
+            }
+          },
+          "$setOnInsert": {
+            "made": {
+              "$date": {
+                "$numberLong": "1000"
+              }
+            }
+          }
+        },
+        "upsert": true
+      }
+    ]
+  },
+  "answer": {
+    "n": {
+      "$numberInt": "1"
+    },
+    "nModified": {
+      "$numberInt": "1"
+    },
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "things": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            }
+          ],
+          "at": {
+            "$date": {
+              "$numberLong": "2000"
+            }
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "name": "fam-upsert-new",
+  "why": "a findAndModify that finds nothing and upserts, asking for the document after: what it answers and writes",
+  "oracle": "mongod 7.0.16 standalone",
+  "setup": [
+    {
+      "insert": "things",
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        }
+      ]
+    }
+  ],
+  "ask": {
+    "findAndModify": "things",
+    "query": {
+      "_id": "conv-1",
+      "user": "u1"
+    },
+    "update": {
+      "$set": {
+        "title": "New Chat",
+        "at": {
+          "$date": {
+            "$numberLong": "2000"
+          }
+        }
+      },
+      "$setOnInsert": {
+        "made": {
+          "$date": {
+            "$numberLong": "1000"
+          }
+        }
+      }
+    },
+    "new": true,
+    "upsert": true
+  },
+  "answer": {
+    "lastErrorObject": {
+      "n": {
+        "$numberInt": "1"
+      },
+      "updatedExisting": false,
+      "upserted": "conv-1"
+    },
+    "value": {
+      "_id": "conv-1",
+      "user": "u1",
+      "at": {
+        "$date": {
+          "$numberLong": "2000"
+        }
+      },
+      "made": {
+        "$date": {
+          "$numberLong": "1000"
+        }
+      },
+      "title": "New Chat"
+    },
+    "ok": {
+      "$numberDouble": "1.0"
+    }
+  },
+  "state": {
+    "things": {
+      "documents": [
+        {
+          "_id": {
+            "$numberInt": "1"
+          },
+          "k": "a",
+          "n": {
+            "$numberInt": "1"
+          },
+          "tags": [
+            {
+              "$oid": "0000000000000000000000a1"
+            }
+          ]
+        },
+        {
+          "_id": {
+            "$numberInt": "2"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "2"
+          }
+        },
+        {
+          "_id": {
+            "$numberInt": "3"
+          },
+          "k": "b",
+          "n": {
+            "$numberInt": "3"
+          },
+          "gone": true
+        },
+        {
+          "_id": "conv-1",
+          "user": "u1",
+          "at": {
+            "$date": {
+              "$numberLong": "2000"
+            }
+          },
+          "made": {
+            "$date": {
+              "$numberLong": "1000"
+            }
+          },
+          "title": "New Chat"
+        }
+      ],
+      "indexes": [
+        {
+          "v": {
+            "$numberInt": "2"
+          },
+          "key": {
+            "_id": {
+              "$numberInt": "1"
+            }
+          },
+          "name": "_id_"
+        }
+      ]
+    }
+  }
+}

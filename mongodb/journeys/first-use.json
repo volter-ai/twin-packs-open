@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": "https://github.com/mongodb/node-mongodb-native/blob/v6.20.0/README.md#quick-start",
+  "about": "The official Node driver 6.20.0, as its quick start uses it: connect by a connection string, insert documents, find one, update it, delete one, index a field, and read the retained documents and index back. The connection string is the application's own variable, MONGO_URI, as LibreChat names it. Not measured: authentication, a replica set, transactions, change streams, and any command the pack's decisions list as not served.",
+  "files": {
+    "package.json": "{\n  \"name\": \"mongodb-customer-entry\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"mongodb\": \"6.20.0\"\n  }\n}\n",
+    ".env.example": "MONGO_URI=\n",
+    "workflow.mjs": "import assert from 'node:assert/strict';\nimport { MongoClient } from 'mongodb';\nconst client = new MongoClient(process.env.MONGO_URI);\nawait client.connect();\nconst documents = client.db().collection('documents');\nif (process.argv[2] === 'readback') {\n  const kept = await documents.find({}).sort({ a: 1 }).toArray();\n  assert.deepEqual(kept.map(({ a, b }) => ({ a, b })), [{ a: 1, b: undefined }, { a: 2, b: undefined }, { a: 3, b: 1 }]);\n  assert.equal((await documents.indexes()).some((index) => index.name === 'a_1'), true);\n  console.log(JSON.stringify({ retained: true, documents: kept.length }));\n} else {\n  const inserted = await documents.insertMany([{ a: 1 }, { a: 2 }, { a: 3 }, { a: 4 }]);\n  assert.equal(inserted.insertedCount, 4);\n  assert.deepEqual((await documents.find({ a: 3 }).toArray()).map(({ a }) => a), [3]);\n  const updated = await documents.updateOne({ a: 3 }, { $set: { b: 1 } });\n  assert.equal(updated.matchedCount, 1);\n  assert.equal(updated.modifiedCount, 1);\n  const deleted = await documents.deleteMany({ a: 4 });\n  assert.equal(deleted.deletedCount, 1);\n  assert.equal(await documents.createIndex({ a: 1 }), 'a_1');\n  assert.equal((await documents.find({}).toArray()).length, 3);\n  console.log(JSON.stringify({ inserted: inserted.insertedCount, updated: updated.modifiedCount, deleted: deleted.deletedCount, index: 'a_1' }));\n}\nawait client.close();\n"
+  },
+  "run": [
+    "node",
+    "workflow.mjs"
+  ],
+  "retention": {
+    "readback": [
+      "node",
+      "workflow.mjs",
+      "readback"
+    ]
+  }
+}
