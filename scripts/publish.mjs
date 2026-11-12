@@ -67,7 +67,7 @@ if (upload) {
     assert.equal(Number(process.env.GITHUB_RUN_ATTEMPT), 1, 'A workflow rerun only reads the exact version; never upload again');
     assert.ok(!existsSync(join(directory, 'upload-started.json')), 'An earlier publication started; resolve its exact registry version without another upload');
     assert.ok(!existsSync(join(directory, 'upload-accepted.json')), 'An earlier upload was accepted; confirm it outside CI');
-    const publishing = npmCommand(['publish', '--ignore-scripts', '--access', 'public', '--provenance', '--fetch-retries=0', '--fetch-timeout=12000', archive]);
+    const publishing = npmCommand(['publish', '--ignore-scripts', '--access', 'public', '--tag', 'staged', '--provenance', '--fetch-retries=0', '--fetch-timeout=12000', archive]);
     writeFileSync(join(directory, 'upload-started.json'), JSON.stringify(receipt, null, 2) + '\n');
     const retained = spawnSync('gh', ['release', 'upload', process.env.PACK_PREPARATION_TAG,
       join(directory, 'upload-started.json'), '--repo', process.env.GITHUB_REPOSITORY], { stdio: 'inherit', timeout: 5000 });
