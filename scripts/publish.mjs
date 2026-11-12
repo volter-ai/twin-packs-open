@@ -53,7 +53,8 @@ const receipt = {
   workflowRun: process.env.GITHUB_RUN_ID ?? null, workflowAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
   workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null, workflowSha: process.env.GITHUB_WORKFLOW_SHA ?? null,
   managerAuthorization: process.env.PACK_MANAGER_AUTHORIZATION ?? null,
-  distTag: process.env.PACK_DIST_TAG ?? null,
+  // the tag the upload used: only the registered workflow knows it, never the confirmation outside CI
+  ...(upload ? { distTag: process.env.PACK_DIST_TAG } : {}),
 };
 if (upload) {
   // One read, one bounded upload. Unknown registry responses never mean absence.
